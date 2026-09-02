@@ -1,0 +1,88 @@
+import SwiftUI
+
+/// One place for every colour and metric the game draws with.
+enum Theme {
+    static let court        = Color(red: 0.72, green: 0.47, blue: 0.26)
+    /// Opaque, so it hides the streaks behind it. Matches what the old translucent
+    /// floor composited to, rather than quietly brightening the court.
+    static let courtFloor   = Color(red: 0.29, green: 0.23, blue: 0.18)
+    static let courtLine    = Color.white.opacity(0.28)
+    /// The light that travels down the floor.
+    static let courtSweep   = Color(red: 0.98, green: 0.72, blue: 0.35).opacity(0.22)
+    static let panel        = Color(red: 0.11, green: 0.12, blue: 0.15)
+    static let panelRaised  = Color(red: 0.16, green: 0.17, blue: 0.21)
+    static let ink          = Color(red: 0.93, green: 0.93, blue: 0.95)
+    static let inkDim       = Color(red: 0.58, green: 0.60, blue: 0.66)
+    static let ball         = Color(red: 0.90, green: 0.45, blue: 0.13)
+    static let live         = Color(red: 0.36, green: 0.85, blue: 0.52)
+    static let danger       = Color(red: 0.94, green: 0.35, blue: 0.35)
+
+    static let clockAmber = Color(red: 0.98, green: 0.76, blue: 0.20)
+    static let clockOrange = Color(red: 0.95, green: 0.49, blue: 0.12)
+    static let clockRed = Color(red: 0.91, green: 0.22, blue: 0.20)
+
+    /// Shot clock warms from amber through orange to red as time runs out.
+    static func clockColor(for value: Int?) -> Color {
+        guard let value else { return inkDim }
+        switch value {
+        case ...2:  return clockRed
+        case 3...6: return clockOrange
+        default:    return clockAmber
+        }
+    }
+
+    /// Card type colours, following the sheet's palette. Two departures: Clamps take
+    /// red because Whistles are drawn striped instead, which frees orange for Special
+    /// Move — the one type the sheet never gave a colour — and Intangibles are gold
+    /// rather than the sheet's grey.
+    static func color(for type: CardType) -> Color {
+        switch type {
+        case .pass:         return CardPalette.blue
+        case .move:         return CardPalette.green
+        case .specialMove:  return CardPalette.orange
+        case .clamp:        return CardPalette.red
+        case .whistle:      return Color(white: 0.94)
+        case .gameBreak:    return CardPalette.purple
+        case .intangible:   return CardPalette.gold
+        }
+    }
+
+    /// Whistles are striped rather than a flat colour, matching the referee.
+    static func isStriped(_ type: CardType) -> Bool { type == .whistle }
+
+    /// Defenders a Clamp puts on the floor. Always red, whoever played it.
+    static let defender = Color.red
+
+    static func color(for seat: Seat) -> Color {
+        switch seat {
+        case .north: return Color(red: 0.96, green: 0.80, blue: 0.30)
+        case .east:  return Color(red: 0.35, green: 0.78, blue: 0.62)
+        case .south: return Color(red: 0.36, green: 0.60, blue: 0.94)
+        case .west:  return Color(red: 0.61, green: 0.36, blue: 0.90)
+        }
+    }
+
+    enum Figure {
+        /// Wider than the body. Looking down at someone, the head is the widest thing.
+        static let headDiameter: CGFloat = 32
+        /// Squat: wider than it is tall, which is what a body looks like from above.
+        static let bodyWidth: CGFloat = 28
+        static let bodyHeight: CGFloat = 26
+        /// Negative — the head sits down into the shoulders. That overlap is what reads
+        /// as looking down at the player rather than straight at them.
+        static let gap: CGFloat = -9
+        /// Art pixels per point. Whole numbers only — this is pixel art.
+        /// The sprite fills only about 40% of its frame's width, so a good deal of what
+        /// this multiplies is padding — the visible player is far smaller than the number.
+        static let playerScale: CGFloat = 8
+        /// The sheets were exported at 10 (0.1s per frame in the GIFs); they read
+        /// sluggish at that, so the game runs them faster than they were authored.
+        static let playerFPS: Double = 15
+        /// Empty rows under the character in the sheet: the ink ends four pixels short
+        /// of the frame, which is dead space anything sitting below has to be pulled
+        /// back through.
+        static let spriteFootPadding: CGFloat = 4 / 32
+        /// The sprite is square, so its footprint is just its side.
+        static var height: CGFloat { Sprite.run.frameSize * playerScale }
+    }
+}

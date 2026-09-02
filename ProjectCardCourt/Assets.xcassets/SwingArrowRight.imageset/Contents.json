@@ -1,0 +1,15 @@
+{
+  "images": [
+    {
+      "filename": "CardCourt_SwingArrow_Right.svg",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "preserves-vector-representation": true
+  }
+}

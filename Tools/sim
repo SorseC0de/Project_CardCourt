@@ -1,0 +1,29 @@
+#!/bin/zsh
+# Headless harness over the pure-Swift rules. The game runs with no UI at all,
+# which is what keeps the model honest.
+#
+#   ./sim --test     targeted rules assertions
+#   ./sim --sweep    AI shoot-threshold curve, 400 games per row
+#   ./sim            500-game health check + card usage
+#   ./sim --play 19 in:N p2 sh      step a game, feeding South's moves
+#
+set -e
+HERE="${0:A:h}"
+ROOT="$HERE/.."
+BIN="$HERE/.build/harness"
+mkdir -p "$HERE/.build"
+
+newest=$(find "$ROOT/ProjectCardCourt/Model" "$ROOT/ProjectCardCourt/GameRules.swift" \
+         "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" "$HERE" \
+         -name '*.swift' -newer "$BIN" 2>/dev/null | head -1 || true)
+if [[ ! -x "$BIN" || -n "$newest" ]]; then
+  # Globbed, so a new tool file just needs dropping in here.
+  helpers=("$HERE"/*.swift(N))
+  helpers=("${(@)helpers:#$HERE/main.swift}")
+  swiftc -O -o "$BIN" \
+    "$ROOT/ProjectCardCourt/Model"/*.swift \
+    "$ROOT/ProjectCardCourt/GameRules.swift" \
+    "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" \
+    "${helpers[@]}" "$HERE/main.swift"
+fi
+exec "$BIN" "$@"

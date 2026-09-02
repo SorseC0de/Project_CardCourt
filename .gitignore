@@ -1,0 +1,25 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Built by Tools/sim and Tools/gfx from sources that are tracked
+Tools/.build/
+Tools/gfx/gfxstrip
+Tools/gfx/out/
+
+# Excel's lock files
+~$*.xlsx

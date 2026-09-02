@@ -1,0 +1,322 @@
+import SwiftUI
+
+struct GameView: View {
+    @State private var controller = GameController()
+    @State private var logStyle: LogStyle = .overlay
+    @State private var detail: Card?
+    /// A slotted passive or an active debuff, held up to be read.
+    @State private var inspecting: CardDescriptor?
+    @State private var browsingDiscard = false
+
+    /// The log keeps this height whether it sits in its own band or floats over the court.
+    private let logHeight: CGFloat = 74
+
+    var body: some View {
+        ZStack {
+            Theme.panel.ignoresSafeArea()
+
+            // The court runs to the bottom of the screen; the bag sits straight on it.
+            // Only the court art runs under the home indicator. Everything you touch
+            // stays inside the safe area.
+            VStack(spacing: 0) {
+                statusBar
+                ScoreboardView(state: controller.state, withheld: controller.withheldPoints)
+                logStrip
+                stage
+            }
+            .ignoresSafeArea(edges: .bottom)
+
+            // Anywhere off the raised card puts it back down. Only present while one is
+            // up, so it never swallows a tap on the court.
+            if detail != nil || inspecting != nil {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { detail = nil; inspecting = nil }
+            }
+
+            VStack(spacing: 0) {
+                Spacer()
+                // Takes the band the log used to sit in, just above the hand.
+                HStack(alignment: .bottom) {
+                    IntangibleSlotsView(held: controller.human.intangibles,
+                                        slots: controller.state.rules.intangibleSlots,
+                                        onSelect: { inspecting = $0 })
+                    Spacer()
+                    DebuffSlotsView(cards: controller.human.clamps.map(\.card),
+                                    onSelect: { inspecting = $0 })
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+                ActionBarView(controller: controller, detail: $detail)
+            }
+
+            if let scene = controller.cutscene {
+                ShotCutsceneView(scene: scene)
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+            if let card = inspecting {
+                CardFrontView(descriptor: card, displayWidth: 96, expanded: true)
+                    .scaleEffect(2)
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    .zIndex(9)
+            }
+            #if DEBUG
+            VStack {
+                HStack {
+                    Spacer()
+                    FrameRateView().padding(.trailing, 8)
+                }
+                Spacer()
+            }
+            .zIndex(99)
+            #endif
+
+            if let seat = controller.celebratingThree {
+                ThreeCelebrationView(
+                    seat: seat,
+                    // Roughly that player's PTS cell: the board sits under the status bar,
+                    // rows are even, and PTS is the first stat column.
+                    scoreTarget: CGPoint(x: 78, y: 96 + 24 * CGFloat(scoreRow(of: seat))),
+                    onScoreLands: { controller.threeScoreLanded() },
+                    onFinished: { controller.threeCelebrationFinished() })
+                    .zIndex(13)
+            }
+            if let played = controller.playedCard {
+                PlayedCardView(played: played, width: 210)
+                    .transition(.opacity)
+                    .zIndex(7)
+            }
+            if browsingDiscard {
+                DiscardBrowserView(cards: controller.state.discard,
+                                   onDismiss: { browsingDiscard = false })
+                    .transition(.opacity)
+                    .zIndex(11)
+            }
+            if let scene = controller.reveal {
+                RevealCutsceneView(scene: scene)
+                    .transition(.opacity)
+                    .zIndex(12)
+            }
+            if let scene = controller.turnover {
+                TurnoverCutsceneView(scene: scene)
+                    .transition(.opacity)
+                    .zIndex(15)
+            }
+            if case .gameOver = controller.gate {
+                finalCard.zIndex(20)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: controller.cutscene)
+        .animation(.easeInOut(duration: 0.2), value: controller.turnover)
+        .animation(.easeInOut(duration: 0.2), value: controller.reveal)
+        .onChange(of: controller.gate) { detail = nil }
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: inspecting)
+        .background(keyboardCommands)
+        .task { controller.begin() }
+    }
+
+    /// The rebound plays as its own cutscene in the court's place.
+    /// Hardware-keyboard shortcuts, for testing on the simulator and on iPad.
+    ///
+    /// Zero-sized buttons rather than `onKeyPress`, which needs the view to take focus —
+    /// and focus here would fight the hand's drag gesture for input. A `keyboardShortcut`
+    /// only needs the button to be in the hierarchy.
+    ///
+    /// - **R** starts a fresh game.
+    /// - **H** dumps your hand and deals another (debug builds only).
+    /// - **D** draws a single card (debug builds only).
+    private var keyboardCommands: some View {
+        ZStack {
+            Button("New game") {
+                controller = GameController()
+                controller.begin()
+            }
+            .keyboardShortcut("r", modifiers: [])
+
+            #if DEBUG
+            Button("Reshuffle hand") { controller.debugReshuffleHand() }
+                .keyboardShortcut("h", modifiers: [])
+            Button("Draw") { controller.debugDraw() }
+                .keyboardShortcut("d", modifiers: [])
+            #endif
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+    }
+
+    private var stage: some View {
+        Group {
+            if case .awaitingBid(let shooter) = controller.gate {
+                ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .frame(maxHeight: .infinity)
+                    .transition(.opacity)
+            } else {
+                court
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: controller.gate)
+    }
+
+    /// In every style but .panel the court claims the log's real estate.
+    private var court: some View {
+        CourtView(state: controller.state,
+                  gate: controller.gate,
+                  revealedBids: controller.revealedBids,
+                  settledAt: controller.ballSettledAt,
+                  flight: controller.flight,
+                  flightDuration: controller.flightDuration,
+                  onOpenDiscard: { browsingDiscard = true },
+                  onSelect: { controller.inbound(to: $0) })
+            // Attached to the court itself, so the log stays inside its boundary.
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                ShotBadgeView(shot: controller.state.shot)
+                    .padding(.trailing, 18)
+                    .padding(.top, 6)
+            }
+            .overlay(alignment: .topLeading) {
+                #if DEBUG
+                DebugActionsView(controller: controller)
+                    .padding(.leading, 14)
+                    .padding(.top, 6)
+                #endif
+            }
+    }
+
+    /// Sits under the scoreboard. Overlay drops the solid panel for a scrim so the top
+    /// of the court still reads through it.
+    @ViewBuilder private var logStrip: some View {
+        switch logStyle {
+        case .panel:
+            LogView(lines: controller.log).frame(height: logHeight)
+        case .overlay:
+            ZStack {
+                Rectangle().fill(Color.black.opacity(0.35))
+                LogView(lines: controller.log, showsBackground: false)
+            }
+            .frame(height: logHeight)
+            // Faded at both ends. A mask does not block touches, so this still scrolls.
+            .mask(LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black, location: 0.2),
+                    .init(color: .black, location: 0.85),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top, endPoint: .bottom))
+        case .hidden:
+            EmptyView()
+        }
+    }
+
+    /// Where that seat sits on the scoreboard, which orders by score.
+    private func scoreRow(of seat: Seat) -> Int {
+        let ranked = controller.state.players
+            .sorted { ($0.score, $0.points) > ($1.score, $1.points) }
+        return ranked.firstIndex { $0.seat == seat } ?? 0
+    }
+
+    private var statusBar: some View {
+        HStack {
+            Text("ROUND \(controller.state.round)/\(controller.state.rules.roundsPerGame)")
+                .font(.system(size: 11, weight: .heavy)).tracking(1)
+                .foregroundStyle(Theme.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            shotClock
+
+            HStack(spacing: 8) {
+                Text("HALF \(controller.state.half)")
+                    .font(.system(size: 11, weight: .bold)).tracking(1)
+                    .foregroundStyle(Theme.inkDim)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) { logStyle = logStyle.next }
+                } label: {
+                    Image(systemName: logStyle.symbol)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.inkDim)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel(logStyle.label)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 2)
+        .padding(.bottom, 8)
+        .background(Theme.panel)
+    }
+
+    private var shotClock: some View {
+        let clock = controller.state.shotClock
+        return VStack(spacing: 3) {
+            SevenSegmentClock(value: clock)
+            Text("SHOT CLOCK")
+                .font(.system(size: 7, weight: .bold)).tracking(1.3)
+                .foregroundStyle(Theme.inkDim)
+        }
+        .animation(.easeOut(duration: 0.25), value: clock)
+    }
+
+    private var finalCard: some View {
+        let winners = Rules.winners(of: controller.state)
+        return ZStack {
+            Color.black.opacity(0.88).ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                HStack(spacing: 22) {
+                    ForEach(winners, id: \.self) { seat in
+                        PlayerFigure(seat: seat)
+                            .scaleEffect(2.1, anchor: .bottom)
+                            .frame(width: Theme.Figure.headDiameter * 2.1,
+                                   height: Theme.Figure.height * 2.1, alignment: .bottom)
+                    }
+                }
+
+                Text(verdict(for: winners))
+                    .font(.system(size: 27, weight: .black, design: .rounded))
+                    .foregroundStyle(winners.count == 1 ? Theme.color(for: winners[0]) : Theme.ink)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(2)
+                    .padding(.horizontal, 20)
+
+                ScoreboardView(state: controller.state, highlighted: Set(winners))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal, 26)
+                    .padding(.top, 4)
+
+                Button {
+                    controller = GameController()
+                    controller.begin()
+                } label: {
+                    Text("RUN IT BACK")
+                        .font(.system(size: 14, weight: .black)).tracking(1.2)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 30).padding(.vertical, 12)
+                        .background(Capsule().fill(Theme.ball))
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    /// "You Win!" but "Raheem Wins!", and a shared line when nobody separated.
+    private func verdict(for winners: [Seat]) -> String {
+        guard let first = winners.first else { return "FINAL" }
+        guard winners.count == 1 else {
+            return winners.map(\.playerName).joined(separator: " & ") + " Tie!"
+        }
+        return "\(first.playerName) \(first.verb("Wins", "Win"))!"
+    }
+}
+
+#Preview { GameView() }

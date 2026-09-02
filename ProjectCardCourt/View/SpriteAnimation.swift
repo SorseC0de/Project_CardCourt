@@ -1,0 +1,89 @@
+import SwiftUI
+
+/// One of the player animations, sliced out of its vertical strip.
+enum Sprite: String, CaseIterable {
+    case catchBall = "Player_Catch"
+    case dribble = "Player_Dribble"
+    case run = "Player_Run"
+    case runLook = "Player_Run_Look"
+    case shoot = "Player_Shoot"
+    case sparkleBurst = "SparkleBurst"
+
+    var frames: Int {
+        switch self {
+        case .shoot:        return 13
+        case .sparkleBurst: return 14
+        default:            return 16
+        }
+    }
+
+    /// Source frame size. Everything scales off this, so the art stays on whole pixels.
+    var frameSize: CGFloat {
+        switch self {
+        case .shoot:        return 48
+        case .sparkleBurst: return 64
+        default:            return 32
+        }
+    }
+}
+
+/// Plays a strip by offsetting it a whole frame at a time behind a clip.
+///
+/// One `TimelineView` per sprite; the frame index is arithmetic off the clock rather than
+/// stored state, so nothing accumulates drift and nothing is written per frame.
+struct SpriteAnimation: View {
+    let sprite: Sprite
+    /// Art pixels per point. Whole numbers only — this is pixel art.
+    var scale: CGFloat = 2
+    var fps: Double = 10
+    var isPlaying = true
+    /// Held on this frame when not playing.
+    var restFrame = 0
+    /// Runs once and stops on the last frame, rather than looping.
+    var playsOnce = false
+    /// Cut to every so often for a single pass, then back. The base sprite keeps looping
+    /// the rest of the time — an idle player never stops moving, they just glance about
+    /// now and then.
+    var alternate: Sprite?
+    var alternateEvery: TimeInterval = 5
+    /// Staggers the alternate, so four players do not glance in unison.
+    var phase: TimeInterval = 0
+    /// When a one-shot started. Frames are counted from here.
+    var startedAt: Date?
+
+    private var side: CGFloat { sprite.frameSize * scale }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / fps, paused: !isPlaying)) { timeline in
+            let showing = current(at: timeline.date)
+            let index = isPlaying ? frame(of: showing, at: timeline.date) : restFrame
+            Image(showing.rawValue)
+                .interpolation(.none)
+                .resizable()
+                .frame(width: side, height: side * CGFloat(showing.frames))
+                .offset(y: -CGFloat(index) * side)
+                .frame(width: side, height: side, alignment: .top)
+                .clipped()
+        }
+        .frame(width: side, height: side)
+    }
+
+    /// Which sheet is on screen right now.
+    private func current(at date: Date) -> Sprite {
+        guard let alternate else { return sprite }
+        let run = Double(alternate.frames) / fps
+        let cycle = (date.timeIntervalSinceReferenceDate + phase)
+            .truncatingRemainder(dividingBy: alternateEvery)
+        return cycle < run ? alternate : sprite
+    }
+
+    private func frame(of showing: Sprite, at date: Date) -> Int {
+        guard playsOnce else {
+            let elapsed = date.timeIntervalSinceReferenceDate * fps
+            return Int(elapsed.rounded(.down)) % showing.frames
+        }
+        guard let startedAt else { return 0 }
+        let elapsed = date.timeIntervalSince(startedAt) * fps
+        return min(showing.frames - 1, max(0, Int(elapsed.rounded(.down))))
+    }
+}

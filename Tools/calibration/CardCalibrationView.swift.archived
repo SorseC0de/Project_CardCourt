@@ -1,0 +1,194 @@
+import SwiftUI
+
+/// The card back at size with the drawn front on top of it, and a slider for everything
+/// still being eyeballed. Match by eye, read the numbers off, paste them into CardTuning.
+struct CardCalibrationView: View {
+    @State private var tuning = CardTuning.shared
+    @State private var showFront = true
+    @State private var frontOpacity: Double = 0.5
+    @State private var type: CardType = .pass
+
+    @State private var sample = 0
+    private var card: CardDescriptor {
+        [CardLibrary.swingRight, CardLibrary.swingLeft, CardLibrary.skipPass,
+         CardLibrary.dribble, CardLibrary.contest][sample]
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = min(geo.size.width - 32, (geo.size.height - 300) * CardMetrics.aspect)
+            VStack(spacing: 10) {
+                ZStack {
+                    // Scaled so the printed card inside the artboard lines up with the
+                    // rectangle drawn on top of it.
+                    Image("CardBackFull")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: width * CardMetrics.backImageScale)
+
+                    if showFront {
+                        CardFrontView(descriptor: sampled, width: width, tuning: tuning)
+                            .opacity(frontOpacity)
+                    }
+                }
+                .frame(height: width / CardMetrics.aspect)
+
+                controls
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(16)
+        }
+        .background(Color(white: 0.12).ignoresSafeArea())
+    }
+
+    private var sampled: CardDescriptor {
+        CardDescriptor(id: card.id, name: card.name, type: type, effect: card.effect,
+                       numberInDeck: card.numberInDeck, passTarget: card.passTarget,
+                       shotDelta: card.shotDelta)
+    }
+
+    private var controls: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Toggle("Front", isOn: $showFront).tint(CardPalette.blue)
+                    Picker("", selection: $type) {
+                        ForEach([CardType.pass, .move, .clamp, .whistle, .intangible,
+                                 .gameBreak], id: \.self) {
+                            Text($0.rawValue).tag($0)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Stepper("card \(card.name)", value: $sample, in: 0...5)
+                        .font(.system(size: 10))
+                }
+                percent("front opacity", $frontOpacity)
+
+                section("CARD")
+                units("corner", $tuning.cornerFraction, 0...120, .width)
+
+                section("STROKE")
+                units("stroke", $tuning.strokeFraction, 0...40, .width)
+                units("inset", $tuning.strokeInsetFraction, 0...90, .width)
+                units("radius", $tuning.strokeCornerFraction, 0...120, .width)
+
+                section("TEXT OVERLAY  (per type: \(type.rawValue))")
+                blendPicker
+                HStack {
+                    Text("tint").font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    Picker("", selection: Binding(
+                        get: { tuning.tint(for: type) },
+                        set: { tuning.overlayTints[type] = $0 })) {
+                        ForEach(OverlayTint.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                percent("opacity", Binding(
+                    get: { tuning.opacity(for: type) },
+                    set: { tuning.overlayOpacities[type] = $0 }))
+                units("width", $tuning.textOverlayWidthFraction, 180...592, .width)
+                units("bottom", $tuning.textOverlayBottomFraction, 0...160, .height)
+
+                section("NAME")
+                units("plate Y", $tuning.nameOverlayYFraction, 0...400, .height)
+                units("plate width", $tuning.nameOverlayWidthFraction, 240...710, .width)
+                units("text size", $tuning.nameSizeFraction, 18...140, .width)
+                units("text Y", $tuning.nameTextYFraction, -80...80, .height)
+                percent("cap height", bind(\.nameCapHeight))
+                degrees("rotation", bind(\.nameRotation))
+
+                section("SHOT BADGE")
+                units("ball size", $tuning.ballSizeFraction, 60...420, .width)
+                units("ball X", $tuning.ballCentreXFraction, 0...592, .width)
+                units("ball Y", $tuning.ballCentreYFraction, 0...792, .height)
+                units("ball shadow", $tuning.ballShadowFraction, 0...20, .width)
+                units("text size", $tuning.badgeSizeFraction, 20...140, .width)
+                units("text shadow", $tuning.badgeShadowFraction, 0...20, .width)
+
+                section("ARROW  (swing cards)")
+                units("size", $tuning.arrowSizeFraction, 120...592, .width)
+                units("Y", $tuning.arrowCentreYFraction, 0...792, .height)
+                units("shadow", $tuning.arrowShadowOffsetFraction, 0...60, .width)
+                percent("back-pass scale", bind(\.backPassArrowScale))
+
+                section("WHISTLE STRIPES")
+                units("band", $tuning.whistleBandFraction, 0...320, .height)
+                percent("gloss", bind(\.whistleGlossFraction))
+            }
+            .foregroundStyle(.white)
+            .padding(.bottom, 20)
+        }
+    }
+
+    private func section(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 9, weight: .black)).tracking(1.4)
+            .foregroundStyle(CardPalette.gold)
+            .padding(.top, 10)
+    }
+
+    private var blendPicker: some View {
+        HStack {
+            Text("blend").font(.system(size: 11, weight: .semibold, design: .monospaced))
+            Picker("", selection: Binding(
+                get: { tuning.blend(for: type) },
+                set: { tuning.overlayBlends[type] = $0 })) {
+                ForEach(Array(CardCalibrationView.blends.enumerated()), id: \.offset) {
+                    Text($0.element.1).tag($0.element.0)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+
+    /// Bridges a CGFloat on the tuning object to the Double a Slider wants.
+    private func bind(_ path: ReferenceWritableKeyPath<CardTuning, CGFloat>) -> Binding<Double> {
+        Binding(get: { Double(tuning[keyPath: path]) },
+                set: { tuning[keyPath: path] = CGFloat($0) })
+    }
+
+    private func bind(_ path: ReferenceWritableKeyPath<CardTuning, Double>) -> Binding<Double> {
+        Binding(get: { tuning[keyPath: path] }, set: { tuning[keyPath: path] = $0 })
+    }
+
+    private func degrees(_ label: String, _ value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("\(label)  \(String(format: "%.1f", value.wrappedValue))°")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            Slider(value: value, in: -20...20, step: 0.5).tint(CardPalette.gold)
+        }
+    }
+
+    static let blends: [(BlendMode, String)] = [
+        (.luminosity, "luminosity"), (.hardLight, "hard light"), (.softLight, "soft light"),
+        (.overlay, "overlay"), (.multiply, "multiply"), (.color, "color"),
+        (.saturation, "saturation"), (.colorBurn, "color burn"), (.plusDarker, "plus darker"),
+        (.normal, "normal"),
+    ]
+
+    private enum Axis { case width, height }
+
+    /// Sliders speak in the card back's own units, so a stroke of 4 here is the 4 you
+    /// drew in Affinity — not 0.0068 of a width.
+    private func units(_ label: String, _ fraction: Binding<CGFloat>,
+                       _ range: ClosedRange<CGFloat>, _ axis: Axis) -> some View {
+        let span = axis == .width ? CardMetrics.shape.width : CardMetrics.shape.height
+        let value = Binding<Double>(
+            get: { Double(fraction.wrappedValue * span) },
+            set: { fraction.wrappedValue = CGFloat($0) / span })
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("\(label)  \(Int(value.wrappedValue.rounded()))")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            Slider(value: value, in: Double(range.lowerBound)...Double(range.upperBound), step: 1)
+                .tint(CardPalette.gold)
+        }
+    }
+
+    private func percent(_ label: String, _ value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("\(label)  \(Int((value.wrappedValue * 100).rounded()))%")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            Slider(value: value, in: 0...1, step: 0.05).tint(CardPalette.gold)
+        }
+    }
+}
