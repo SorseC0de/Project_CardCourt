@@ -8,11 +8,21 @@ enum CardPalette {
     static let orange = Color(red: 0xEF / 255, green: 0x4E / 255, blue: 0x22 / 255)
     static let red    = Color(red: 0xE4 / 255, green: 0x19 / 255, blue: 0x5F / 255)
     static let gray   = Color(red: 0x91 / 255, green: 0x9C / 255, blue: 0xB8 / 255)
-    /// Not on the printed cards, but the sheet assigns these two types their own.
-    static let green  = Color(red: 0x1C / 255, green: 0xB0 / 255, blue: 0x00 / 255)
-    /// The sheet's lavender sat far lighter than everything else. Same hue, dropped to
-    /// the lightness the rest of the palette lives at.
-    static let purple = Color(red: 0x8B / 255, green: 0x1F / 255, blue: 0xD6 / 255)
+    /// Not on the printed cards. Placed by measuring the six above rather than picked:
+    /// every one of those sits in a chroma band of 0.137 to 0.228 in OKLCH, so these were
+    /// built at a chosen hue and dropped into the same band. Anything outside it reads as
+    /// borrowed from another palette, which is what the old lavender did.
+    /// The not-black black. Three constraints meeting, and every neighbour fails one:
+    /// **not desaturated enough to be greyscale, not blue enough to compete with navy,
+    /// and not too dark.**
+    ///
+    /// Navy's hue turned toward red to 279 at a sixth of the chroma the gamut allows, at
+    /// L 0.32. Drop the chroma further and it goes grey; raise it and navy has a rival;
+    /// darken it and it stops being a surface. Not a ground — navy keeps that.
+    static let black   = Color(red: 0x2F / 255, green: 0x31 / 255, blue: 0x43 / 255)
+    static let green   = Color(red: 0x2E / 255, green: 0xA9 / 255, blue: 0x3E / 255)
+    static let magenta = Color(red: 0xD3 / 255, green: 0x4B / 255, blue: 0xD2 / 255)
+    static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///

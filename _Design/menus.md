@@ -24,6 +24,19 @@ so are its menus.
 
 ## The palette
 
+### Where it comes from
+
+Two things at once, which is why it holds together: a Honda Summer Event ad — deep navy
+ground, gold, magenta accents — and the Golden State Warriors' City Edition colours from
+last season. The second one is the part that matters. This is a basketball game made by a
+Warriors fan and the palette is not neutral about that.
+
+Worth knowing before adding a colour: matching the numbers is necessary but not sufficient.
+A colour can sit perfectly in the chroma band and still be wrong because it is not a colour
+those two sources would ever have used.
+
+### The rule
+
 Six colours, and no others: **navy, blue, orange, gold, grey, red**. Green and purple exist
 in `CardPalette` for two card types and are not UI colours.
 
@@ -38,6 +51,41 @@ Six is enough because of how they divide up, and the division is the whole syste
   each chair gets one. `Chrome.color(for:)` owns that map.
 
 Strokes are heavy. The weight is the style; a thin line reads as a web page.
+
+### Expanding it
+
+Green, magenta and purple were added by measuring rather than picking. Every one of the six
+sits at 91–96% of the most chroma sRGB can hold at its own lightness and hue — but that
+rule does not transfer, because green and magenta can go far further in sRGB and 93% of
+their maximum is neon. What transfers is the **chroma band it produces: 0.137 to 0.228 in
+OKLCH, mean 0.182**. A new colour is built at its hue, dropped into that band, and given a
+lightness near the family's 0.647.
+
+- `green` `#2EA93E` — mid band, sits with blue and gold
+- `magenta` `#D34BD2` — top of the band, at red's own chroma
+- `purple` `#A45FFF` — likewise
+
+The old `purple` was `#8B1FD6`, chroma 0.248 and lightness 0.517 — above the band and below
+it respectively, which is exactly why it never looked like it belonged.
+
+### The not-black black
+
+`black` `#2F3143`. Not a UI ground — navy keeps the lobby. This is for dark surfaces that
+have to sit *beside* navy rather than under it, Intangibles first among them.
+
+Three constraints hold it in place, and each neighbour on the grid fails one of them:
+
+- **Not desaturated enough to be greyscale.** Drop the chroma further and it leaves the
+  palette entirely and becomes a neutral, which belongs to no one.
+- **Not blue enough to compete with navy.** Raise the chroma, or turn the hue back toward
+  263, and there are suddenly two navies on screen arguing.
+- **Not too dark.** Take the lightness down and it stops being a surface things sit on and
+  becomes a hole in the screen.
+
+Navy's hue turned toward red to 279, chroma a sixth of what the gamut allows, L 0.32 — an
+OKLab distance of 0.061 from navy. Worth knowing that lightness and separation-from-navy
+pull directly against each other: every step lighter closes the gap, so chroma is the only
+lever that buys distance without going darker.
 
 ## The kit
 
