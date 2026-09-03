@@ -266,6 +266,13 @@ final class GameController {
     }
 
     private(set) var state: GameState
+    /// What the board is showing, which lags what the rules have already decided.
+    ///
+    /// The rules run in full before a single frame of the play is drawn, so a card that
+    /// moves SHOT had already moved it before the card itself was held up — the number
+    /// changed and then the reason for it appeared. This catches up on the play's own
+    /// beat, like every line in the log.
+    private(set) var shownShot = 0
     private(set) var log: [LogLine] = []
     private(set) var gate: Gate = .thinking
     private(set) var cutscene: ShotCutscene?
@@ -529,10 +536,35 @@ final class GameController {
     /// Runs a card across the court for each draw, and blocks until they have all landed.
     private func flyDraws(in events: [GameEvent], each duration: Double) async {
         for case .drew(let seat, _) in events {
-            flightDuration = duration
-            flight = DrawFlight(seat: seat)
-            try? await Task.sleep(for: .seconds(duration))
+            await fly(to: seat, over: duration)
             if Task.isCancelled { return }
+        }
+        flight = nil
+    }
+
+    private func fly(to seat: Seat, over duration: Double) async {
+        flightDuration = duration
+        flight = DrawFlight(seat: seat)
+        try? await Task.sleep(for: .seconds(duration))
+    }
+
+    /// Cards flying in and cards turning face up, in the order they actually happened.
+    ///
+    /// These used to be two passes — every draw, then every reveal — which told the story
+    /// backwards for any card whose whole effect is drawing. MVP Vote filled a hand and
+    /// only then said it was MVP Vote, by which point there was nothing left to explain.
+    private func playDrawsAndReveals(in events: [GameEvent]) async {
+        for event in events {
+            if Task.isCancelled { return }
+            switch event {
+            case .drew(let seat, _):
+                await fly(to: seat, over: Pacing.drawFlight)
+            case .gameBreakRevealed, .intangibleRevealed:
+                flight = nil
+                await showReveals(in: [event])
+            default:
+                break
+            }
         }
         flight = nil
     }
@@ -1016,12 +1048,12 @@ final class GameController {
             await showPlayedCard(in: events)
         }
         release(.play, from: &ledger)
+        shownShot = state.shot
         await showWhistle(in: events)
         release(.whistle, from: &ledger)
         stampSettled(events)
-        await flyDraws(in: events, each: Pacing.drawFlight)
+        await playDrawsAndReveals(in: events)
         release(.draw, from: &ledger)
-        await showReveals(in: events)
         release(.reveal, from: &ledger)
 
         if let scene = ShotCutscene(events: events, defenders: defenders) {
@@ -1041,6 +1073,7 @@ final class GameController {
     }
 
     private func record(_ events: [GameEvent]) {
+        shownShot = state.shot
         DevLog.record(events)
         for event in events where event.isLoggable {
             log.append(LogLine(text: event.logLine, kind: kind(of: event)))

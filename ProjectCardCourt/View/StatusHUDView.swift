@@ -79,6 +79,10 @@ enum DeckReadout: String, CaseIterable {
 /// hard blue drop so the row reads as one instrument.
 struct StatusHUDView: View {
     let state: GameState
+    /// What the board should read, which is not always what the rules have already
+    /// decided — see `GameController.shownShot`. Defaults to the live number for anything
+    /// drawn outside a beat.
+    var shot: Int?
     var ballSize: CGFloat = 58
 
     /// Which way the count is arranged against the deck. A setting, so it is kept.
@@ -99,7 +103,7 @@ struct StatusHUDView: View {
             HStack(alignment: .center, spacing: ballSize * 0.16) {
                 if state.whistlesSilenced { silenced }
                 if !state.armedWhistles.isEmpty { watching }
-                ShotBadgeView(shot: state.shot, ballSize: ballSize)
+                ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize)
             }
             remaining
         }

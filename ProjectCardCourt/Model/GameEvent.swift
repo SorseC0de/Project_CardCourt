@@ -83,7 +83,9 @@ enum GameEvent: Hashable, Codable {
         case .comboLanded(let seat, let card, let bonus):
             return "\(seat.playerName) \(seat.verb("strings", "string")) it together — \(card.name) +\(bonus)% bonus."
         case .gameBreakRevealed(let seat, let card):
-            return "\(seat.playerName) \(seat.verb("draws", "draw")) \(card.name)!"
+            // Named as the event it is, with whoever turned it up in brackets after. A
+            // Game Break is not something a player did, so the line does not read like it.
+            return "Game Break! - \(card.name) (\(seat.playerName))"
         case .intangibleRevealed(let seat, let card):
             return "\(seat.playerName) \(seat.verb("reveals", "reveal")) \(card.name)."
         case .intangibleDisplaced(let seat, let card):

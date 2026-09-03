@@ -237,7 +237,7 @@ struct GameView: View {
             // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
-                StatusHUDView(state: controller.state)
+                StatusHUDView(state: controller.state, shot: controller.shownShot)
                     .padding(.trailing, 18)
                     .padding(.top, 6)
             }
