@@ -4,6 +4,7 @@ import SwiftUI
 /// legible before it is ever reached.
 struct IntangibleSlotsView: View {
     let held: [CardDescriptor]
+    var dormant: Set<String> = []
     let slots: Int
     var onSelect: (CardDescriptor) -> Void = { _ in }
 
@@ -44,6 +45,7 @@ struct IntangibleSlotsView: View {
             }
         }
         .frame(width: 30, height: 40)
+        .grayscale(card.map { dormant.contains($0.id) } ?? false ? 1 : 0)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: card)
     }
 }

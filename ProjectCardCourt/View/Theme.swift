@@ -5,7 +5,10 @@ enum Theme {
     static let court        = Color(red: 0.72, green: 0.47, blue: 0.26)
     /// Opaque, so it hides the streaks behind it. Matches what the old translucent
     /// floor composited to, rather than quietly brightening the court.
-    static let courtFloor   = Color(red: 0.29, green: 0.23, blue: 0.18)
+    /// Sampled from the bottom of Swissh Court, so the drawn floor and the painted one
+    /// are the same brown. Its background is a gradient running up from this into near
+    /// black, and the corners clamp to the bottom stop — rgb(133, 97, 71).
+    static let courtFloor   = Color(red: 133 / 255, green: 97 / 255, blue: 71 / 255)
     static let courtLine    = Color.white.opacity(0.28)
     /// The light that travels down the floor.
     static let courtSweep   = Color(red: 0.98, green: 0.72, blue: 0.35).opacity(0.22)
@@ -78,6 +81,8 @@ enum Theme {
         /// The sheets were exported at 10 (0.1s per frame in the GIFs); they read
         /// sluggish at that, so the game runs them faster than they were authored.
         static let playerFPS: Double = 15
+        /// The shot runs slower than play does — it is the beat the scene is built on.
+        static let shootFPS: Double = 8
         /// Empty rows under the character in the sheet: the ink ends four pixels short
         /// of the frame, which is dead space anything sitting below has to be pulled
         /// back through.

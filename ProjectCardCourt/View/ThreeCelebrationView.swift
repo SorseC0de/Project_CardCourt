@@ -32,6 +32,7 @@ struct ThreeCelebrationView: View {
                             .scaledToFit()
                             .frame(width: side, height: side)
                             .foregroundStyle(handGradient)
+                            .drawingGroup()
                             .scaleEffect(arrived[layer] ? 1 : 0.1)
                             .opacity(arrived[layer] ? 1 : 0)
                     }

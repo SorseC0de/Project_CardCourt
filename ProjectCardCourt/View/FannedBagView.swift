@@ -11,6 +11,8 @@ struct FannedBagView: View {
     let seat: Seat
     let lastPasser: Seat?
     let playable: Set<Card.ID>
+    /// Playable, but currently unable to do anything.
+    var dormant: Set<Card.ID> = []
     /// Rebound bids and Turnaround Three pick cards rather than playing one.
     let isSelecting: Bool
     let selected: Set<Card.ID>
@@ -38,7 +40,9 @@ struct FannedBagView: View {
                 let lifted = dragging == card.id
                 let expanded = detail?.id == card.id && dragging == nil
 
-                CardFrontView(descriptor: card.descriptor, displayWidth: 76, expanded: expanded)
+                CardFrontView(descriptor: card.descriptor, displayWidth: 76,
+                              expanded: expanded,
+                              isDormant: dormant.contains(card.id))
                     .overlay {
                         if selected.contains(card.id) || refused == card.id {
                             RoundedRectangle(cornerRadius: 76 * CardLayout.cornerFraction,

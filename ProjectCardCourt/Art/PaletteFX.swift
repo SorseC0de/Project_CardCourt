@@ -85,6 +85,28 @@ enum PixelPalette {
     static let ball = orange
     static let ballShade = darkOrange
 
+    /// The skin ramps, light entry first.
+    ///
+    /// Every side-by-side pair in Zuphy32's warm ramp works as a skin tone, so the
+    /// options are simply the ramp walked two entries at a time — indices 6+5 down to
+    /// 1+0. The sheets are drawn at 5+4, which is why that pair swaps nothing.
+    static let skinRamp: [Color] = [
+        warmBlack, mocha, coffee, maroon, darkBrown, brown, khaki,
+    ]
+
+    /// The pairs, lightest first. Index into this, not into the ramp.
+    static let skinTones: [(light: Color, dark: Color)] = (1..<skinRamp.count)
+        .reversed()
+        .map { (light: skinRamp[$0], dark: skinRamp[$0 - 1]) }
+
+    /// Where the sheets already sit — khaki over brown is tone 0, so 5+4 is tone 1.
+    static let drawnSkinTone = 1
+
+    static func skin(tone: Int) -> [PaletteSwap] {
+        guard let pair = skinTones[safe: tone], tone != drawnSkinTone else { return [] }
+        return [PaletteSwap(skin, pair.light), PaletteSwap(skinShade, pair.dark)]
+    }
+
     /// The uniform each seat wears. The human keeps the sheet's own blue, so their swap
     /// is empty and costs nothing — which is also the seat on screen the most.
     static func uniform(for seat: Seat) -> [PaletteSwap] {
@@ -109,5 +131,13 @@ extension Color {
         self.init(red: Double((hex >> 16) & 0xFF) / 255,
                   green: Double((hex >> 8) & 0xFF) / 255,
                   blue: Double(hex & 0xFF) / 255)
+    }
+}
+
+extension Array {
+    /// Out-of-range reads back nil rather than trapping, so a stored appearance from an
+    /// older build cannot crash a match.
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

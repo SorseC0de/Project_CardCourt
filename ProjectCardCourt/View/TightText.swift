@@ -149,8 +149,11 @@ struct TightText: View {
         for word in words {
             let candidate = current.isEmpty ? word : current + " " + word
             let remaining = count - lines.count
-            if !current.isEmpty, measure(candidate, at: points) > target, remaining > 1,
-               words.count - lines.count > remaining {
+            // Never break just before the tail of a label: "Following Dribble:" is one
+            // phrase, and splitting it leaves "Following" stranded on its own line.
+            let closesLabel = word.hasSuffix(":")
+            if !current.isEmpty, !closesLabel, measure(candidate, at: points) > target,
+               remaining > 1, words.count - lines.count > remaining {
                 lines.append(current)
                 current = word
             } else {

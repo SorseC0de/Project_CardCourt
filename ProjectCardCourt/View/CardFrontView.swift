@@ -12,6 +12,9 @@ struct CardFrontView: View {
     let displayWidth: CGFloat
     /// Raised for reading, which is where the longer wording goes.
     var expanded = false
+    /// In play but unable to act — drained of colour rather than dimmed, so it still
+    /// reads at a glance without looking merely faded.
+    var isDormant = false
 
 
     /// Everything inside is drawn at raster size; the whole thing is scaled back down
@@ -24,6 +27,7 @@ struct CardFrontView: View {
     var body: some View {
         ZStack {
             CardBodyFill(type: descriptor.type,
+                         isInjury: descriptor.gameBreak?.isInjury == true,
                          bandFraction: CardLayout.whistleBandFraction,
                          glossFraction: CardLayout.whistleGlossFraction)
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
@@ -46,6 +50,7 @@ struct CardFrontView: View {
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
         // Flattened to one texture. Without it the overlay's blend mode costs an
         // offscreen pass per card, which a fanned hand pays for every frame.
+        .grayscale(isDormant ? 1 : 0)
         .drawingGroup()
         .scaleEffect(1 / CardLayout.rasterScale)
         .frame(width: displayWidth, height: displayWidth / CardMetrics.aspect)
@@ -164,7 +169,7 @@ struct CardFrontView: View {
                          namedCards: CardLibrary.namesReferencedInText,
                          nameColour: CardPalette.gold,
                          nameShadow: CardPalette.red)
-            .foregroundStyle(CardPalette.navy)
+            .foregroundStyle(effectColour)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
                       y: height * (CardLayout.effectYFraction
@@ -191,9 +196,22 @@ struct CardFrontView: View {
     }
 
     /// Carries its own radius, so tuning it cannot disturb the card's.
+    /// The inner ring, and the name over it.
+    ///
+    /// Navy on everything but an Intangible, which is navy-bodied — the ring would
+    /// disappear into it and the name would be unreadable, so both go the other way.
+    private var isNavyBodied: Bool { descriptor.type == .intangible }
+    private var ringColour: Color { isNavyBodied ? CardPalette.gold : CardPalette.navy }
+    /// The name sits on the gold plate, so it stays navy whatever the body is. The effect
+    /// text sits on the body itself, which is why that one turns white on a navy card.
+    private var effectColour: Color { isNavyBodied ? .white : CardPalette.navy }
+    /// Blue is what the artwork used to carry baked in; only the navy-bodied cards
+    /// change it, because blue on navy would not read at all.
+    private var namePlateShadow: Color { isNavyBodied ? CardPalette.gold : CardPalette.blue }
+
     private var border: some View {
         RoundedRectangle(cornerRadius: width * CardLayout.strokeCornerFraction, style: .continuous)
-            .strokeBorder(CardPalette.navy, lineWidth: width * CardLayout.strokeFraction)
+            .strokeBorder(ringColour, lineWidth: width * CardLayout.strokeFraction)
             .padding(width * CardLayout.strokeInsetFraction)
     }
 
@@ -201,10 +219,16 @@ struct CardFrontView: View {
     private var namePlate: some View {
         VStack(spacing: 0) {
             ZStack {
+                // The shadow is drawn here rather than baked into the SVG, so a card can
+                // choose its colour. Zero blur, straight down — the offset is the one the
+                // baked artwork used, scaled to however wide the plate is drawn.
+                let plateWidth = width * CardLayout.nameOverlayWidthFraction
                 Image("NamePlaceholder")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: width * CardLayout.nameOverlayWidthFraction)
+                    .frame(width: plateWidth)
+                    .shadow(color: namePlateShadow, radius: 0, x: 0,
+                            y: plateWidth * CardLayout.namePlateShadowFraction)
                 let nameSize = width * CardLayout.nameSizeFraction
                 SmallCapsText(text: descriptor.name,
                               font: "AvenirNextCondensed-Heavy",

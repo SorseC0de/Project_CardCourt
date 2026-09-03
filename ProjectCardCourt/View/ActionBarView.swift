@@ -21,6 +21,11 @@ struct ActionBarView: View {
 
     private var canShoot: Bool { legal.contains(.shoot) }
 
+    private var dormantCards: Set<Card.ID> {
+        Set(bag.filter { Rules.isDormant($0.descriptor, for: GameRules.humanSeat, in: state) }
+            .map(\.id))
+    }
+
     /// Bids and Turnaround Three pick cards; a possession plays one.
     private var isSelecting: Bool {
         switch controller.gate {
@@ -35,6 +40,7 @@ struct ActionBarView: View {
                           seat: GameRules.humanSeat,
                           lastPasser: state.lastPasser,
                           playable: playableCards,
+                          dormant: dormantCards,
                           isSelecting: isSelecting,
                           selected: controller.bidSelection,
                           detail: $detail,
@@ -83,9 +89,9 @@ struct ActionBarView: View {
     }
 
     private var standingEffects: [String] {
+        // The referees say themselves what they are doing — see `StatusHUDView`. Only
+        // what is standing on *you* is worth spelling out down here.
         var notes: [String] = []
-        if !state.armedWhistles.isEmpty { notes.append("REFEREES WATCHING") }
-        if state.whistlesSilenced { notes.append("WHISTLES SILENCED") }
         for clamp in controller.human.clamps {
             notes.append(clamp.card.name.uppercased() + " ON YOU")
         }

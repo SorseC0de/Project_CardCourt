@@ -57,11 +57,11 @@ struct ScoreboardView: View {
             }
             .frame(width: 74, alignment: .leading)
 
-            ForEach(Array(stats(player).enumerated()), id: \.offset) { _, value in
-                Text("\(value)")
-                    .font(.system(size: 12, weight: isCalledOut ? .heavy : .medium, design: .rounded))
-                    .foregroundStyle(isCalledOut ? tint : Theme.ink)
-                    .frame(maxWidth: .infinity)
+            ForEach(Array(stats(player).enumerated()), id: \.offset) { column, value in
+                StatCell(value: value,
+                         accent: Self.accents[column],
+                         rest: isCalledOut ? tint : Theme.ink,
+                         isCalledOut: isCalledOut)
             }
 
             Text("\(shownScore(player))")
@@ -81,6 +81,11 @@ struct ScoreboardView: View {
         }
     }
 
+    /// What each column flashes when it goes up, in the order they are drawn.
+    private static let accents: [Color] = [
+        CardPalette.gold, CardPalette.blue, CardPalette.green, CardPalette.red,
+    ]
+
     private func stats(_ p: PlayerState) -> [Int] {
         [shownPoints(p), p.assists, p.rebounds, p.turnovers]
     }
@@ -88,5 +93,39 @@ struct ScoreboardView: View {
     private func shownPoints(_ p: PlayerState) -> Int {
         guard let withheld, withheld.seat == p.seat else { return p.points }
         return p.points - withheld.amount
+    }
+}
+
+
+/// One stat, which plumps and flashes its own colour as it is earned.
+///
+/// Owns its own animation rather than being driven from the board, so a cell only reacts
+/// when its own number moves — a rebound cannot make the points twitch.
+private struct StatCell: View {
+    let value: Int
+    let accent: Color
+    let rest: Color
+    let isCalledOut: Bool
+
+    @State private var earned = false
+
+    var body: some View {
+        Text("\(value)")
+            .font(.system(size: 12, weight: isCalledOut ? .heavy : .medium, design: .rounded))
+            .foregroundStyle(earned ? accent : rest)
+            .scaleEffect(earned ? 1.6 : 1)
+            .frame(maxWidth: .infinity)
+            .contentTransition(.numericText())
+            .onChange(of: value) { previous, current in
+                // Only upward. A stat that drops is a correction, not something earned.
+                guard current > previous else { return }
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.4)) { earned = true }
+                Task { @MainActor in
+                    // Held long enough to be seen. A stat is earned once a round at most,
+                    // so it can afford to sit there.
+                    try? await Task.sleep(for: .milliseconds(900))
+                    withAnimation(.easeOut(duration: 0.6)) { earned = false }
+                }
+            }
     }
 }

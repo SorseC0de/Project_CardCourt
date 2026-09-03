@@ -15,17 +15,22 @@ enum CardPalette {
     static let purple = Color(red: 0x8B / 255, green: 0x1F / 255, blue: 0xD6 / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
+    ///
+    /// Move and Special Move are orange and gold: neighbours on the same warm ramp,
+    /// because a Special Move is still a Move card and the colours should say so. Green
+    /// came free when Move gave it up, and Injuries took it.
     static func body(for type: CardType) -> Color {
         switch type {
         case .pass:        return blue
-        case .move:        return green
-        case .specialMove: return orange
+        case .move:        return orange
+        case .specialMove: return gold
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
         case .gameBreak:   return purple
-        case .intangible:  return gold
+        case .intangible:  return navy
         }
     }
+
 
     static func isStriped(_ type: CardType) -> Bool { type == .whistle }
 }
@@ -33,6 +38,9 @@ enum CardPalette {
 /// A card body: a flat colour, plus a striped band across the top for Whistles.
 struct CardBodyFill: View {
     let type: CardType
+    /// Injuries are a family inside Game Break with their own colour, so the fill takes
+    /// this rather than reading the type alone.
+    var isInjury = false
     var stripes = 11
     /// How far down the card the stripes run.
     var bandFraction: CGFloat = 0.10
@@ -41,7 +49,7 @@ struct CardBodyFill: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                Rectangle().fill(CardPalette.body(for: type))
+                Rectangle().fill(isInjury ? CardPalette.green : CardPalette.body(for: type))
                 if CardPalette.isStriped(type) {
                     HStack(spacing: 0) {
                         ForEach(0..<stripes, id: \.self) { index in
@@ -72,6 +80,10 @@ struct CardBodyFill: View {
 enum CardMetrics {
     static let artboard = CGSize(width: 634, height: 834)
     static let shape = CGSize(width: 591.67, height: 791.67)
+    /// The **back** is drawn to a second, larger shape around that one — 497 across plus
+    /// two 68.167 corners — which all but fills the artboard. `shape` is the front's
+    /// panel; anything lining something up with the printed back wants this instead.
+    static let backShape = CGSize(width: 633.33, height: 833.33)
 
     static var aspect: CGFloat { shape.width / shape.height }
     /// Scale the back image by this to line its printed card up with a drawn rectangle.
@@ -108,6 +120,12 @@ enum CardLayout {
     static let nameOverlayWidthFraction: CGFloat = 1.0
     static let nameSizeFraction: CGFloat = 75 / across
     static let nameTracking: CGFloat = -0.04
+    /// The name box's drop shadow, as a share of the plate's own width.
+    ///
+    /// Measured off the artwork that used to carry it baked in: two identical paths,
+    /// the lower one offset 12.5 down in a 638-wide artboard and filled with the card
+    /// blue. Written as the measurement so it reads back as what it came from.
+    static let namePlateShadowFraction: CGFloat = 12.5 / 638
     /// Affinity counts negative as clockwise; SwiftUI counts positive that way.
     static let nameRotation: Double = 3
     static let nameCapHeight: CGFloat = 0.75
