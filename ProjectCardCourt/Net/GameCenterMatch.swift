@@ -18,9 +18,12 @@ final class GameCenterMatch: NSObject, MatchTransport {
     enum Status: Equatable {
         case signedOut
         case signingIn
-        /// Signed in and idle. `player` is the local Game Center name.
+        /// Signed in with nothing going on.  `player` is the local Game Center name.
         case ready(player: String)
+        /// In the queue, waiting to be paired.
         case searching
+        /// Paired and seated, but the game has not been started yet.
+        case seated
         case playing
         case failed(String)
     }
@@ -48,6 +51,8 @@ final class GameCenterMatch: NSObject, MatchTransport {
     var onSeatLost: ((Seat) -> Void)?
 
     var isActive: Bool { match != nil && !seats.isEmpty }
+    /// How many people are in the match, the local player included.
+    var seated: Int { seats.count }
     var isHost: Bool { hostID != nil && hostID == GKLocalPlayer.local.gamePlayerID }
 
     // MARK: - Signing in
@@ -112,9 +117,29 @@ final class GameCenterMatch: NSObject, MatchTransport {
             let match = try await GKMatchmaker.shared().findMatch(for: request)
             adopt(match)
         } catch {
+            // Backing out of the queue is spelled as a cancellation, and is not a failure.
+            if (error as NSError).code == GKError.Code.cancelled.rawValue {
+                status = GKLocalPlayer.local.isAuthenticated
+                    ? .ready(player: GKLocalPlayer.local.displayName) : .signedOut
+                return
+            }
             status = .failed(Self.describe(error))
             DevLog.say(.net, "findMatch failed — \(Self.describe(error))")
         }
+    }
+
+    /// Steps back out of the queue, or out of a match that has not started.
+    func stop() {
+        GKMatchmaker.shared().cancel()
+        leave()
+    }
+
+    /// The host says everyone is in. Nothing else can start a game.
+    func startPlaying() {
+        guard isHost else { return }
+        status = .playing
+        try? broadcast { _ in .start }
+        DevLog.say(.net, "starting with \(seated) player(s)")
     }
 
     /// What GameKit actually said.
@@ -156,7 +181,8 @@ final class GameCenterMatch: NSObject, MatchTransport {
     private func adopt(_ match: GKMatch) {
         self.match = match
         match.delegate = self
-        status = .playing
+        // Seated, not playing. The host still has to say go.
+        status = .seated
         elect(among: match)
     }
 
@@ -236,6 +262,9 @@ extension GameCenterMatch: GKMatchDelegate {
                 guard id == self.hostID,
                       let message = try? MatchCoder.decode(HostMessage.self, from: data)
                 else { return }
+                // The lobby watches the status rather than the wire, so the one message
+                // that changes what the screen is for is read here as well as passed on.
+                if case .start = message { self.status = .playing }
                 self.onHostMessage?(message)
             }
         }

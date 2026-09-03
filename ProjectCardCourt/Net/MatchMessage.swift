@@ -31,6 +31,9 @@ enum HostMessage: Codable {
     /// without the other would either narrate a game it cannot see or show a board that
     /// changed for no stated reason.
     case turn(state: GameState, events: [GameEvent])
+    /// The host has started the game. Until this arrives a guest sits in the lobby
+    /// watching the chairs fill.
+    case start
 }
 
 /// The only place the wire format is decided.

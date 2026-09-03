@@ -450,6 +450,9 @@ final class GameController {
         case .seated(let seat, let chairs):
             Table.shared.seat(chairs, asLocal: seat)
             DevLog.say(.net, "seated at \(seat.name)")
+        case .start:
+            DevLog.say(.net, "the host started the game")
+            begin()
         case .turn(let state, let events):
             DevLog.say(.net, "board arrived — \(events.count) event(s), "
                        + "phase \(String(describing: state.phase))")

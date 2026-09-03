@@ -3,10 +3,14 @@ import SwiftUI
 
 /// The way into a match.
 ///
-/// Built as the table itself rather than as a form: four chairs down the screen, each one
-/// a panel in that seat's own colour, filling with names as people arrive. Whoever is
-/// still missing is the house, and a chair says so — you can see the whole game before you
-/// are in it, which is the only thing a lobby is really for.
+/// **There are no rooms.** Game Center pairs you with whoever else is searching at that
+/// moment; it has no notion of an open room and no way to list one over the internet,
+/// because that would need a server it does not provide. So the screen says what is
+/// actually happening — you join a queue, and people arrive — rather than dressing a
+/// queue up as a lobby you are choosing from.
+///
+/// The table stays empty until somebody is really in it. Showing three computers in the
+/// chairs before a match exists made it look like a game was already under way.
 struct MatchLobbyView: View {
     var controller: GameController
     @State private var session = GameCenterMatch()
@@ -15,12 +19,8 @@ struct MatchLobbyView: View {
 
     var body: some View {
         ZStack {
-            // The court's own streaks, well behind everything. The menus are the same
-            // place as the game, seen from the tunnel.
             Chrome.ground.ignoresSafeArea()
-            CourtStreaks()
-                .opacity(0.18)
-                .ignoresSafeArea()
+            CourtStreaks().opacity(0.18).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 topBar
@@ -33,15 +33,11 @@ struct MatchLobbyView: View {
                             .foregroundStyle(.white.opacity(0.72))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
-
-                        ForEach(Seat.allCases, id: \.self) { chair($0) }
-                            .padding(.horizontal, 22)
+                        chairs.padding(.horizontal, 22)
                     }
                     .padding(.bottom, 20)
                 }
-                actions
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 26)
+                actions.padding(.horizontal, 22).padding(.bottom, 26)
             }
         }
         .onAppear {
@@ -50,14 +46,15 @@ struct MatchLobbyView: View {
             controller.join(session)
             session.signIn()
         }
-        // Apple's own sign-in, handed over rather than reimplemented. Without this the
-        // whole thing stalls silently on a device that is not already signed in.
         .sheet(item: $session.pendingSignIn) { sheet in
             SignInSheet(controller: sheet.controller).ignoresSafeArea()
         }
         .onChange(of: session.status) { _, status in
+            // The host starts it; everybody else is told. Either way the lobby's job is
+            // done the moment the game is running.
             guard status == .playing else { return }
-            controller.begin()
+            if session.isHost { controller.begin() }
+            dismiss()
         }
     }
 
@@ -72,11 +69,10 @@ struct MatchLobbyView: View {
                     .foregroundStyle(CardPalette.gold)
             }
             Spacer()
-            // How many of the four chairs have somebody in them. The game's own face
-            // rather than a symbol — a deck was standing in here and said nothing about
-            // people at all.
-            StatPill(reading: "\(seated)/4") {
-                SpriteAnimation(sprite: .faces, scale: 4, isPlaying: false, restFrame: 0)
+            if session.isActive {
+                StatPill(reading: "\(session.seated)/4") {
+                    SpriteAnimation(sprite: .faces, scale: 4, isPlaying: false, restFrame: 0)
+                }
             }
             Button { dismiss() } label: {
                 Chip(fill: CardPalette.red, stroke: CardPalette.gold,
@@ -93,33 +89,64 @@ struct MatchLobbyView: View {
         .background(Chrome.ground)
     }
 
-    // MARK: - The chairs
+    // MARK: - The table
+
+    /// Nothing at all until there is a match, then a chair for every seat.
+    ///
+    /// The empty ones are drawn as empty rather than filled with the house, because until
+    /// the game starts they might still be somebody. They only become the house when the
+    /// host starts with the table short.
+    @ViewBuilder private var chairs: some View {
+        if session.isActive {
+            ForEach(Seat.allCases, id: \.self) { chair($0) }
+        } else if case .searching = session.status {
+            waiting
+        }
+    }
 
     private func chair(_ seat: Seat) -> some View {
-        // Yours is blue and the other three are red — one line between you and everybody
-        // else, rather than four colours that read as four teams.
-        Panel(fill: seat.isLocal ? CardPalette.blue : CardPalette.red) {
+        let taken = table.occupant(at: seat) != .computer
+        return Panel(fill: seat.isLocal ? CardPalette.blue
+                     : (taken ? CardPalette.red : Chrome.ground)) {
             HStack(spacing: 14) {
                 Chip {
-                    Image(systemName: glyph(for: seat))
+                    Image(systemName: taken ? glyph(for: seat) : "person.fill.badge.plus")
                         .font(.system(size: 30, weight: .heavy))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(taken ? .white : .white.opacity(0.35))
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    SmallCapsText(text: table.name(at: seat), font: Chrome.display,
-                                  size: 28, tracking: 1)
-                        .foregroundStyle(.white)
-                        // Heavy. A name is the only thing on a chair worth reading from
-                        // across the room, and the drop is what gives it that weight.
+                    SmallCapsText(text: taken ? table.name(at: seat) : "Open",
+                                  font: Chrome.display, size: 28, tracking: 1)
+                        .foregroundStyle(taken ? .white : .white.opacity(0.4))
                         .shadow(color: Chrome.shade, radius: 0, x: 5, y: 5)
-                    RibbonTag(text: standing(at: seat), fill: badge(for: seat),
-                              ink: seat.isLocal ? .white : CardPalette.navy)
+                    if taken {
+                        RibbonTag(text: standing(at: seat), fill: badge(for: seat),
+                                  ink: seat.isLocal ? .white : CardPalette.navy)
+                    }
                 }
                 Spacer(minLength: 0)
             }
             .padding(14)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: table.chairs)
+    }
+
+    /// What the queue looks like from inside it.
+    private var waiting: some View {
+        Panel(fill: Chrome.ground) {
+            VStack(spacing: 14) {
+                ProgressView().tint(CardPalette.gold).scaleEffect(1.4)
+                SmallCapsText(text: "Waiting for players", font: Chrome.display, size: 22)
+                    .foregroundStyle(.white)
+                Text("You will be paired with anyone else searching right now. "
+                     + "There is no room to pick — Game Center does the matching.")
+                    .font(.custom(Chrome.display, size: 15))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+            }
+            .padding(26)
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private func glyph(for seat: Seat) -> String {
@@ -153,45 +180,57 @@ struct MatchLobbyView: View {
         switch session.status {
         case .signedOut, .failed:
             ChunkyButton(title: "Sign in", fill: CardPalette.orange) { session.signIn() }
-        case .signingIn, .searching:
-            ChunkyButton(title: session.status == .searching ? "Searching…" : "Locking in…",
-                         fill: CardPalette.gray, isEnabled: false) {}
+        case .signingIn:
+            ChunkyButton(title: "Signing in…", fill: CardPalette.gray, isEnabled: false) {}
         case .ready:
-            ChunkyButton(title: "Find players") { Task { await session.findMatch() } }
-        case .playing:
+            ChunkyButton(title: "Find a game") { Task { await session.findMatch() } }
+        case .searching:
+            ChunkyButton(title: "Cancel", fill: CardPalette.red) { session.stop() }
+        case .seated:
             VStack(spacing: 12) {
-                ChunkyButton(title: "Take the floor", fill: CardPalette.gold) { dismiss() }
-                Button {
-                    session.leave()
-                    dismiss()
-                } label: {
+                if session.isHost {
+                    // Only the host can start, and starting is what fills the rest of the
+                    // table with the house.
+                    ChunkyButton(title: "Start game") { session.startPlaying() }
+                } else {
+                    ChunkyButton(title: "Waiting for the host", fill: CardPalette.gray,
+                                 isEnabled: false) {}
+                }
+                Button { session.stop() } label: {
                     SmallCapsText(text: "Leave the table", font: Chrome.display, size: 15)
                         .foregroundStyle(CardPalette.red)
                 }
                 .buttonStyle(.plain)
             }
+        case .playing:
+            ChunkyButton(title: "Take the floor", fill: CardPalette.gold) { dismiss() }
         }
     }
 
     private var caption: String {
         switch session.status {
-        case .signedOut:          return "Game Center handles the accounts and the invites."
-        case .signingIn:          return "Locking in…"
-        case .ready:              return "Two makes a game. Four makes the game."
-        case .searching:          return "Looking for a table."
-        case .playing:            return "Seated. Any empty chair is played by the house."
+        case .signedOut:          return "Game Center handles the accounts and the matching."
+        case .signingIn:          return "Signing in…"
+        case .ready:              return "Two makes a game. Any empty chair is played by the house."
+        case .searching:          return "Looking for somebody else who is looking."
+        case .seated:
+            return session.isHost
+                ? "Start when you are ready. Empty chairs go to the house."
+                : "\(hostName) starts the game."
+        case .playing:            return "Seated."
         case .failed(let reason): return reason
         }
     }
 
-    private var signedInAs: String {
-        if case .ready(let player) = session.status { return player }
-        if case .playing = session.status { return GKLocalPlayer.local.displayName }
-        return "Signed out"
+    private var hostName: String {
+        Seat.allCases.first { table.isRemote($0) }.map { table.name(at: $0) } ?? "The host"
     }
 
-    private var seated: Int {
-        Seat.allCases.filter { table.occupant(at: $0) != .computer }.count
+    private var signedInAs: String {
+        if case .ready(let player) = session.status { return player }
+        if case .signedOut = session.status { return "Signed out" }
+        if case .signingIn = session.status { return "Signing in" }
+        return GKLocalPlayer.local.displayName
     }
 }
 
@@ -200,7 +239,6 @@ struct MatchLobbyView: View {
     MatchLobbyView(controller: GameController())
 }
 #endif
-
 
 /// Game Center's sign-in, which arrives as a plain view controller.
 private struct SignInSheet: UIViewControllerRepresentable {
