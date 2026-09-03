@@ -6,13 +6,47 @@ struct DiscardPileView: View {
     let count: Int
     var width: CGFloat = 32
 
+    /// False when a court-wide stage is drawing the pile instead.
+    var showsPile = true
+
+    @State private var render = RenderDebug.shared
+
+    private enum Pile {
+        /// The same rule the deck grows by, so the two piles are the same object at
+        /// different heights.
+        static let cardsPerLayer = 10
+    }
+
+    /// From nothing upward — an empty discard is an empty floor, not a thin stack.
+    private var layers: Int {
+        max(0, min(DeckBody.maxLayers, count / Pile.cardsPerLayer))
+    }
+
+    /// The same renderer as the deck, which is the only way the two are guaranteed to
+    /// sit at the same angle.
+    ///
+    /// Drawing this with `rotation3DEffect` and matching the deck by eye does not work:
+    /// SwiftUI's `perspective` and a RealityKit camera are different projections, so no
+    /// tilt makes them agree — and even a matched top card would have its stacked edges
+    /// recede differently. Sharing the camera removes the question.
+    @ViewBuilder
+    private var pile: some View {
+        if render.flatPiles {
+            FlatPile(width: width, tall: false)
+                .frame(width: width, height: width * DeckBody.frameHeight)
+        } else {
+            DeckBody(layers: layers)
+                .frame(width: width, height: width * DeckBody.frameHeight)
+                // Spent cards. Only the pile is drained of colour — a card pulled back
+                // out to be read is drawn by `CardFrontView` and is untouched.
+                .grayscale(1)
+                .allowsHitTesting(false)
+        }
+    }
+
     var body: some View {
-        VStack(spacing: 3) {
-            Image("CardBack")
-                .interpolation(.none)
-                .resizable()
-                .scaledToFit()
-                .frame(width: width)
+        VStack(spacing: showsPile ? -width * DeckBody.labelGap : 4) {
+            if showsPile { pile }
             Text("\(count)")
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(Theme.inkDim)
