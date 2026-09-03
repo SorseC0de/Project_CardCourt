@@ -73,7 +73,11 @@ it respectively, which is exactly why it never looked like it belonged.
 `black` `#2F3143`. Not a UI ground — navy keeps the lobby. This is for dark surfaces that
 have to sit *beside* navy rather than under it, Intangibles first among them.
 
-Three constraints hold it in place, and each neighbour on the grid fails one of them:
+**The rule: the lightest black that still reads as black.** Not a dark that happens to
+work — the top of the range, found by walking up until it stops being one. That is what to
+repeat if the palette ever needs a second dark.
+
+Three things mark where it stops, and each neighbour on the grid fails one:
 
 - **Not desaturated enough to be greyscale.** Drop the chroma further and it leaves the
   palette entirely and becomes a neutral, which belongs to no one.

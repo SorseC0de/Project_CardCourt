@@ -12,7 +12,9 @@ enum CardPalette {
     /// every one of those sits in a chroma band of 0.137 to 0.228 in OKLCH, so these were
     /// built at a chosen hue and dropped into the same band. Anything outside it reads as
     /// borrowed from another palette, which is what the old lavender did.
-    /// The not-black black. Three constraints meeting, and every neighbour fails one:
+    /// The not-black black: the *lightest* black that still reads as one, which is the
+    /// rule rather than the result. Three things mark where it stops, and every neighbour
+    /// fails one:
     /// **not desaturated enough to be greyscale, not blue enough to compete with navy,
     /// and not too dark.**
     ///
