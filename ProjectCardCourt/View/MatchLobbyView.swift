@@ -26,7 +26,7 @@ struct MatchLobbyView: View {
                 topBar
                 ScrollView {
                     VStack(spacing: 16) {
-                        ScreenTitle(text: "Pickup Game")
+                        ScreenTitle(text: "Pickup Game", drop: CardPalette.blue)
                             .padding(.top, 22)
                         Text(caption)
                             .font(.custom(Chrome.display, size: 17))
@@ -64,16 +64,21 @@ struct MatchLobbyView: View {
             StatPill(reading: signedInAs) {
                 Image(systemName: "person.fill")
                     .resizable().scaledToFit()
+                    .frame(width: 22, height: 22)
                     .foregroundStyle(CardPalette.gold)
             }
             Spacer()
+            // How many of the four chairs have somebody in them. The game's own face
+            // rather than a symbol — a deck was standing in here and said nothing about
+            // people at all.
             StatPill(reading: "\(seated)/4") {
-                Image("Deck").interpolation(.none).resizable()
+                SpriteAnimation(sprite: .faces, scale: 4, isPlaying: false, restFrame: 0)
             }
             Button { dismiss() } label: {
-                Chip(fill: CardPalette.red, side: 38) {
+                Chip(fill: CardPalette.red, stroke: CardPalette.gold,
+                     shade: CardPalette.orange, side: 38) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .heavy))
+                        .font(.system(size: 17, weight: .heavy))
                         .foregroundStyle(.white)
                 }
             }
@@ -82,19 +87,18 @@ struct MatchLobbyView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .background(Chrome.ground)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Chrome.edge).frame(height: Chrome.stroke * 0.5)
-        }
     }
 
     // MARK: - The chairs
 
     private func chair(_ seat: Seat) -> some View {
-        Panel(fill: Chrome.color(for: seat)) {
+        // Yours is blue and the other three are red — one line between you and everybody
+        // else, rather than four colours that read as four teams.
+        Panel(fill: seat.isLocal ? CardPalette.blue : CardPalette.red) {
             HStack(spacing: 14) {
                 Chip {
                     Image(systemName: glyph(for: seat))
-                        .font(.system(size: 20, weight: .heavy))
+                        .font(.system(size: 30, weight: .heavy))
                         .foregroundStyle(.white)
                 }
                 VStack(alignment: .leading, spacing: 6) {
@@ -104,14 +108,13 @@ struct MatchLobbyView: View {
                         // Heavy. A name is the only thing on a chair worth reading from
                         // across the room, and the drop is what gives it that weight.
                         .shadow(color: Chrome.shade, radius: 0, x: 5, y: 5)
-                    RibbonTag(text: standing(at: seat), fill: badge(for: seat))
+                    RibbonTag(text: standing(at: seat), fill: badge(for: seat),
+                              ink: seat.isLocal ? .white : CardPalette.navy)
                 }
                 Spacer(minLength: 0)
             }
             .padding(14)
         }
-        // The seat you are in is the one that leans out of the row.
-        .scaleEffect(seat.isLocal ? 1.03 : 1, anchor: .leading)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: table.chairs)
     }
 
@@ -133,9 +136,9 @@ struct MatchLobbyView: View {
 
     private func badge(for seat: Seat) -> Color {
         switch table.occupant(at: seat) {
-        case .local:    return CardPalette.navy
+        case .local:    return CardPalette.orange
         case .remote:   return CardPalette.gold
-        case .computer: return CardPalette.gray
+        case .computer: return .white
         }
     }
 
@@ -145,7 +148,7 @@ struct MatchLobbyView: View {
     private var actions: some View {
         switch session.status {
         case .signedOut, .failed:
-            ChunkyButton(title: "Sign in") { session.signIn() }
+            ChunkyButton(title: "Sign in", fill: CardPalette.orange) { session.signIn() }
         case .signingIn, .searching:
             ChunkyButton(title: session.status == .searching ? "Searching…" : "Locking in…",
                          fill: CardPalette.gray, isEnabled: false) {}

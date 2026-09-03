@@ -1,5 +1,27 @@
 import SwiftUI
 
+/// One cell of the deck sheet, cut out the way `SpriteAnimation` cuts a frame — drawn at
+/// full height behind a clip rather than scaled, so the art stays exact.
+///
+/// Anything drawing the deck goes through here, because the sheet has two cells and an
+/// `Image("Deck")` on its own gets both of them squashed into one square.
+struct DeckGlyph: View {
+    /// Cell 0 is the deck standing on edge — portrait, and the default. Cell 1 is the
+    /// same deck lying down, which only the `over` readout wants.
+    var cell: Int = 0
+    var side: CGFloat
+
+    var body: some View {
+        Image("Deck")
+            .interpolation(.none)
+            .resizable()
+            .frame(width: side, height: side * CGFloat(DeckReadout.cells))
+            .offset(y: -CGFloat(cell) * side)
+            .frame(width: side, height: side, alignment: .top)
+            .clipped()
+    }
+}
+
 /// Where the deck count sits against the deck.
 ///
 /// Two arrangements, both dialled in by eye rather than derived, which is why they are
@@ -36,8 +58,7 @@ enum DeckReadout: String, CaseIterable {
     var metrics: Metrics {
         switch self {
         case .over:
-            // The side-on cell, so a count sitting on the deck sits on something with a
-            // face to sit on. Drawn upright — the turn was only ever standing in for a
+            // The lying-down cell, so a count sitting on the deck has a face to sit on. Drawn upright — the turn was only ever standing in for a
             // sprite that did not exist yet.
             return Metrics(x: -4, y: -4, side: 48, textX: 0, textY: -2, number: 14, cell: 1)
         case .beside:
@@ -95,7 +116,7 @@ struct StatusHUDView: View {
     /// off `ballSize`: this is pixel art, and half a pixel is worse than a size that does
     /// not quite match its neighbour.
     private var remaining: some View {
-        sheet
+        DeckGlyph(cell: readout.cell, side: readout.side)
             // Before the overlay, so the deck turns and the count does not. The frame is
             // square, so a right angle costs no layout.
             .rotationEffect(.degrees(readout.rotation))
@@ -110,19 +131,6 @@ struct StatusHUDView: View {
             .offset(x: readout.x, y: readout.y)
             .animation(.easeOut(duration: 0.25), value: state.deck.count)
             .animation(.easeOut(duration: 0.25), value: layout)
-    }
-
-    /// One cell of the deck sheet, cut out the way `SpriteAnimation` cuts a frame —
-    /// drawn at full height behind a clip rather than scaled, so the art stays exact.
-    private var sheet: some View {
-        Image("Deck")
-            .interpolation(.none)
-            .resizable()
-            .frame(width: readout.side,
-                   height: readout.side * CGFloat(DeckReadout.cells))
-            .offset(y: -CGFloat(readout.cell) * readout.side)
-            .frame(width: readout.side, height: readout.side, alignment: .top)
-            .clipped()
     }
 
     private enum Deck {

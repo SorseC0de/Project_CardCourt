@@ -52,6 +52,10 @@ enum Chrome {
 /// dialog — everything with a body is one of these.
 struct Panel<Content: View>: View {
     var fill: Color = CardPalette.blue
+    /// The rim, and what falls behind it. A pair, because a stroke and its shadow being
+    /// different colours is most of what makes a panel read as a solid thing.
+    var stroke: Color = CardPalette.gold
+    var shade: Color = CardPalette.orange
     /// Overrides the corner, for a piece that is not a rounded rectangle's usual shape.
     var radius: CGFloat = Chrome.radius
     var drop: CGFloat = Chrome.drop
@@ -60,15 +64,10 @@ struct Panel<Content: View>: View {
     var body: some View {
         content
             .background(RoundedRectangle(cornerRadius: radius).fill(fill))
-            // Navy inside the grey: the dark line separates the rim from the fill, so the
-            // edge reads as a thickness rather than as a painted-on border.
             .overlay(RoundedRectangle(cornerRadius: radius)
-                .strokeBorder(Chrome.shade, lineWidth: Chrome.stroke * 0.5))
-            .overlay(RoundedRectangle(cornerRadius: radius)
-                .strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5)
-                .padding(-Chrome.stroke * 0.5))
+                .strokeBorder(stroke, lineWidth: Chrome.stroke))
             .compositingGroup()
-            .shadow(color: Chrome.shade, radius: 0, x: drop, y: drop)
+            .shadow(color: shade, radius: 0, x: drop, y: drop)
     }
 }
 
@@ -76,6 +75,10 @@ struct Panel<Content: View>: View {
 struct ChunkyButton: View {
     let title: String
     var fill: Color = CardPalette.gold
+    /// The You chair's rim and drop. Every control that has an edge wears this pair, so a
+    /// button and the seat you are sitting in are plainly the same kind of object.
+    var stroke: Color = CardPalette.gold
+    var shade: Color = CardPalette.orange
     var ink: Color = .white
     var size: CGFloat = 22
     var isEnabled = true
@@ -88,16 +91,14 @@ struct ChunkyButton: View {
                 .foregroundStyle(ink)
                 // The label carries its own drop, the way the cards' numbers do. It is
                 // what keeps heavy type legible on a saturated fill.
-                .shadow(color: Chrome.shade, radius: 0, x: 2, y: 2)
+                .shadow(color: Chrome.shade, radius: 0, x: 3, y: 3)
                 .padding(.horizontal, size)
                 .padding(.vertical, size * 0.42)
                 .frame(maxWidth: .infinity)
                 .background(Capsule().fill(fill))
-                .overlay(Capsule().strokeBorder(Chrome.shade, lineWidth: Chrome.stroke))
-                //.overlay(Capsule().strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5)
-                    //.padding(-Chrome.stroke * 0.5))
+                .overlay(Capsule().strokeBorder(stroke, lineWidth: Chrome.stroke))
                 .compositingGroup()
-                .shadow(color: CardPalette.blue, radius: 0, x: Chrome.drop, y: Chrome.drop)
+                .shadow(color: shade, radius: 0, x: Chrome.drop, y: Chrome.drop)
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -107,19 +108,38 @@ struct ChunkyButton: View {
 }
 
 /// A small square holder for one glyph, at the left of a row.
+/// A glyph in a fixed square, so a column of them lines up whatever is drawn in each.
+///
+/// Bare by default — the box was competing with the panel under it and the glyph inside
+/// it. Give it a `fill` and it becomes a solid piece, which is what a control wants.
 struct Chip<Content: View>: View {
-    var fill: Color = CardPalette.navy
+    var fill: Color?
+    var stroke: Color?
+    var shade: Color?
     var side: CGFloat = 48
     @ViewBuilder var content: Content
 
     private var radius: CGFloat { side * Chrome.corner * 2 }
+    /// Scaled off the chip rather than shared with the panels. A 6-point rim and a
+    /// 6-point drop are right on something the size of a row and far too much on
+    /// something the size of a glyph.
+    private var weight: CGFloat { side * 0.07 }
 
     var body: some View {
         content
             .frame(width: side, height: side)
-            //.background(RoundedRectangle(cornerRadius: radius).fill(fill))
-            .overlay(RoundedRectangle(cornerRadius: radius)
-                .strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5))
+            .background {
+                if let fill { RoundedRectangle(cornerRadius: radius).fill(fill) }
+            }
+            .overlay {
+                if let stroke {
+                    RoundedRectangle(cornerRadius: radius)
+                        .strokeBorder(stroke, lineWidth: weight)
+                }
+            }
+            .compositingGroup()
+            .shadow(color: shade ?? .clear, radius: 0,
+                    x: shade == nil ? 0 : weight, y: shade == nil ? 0 : weight)
     }
 }
 
@@ -127,11 +147,12 @@ struct Chip<Content: View>: View {
 struct RibbonTag: View {
     let text: String
     var fill: Color = CardPalette.blue
+    var ink: Color = CardPalette.navy
     var size: CGFloat = 13
 
     var body: some View {
         SmallCapsText(text: text, font: Chrome.display, size: size, tracking: size * 0.08)
-            .foregroundStyle(.white)
+            .foregroundStyle(ink)
             .padding(.horizontal, size * 0.8)
             .padding(.vertical, size * 0.22)
             .background(
@@ -153,7 +174,9 @@ struct StatPill<Glyph: View>: View {
 
     var body: some View {
         HStack(spacing: size * 0.35) {
-            glyph.frame(width: size * 1.3, height: size * 1.3)
+            // Unframed: a glyph knows its own size, and the deck wants to be read at a
+            // glance rather than matched to the type beside it.
+            glyph
             Text(reading)
                 .font(.custom(Chrome.display, size: size))
                 .foregroundStyle(.white)
@@ -162,7 +185,6 @@ struct StatPill<Glyph: View>: View {
         .padding(.horizontal, size * 0.55)
         .padding(.vertical, size * 0.28)
         .background(Capsule().fill(Chrome.ground))
-        .overlay(Capsule().strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5))
     }
 }
 
@@ -184,12 +206,16 @@ struct ScreenTitle: View {
     VStack(spacing: 22) {
         ScreenTitle(text: "Play a table")
         HStack(spacing: 10) {
-            StatPill(reading: "234") { Image("Deck").interpolation(.none).resizable() }
-            StatPill(reading: "Sorse") { Image(systemName: "person.fill").resizable().scaledToFit() }
+            StatPill(reading: "234") { DeckGlyph(side: 44) }
+            StatPill(reading: "Sorse") {
+                Image(systemName: "person.fill").resizable().scaledToFit()
+                    .frame(width: 22, height: 22)
+            }
         }
         Panel(fill: CardPalette.blue) {
             HStack(spacing: 12) {
-                Chip { Image(systemName: "person.fill").foregroundStyle(.white) }
+                Chip { Image(systemName: "person.fill")
+                    .font(.system(size: 30, weight: .heavy)).foregroundStyle(.white) }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Tanaka").font(.custom(Chrome.display, size: 24)).foregroundStyle(.white)
                     RibbonTag(text: "Ready", fill: CardPalette.gold)
