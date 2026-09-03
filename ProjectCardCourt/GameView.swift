@@ -12,6 +12,9 @@ struct GameView: View {
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
     private let logHeight: CGFloat = 74
+    /// Where the court actually is on screen, so the inbound overlay can put its copies
+    /// of the players exactly where the real ones are standing.
+    @State private var courtFrame: CGRect = .zero
 
     var body: some View {
         ZStack {
@@ -25,7 +28,12 @@ struct GameView: View {
                 ScoreboardView(state: controller.state, withheld: controller.withheldPoints)
                 logStrip
                 stage
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: CourtFrameKey.self,
+                                               value: geo.frame(in: .global))
+                    })
             }
+            .onPreferenceChange(CourtFrameKey.self) { courtFrame = $0 }
             .ignoresSafeArea(edges: .bottom)
 
             // Anywhere off the raised card puts it back down. Only present while one is
@@ -95,6 +103,13 @@ struct GameView: View {
                                    onDismiss: { browsingDiscard = false })
                     .transition(.opacity)
                     .zIndex(11)
+            }
+            if isChoosingInbound {
+                InboundOverlay(state: controller.state,
+                               court: courtFrame,
+                               onSelect: { controller.inbound(to: $0) })
+                    .transition(.opacity)
+                    .zIndex(30)
             }
             if let call = controller.actionCall {
                 ActionCallView(call: call) { controller.actionCallFinished() }
@@ -199,6 +214,12 @@ struct GameView: View {
             .shadow(color: CardPalette.orange, radius: 0, x: 4, y: 4)
         }
         .buttonStyle(.plain)
+    }
+
+    /// The court is asking the player to pick somebody to throw to.
+    private var isChoosingInbound: Bool {
+        if case .awaitingInbound = controller.gate { return true }
+        return false
     }
 
     private var stage: some View {

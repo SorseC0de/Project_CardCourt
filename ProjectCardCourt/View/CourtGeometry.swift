@@ -49,6 +49,11 @@ enum Perspective {
     /// sprite frame is mostly padding above the character, so it floats without this.
     static let playerDrop: CGFloat = 0.25
 
+    /// Where whoever is inbounding stands: off the near-left sideline, below everybody,
+    /// because he is not on the floor — he is throwing it back onto it.
+    static let inbounderDepth: CGFloat = 0.64
+    static let inbounderLateral: CGFloat = -1.02
+
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.
     static let refereeLateral: CGFloat = 0.98

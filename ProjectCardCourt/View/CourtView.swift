@@ -89,7 +89,11 @@ struct CourtView: View {
             ZStack {
                 // Streaks live in the background, behind an opaque floor, so they read
                 // as the space beyond the court rather than markings on it.
+                // Nobody is moving during an inbound, so nothing should be streaming
+                // past them. The court is a held breath.
                 CourtStreaks()
+                    .opacity(isStill ? 0 : 1)
+                    .animation(.easeOut(duration: 0.4), value: isStill)
 
                 room(court)
 
@@ -220,6 +224,9 @@ struct CourtView: View {
                     .frame(maxHeight: .infinity, alignment: .top)
             }
             .mask(CourtFloorShape())
+            // The light travelling down the floor stops with everything else.
+            .opacity(isStill ? 0 : 1)
+            .animation(.easeOut(duration: 0.4), value: isStill)
         }
         .onAppear {
             withAnimation(.linear(duration: Perspective.sweepSeconds).repeatForever(autoreverses: false)) {
@@ -297,6 +304,18 @@ struct CourtView: View {
             free.remove(post)
             return post
         }
+    }
+
+    /// The whole court is stationary — an inbound has been called and everyone is set.
+    private var isStill: Bool {
+        if case .awaitingInbound = gate { return true }
+        return false
+    }
+
+    /// True while this seat is the one being asked to throw it back in.
+    private func isInbounding(_ seat: Seat) -> Bool {
+        guard case .awaitingInbound(let asked) = gate else { return false }
+        return asked == seat
     }
 
     /// The seat furthest from the camera, whose label the nearest player sits over.
@@ -378,6 +397,9 @@ struct CourtView: View {
             let footing = court.footing(of: seat)
             let scale = court.scale(of: seat)
             node(seat)
+                // Whoever is inbounding is drawn by `InboundOverlay` instead, stood on
+                // the sideline. Hidden rather than skipped so nothing below them moves.
+                .opacity(isInbounding(seat) ? 0 : 1)
                 .scaleEffect(scale, anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .bottom)
                 .position(x: footing.x,

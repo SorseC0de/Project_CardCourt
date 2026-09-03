@@ -109,6 +109,9 @@ enum Theme {
         /// The sheets were exported at 10 (0.1s per frame in the GIFs); they read
         /// sluggish at that, so the game runs them faster than they were authored.
         static let playerFPS: Double = 15
+        /// The sideline animations — the inbounder, the defender. Game & Watch slow: two
+        /// poses and a hold, so the eye reads a state rather than a motion.
+        static let sidelineFPS: Double = 4
         /// The shot runs slower than play does — it is the beat the scene is built on.
         static let shootFPS: Double = 8
         /// Empty rows under the character in the sheet: the ink ends four pixels short

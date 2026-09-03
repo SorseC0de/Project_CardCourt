@@ -91,7 +91,7 @@ struct MatchLobbyView: View {
             Spacer()
             if session.isActive {
                 StatPill(reading: "\(session.seated)/4") {
-                    SpriteAnimation(sprite: .faces, scale: 4, isPlaying: false, restFrame: 0)
+                    SpriteAnimation(sprite: .heads, scale: 4, isPlaying: false, restFrame: 0)
                 }
             }
             Button { dismiss() } label: {

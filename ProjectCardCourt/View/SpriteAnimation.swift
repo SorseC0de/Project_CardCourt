@@ -9,20 +9,33 @@ enum Sprite: String, CaseIterable {
     /// The referee's own sheet. He jogs and looks about like everyone else — a referee
     /// standing dead still would read as a prop rather than a man watching you.
     case refereeRunLook = "Referee_Run_Look"
+    /// Throwing it back in from the sideline. Four frames, and deliberately slow.
+    case inbounder = "Player_Inbounder"
+    /// Waiting for it. One frame — nobody is moving during an inbound.
+    case inboundReceiver = "Player_Inbound_Receiver"
+    /// Guarding, and the swipe he makes on a Clamp that does its work at once.
+    case defender = "Defender"
+    case defenderSwipe = "Defender_Swipe"
     case shoot = "Player_Shoot"
     case sparkleBurst = "SparkleBurst"
     /// A player facing the camera. One frame — a pose, not a loop.
     case front = "Player_front"
-    /// Nine faces on an 8-pixel strip, meant to be worn rather than played: the frame is
-    /// picked, not advanced.
-    case faces = "Player_faces"
+    /// Nine heads and nine faces on 8-pixel strips, worn rather than played: the frame is
+    /// picked, not advanced. A face is laid over a head, and both over a body — see
+    /// `SpriteMetrics.headOrigin` for where they sit.
+    case heads = "Player_heads"
+    case faces = "Player_Faces"
 
     var frames: Int {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
         case .front:        return 1
-        case .faces:        return 9
+        case .heads, .faces: return 9
+        case .inbounder:    return 4
+        case .inboundReceiver: return 1
+        case .defender:     return 2
+        case .defenderSwipe: return 1
         default:            return 16
         }
     }
@@ -32,10 +45,19 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 48
         case .sparkleBurst: return 64
-        case .faces:        return 8
+        case .heads, .faces: return 8
         default:            return 32
         }
     }
+}
+
+/// Where the small sheets sit on the big ones.
+///
+/// Measured rather than guessed: `Player_front`'s ink starts on row 5 of its 32-pixel
+/// frame, and an 8-wide head centres at column 12. A head placed there lands exactly on
+/// the body's shoulders, and the faces sheet is already aligned to the heads.
+enum SpriteMetrics {
+    static let headOrigin = CGPoint(x: 12, y: 5)
 }
 
 /// Plays a strip by offsetting it a whole frame at a time behind a clip.
