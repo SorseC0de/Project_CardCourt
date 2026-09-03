@@ -24,6 +24,12 @@ struct IntangibleEffect: Hashable, Codable {
     var requiresScoredLastRound = false
     /// Extra cards pulled alongside every draw (Shot Creator).
     var bonusDraw: Int = 0
+    /// Generational Whistle: every trip to the line is one attempt longer. Paid once per
+    /// trip, not once per attempt.
+    var bonusFreeThrows: Int = 0
+    /// Freethrow Merchant: being Clamped is itself a foul, and the defenders never
+    /// arrive — the trip to the line replaces what the Clamp was going to do.
+    var freeThrowPerClamp: Int = 0
 }
 
 /// A one-off that fires the moment it is drawn.
@@ -41,6 +47,10 @@ struct GameBreakEffect: Hashable, Codable {
     var givesBallAway = false
     /// No Whistle can fire for the rest of the round.
     var silencesWhistles = false
+    /// The sheet gives Injuries their own type column, and they wear their own colour.
+    var isInjury = false
+    /// Free throws for whoever drew it. Nobody fouled them, so nobody hands the ball back.
+    var freeThrows = 0
 }
 
 /// A Special Move: the redesign of the old Shot cards. Most of them take the shot
@@ -102,13 +112,22 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let gameBreak: GameBreakEffect?
     /// Set on Special Moves.
     let special: SpecialMoveEffect?
+    /// Flop: a trip to the line for every Clamp standing on you.
+    let freeThrowsPerClamp: Int
+    /// Shakes off every Clamp on the player — Flop sells it, Pump Fake shrugs it.
+    let clearsClamps: Bool
+    /// Flop with nobody guarding you: the referee has watched you throw yourself down
+    /// on an empty floor.
+    let turnoverIfNoClamps: Bool
 
     init(id: String, name: String, type: CardType, effect: String, numberInDeck: Int,
          passTarget: PassTarget? = nil, shotDelta: Int? = nil, drawCount: Int = 0,
          clockDelta: Int = 0, comboAfter: String? = nil, comboBonus: Int = 0,
          whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
-         special: SpecialMoveEffect? = nil, isDribble: Bool = false) {
+         special: SpecialMoveEffect? = nil, isDribble: Bool = false,
+         freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
+         turnoverIfNoClamps: Bool = false) {
         self.id = id; self.name = name; self.type = type; self.effect = effect
         self.numberInDeck = numberInDeck; self.passTarget = passTarget
         self.shotDelta = shotDelta; self.drawCount = drawCount; self.clockDelta = clockDelta
@@ -116,6 +135,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.whistle = whistle; self.clamp = clamp
         self.intangible = intangible; self.gameBreak = gameBreak
         self.special = special; self.isDribble = isDribble
+        self.freeThrowsPerClamp = freeThrowsPerClamp; self.clearsClamps = clearsClamps
+        self.turnoverIfNoClamps = turnoverIfNoClamps
     }
 
     var isPass: Bool { passTarget != nil }
@@ -168,7 +189,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// a Fadeaway. Sizes and offsets are fractions of the icon's own side.
     var accentSymbol: (name: String, scale: CGFloat, x: CGFloat, y: CGFloat, turn: Double)? {
         switch id {
-        case "fadeaway": return ("basketball.fill", 0.34, 0.40, -0.34, 0)
+        case "fadeaway": return ("basketball.fill", 0.21, 0.40, -0.46, 0)
         // A second pair of prints, so the walk is four steps rather than two.
         case "travel":   return ("shoeprints.fill", 0.82, 0.34, 0.30, 14)
         default:         return nil
@@ -292,6 +313,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "inadvertent-whistle":         return "questionmark.circle.fill"
         case "coachs-challenge":            return "flag.2.crossed.fill"
         case "official-review":             return "magnifyingglass"
+        case "flop":                        return "theatermasks.fill"
+        case "freethrow-merchant":          return "cart.fill"
+        case "generational-whistle":        return "star.circle.fill"
         case "contest":                     return "hand.raised.fill"
         case "full-court-press":            return "person.3.fill"
         default: break

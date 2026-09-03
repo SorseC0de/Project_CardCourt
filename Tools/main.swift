@@ -45,6 +45,10 @@ func play(seed: UInt64, moves: [String]) {
     var lines = events.filter(\.isLoggable).map(\.logLine)
 
     func aiStep() -> Bool {
+        if case .freeThrows = state.phase {
+            lines += stepFreeThrows(&state).filter(\.isLoggable).map(\.logLine)
+            return true
+        }
         if case .awaitingRebound = state.phase { return false }
         if case .awaitingDiscard(let who, _, _) = state.phase {
             guard who != human else { return false }
@@ -146,6 +150,8 @@ if args.contains("--text") {
     measureTurns()
 } else if args.contains("--sweep") {
     sweepThresholds()
+} else if args.contains("--ft") {
+    measureFreeThrows()
 } else if args.contains("--test") {
     runTests()
 } else if args.contains("--play") {
@@ -159,6 +165,7 @@ if args.contains("--text") {
     var combos = 0, failedReturns = 0, backPasses = 0, maxShot = 0
     var armed = 0, refocused = 0, clampsSet = 0, reinbounds = 0, shotPct = 0
     var forcedShots = 0, shootDecisions = 0, handSize = 0
+    var ftTrips = 0, ftAttempts = 0, ftMade = 0
     var blew: [String: Int] = [:]
     let preset: MatchRules = args.contains("--standard") ? .standard : .classic
     print("pool: \(preset.name) — \(preset.cardPool.reduce(0) { $0 + $1.numberInDeck }) cards")
@@ -172,6 +179,13 @@ if args.contains("--text") {
                 for e in Rules.resolveDiscardForShot(ai.discardForShot(state, for: who), state: &state) {
                     if case .shotAttempted = e { shots += 1 }
                     if case .shotMade = e { makes += 1 }
+                }
+                continue
+            }
+            if case .freeThrows = state.phase {
+                for e in stepFreeThrows(&state) {
+                    if case .freeThrowMade = e { ftMade += 1; ftAttempts += 1 }
+                    if case .freeThrowMissed = e { ftAttempts += 1 }
                 }
                 continue
             }
@@ -191,12 +205,13 @@ if args.contains("--text") {
                 if case .movePlayed(_, let c, _) = e { moves[c.name, default: 0] += 1 }
                 if case .whistleArmed = e { armed += 1 }
                 if case .whistleRefocused = e { refocused += 1 }
-                if case .whistleBlew(_, let c, _) = e { blew[c.name, default: 0] += 1 }
+                if case .whistleBlew(_, let c, _, _) = e { blew[c.name, default: 0] += 1 }
                 if case .clampSet = e { clampsSet += 1 }
                 if case .reinbound = e { reinbounds += 1 }
                 if case .shotAttempted(_, let pct, _) = e { shotPct += pct }
                 if case .comboLanded = e { combos += 1 }
                 if case .failedReturn = e { failedReturns += 1 }
+                if case .freeThrowsAwarded = e { ftTrips += 1 }
                 if case .passed(let c, _, _, _) = e, c.id == "behind-the-back" { backPasses += 1 }
                 if case .shotClockTicked(let v) = e { maxShot = max(maxShot, state.shot); _ = v }
             }
@@ -222,6 +237,9 @@ if args.contains("--text") {
         print("  which blew: " + blew.sorted { $0.value > $1.value }
             .map { "\($0.key) \(String(format: "%.2f", Double($0.value)/n))" }.joined(separator: "  "))
     }
+    print(String(format: "free throws: %.2f trips/game, %.2f attempts, %.0f%% made",
+                 Double(ftTrips) / 500, Double(ftAttempts) / 500,
+                 ftAttempts == 0 ? 0 : 100 * Double(ftMade) / Double(ftAttempts)))
     print(String(format: "Drive combos %.2f/game · Behind-the-Back passes %.2f · failed returns %.2f · peak SHOT seen %d",
                  Double(combos)/n, Double(backPasses)/n, Double(failedReturns)/n, maxShot))
 }

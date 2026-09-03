@@ -25,6 +25,7 @@ func sweepThresholds() {
                 }
                 continue
             }
+            if case .freeThrows = state.phase { stepFreeThrows(&state); continue }
             if case .awaitingRebound = state.phase {
                     var bids: [Seat: [Card.ID]] = [:]
                     for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }

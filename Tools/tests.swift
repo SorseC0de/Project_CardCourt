@@ -124,6 +124,7 @@ func runTests() {
         var guardCounter = 0
         while !state.isOver && guardCounter < 3000 {
             guardCounter += 1
+            if case .freeThrows = state.phase { stepFreeThrows(&state); continue }
             if case .awaitingRebound = state.phase {
                 var bids: [Seat: [Card.ID]] = [:]
                 for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }
@@ -162,6 +163,7 @@ func runTests() {
                 if case .awaitingDiscard(let who, _, _) = state.phase {
                     Rules.resolveDiscardForShot(ai.discardForShot(state, for: who), state: &state); continue
                 }
+                if case .freeThrows = state.phase { stepFreeThrows(&state); continue }
                 if case .awaitingRebound = state.phase {
                     var bids: [Seat: [Card.ID]] = [:]
                     for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }

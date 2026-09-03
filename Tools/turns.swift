@@ -20,6 +20,7 @@ func measureTurns() {
             guardCounter += 1
             if state.round != round { longestRound = max(longestRound, roundDecisions); roundDecisions = 0; round = state.round }
 
+            if case .freeThrows = state.phase { stepFreeThrows(&state); continue }
             if case .awaitingRebound = state.phase {
                 // One phase, but it blocks on all four players at once.
                 rebounds += 1

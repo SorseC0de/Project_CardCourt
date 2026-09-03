@@ -36,6 +36,8 @@ enum Phase: Hashable, Codable {
     case awaitingRebound(shooter: Seat)
     /// Turnaround Three: pick any number to discard, then the shot goes up.
     case awaitingDiscard(seat: Seat, card: CardDescriptor, bonusEach: Int)
+    /// At the line. One attempt at a time until the trip runs out.
+    case freeThrows(trip: FreeThrowTrip)
     case gameOver
 
     /// The seat that owes a decision, if any.
@@ -44,6 +46,7 @@ enum Phase: Hashable, Codable {
         case .inbound(let seat):    return seat
         case .possession(let seat): return seat
         case .awaitingDiscard(let seat, _, _): return seat
+        case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }
     }
@@ -67,8 +70,17 @@ struct GameState: Codable {
     var armedWhistles: [ArmedWhistle] = []
     /// Played, but with nobody to land on yet. Attaches to the next ball-holder.
     var pendingClamps: [ActiveClamp] = []
+    /// An armed Whistle that let a Clamp resolve and is waiting for it to land, so it can
+    /// negate what it does rather than the play that made it.
+    var pendingClampVoid: UUID?
     /// Swallowed Whistle. Cleared when the round turns over.
     var whistlesSilenced = false
+    /// Awarded but not yet shot. Never set straight into `phase` — a Foul is drawn from
+    /// inside `beginPossession`, which overwrites whatever phase it finds on the way out.
+    var pendingFreeThrows: FreeThrowTrip?
+    /// How many times each Whistle has been called this round, by descriptor id. Cleared
+    /// at the top of a round, which is what makes Delay-of-Game's second call a foul.
+    var whistleCallsThisRound: [String: Int] = [:]
     /// Set by a Special Move for the shot it is about to take.
     var pendingShotOverride: ShotOverride?
     var lastPasser: Seat?

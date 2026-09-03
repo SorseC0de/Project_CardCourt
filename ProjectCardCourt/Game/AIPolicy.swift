@@ -118,6 +118,10 @@ struct AIPolicy {
         let bag = state[seat].bag
         func first(_ id: String) -> Card? { bag.first { $0.descriptor.id == id } }
 
+        // Free points, and the Clamps come off the shot that follows. Worth taking the
+        // moment anyone is standing on you.
+        if !state[seat].clamps.isEmpty, let flop = first(CardLibrary.flop.id) { return flop.id }
+
         // Cash the combo the moment it is armed.
         if state.lastPlayThisPossession == CardLibrary.dribble.id, let drive = first(CardLibrary.drive.id) {
             return drive.id

@@ -68,8 +68,17 @@ enum Rules {
             // Declared but not yet resolved — a Whistle gets to speak here.
             let declared = state[seat].bag[index]
             if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: state) {
-                blow(whistle, on: .playCard(seat: seat, card: declared), state: &state, events: &events)
-                return events
+                // Negating the effect, not the activation: the Clamp is allowed to be
+                // played and to resolve. The Whistle waits for those defenders to try to
+                // land, because until then there is no clamped player to name.
+                if whistle.card.descriptor.whistle?.voidsClampOnLanding == true,
+                   declared.descriptor.clamp != nil {
+                    state.pendingClampVoid = whistle.id
+                } else {
+                    blow(whistle, on: .playCard(seat: seat, card: declared),
+                         state: &state, events: &events)
+                    return events
+                }
             }
 
             let card = state[seat].bag.remove(at: index)
@@ -83,6 +92,27 @@ enum Rules {
             adjustShot(by: delta, state: &state)
 
             for _ in 0..<descriptor.drawCount { draw(seat, state: &state, events: &events) }
+
+            // Flop sells the contact: every Clamp on the player is a trip to the line,
+            // and they all come off. Counted per Clamp card, so a Double-Team is one
+            // foul with two bodies rather than two fouls.
+            let standing = state[seat].clamps
+            if descriptor.freeThrowsPerClamp > 0, let first = standing.first {
+                awardFreeThrows(descriptor.freeThrowsPerClamp * standing.count,
+                                to: seat, offender: first.from, source: descriptor.name,
+                                state: &state, events: &events)
+            }
+            if descriptor.clearsClamps, !standing.isEmpty {
+                state[seat].clamps.removeAll()
+                events.append(.clampsShaken(seat: seat, card: descriptor, count: standing.count))
+            }
+            if descriptor.turnoverIfNoClamps, standing.isEmpty {
+                // Thrown yourself down on an empty floor. Costs the ball, not the round.
+                state[seat].turnovers += 1
+                events.append(.turnover(seat))
+                reinbound(by: seat, state: &state, events: &events)
+                return events
+            }
 
             if let special = descriptor.special {
                 if let override = special.shotOverride {
@@ -171,6 +201,91 @@ enum Rules {
             }
             resolveShot(by: seat, bonusPoints: 0, state: &state, events: &events)
         }
+        takeTheLine(state: &state, events: &events)
+        return events
+    }
+
+    // MARK: - Free throws
+
+    /// Queues a trip to the line. Deliberately does not touch `phase`.
+    ///
+    /// A Foul is drawn from inside `draw`, which runs in the middle of `beginPossession`
+    /// — any phase set there is overwritten the moment the draw returns. Queuing here and
+    /// converting in `takeTheLine` is what keeps the two from fighting.
+    private static func awardFreeThrows(_ count: Int, to seat: Seat, offender: Seat?,
+                                        source: String,
+                                        state: inout GameState, events: inout [GameEvent]) {
+        guard count > 0 else { return }
+
+        if var trip = state.pendingFreeThrows, trip.shooter == seat {
+            // A second foul before the first has been shot just lengthens the trip.
+            trip.remaining += count
+            state.pendingFreeThrows = trip
+            events.append(.freeThrowsAwarded(seat: seat, count: count, source: source))
+            return
+        }
+
+        // Generational Whistle pays once per trip, not once per attempt.
+        let bonus = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.bonusFreeThrows ?? 0) }
+        state.pendingFreeThrows = FreeThrowTrip(shooter: seat, offender: offender,
+                                                source: source, remaining: count + bonus)
+        events.append(.freeThrowsAwarded(seat: seat, count: count + bonus, source: source))
+        if bonus > 0, let card = state[seat].intangibles.first(where: {
+            ($0.intangible?.bonusFreeThrows ?? 0) > 0
+        }) {
+            events.append(.freeThrowBonus(seat: seat, count: bonus, card: card))
+        }
+    }
+
+    /// Hands the floor over to a waiting trip, once the phase has settled.
+    private static func takeTheLine(state: inout GameState, events: inout [GameEvent]) {
+        guard let trip = state.pendingFreeThrows, !state.isOver else { return }
+        state.pendingFreeThrows = nil
+        state.phase = .freeThrows(trip: trip)
+    }
+
+    /// What an opponent shoots. The player shoots theirs by hand.
+    static func rollFreeThrow(state: inout GameState) -> Bool {
+        state.roll(1...100) <= state.rules.freeThrowChance
+    }
+
+    /// Banks one attempt and, when the trip runs out, gives the ball back.
+    @discardableResult
+    static func resolveFreeThrow(made: Bool, state: inout GameState) -> [GameEvent] {
+        guard case .freeThrows(var trip) = state.phase else { return [] }
+        var events: [GameEvent] = []
+
+        trip.attempted += 1
+        trip.remaining -= 1
+        if made {
+            trip.made += 1
+            let points = state.rules.freeThrowPoints
+            state[trip.shooter].points += points
+            state[trip.shooter].scoredThisRound = true
+            events.append(.freeThrowMade(seat: trip.shooter, points: points,
+                                         index: trip.attempted, of: trip.total))
+        } else {
+            events.append(.freeThrowMissed(seat: trip.shooter,
+                                           index: trip.attempted, of: trip.total))
+        }
+
+        guard trip.remaining <= 0 else {
+            state.phase = .freeThrows(trip: trip)
+            return events
+        }
+        events.append(.freeThrowsEnded(seat: trip.shooter, made: trip.made, of: trip.total))
+
+        // Every miss is a dead ball, so a trip never becomes a rebound. Whoever fouled
+        // hands it back in, and the round does not advance.
+        if let offender = trip.offender {
+            reinbound(by: offender, state: &state, events: &events)
+        } else if let holder = state.ball {
+            // Nobody fouled — a Foul off the deck. Play picks up where it left off.
+            state.phase = .possession(holder: holder)
+        } else {
+            reinbound(by: trip.shooter, state: &state, events: &events)
+        }
+        takeTheLine(state: &state, events: &events)
         return events
     }
 
@@ -280,19 +395,29 @@ enum Rules {
         let effect = whistle.card.descriptor.whistle ?? WhistleEffect()
         let offender = action.actor
 
-        state.armedWhistles.removeAll { $0.id == whistle.id }
-        state.discard.append(whistle.card)
+        let calls = (state.whistleCallsThisRound[whistle.card.descriptor.id] ?? 0) + 1
+        state.whistleCallsThisRound[whistle.card.descriptor.id] = calls
+
+        // Most Whistles are spent by being called. Delay-of-Game stays on the floor for
+        // its first call — the warning — and is spent by the second, which is the foul.
+        // Without the second half it fouls at every possession for the rest of the round.
+        if !effect.staysArmed || calls > 1 {
+            state.armedWhistles.removeAll { $0.id == whistle.id }
+            state.discard.append(whistle.card)
+        }
 
         var cancelled = "the play"
+        var cancelledCard: CardDescriptor?
         if case .playCard(let seat, let card) = action {
             state[seat].bag.removeAll { $0.id == card.id }
             state.discard.append(card)
             cancelled = card.name
+            cancelledCard = card.descriptor
         } else if case .shoot = action {
             cancelled = "the shot"
         }
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
-                                   cancelled: cancelled))
+                                   cancelled: cancelled, cancelledCard: cancelledCard))
 
         if effect.recoversTimeout,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
@@ -304,6 +429,10 @@ enum Rules {
         }
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
         for _ in 0..<effect.offenderDraws { draw(offender, state: &state, events: &events) }
+        if effect.offenderDiscardsBag, !state[offender].bag.isEmpty {
+            state.discard.append(contentsOf: state[offender].bag)
+            state[offender].bag.removeAll()
+        }
         if effect.pointsToVictim > 0 {
             state[whistle.owner].points += effect.pointsToVictim
             events.append(.shotMade(seat: whistle.owner, points: effect.pointsToVictim, roll: 0))
@@ -312,14 +441,24 @@ enum Rules {
             state[offender].turnovers += 1
             events.append(.turnover(offender))
         }
+        if effect.keepsClockCost, case .playCard(let seat, let card) = action,
+           card.descriptor.clockDelta < 0 {
+            tickClock(by: card.descriptor.clockDelta, holder: seat,
+                      state: &state, events: &events)
+        }
+        let earned = effect.freeThrowsToVictim
+            + (calls > 1 ? effect.freeThrowsOnRepeatCall : 0)
+        awardFreeThrows(earned, to: whistle.owner, offender: offender,
+                        source: whistle.card.name, state: &state, events: &events)
 
         if effect.endsRound {
             endRound(state: &state, events: &events)
         } else if effect.setterChoosesInbound {
             reinbound(by: whistle.owner, state: &state, events: &events)
-        } else if effect.turnoverOnOffender {
+        } else if effect.turnoverOnOffender || effect.offenderInbounds {
             // A turnover costs the ball. The offender hands it back in, and the round
             // does not advance — only a made shot or a real clock expiry does that.
+            // Charge takes the ball the same way without charging the turnover.
             reinbound(by: offender, state: &state, events: &events)
         }
     }
@@ -370,6 +509,7 @@ enum Rules {
         state.lastPlayThisPossession = nil
         state.pendingShotOverride = nil
         state.whistlesSilenced = false
+        state.whistleCallsThisRound.removeAll()
         state.phase = .inbound(inbounder: state.inbounder)
         events.append(.roundBegan(round: state.round, inbounder: state.inbounder))
     }
@@ -398,8 +538,53 @@ enum Rules {
             events.append(.clampBit(seat: seat, card: clamp.card, discarded: count))
         }
 
+        // A Whistle that was waiting for these defenders to land. This is the first
+        // moment the clamped player exists, which is the whole reason it waited.
+        if let voided = state.pendingClampVoid {
+            state.pendingClampVoid = nil
+            if let whistle = state.armedWhistles.first(where: { $0.id == voided }),
+               let effect = whistle.card.descriptor.whistle, !state[seat].clamps.isEmpty {
+                let culprit = state[seat].clamps.first?.from
+                // Captured before the board is cleared — the scene holds this card up.
+                let voidedClamp = state[seat].clamps.first?.card
+                let waved = state[seat].clamps.count
+                state[seat].clamps.removeAll()
+                state.armedWhistles.removeAll { $0.id == voided }
+                state.discard.append(whistle.card)
+                events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
+                                           cancelled: "the Clamp's effect",
+                                           cancelledCard: voidedClamp))
+                events.append(.clampVoided(seat: seat, card: whistle.card.descriptor, count: waved))
+
+                if let culprit, effect.offenderDiscardsBag, !state[culprit].bag.isEmpty {
+                    state.discard.append(contentsOf: state[culprit].bag)
+                    state[culprit].bag.removeAll()
+                }
+                if let culprit {
+                    for _ in 0..<effect.offenderDiscards { discardAtRandom(from: culprit, state: &state) }
+                }
+                // A Flagrant leaves the ball where it is; anything milder still costs the
+                // clamped player the possession they were starting.
+                awardFreeThrows(effect.freeThrowsToClampVictim, to: seat,
+                                offender: effect.victimKeepsBall ? nil : culprit,
+                                source: whistle.card.name, state: &state, events: &events)
+            }
+        }
+
+        // Freethrow Merchant: being Clamped is itself the foul, so the defenders never
+        // arrive — the trip to the line is what happens instead of them.
+        let perClamp = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.freeThrowPerClamp ?? 0) }
+        if perClamp > 0, let first = state[seat].clamps.first {
+            let waved = state[seat].clamps.count
+            state[seat].clamps.removeAll()
+            events.append(.clampVoided(seat: seat, card: CardLibrary.freethrowMerchant, count: waved))
+            awardFreeThrows(perClamp * waved, to: seat, offender: first.from,
+                            source: "Freethrow Merchant", state: &state, events: &events)
+        }
+
         if shouldTick, tickClock(by: -1, holder: seat, state: &state, events: &events) { return }
         state.phase = .possession(holder: seat)
+        takeTheLine(state: &state, events: &events)
     }
 
     /// Returns true when the clock ran out and the round has already been ended.
@@ -510,7 +695,8 @@ enum Rules {
         } else if let effect = card.descriptor.gameBreak {
             events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
             state.discard.append(card)
-            resolveGameBreak(effect, drawnBy: seat, state: &state, events: &events, depth: depth)
+            resolveGameBreak(effect, named: card.name, drawnBy: seat,
+                             state: &state, events: &events, depth: depth)
         } else {
             state[seat].bag.append(card)
             events.append(.drew(seat: seat, card: card.descriptor))
@@ -526,7 +712,8 @@ enum Rules {
         }
     }
 
-    private static func resolveGameBreak(_ effect: GameBreakEffect, drawnBy seat: Seat,
+    private static func resolveGameBreak(_ effect: GameBreakEffect, named name: String,
+                                         drawnBy seat: Seat,
                                          state: inout GameState, events: inout [GameEvent],
                                          depth: Int) {
         for _ in 0..<effect.discard { discardAtRandom(from: seat, state: &state) }
@@ -555,6 +742,11 @@ enum Rules {
                 state.armedWhistles.removeAll()
                 events.append(.whistlesDismissed)
             }
+        }
+        // Nobody fouled them, so nobody owes them the ball back afterwards.
+        if effect.freeThrows > 0 {
+            awardFreeThrows(effect.freeThrows, to: seat, offender: nil, source: name,
+                            state: &state, events: &events)
         }
         if effect.givesBallAway, let holder = state.ball {
             let target = state.pick(from: Seat.allCases.filter { $0 != holder })
@@ -587,9 +779,56 @@ enum Rules {
         state[seat].bag.removeAll()
     }
 
+    /// Puts a seat on the line without waiting to be fouled. Debug and harness only.
+    @discardableResult
+    static func debugAwardFreeThrows(_ count: Int, to seat: Seat,
+                                     state: inout GameState) -> [GameEvent] {
+        var events: [GameEvent] = []
+        awardFreeThrows(count, to: seat, offender: nil, source: "Foul",
+                        state: &state, events: &events)
+        takeTheLine(state: &state, events: &events)
+        return events
+    }
+
     /// Draws one card. Exposed only so the harness can exercise draw-time effects.
     static func testDraw(_ seat: Seat, state: inout GameState, events: inout [GameEvent]) {
         draw(seat, state: &state, events: &events)
+    }
+
+    /// True when a card is playable, or already in play, and yet does nothing at all.
+    ///
+    /// Deliberately narrower than "unavailable". A card the rules refuse — Buzzer Beater
+    /// off its clock — is not dormant, it is illegal, and the refusal already says so in
+    /// red. Grey is reserved for a card that will happily be played and change nothing.
+    ///
+    /// Also deliberately narrower than "partly wasted". Drive without a Dribble behind it
+    /// still pays its own +10%, Coach's Challenge with no Timeout in the pile still
+    /// cancels, and Turnaround Three on an empty bag still takes the shot. Greying those
+    /// would claim they do nothing, which is worse than saying nothing.
+    static func isDormant(_ descriptor: CardDescriptor, for seat: Seat,
+                          in state: GameState) -> Bool {
+        // Armed, and unable to ever fire while the floor is silenced.
+        if descriptor.whistle?.trigger != nil, state.whistlesSilenced { return true }
+
+        // A passive whose condition is not met pays nothing at all.
+        if let passive = descriptor.intangible {
+            if passive.requiresScoredLastRound, !state[seat].scoredLastRound { return true }
+        }
+
+        // Nobody to give it back to: the pass cannot happen, only the turnover.
+        if descriptor.passTarget == .backToPasser, state.lastPasser == nil { return true }
+
+        // Its whole effect is a SHOT change, and SHOT is already pinned where it would
+        // push it — a debuff at the floor, or a boost at the ceiling.
+        let delta = descriptor.baseShotDelta
+        if delta != 0, descriptor.drawCount == 0, descriptor.clockDelta == 0,
+           descriptor.passTarget == nil, descriptor.special == nil,
+           descriptor.clamp == nil, descriptor.whistle == nil, descriptor.gameBreak == nil {
+            if delta < 0 && state.shot <= state.rules.shotFloor { return true }
+            if delta > 0 && state.shot >= state.rules.shotCeiling { return true }
+        }
+
+        return false
     }
 
     static func winners(of state: GameState) -> [Seat] {

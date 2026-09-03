@@ -4,6 +4,7 @@
 #
 #   ./sim --test     targeted rules assertions
 #   ./sim --sweep    AI shoot-threshold curve, 400 games per row
+#   ./sim --ft       where free throws come from, over 500 Standard games
 #   ./sim            500-game health check + card usage
 #   ./sim --play 19 in:N p2 sh      step a game, feeding South's moves
 #

@@ -15,6 +15,11 @@ struct MatchRules: Hashable, Codable {
     var shotClockStart: Int
     var startingShot: Int
     var madeShotPoints: Int
+    /// One point, the way they are everywhere else.
+    var freeThrowPoints: Int
+    /// What an opponent shoots from the line. The player shoots theirs by hand, so this
+    /// stands in for a generous mini-game rather than for a real free-throw percentage.
+    var freeThrowChance: Int
     /// SHOT is a property of passing; a card may override it with its own `shotDelta`.
     var passShotBonus: Int
     var shotFloor: Int
@@ -37,6 +42,8 @@ extension MatchRules {
             shotClockStart: 10,
             startingShot: 0,
             madeShotPoints: 2,
+            freeThrowPoints: 1,
+            freeThrowChance: 75,
             passShotBonus: 5,
             shotFloor: 0,
             shotCeiling: 100,

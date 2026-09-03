@@ -13,7 +13,8 @@ enum GameEvent: Hashable {
     case coinRun(seat: Seat, card: CardDescriptor, heads: Int)
     case discardedForShot(seat: Seat, card: CardDescriptor, count: Int)
     case failedReturn(seat: Seat)
-    case whistleBlew(owner: Seat, card: CardDescriptor, cancelled: String)
+    case whistleBlew(owner: Seat, card: CardDescriptor, cancelled: String,
+                     cancelledCard: CardDescriptor?)
     case whistleArmed(seat: Seat)
     case whistleRefocused
     case whistlesDismissed
@@ -31,6 +32,13 @@ enum GameEvent: Hashable {
     case reboundBids(bids: [Seat: Int], order: [Seat])
     case rebounded(Seat)
     case turnover(Seat)
+    case freeThrowsAwarded(seat: Seat, count: Int, source: String)
+    case freeThrowBonus(seat: Seat, count: Int, card: CardDescriptor)
+    case freeThrowMade(seat: Seat, points: Int, index: Int, of: Int)
+    case freeThrowMissed(seat: Seat, index: Int, of: Int)
+    case freeThrowsEnded(seat: Seat, made: Int, of: Int)
+    case clampsShaken(seat: Seat, card: CardDescriptor, count: Int)
+    case clampVoided(seat: Seat, card: CardDescriptor, count: Int)
     case roundEnded(Int)
     case deckReshuffled
     case halftime
@@ -89,7 +97,7 @@ enum GameEvent: Hashable {
             return "\(seat.playerName) \(seat.verb("clamps", "clamp")) down — \(card.name)."
         case .clampBit(let seat, let card, let discarded):
             return "\(card.name) on \(seat.playerName): \(discarded) card\(discarded == 1 ? "" : "s") gone."
-        case .whistleBlew(let owner, let card, let cancelled):
+        case .whistleBlew(let owner, let card, let cancelled, _):
             return "WHISTLE! \(owner.playerName)'s \(card.name) cancels \(cancelled)."
         case .failedReturn(let seat):
             return "\(seat.playerName) \(seat.verb("has", "have")) nobody to give it back to!"
@@ -108,6 +116,20 @@ enum GameEvent: Hashable {
             return "\(seat.playerName) \(seat.verb("grabs", "grab")) the board. +1 REB."
         case .turnover(let seat):
             return "Shot clock violation! \(seat.playerName) +1 TOV."
+        case .freeThrowsAwarded(let seat, let count, let source):
+            return "\(source)! \(seat.playerName) \(seat.verb("goes", "go")) to the line for \(count)."
+        case .freeThrowBonus(let seat, let count, let card):
+            return "\(card.name): \(seat.playerName) +\(count) at the line."
+        case .freeThrowMade(let seat, let points, let index, let total):
+            return "Free throw \(index) of \(total) — good. \(seat.playerName) +\(points) PTS."
+        case .freeThrowMissed(_, let index, let total):
+            return "Free throw \(index) of \(total) — off the iron."
+        case .freeThrowsEnded(let seat, let made, let total):
+            return "\(seat.playerName) \(seat.verb("finishes", "finish")) \(made) of \(total) from the line."
+        case .clampVoided(let seat, let card, let count):
+            return "\(card.name): the Clamp lands on nothing — \(count) defender\(count == 1 ? "" : "s") waved off \(seat.playerName)."
+        case .clampsShaken(let seat, let card, let count):
+            return "\(card.name): \(seat.playerName) \(seat.verb("shakes", "shake")) off \(count) Clamp\(count == 1 ? "" : "s")."
         case .roundEnded(let round):
             return "End of round \(round)."
         case .deckReshuffled:

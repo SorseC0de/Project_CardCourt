@@ -37,6 +37,14 @@ enum CardLibrary {
         effect: "Draw 1. SHOT +10%. Shot Clock -1", numberInDeck: 5,
         shotDelta: 10, drawCount: 1, clockDelta: -1, isDribble: true)
 
+    /// The sheet's row is cut off after "If no Clamps on you," — so the card does what
+    /// the written half says and nothing more. It greys out on an empty floor.
+    static let flop = CardDescriptor(
+        id: "flop", name: "Flop", type: .move,
+        effect: "Cancel Clamps. Take 1 FT for each. If no Clamps on you, TOV +1",
+        numberInDeck: 5,
+        freeThrowsPerClamp: 1, clearsClamps: true, turnoverIfNoClamps: true)
+
     static let contest = CardDescriptor(
         id: "contest", name: "Contest", type: .clamp,
         effect: "Next player: SHOT -25%", numberInDeck: 10,
@@ -97,6 +105,48 @@ enum CardLibrary {
         numberInDeck: 3,
         whistle: WhistleEffect(trigger: .clampPlayed, endsRound: true, pointsToVictim: 2))
 
+    // These three let the Clamp resolve and negate what it does, so that "the clamped
+    // player" has somebody to refer to — see WhistleEffect.voidsClampOnLanding.
+
+    static let blockingFoul = CardDescriptor(
+        id: "blocking-foul", name: "Blocking Foul", type: .whistle,
+        effect: "Next Clamp: no effect. Clamped player +1 FT", numberInDeck: 5,
+        whistle: WhistleEffect(trigger: .clampPlayed, voidsClampOnLanding: true,
+                               freeThrowsToClampVictim: 1))
+
+    static let flagrantFoul = CardDescriptor(
+        id: "flagrant-foul", name: "Flagrant Foul", type: .whistle,
+        effect: "Next Clamp: no effect. Clamper discards 1. Clamped player +1 FT and keeps the ball",
+        numberInDeck: 3,
+        whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 1,
+                               voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
+                               victimKeepsBall: true))
+
+    static let flagrantFoulII = CardDescriptor(
+        id: "flagrant-foul-ii", name: "Flagrant Foul II", type: .whistle,
+        effect: "Next Clamp: no effect. Clamper discards their bag. Clamped player +1 FT and keeps the ball",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscardsBag: true,
+                               voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
+                               victimKeepsBall: true))
+
+    static let charge = CardDescriptor(
+        id: "charge", name: "Charge", type: .whistle,
+        effect: "Cancel Next Shot. Shooter inbounds", numberInDeck: 5,
+        whistle: WhistleEffect(trigger: .shotAttempt, offenderInbounds: true))
+
+    static let technicalFoul = CardDescriptor(
+        id: "technical-foul", name: "Technical Foul", type: .whistle,
+        effect: "Cancel Next Non-Whistle", numberInDeck: 5,
+        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed))
+
+    static let delayOfGameWarning = CardDescriptor(
+        id: "delay-of-game-warning", name: "Delay-of-Game Warning", type: .whistle,
+        effect: "Cancel Next Shot-Clock card. 2nd call this round: Take 1 FT",
+        numberInDeck: 6,
+        whistle: WhistleEffect(trigger: .shotClockLowered, freeThrowsOnRepeatCall: 1,
+                               keepsClockCost: true, staysArmed: true))
+
     static let timeout = CardDescriptor(
         id: "timeout", name: "Timeout", type: .whistle,
         effect: "Reset Shot Clock. All draw 1", numberInDeck: 5,
@@ -114,7 +164,19 @@ enum CardLibrary {
         effect: "SHOT +20% if you scored last round", numberInDeck: 1,
         intangible: IntangibleEffect(shotBonus: 20, requiresScoredLastRound: true))
 
-    static let intangibles: [CardDescriptor] = [shotCreator, hotHand]
+    static let freethrowMerchant = CardDescriptor(
+        id: "freethrow-merchant", name: "Freethrow Merchant", type: .intangible,
+        effect: "All Clamps on you grant 1 FT", numberInDeck: 1,
+        intangible: IntangibleEffect(freeThrowPerClamp: 1))
+
+    static let generationalWhistle = CardDescriptor(
+        id: "generational-whistle", name: "Generational Whistle", type: .intangible,
+        effect: "Take 1 additional FT", numberInDeck: 1,
+        intangible: IntangibleEffect(bonusFreeThrows: 1))
+
+    static let intangibles: [CardDescriptor] = [
+        shotCreator, hotHand, freethrowMerchant, generationalWhistle,
+    ]
 
     // ── Game Breaks ───────────────────────────────────────────────────
 
@@ -153,6 +215,11 @@ enum CardLibrary {
         effect: "This round:",
         numberInDeck: 5,
         gameBreak: GameBreakEffect(silencesWhistles: true))
+
+    static let foul = CardDescriptor(
+        id: "foul", name: "Foul", type: .gameBreak,
+        effect: "Take 1 FT", numberInDeck: 5,
+        gameBreak: GameBreakEffect(freeThrows: 1))
 
     // ── Special Moves ─────────────────────────────────────────────────
     // These take the shot themselves, which ends the possession.
@@ -210,12 +277,14 @@ enum CardLibrary {
     ]
 
     static let gameBreaks: [CardDescriptor] = [
-        crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched, swallowedWhistle,
+        crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
+        swallowedWhistle, foul,
     ]
 
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
-        coachsChallenge, officialReview, goaltending, timeout,
+        coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
+        blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul,
     ]
 
     static let all: [CardDescriptor] = [
@@ -226,13 +295,15 @@ enum CardLibrary {
     static let classicPool: [CardDescriptor] = all
 
     /// Standard adds everything else, as each type gets built.
-    static let standardPool: [CardDescriptor] = all + [contest, fullCourtPress] + whistles + intangibles + gameBreaks + specialMoves
+    static let standardPool: [CardDescriptor] = all + [contest, fullCourtPress, flop] + whistles + intangibles + gameBreaks + specialMoves
 
     /// Names that turn up inside other cards' text, for highlighting them there. Only
     /// multi-letter names, so a stray word is never mistaken for a reference.
+    /// Actual card names only. Type words — Whistle, Clamp, Move, Pass, Intangible —
+    /// are categories, not cards, and colouring them read as a reference to something
+    /// that does not exist.
     static let namesReferencedInText: [String] = [
-        "Timeout", "Rhythm Dribble", "Dribble", "Drive", "Intangible", "Intangibles",
-        "Whistle", "Non-Whistle", "Clamp", "Clamps", "Move", "Pass",
+        "Rhythm Dribble", "Timeout", "Dribble", "Drive",
     ]
 
     static func buildDeck(pool: [CardDescriptor], passShotBonus: Int) -> [Card] {
