@@ -16,6 +16,11 @@ enum GameEvent: Hashable, Codable {
     case whistleBlew(owner: Seat, card: CardDescriptor, cancelled: String,
                      cancelledCard: CardDescriptor?)
     case whistleArmed(seat: Seat)
+    /// A Whistle with no trigger — Timeout — which resolves the moment it is played
+    /// rather than lying in wait. It appended nothing at all before, so playing one was
+    /// silent: four players drew, nothing said why, and the only lines that reached the
+    /// log were whatever Game Breaks those draws turned up.
+    case whistleUsed(seat: Seat, card: CardDescriptor)
     case whistleRefocused
     case whistlesDismissed
     case whistlesRecalled(count: Int)
@@ -92,6 +97,8 @@ enum GameEvent: Hashable, Codable {
             return "\(card.name) drops off \(seat.playerName)'s slots."
         case .intangiblesStripped(let seat):
             return "\(seat.playerName) \(seat.verb("loses", "lose")) every Intangible."
+        case .whistleUsed(let seat, let card):
+            return "\(seat.playerName) \(seat.verb("calls", "call")) \(card.name)."
         case .whistleArmed:
             // Deliberately says nothing about who or what — the trap is the point.
             return "The Referees are watching intently…"

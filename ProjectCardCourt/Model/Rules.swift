@@ -169,6 +169,7 @@ enum Rules {
                 }
             } else if let effect = descriptor.whistle {
                 if effect.trigger == nil {
+                    events.append(.whistleUsed(seat: seat, card: descriptor))
                     resolveImmediate(effect, playedBy: seat, state: &state, events: &events)
                 } else {
                     // Up to three on the floor at once, and they accumulate rather than

@@ -98,6 +98,8 @@ enum DevLog {
             case .intangibleRevealed(let seat, let card):
                 say(.card, "\(seat.dev) reveals \(card.name)")
 
+            case .whistleUsed(let seat, let card):
+                say(.play, "\(seat.dev) calls \(card.name)")
             case .whistleArmed(let seat):
                 say(.whistle, "\(seat.dev) arms one")
             case .whistleBlew(let owner, let card, let cancelled, let victim):

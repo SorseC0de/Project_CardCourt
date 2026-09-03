@@ -179,6 +179,9 @@ struct PlayedCard: Identifiable, Equatable {
                 return PlayedCard(seat: seat, descriptor: card, faceDown: false)
             case .clampSet(let seat, let card):
                 return PlayedCard(seat: seat, descriptor: card, faceDown: false)
+            case .whistleUsed(let seat, let card):
+                // Face up: a Timeout is called out loud. Only an armed Whistle is private.
+                return PlayedCard(seat: seat, descriptor: card, faceDown: false)
             case .whistleArmed(let seat):
                 return PlayedCard(seat: seat, descriptor: CardLibrary.timeout, faceDown: true)
             default:
@@ -917,8 +920,8 @@ final class GameController {
 
     private func beat(of event: GameEvent) -> Beat {
         switch event {
-        case .passed, .movePlayed, .clampSet, .whistleArmed, .comboLanded, .coinRun,
-             .discardedForShot:
+        case .passed, .movePlayed, .clampSet, .whistleArmed, .whistleUsed, .comboLanded,
+             .coinRun, .discardedForShot:
             return .play
         case .whistleBlew, .whistleRefocused, .whistlesDismissed, .clampVoided,
              .clampsShaken, .intangiblesStripped, .clampBit:
