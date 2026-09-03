@@ -23,11 +23,13 @@ enum DevLog {
         case whistle
         case freeThrow = "ft"
         case deck
+        /// The wire: signing in, matchmaking, and what crosses between devices.
+        case net
     }
 
     /// Switch a channel off when it drowns out what is being chased.
     static var channels: Set<Tag> = Set(
-        [.input, .shot, .card, .phase, .whistle, .freeThrow, .deck])
+        [.input, .shot, .card, .phase, .whistle, .freeThrow, .deck, .net])
 
     /// Wall clock to the millisecond, and how long since the line before it.
     ///

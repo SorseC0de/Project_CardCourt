@@ -55,7 +55,8 @@ final class GameCenterMatch: NSObject, MatchTransport {
                     return
                 }
                 if let error {
-                    self.status = .failed(error.localizedDescription)
+                    self.status = .failed(Self.describe(error))
+                    DevLog.say(.net, "sign-in failed — \(Self.describe(error))")
                     return
                 }
                 self.pendingSignIn = nil
@@ -79,7 +80,19 @@ final class GameCenterMatch: NSObject, MatchTransport {
 
     /// Looks for a table. Two players is a game; four is the game.
     func findMatch(players: ClosedRange<Int> = 2...4) async {
-        guard GKLocalPlayer.local.isAuthenticated else { return }
+        // Not just `isAuthenticated`: a player can be signed in and still barred from
+        // multiplayer by Screen Time, and GameKit reports that as an opaque transport
+        // failure rather than as a restriction. Saying so plainly is worth the two lines.
+        guard GKLocalPlayer.local.isAuthenticated else {
+            status = .failed("Not signed in to Game Center. Settings → Game Center.")
+            return
+        }
+        if GKLocalPlayer.local.isMultiplayerGamingRestricted {
+            status = .failed("Multiplayer is switched off for this Apple Account. "
+                             + "Settings → Screen Time → Content & Privacy Restrictions "
+                             + "→ Game Center → Multiplayer Games.")
+            return
+        }
         status = .searching
         let request = GKMatchRequest()
         request.minPlayers = players.lowerBound
@@ -88,8 +101,33 @@ final class GameCenterMatch: NSObject, MatchTransport {
             let match = try await GKMatchmaker.shared().findMatch(for: request)
             adopt(match)
         } catch {
-            status = .failed(error.localizedDescription)
+            status = .failed(Self.describe(error))
+            DevLog.say(.net, "findMatch failed — \(Self.describe(error))")
         }
+    }
+
+    /// What GameKit actually said.
+    ///
+    /// `localizedDescription` on a GameKit error is almost always "The operation couldn't
+    /// be completed", which names nothing. The domain and code are the part worth reading,
+    /// and a `GKError` code is worth translating outright.
+    static func describe(_ error: any Error) -> String {
+        let ns = error as NSError
+        if ns.domain == GKErrorDomain, let code = GKError.Code(rawValue: ns.code) {
+            switch code {
+            case .cancelled:              return "Cancelled."
+            case .notAuthenticated:       return "Not signed in to Game Center."
+            case .matchRequestInvalid:    return "Game Center refused the match request."
+            case .communicationsFailure:  return "Could not reach Game Center."
+            case .gameUnrecognized:
+                return "Game Center does not recognise this app — the bundle id, the "
+                     + "capability, or the App Store Connect record do not agree."
+            case .invitationsDisabled:    return "Invitations are switched off."
+            case .restrictedToAutomatch:  return "This account is limited to auto-match."
+            default:                      return "Game Center error \(ns.code)."
+            }
+        }
+        return "\(ns.domain) \(ns.code): \(ns.localizedDescription)"
     }
 
     func leave() {
