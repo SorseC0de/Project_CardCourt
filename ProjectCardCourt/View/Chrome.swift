@@ -93,11 +93,11 @@ struct ChunkyButton: View {
                 .padding(.vertical, size * 0.42)
                 .frame(maxWidth: .infinity)
                 .background(Capsule().fill(fill))
-                .overlay(Capsule().strokeBorder(Chrome.shade, lineWidth: Chrome.stroke * 0.5))
-                .overlay(Capsule().strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5)
-                    .padding(-Chrome.stroke * 0.5))
+                .overlay(Capsule().strokeBorder(Chrome.shade, lineWidth: Chrome.stroke))
+                //.overlay(Capsule().strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5)
+                    //.padding(-Chrome.stroke * 0.5))
                 .compositingGroup()
-                .shadow(color: Chrome.shade, radius: 0, x: Chrome.drop, y: Chrome.drop)
+                .shadow(color: CardPalette.blue, radius: 0, x: Chrome.drop, y: Chrome.drop)
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -117,7 +117,7 @@ struct Chip<Content: View>: View {
     var body: some View {
         content
             .frame(width: side, height: side)
-            .background(RoundedRectangle(cornerRadius: radius).fill(fill))
+            //.background(RoundedRectangle(cornerRadius: radius).fill(fill))
             .overlay(RoundedRectangle(cornerRadius: radius)
                 .strokeBorder(Chrome.edge, lineWidth: Chrome.stroke * 0.5))
     }

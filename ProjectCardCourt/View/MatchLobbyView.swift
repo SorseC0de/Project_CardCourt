@@ -26,7 +26,7 @@ struct MatchLobbyView: View {
                 topBar
                 ScrollView {
                     VStack(spacing: 16) {
-                        ScreenTitle(text: "Play a table")
+                        ScreenTitle(text: "Pickup Game")
                             .padding(.top, 22)
                         Text(caption)
                             .font(.custom(Chrome.display, size: 17))
@@ -147,7 +147,7 @@ struct MatchLobbyView: View {
         case .signedOut, .failed:
             ChunkyButton(title: "Sign in") { session.signIn() }
         case .signingIn, .searching:
-            ChunkyButton(title: session.status == .searching ? "Searching…" : "Signing in…",
+            ChunkyButton(title: session.status == .searching ? "Searching…" : "Locking in…",
                          fill: CardPalette.gray, isEnabled: false) {}
         case .ready:
             ChunkyButton(title: "Find players") { Task { await session.findMatch() } }
@@ -169,7 +169,7 @@ struct MatchLobbyView: View {
     private var caption: String {
         switch session.status {
         case .signedOut:          return "Game Center handles the accounts and the invites."
-        case .signingIn:          return "Signing in…"
+        case .signingIn:          return "Locking in…"
         case .ready:              return "Two makes a game. Four makes the game."
         case .searching:          return "Looking for a table."
         case .playing:            return "Seated. Any empty chair is played by the house."

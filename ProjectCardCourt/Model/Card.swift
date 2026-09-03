@@ -168,18 +168,6 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Drawn with a slash through it — the card says "no" to whatever the icon shows.
     var isSlashed: Bool { id == "swallowed-whistle" }
 
-    /// A second drawing laid over the first, in its own colours.
-    ///
-    /// The putback is a hand tipping a ball back up, and a hand on its own is just a hand
-    /// — the ball is the half of it that says what the card does. Kept out of the SVG so
-    /// the ball is the same ball the rest of the game draws.
-    var artworkAccent: (name: String, scale: CGFloat, x: CGFloat, y: CGFloat)? {
-        switch id {
-        case "putback-tip": return ("BallVector", 0.34, 0.20, -0.26)
-        default: return nil
-        }
-    }
-
     var artwork: (name: String, mirrored: Bool, scale: CGFloat)? {
         // It is a Game Break, but what it is *about* is Whistles — and with the slash
         // through it the whistle says the whole effect without a word.
@@ -211,10 +199,17 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     }
 
     /// A second, smaller symbol set off from the main one — the ball leaving the hand on
-    /// a Fadeaway. Sizes and offsets are fractions of the icon's own side.
+    /// a Fadeaway, or the ball a Putback tips back up. Sizes and offsets are fractions of
+    /// the icon's own side.
+    ///
+    /// Worn by drawn artwork as well as by symbols, so a card whose icon is an SVG can
+    /// still take the game's own ball rather than one baked into the drawing.
     var accentSymbol: (name: String, scale: CGFloat, x: CGFloat, y: CGFloat, turn: Double)? {
         switch id {
         case "fadeaway": return ("basketball.fill", 0.21, 0.40, -0.46, 0)
+        // The hand is drawn art and the ball is not, which is the point — the ball a
+        // Putback tips is the same ball every other card draws.
+        case "putback-tip": return ("basketball.fill", 0.50, 0.24, -0.30, 0)
         // A second pair of prints, so the walk is four steps rather than two.
         case "travel":   return ("shoeprints.fill", 0.82, 0.34, 0.30, 14)
         default:         return nil

@@ -90,14 +90,10 @@ struct CardFrontView: View {
                         .scaledToFit()
                         .frame(width: side * art.scale, height: side * art.scale)
                         .scaleEffect(x: art.mirrored ? -1 : 1)
-                    // Left as its own artwork rather than tinted with the icon: a ball the
-                    // same colour as the hand holding it is not a ball.
-                    if let ball = descriptor.artworkAccent {
-                        Image(ball.name)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: side * ball.scale, height: side * ball.scale)
-                            .offset(x: side * ball.x, y: side * ball.y)
+                    // The same accent the symbol icons wear, so a drawn icon and a drawn
+                    // symbol put the same ball in the same place.
+                    if let accent = descriptor.accentSymbol {
+                        accentImage(accent, side: side)
                     }
                 }
             } else if let accent = descriptor.accentSymbol {
@@ -105,10 +101,7 @@ struct CardFrontView: View {
                     Image(systemName: descriptor.symbol)
                         .font(.system(size: side, weight: .semibold))
                         .rotationEffect(.degrees(descriptor.symbolRotation))
-                    Image(systemName: accent.name)
-                        .font(.system(size: side * accent.scale, weight: .semibold))
-                        .rotationEffect(.degrees(accent.turn))
-                        .offset(x: side * accent.x, y: side * accent.y)
+                    accentImage(accent, side: side)
                 }
             } else {
                 Image(systemName: descriptor.symbol)
@@ -299,6 +292,16 @@ struct CardFrontView: View {
             }
         }
         .position(x: width / 2, y: height * CardLayout.arrowCentreYFraction)
+    }
+
+    /// The second symbol on an icon, wherever it is worn.
+    private func accentImage(_ accent: (name: String, scale: CGFloat, x: CGFloat,
+                                        y: CGFloat, turn: Double),
+                             side: CGFloat) -> some View {
+        Image(systemName: accent.name)
+            .font(.system(size: side * accent.scale, weight: .semibold))
+            .rotationEffect(.degrees(accent.turn))
+            .offset(x: side * accent.x, y: side * accent.y)
     }
 
     private func arrowImage(_ side: CGFloat) -> some View {
