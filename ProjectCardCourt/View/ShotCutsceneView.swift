@@ -67,6 +67,8 @@ struct ShotCutsceneView: View {
                                           weight: .black, design: .rounded))
                             .tracking(scene.missCall == "BRRRICK" ? 2 : 0)
                             .foregroundStyle(Theme.danger)
+                            .compositingGroup()
+                            .shadow(color: CardPalette.navy, radius: 0, x: 4, y: 4)
                             .opacity(showResult ? 1 : 0)
                             .scaleEffect(showResult ? 1 : 0.7)
                     }
@@ -84,8 +86,12 @@ struct ShotCutsceneView: View {
                 }
 
                 VStack(spacing: 8) {
+                    // Never mirrored here, whoever is shooting. On the court West faces
+                    // the other way; in a cutscene there is no court to face, and one
+                    // player turned around reads as a mistake rather than as staging.
                     PlayerFigure(seat: scene.shooter, sprite: .shoot,
-                                 playsOnce: true, fps: Theme.Figure.shootFPS)
+                                 playsOnce: true, fps: Theme.Figure.shootFPS,
+                                 mirrored: false)
                         .scaleEffect(1.7)
                     Text(scene.shooter.playerName.uppercased())
                         .font(.system(size: 12, weight: .heavy))

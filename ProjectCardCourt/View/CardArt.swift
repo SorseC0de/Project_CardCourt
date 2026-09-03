@@ -41,6 +41,9 @@ struct CardBodyFill: View {
     /// Injuries are a family inside Game Break with their own colour, so the fill takes
     /// this rather than reading the type alone.
     var isInjury = false
+    /// Playable but pointless. Only the body greys — draining the whole card made two
+    /// Whistles indistinguishable, their stripes being white to begin with.
+    var isDormant = false
     var stripes = 11
     /// How far down the card the stripes run.
     var bandFraction: CGFloat = 0.10
@@ -49,8 +52,9 @@ struct CardBodyFill: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                Rectangle().fill(isInjury ? CardPalette.green : CardPalette.body(for: type))
-                if CardPalette.isStriped(type) {
+                Rectangle().fill(isDormant ? CardPalette.gray
+                                 : (isInjury ? CardPalette.green : CardPalette.body(for: type)))
+                if CardPalette.isStriped(type), !isDormant {
                     HStack(spacing: 0) {
                         ForEach(0..<stripes, id: \.self) { index in
                             Rectangle()

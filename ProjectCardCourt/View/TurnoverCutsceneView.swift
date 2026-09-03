@@ -33,7 +33,7 @@ struct TurnoverCutsceneView: View {
         static let stopAtFrame = 3
         /// How long the first of the catch takes, which is also the ball's flight.
         static var reachSeconds: Double {
-            Double(stopAtFrame + 1) / BallTuning.shared.catchFPS
+            Double(stopAtFrame + 1) / Theme.Pass.catchFPS
         }
 
         /// Three hard cuts on the same held moment, each tighter than the last.
@@ -151,19 +151,18 @@ struct TurnoverCutsceneView: View {
         // in a stack with its name centred the pair instead and moved the feet.
         let centre = CGPoint(x: size.width / 2, y: size.height - 150 - side / 2)
         let footing = CGPoint(x: centre.x, y: centre.y + side / 2)
-        let tuning = BallTuning.shared
         // Which way he is turned decides all three: the sprite, the hand the ball lands
         // in, and the side it flies in from. Reading them from separate places is what
         // let the ball arrive at his back — the court mirrors West always and the centre
         // line only for a pass from the left, and this scene was ignoring the seat.
         let fromEast = Seat.allCases.first {
-            $0.slot(viewedFrom: GameRules.humanSeat) == .east
+            $0.slot(viewedFrom: GameRules.localSeat) == .east
         }
         let facingBall = PlayerFigure.catchIsMirrored(
             seat: scene.seat, facing: scene.fromLeft ? nil : fromEast)
         let flip: CGFloat = facingBall ? -1 : 1
-        let hand = CGPoint(x: footing.x + side * tuning.handX * flip,
-                           y: footing.y - side * tuning.handY)
+        let hand = CGPoint(x: footing.x + side * Theme.Pass.handX * flip,
+                           y: footing.y - side * Theme.Pass.handY)
 
         let scale = Held.cuts[min(cut, Held.cuts.count - 1)]
         // Pull the shot back so the zoom lands on the ball rather than on empty floor.
@@ -248,7 +247,8 @@ struct TurnoverCutsceneView: View {
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.6)
                 .padding(.horizontal, 24)
-                // Flattened first, or the shadow is cast per glyph rather than once.
+                // Hard and south-east, like every other mark in the game. Flattened
+                // first, or it is cast per glyph rather than once for the line.
                 .compositingGroup()
                 .shadow(color: CardPalette.red, radius: 0, x: 3, y: 3)
         }

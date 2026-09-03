@@ -32,8 +32,14 @@ enum Rules {
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
         case .possession(let holder) where holder == seat:
             let playable = state[seat].bag.filter { card in
-                guard let clock = card.descriptor.special?.onlyAtShotClock else { return true }
-                return state.shotClock == clock
+                if let clock = card.descriptor.special?.onlyAtShotClock {
+                    return state.shotClock == clock
+                }
+                // Only so many referees will stand on one floor.
+                if card.descriptor.whistle?.trigger != nil {
+                    return state.armedWhistles.count < state.rules.refereeSlots
+                }
+                return true
             }
             return [.shoot] + playable.map { Move.play($0.id) }
         default:
@@ -82,8 +88,15 @@ enum Rules {
             }
 
             let card = state[seat].bag.remove(at: index)
-            state.discard.append(card)
             let descriptor = card.descriptor
+            // Everything is spent the moment it is played — except a Whistle being armed,
+            // which is **private** until it is called. The discard is public, so a card
+            // put there names the trap, and the whole point of arming one is that nobody
+            // knows what is waiting. It is held in `armedWhistles` and reaches the pile
+            // when it blows, is silenced, or the referees go home at the round's end.
+            if descriptor.whistle?.trigger == nil {
+                state.discard.append(card)
+            }
 
             var delta = descriptor.baseShotDelta
             let comboArmed = descriptor.comboAfter != nil
@@ -154,12 +167,11 @@ enum Rules {
                 if effect.trigger == nil {
                     resolveImmediate(effect, playedBy: seat, state: &state, events: &events)
                 } else {
-                    // Whistles cancel each other out. The referee stays on the floor,
-                    // but only the newest trigger is live.
-                    let replaced = !state.armedWhistles.isEmpty
-                    state.discard.append(contentsOf: state.armedWhistles.map(\.card))
-                    state.armedWhistles = [ArmedWhistle(owner: seat, card: card)]
-                    events.append(replaced ? .whistleRefocused : .whistleArmed(seat: seat))
+                    // Up to three on the floor at once, and they accumulate rather than
+                    // replacing one another. A fourth is simply not playable — see
+                    // `legalMoves`, which refuses it before it gets here.
+                    state.armedWhistles.append(ArmedWhistle(owner: seat, card: card))
+                    events.append(.whistleArmed(seat: seat))
                 }
             } else if let clamp = descriptor.clamp {
                 // Set down now, lands on whoever receives the ball next. The possession
@@ -384,9 +396,11 @@ enum Rules {
     /// is what gives a Whistle-cancels-a-Whistle chain a defined winner.
     private static func interceptor(of action: PendingAction, in state: GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
-        return state.armedWhistles.first { whistle in
-            whistle.owner != action.actor && whistle.trigger?.matches(action) == true
-        }
+        // Oldest first: a trap set earlier is the one lying in wait.
+        //
+        // No owner exemption. A Whistle catches whoever trips it, its own player included
+        // — that is what stops a table being flooded with traps by someone immune to them.
+        return state.armedWhistles.first { $0.trigger?.matches(action) == true }
     }
 
     /// Spends the Whistle, cancels what tripped it, and applies its effects.
@@ -401,6 +415,7 @@ enum Rules {
         // Most Whistles are spent by being called. Delay-of-Game stays on the floor for
         // its first call — the warning — and is spent by the second, which is the foul.
         // Without the second half it fouls at every possession for the rest of the round.
+        // Called, so it is public now — and only now does it reach the pile.
         if !effect.staysArmed || calls > 1 {
             state.armedWhistles.removeAll { $0.id == whistle.id }
             state.discard.append(whistle.card)
@@ -612,6 +627,13 @@ enum Rules {
 
     private static func endRound(state: inout GameState, events: inout [GameEvent]) {
         events.append(.roundEnded(state.round))
+
+        // The referees leave when the round does — a trap does not lie in wait across the
+        // inbound that follows it — and the cards they were holding are spent.
+        if !state.armedWhistles.isEmpty {
+            state.discard.append(contentsOf: state.armedWhistles.map(\.card))
+            state.armedWhistles.removeAll()
+        }
         for seat in Seat.allCases {
             state[seat].scoredLastRound = state[seat].scoredThisRound
             state[seat].scoredThisRound = false
@@ -625,12 +647,29 @@ enum Rules {
             return
         }
         if state.round == state.rules.roundsPerHalf {
+            // Halftime already puts everything back, so recalling would be doing it twice.
             halftime(state: &state, events: &events)
+        } else {
+            recallWhistles(state: &state, events: &events)
         }
         state.round += 1
         // Rotation continues clockwise across halftime.
         state.inbounder = state.inbounder.clockwise
         beginRound(state: &state, events: &events)
+    }
+
+    /// Spent Whistles go back into the deck at the end of every round.
+    ///
+    /// There is one of each, so without this you meet a Whistle once and never again —
+    /// and the cards that answer them, Coach's Challenge and Cleared to Play, would spend
+    /// most of a game as dead weight. Only spent ones return: a Whistle still in a hand
+    /// stays there, which is what a table would do.
+    private static func recallWhistles(state: inout GameState, events: inout [GameEvent]) {
+        let returning = state.discard.filter { $0.descriptor.type == .whistle }
+        guard !returning.isEmpty else { return }
+        state.discard.removeAll { $0.descriptor.type == .whistle }
+        state.deck = state.shuffled(state.deck + returning)
+        events.append(.whistlesRecalled(count: returning.count))
     }
 
     private static func halftime(state: inout GameState, events: inout [GameEvent]) {
@@ -788,6 +827,12 @@ enum Rules {
                         state: &state, events: &events)
         takeTheLine(state: &state, events: &events)
         return events
+    }
+
+    /// Ends the round. Exposed only so the harness can check what a round turning over
+    /// clears up after itself.
+    static func testEndRound(state: inout GameState, events: inout [GameEvent]) {
+        endRound(state: &state, events: &events)
     }
 
     /// Draws one card. Exposed only so the harness can exercise draw-time effects.

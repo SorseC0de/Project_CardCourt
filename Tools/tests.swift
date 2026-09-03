@@ -508,8 +508,8 @@ func runTests() {
                                  whistle: WhistleEffect(trigger: .shotAttempt))
         state.armedWhistles = [ArmedWhistle(owner: seat, card: Card(ref))]
         let events = Rules.apply(.shoot, by: seat, to: &state)
-        Check.that(!events.contains { if case .whistleBlew = $0 { return true }; return false },
-                   "your own Whistle does not fire on you")
+        Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "a Whistle catches its own player too — nobody is immune to their trap")
     }
 
     print("Whistle cards")
@@ -579,14 +579,71 @@ func runTests() {
         var (state, seat, cards) = openPossession(
             seed: 47, cards: [CardLibrary.travel, CardLibrary.shotClockViolation])
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        let events = Rules.apply(.play(cards[1].id), by: seat, to: &state)
-        Check.that(state.armedWhistles.count == 1, "a second Whistle replaces the first")
-        Check.that(state.armedWhistles[0].card.descriptor.id == "shot-clock-violation",
-                   "the newest trigger is the live one")
-        Check.that(state.discard.contains { $0.descriptor.id == "travel" },
-                   "and the cancelled one is spent")
-        Check.that(events.contains { if case .whistleRefocused = $0 { return true }; return false },
-                   "the log says the referees shifted focus")
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        Check.that(state.armedWhistles.count == 2, "Whistles gather rather than replacing")
+        Check.that(state.armedWhistles[0].card.descriptor.id == "travel",
+                   "and the first one set is still the first in line")
+        // An armed Whistle is private. The discard is public, so it must not be there.
+        Check.that(!state.discard.contains { $0.descriptor.id == "travel" },
+                   "an armed Whistle stays out of the public pile")
+
+        // And reaches it exactly once when called, never twice.
+        var spent = state
+        spent.armedWhistles = [spent.armedWhistles[0]]
+        Rules.apply(.shoot, by: seat, to: &spent)
+        Check.that(spent.discard.filter { $0.descriptor.id == "travel" }.count <= 1,
+                   "and lands in the pile once when it is spent, not twice")
+    }
+
+    do {
+        // Three referees is the floor's limit, and a fourth is simply unplayable.
+        var (state, seat, cards) = openPossession(
+            seed: 51, cards: [CardLibrary.travel, CardLibrary.shotClockViolation,
+                              CardLibrary.doubleDribble, CardLibrary.backCourtViolation])
+        for index in 0..<3 { Rules.apply(.play(cards[index].id), by: seat, to: &state) }
+        Check.that(state.armedWhistles.count == state.rules.refereeSlots,
+                   "three fill the floor")
+        let legal = Rules.legalMoves(state, for: seat)
+        Check.that(!legal.contains(.play(cards[3].id)),
+                   "and a fourth is refused while they are all standing")
+
+        // They go home at the end of a round rather than lying in wait across it.
+        var rounds: [GameEvent] = []
+        Rules.testEndRound(state: &state, events: &rounds)
+        Check.that(state.armedWhistles.isEmpty, "the referees leave when the round does")
+    }
+
+    do {
+        // Oldest first: the trap that was set earliest is the one lying in wait.
+        var (state, seat, cards) = openPossession(
+            seed: 52, cards: [CardLibrary.shotClockViolation, CardLibrary.charge])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        let events = Rules.apply(.shoot, by: seat, to: &state)
+        var called: String?
+        for case .whistleBlew(_, let card, _, _) in events { called = card.id }
+        Check.that(called == "shot-clock-violation",
+                   "the one set first is the one that fires (got \(called ?? "none"))")
+        Check.that(state.armedWhistles.count == 1,
+                   "and the other stays on the floor, still waiting")
+    }
+
+    print("Buzzer Beater")
+    do {
+        // A card that says SHOT = 100% must never miss, whatever else is on the floor.
+        var misses = 0
+        var lowest = 101
+        for seed in UInt64(1)...UInt64(60) {
+            var (state, seat, dealt) = openPossession(seed: seed, cards: [CardLibrary.buzzerBeater])
+            state.shotClock = 1
+            let events = Rules.apply(.play(dealt[0].id), by: seat, to: &state)
+            for case .shotAttempted(_, let pct, _) in events { lowest = min(lowest, pct) }
+            if events.contains(where: { if case .shotMissed = $0 { return true }; return false }) {
+                misses += 1
+            }
+        }
+        Check.that(lowest == 100, "SHOT = 100% always resolves at 100 (lowest was \(lowest))")
+        Check.that(misses == 0, "and never misses across 60 games (missed \(misses))")
     }
 
     print("SHOT stack")
@@ -660,6 +717,64 @@ func runTests() {
         Check.that(back[.south].bag == state[.south].bag, "bags survive with their effects intact")
         Check.that(back.rules == state.rules, "the match's rules travel with it")
         Check.that(back.phase == state.phase, "so does the phase")
+    }
+
+    print("What a player is allowed to see")
+    do {
+        var (state, _) = Rules.newGame(seed: 21)
+        state.armedWhistles = [ArmedWhistle(owner: .north, card: Card(CardLibrary.travel)),
+                               ArmedWhistle(owner: .south, card: Card(CardLibrary.charge))]
+        let seen = state.redacted(for: .south)
+
+        Check.that(seen[.south].bag == state[.south].bag,
+                   "you keep your own hand")
+        Check.that(seen[.north].bag.count == state[.north].bag.count,
+                   "everybody else's hand keeps its size")
+        Check.that(seen[.north].bag.allSatisfy(\.isFaceDown),
+                   "but not one of its cards")
+        Check.that(seen[.north].bag.map(\.id) == state[.north].bag.map(\.id),
+                   "and the cards keep their ids, so a hand does not re-identify itself")
+        Check.that(seen.deck.count == state.deck.count && seen.deck.allSatisfy(\.isFaceDown),
+                   "the deck's size travels and its order does not")
+        Check.that(seen.discard == state.discard,
+                   "the discard is public")
+        Check.that(seen.armedWhistles.map(\.owner) == [.south],
+                   "you see the Whistle you set down and nobody else's")
+        Check.that(seen.rng != state.rng,
+                   "and the generator stays at home")
+    }
+
+    print("The wire")
+    do {
+        let (state, events) = Rules.newGame(seed: 33)
+        let message = HostMessage.turn(state: state.redacted(for: .east), events: events)
+        let back = try! MatchCoder.decode(HostMessage.self,
+                                          from: try! MatchCoder.encode(message))
+        guard case .turn(let sent, let told) = back else {
+            Check.that(false, "a turn survives the wire"); return
+        }
+        Check.that(told == events, "every event survives the wire")
+        Check.that(sent.deck.count == state.deck.count, "so does the state")
+
+        for move in [Move.shoot, .inbound(to: .west), .play(UUID())] {
+            let there = try! MatchCoder.decode(
+                ClientMessage.self, from: try! MatchCoder.encode(ClientMessage.move(move)))
+            guard case .move(let same) = there else {
+                Check.that(false, "\(move) survives the wire"); continue
+            }
+            Check.that(same == move, "\(move) survives the wire")
+        }
+
+        let chairs: [Seat: Table.Chair] = [.south: .init(occupant: .local, name: "Me"),
+                                           .north: .init(occupant: .remote(playerID: "A"),
+                                                         name: "Them")]
+        let seated = try! MatchCoder.decode(
+            HostMessage.self,
+            from: try! MatchCoder.encode(HostMessage.seated(seat: .south, chairs: chairs)))
+        guard case .seated(let mine, let table) = seated else {
+            Check.that(false, "the table survives the wire"); return
+        }
+        Check.that(mine == .south && table == chairs, "the table survives the wire")
     }
 
     print(Check.failures == 0 ? "\nALL PASS" : "\n\(Check.failures) FAILED")

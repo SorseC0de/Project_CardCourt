@@ -4,7 +4,7 @@ import SwiftUI
 /// other side. Cards overlap so a Triple-Team reads as a stack rather than a row.
 struct DebuffSlotsView: View {
     let cards: [CardDescriptor]
-    var onSelect: (CardDescriptor) -> Void = { _ in }
+    var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 3) {
@@ -16,7 +16,18 @@ struct DebuffSlotsView: View {
                     slot(card)
                         .zIndex(Double(index))
                         .contentShape(Rectangle())
-                        .onTapGesture { onSelect(card) }
+                        // Inside a reader, so the tap knows where on screen it happened
+                        // and the raised card can grow out of this slot.
+                        .overlay {
+                            GeometryReader { slot in
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        onSelect(card, CGPoint(x: slot.frame(in: .global).midX,
+                                                               y: slot.frame(in: .global).midY))
+                                    }
+                            }
+                        }
                 }
             }
             .frame(height: 40, alignment: .bottom)

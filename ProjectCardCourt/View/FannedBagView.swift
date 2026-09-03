@@ -27,6 +27,11 @@ struct FannedBagView: View {
     /// How far a card must travel before releasing it counts as playing it.
     private let commitThreshold: CGFloat = 95
 
+    private enum Hand {
+        /// How far a chosen card stands out of the fan.
+        static let chosenLift: CGFloat = 26
+    }
+
     private var arc: (spread: Double, radius: CGFloat) {
         let count = max(cards.count, 1)
         // Tighten as the hand grows, so twelve cards do not wrap into a circle.
@@ -61,8 +66,11 @@ struct FannedBagView: View {
                     // Grown from the bottom edge, so it rises out of the hand rather
                     // than pushing down off the screen.
                     .scaleEffect(expanded ? 2 : (lifted ? 1.08 : 1), anchor: .bottom)
+                    // Chosen cards stand out of the fan. On a rebound you can flick them
+                    // up and they stay there, which is the whole gesture.
                     .offset(x: placement.x + (lifted ? drag.width : 0),
-                            y: placement.y + (lifted ? drag.height : 0) + (expanded ? -14 : 0))
+                            y: placement.y + (lifted ? drag.height : 0) + (expanded ? -14 : 0)
+                               + (selected.contains(card.id) ? -Hand.chosenLift : 0))
                     .shadow(color: .black.opacity(lifted || expanded ? 0.5 : 0.28),
                             radius: lifted || expanded ? 14 : 4, y: lifted || expanded ? 10 : 2)
                     .zIndex(expanded ? 200 : (lifted ? 100 : Double(index)))

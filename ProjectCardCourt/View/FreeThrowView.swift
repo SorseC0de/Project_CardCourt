@@ -79,12 +79,16 @@ struct FreeThrowView: View {
                 // without a seam — no mask needed.
                 Image("SwisshCourt")
                     .resizable()
-                    .scaledToFit()
-                    .frame(width: geo.size.width)
+                    // Fills the scene: this is the backdrop the whole thing stands in,
+                    // not a strip of floor along the bottom. Cropped at the sides rather
+                    // than letterboxed, since the key is what matters and the sidelines
+                    // are not.
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
                     // Flattened once. It is the largest vector in the game and would
                     // otherwise be re-rasterised on any size change under it.
                     .drawingGroup()
-                    .frame(maxHeight: .infinity, alignment: .bottom)
                     .ignoresSafeArea()
 
                 VStack {
@@ -109,7 +113,10 @@ struct FreeThrowView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .clear, location: Self.restY - 0.1),
-                        .init(color: .black,
+                        // Not solid: the court is painted along this edge, and an opaque
+                        // stop buried it. Dark enough to lift the ball off the floor,
+                        // sheer enough to leave the floor there.
+                        .init(color: .black.opacity(0.72),
                               location: Self.restY + ballRadius / geo.size.height - 0.05),
                     ],
                     startPoint: .top, endPoint: .bottom)
@@ -153,6 +160,8 @@ struct FreeThrowView: View {
                     .font(.system(size: verdict == .wide ? 26 : 34,
                                   weight: .black, design: .rounded))
                     .foregroundStyle(verdict == .good ? Theme.live : Theme.danger)
+                    .compositingGroup()
+                    .shadow(color: CardPalette.navy, radius: 0, x: 4, y: 4)
                     .padding(.top, 6)
                     .transition(.scale(scale: 0.7).combined(with: .opacity))
             }
@@ -251,8 +260,13 @@ struct FreeThrowView: View {
 
     /// How high the arc rides. A weak flick throws a flat one, which is half of why a
     /// miss looks like a miss rather than the same shot with a different verdict.
+    ///
+    /// This is the *control point*, and a quadratic reaches only about halfway to it — so
+    /// the number has to be roughly twice the height actually wanted. At the old 0.21 the
+    /// apex landed **below** the ring: the ball climbed straight into the rim instead of
+    /// arcing over and dropping through, which is a jump shot, not a free throw.
     private var arcHeight: CGFloat {
-        0.05 + 0.16 * min(max(power, 0.3), 1.6)
+        0.15 + 0.40 * min(max(power, 0.3), 1.6)
     }
 
     /// Where the ball actually arrives. A good throw is pulled onto the ring, so the

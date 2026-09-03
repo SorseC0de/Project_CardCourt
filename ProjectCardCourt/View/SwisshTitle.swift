@@ -73,8 +73,11 @@ struct SwisshTitle: View {
                         .delay(Double(index) * 0.045), value: landed)
             }
         }
+        // Flattened before either shadow: on a stack SwiftUI casts one per letter, and a
+        // hard offset copy of every glyph reads as a second, badly-set word.
+        .compositingGroup()
         .shadow(color: glow.opacity(0.85), radius: 16)
-        .shadow(color: .black.opacity(0.6), radius: 3, y: 3)
+        .shadow(color: CardPalette.blue, radius: 0, x: size * 0.09, y: size * 0.09)
         .scaleEffect(pulsing ? 1.05 : 1)
         .task {
             landed = true

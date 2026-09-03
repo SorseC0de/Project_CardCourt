@@ -42,133 +42,130 @@ final class ShotTuning {
     var rimNearY: CGFloat = 0.01
 }
 
-/// Where a pass lands in a player's hands, and how long it stays there.
+/// Where the piles stand on the court and how big they read, while that is still being
+/// eyeballed. Freeze into `Perspective` and `DeckStackView` once it lands.
 ///
-/// The position is in shares of a figure's own height rather than points, so a value
-/// dialled in on one seat lands in the same place on every other — whatever their scale
-/// or where they stand.
-@Observable
-final class BallTuning {
-    static let shared = BallTuning()
-
-    /// Out from the middle of the player's feet. Negative sits it on their far side.
-    var handX: CGFloat = -0.14
-    /// Up from them.
-    var handY: CGFloat = 0.18
-
-    /// How long the ball takes to cross.
-    var flightSeconds: Double = 0.26
-    /// How long it stays in the receiver's hands before the sprite's own ball takes over.
-    var holdSeconds: Double = 0.08
-
-    /// The catch's own frame rate. Slower than the run cycle it used to borrow — a catch
-    /// is a beat, not a loop. Read in two places, so it cannot desync from its own hold.
-    var catchFPS: Double = 10
-}
-
-/// The deck's slab corners, while it is being worked out whether RealityKit is honouring
-/// them at all. Freeze back into `DeckBody.Slab` once they land.
+/// One owner for both renderers. The flat pile and the staged one are drawn by completely
+/// unrelated code, and reading the same numbers is the only thing that keeps them in the
+/// same place — the 2D pile used to carry a `geo.height * 0.02` nudge the stage never got.
 @Observable
 final class DeckTuning {
     static let shared = DeckTuning()
 
-    /// The corners of the card's face.
-    var major: Float = 0.0050
-    /// The slabs' own size against the card printed over them. 1 is the card's exact
-    /// proportions, which is where this now sits — the 1.05 it needed was the top card
-    /// being sized against the wrong shape, since fixed in `DeckBody`.
-    var widthScale: Float = 1
-    var depthScale: Float = 1
-}
-
-@Observable
-final class CourtTuning {
-    static let shared = CourtTuning()
-
-    /// The card's effect text.
-    /// A multiple of the font's own leading. Below 1 closes the lines up, which
-    /// `Text.lineSpacing` cannot do — it clamps at zero.
-    var cardTextLineHeight: CGFloat = 0.75
-    var cardTextY: CGFloat = 0.75
+    /// Multiplies whatever size the piles would otherwise read at.
+    /// Small, so the deck has room to fly about the court without running into anybody.
+    var size: CGFloat = 0.555
+    /// Mirrored about the centre line: the deck goes one way and the discard the other,
+    /// so this spreads the pair apart rather than sliding both sideways.
+    var x: CGFloat = 0.030
+    var y: CGFloat = 0.02
 }
 
 #if DEBUG
 
-/// Debug actions, tucked under the log on the left. The sliders that lived here have
-/// served their purpose — their values are frozen in `CardLayout`.
+/// Debug actions, tucked under the log on the left.
+///
+/// Two rows when open, and one pill when it is not. Everything that had finished its job
+/// is gone rather than hidden: the flat-pile switch that measured what the renderer cost,
+/// the pass sliders now frozen in `Theme.Pass`, the slab-corner sliders now taken from the
+/// card's own eight per cent, and the shuffle and landing buttons that built the two
+/// halves of a deal nobody triggers separately any more.
+///
+/// What is left is either a thing to poke at during a game, or a knob still being turned.
 struct DebugActionsView: View {
     var controller: GameController
-    @State private var ball = BallTuning.shared
+
+    @State private var deck = DeckTuning.shared
+    /// Observed, or the switch's own label never changes and it reads as dead.
+    @State private var render = RenderDebug.shared
     /// Who a practice pass goes to. Always from the player, so this is the whole choice.
     @State private var target = 0
 
     private static let targets: [Seat] = [.east, .north, .west]
-    @State private var showShotTuner = false
+
+    /// Kept across launches — folding it shut on every relaunch was worse than the panel
+    /// being open.
+    @AppStorage("bench.open") private var isOpen = true
+    @AppStorage("bench.cuts") private var showCuts = false
+    @AppStorage("bench.deck") private var showDeck = false
+    @State private var lobby = false
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            action(isOpen ? "bench ▾" : "bench ▸") { isOpen.toggle() }
+            if isOpen { rows }
+        }
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.6)))
+        .animation(.easeOut(duration: 0.15), value: isOpen)
+        .sheet(isPresented: $lobby) { MatchLobbyView(controller: controller) }
+    }
+
+    /// The live tools, and a door to each of the two things worth watching on their own.
+    private var rows: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 action("draw") { controller.debugDraw() }
                 action("dump") { controller.debugDiscardHand() }
-                action("FTs") { controller.debugFreeThrows() }
-                action("unsee") { SeenCards.shared.forgetAll() }
                 action("→ \(Self.targets[target].playerName)") {
                     target = (target + 1) % Self.targets.count
                 }
                 action("pass") { controller.debugPass(to: Self.targets[target]) }
-            }
-            HStack(spacing: 4) {
-                action("travel") { controller.debugTurnover(.whistle("Travel")) }
-                action("clock") { controller.debugTurnover(.shotClock) }
-                action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
-                action("shot") { controller.debugShot() }
-                action("miss") { controller.debugMiss() }
-                action(showShotTuner ? "hide" : "ball") { showShotTuner.toggle() }
-            }
-            HStack(spacing: 4) {
-                action(RenderDebug.shared.flatPiles ? "3D off" : "3D on") {
-                    RenderDebug.shared.flatPiles.toggle()
-                }
-                action(RenderDebug.shared.courtStage ? "stage on" : "stage off") {
-                    RenderDebug.shared.courtStage.toggle()
-                }
-                action("deal") { controller.debugDeal() }
-                action("open") { controller.debugOpening() }
-                action("shuffle") { controller.debugDeck(.shuffle) }
-                action("land") { controller.debugDeck(.landing) }
                 action("arm") { controller.debugArmWhistle() }
                 action("blow") { controller.debugBlowWhistle() }
             }
-            if showShotTuner { ballSliders }
+            HStack(spacing: 4) {
+                action(showCuts ? "cuts ▾" : "cuts ▸") { showCuts.toggle() }
+                action(showDeck ? "deck ▾" : "deck ▸") { showDeck.toggle() }
+                action("unsee") { SeenCards.shared.forgetAll() }
+                // Not a real screen yet, and it cannot be until the app has a Game Center
+                // record to authenticate against.
+                action("match") { lobby = true }
+            }
+            if showCuts {
+                HStack(spacing: 4) {
+                    action("travel") { controller.debugTurnover(.whistle("Travel")) }
+                    action("clock") { controller.debugTurnover(.shotClock) }
+                    action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
+                    action("shot") { controller.debugShot() }
+                    action("miss") { controller.debugMiss() }
+                    action("FTs") { controller.debugFreeThrows() }
+                }
+            }
+            if showDeck {
+                HStack(spacing: 4) {
+                    action("deal") { controller.debugDeal() }
+                    action("open") { controller.debugOpening() }
+                    action(render.courtStage ? "stage ✓" : "stage ✗") {
+                        render.courtStage.toggle()
+                    }
+                    action("reset") { deck.size = 0.555; deck.x = 0.030; deck.y = 0.02 }
+                }
+                deckSliders
+            }
         }
-        .padding(6)
-        .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.6)))
     }
 
-    private var ballSliders: some View {
+    /// Moves and sizes both piles at once — they are a pair, and the discard drifting away
+    /// from the deck is never what is wanted.
+    private var deckSliders: some View {
         VStack(alignment: .leading, spacing: 0) {
-            slider("hand X", bind(\.handX), -0.3...0.3)
-            slider("hand Y", bind(\.handY), -0.3...0.3)
-            slider("flight", bind(\.flightSeconds), 0.1...1.5)
-            slider("hold", bind(\.holdSeconds), 0...1.5)
-            slider("catch fps", bind(\.catchFPS), 2...20)
+            slider("size", bind(\.size), 0.3...2.5)
+            slider("x", bind(\.x), -0.25...0.25)
+            slider("y", bind(\.y), -0.25...0.25)
         }
         .frame(width: 150)
     }
 
-    private func bind(_ path: ReferenceWritableKeyPath<BallTuning, Double>) -> Binding<Double> {
-        Binding(get: { ball[keyPath: path] }, set: { ball[keyPath: path] = $0 })
-    }
-
-    private func bind(_ path: ReferenceWritableKeyPath<BallTuning, CGFloat>) -> Binding<Double> {
-        Binding(get: { Double(ball[keyPath: path]) },
-                set: { ball[keyPath: path] = CGFloat($0) })
+    private func bind(_ path: ReferenceWritableKeyPath<DeckTuning, CGFloat>) -> Binding<Double> {
+        Binding(get: { Double(deck[keyPath: path]) },
+                set: { deck[keyPath: path] = CGFloat($0) })
     }
 
     private func slider(_ label: String, _ value: Binding<Double>,
                         _ range: ClosedRange<Double>) -> some View {
         VStack(alignment: .leading, spacing: -3) {
-            Text("\(label)  \(String(format: "%.2f", value.wrappedValue))")
+            Text("\(label)  \(String(format: "%.3f", value.wrappedValue))")
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
             Slider(value: value, in: range).tint(PixelPalette.gold).scaleEffect(0.75)

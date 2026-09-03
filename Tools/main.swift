@@ -1,6 +1,6 @@
 import Foundation
 
-let human = GameRules.humanSeat
+let human = GameRules.localSeat
 /// How many trailing log lines to show; --log N overrides.
 let logTail: Int = {
     guard let i = CommandLine.arguments.firstIndex(of: "--log"),

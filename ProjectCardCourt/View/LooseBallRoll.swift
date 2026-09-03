@@ -61,6 +61,9 @@ struct LooseBallRoll: GeometryEffect {
     private static let flatten: CGFloat = 0.42
     /// How far round the curl goes before it runs out.
     private static let turns: CGFloat = 1.6
+    /// How quickly it winds in. Above 1 pulls the radius down early, so the ball is into
+    /// the tight part of the spiral rather than circling wide and then stopping short.
+    private static let wind: CGFloat = 1.35
 
     private static func shape(at v: CGFloat, direction: CGFloat, entry: CGSize,
                               run: CGFloat, bounce: CGFloat) -> CGSize {
@@ -88,7 +91,7 @@ struct LooseBallRoll: GeometryEffect {
         }
         // Then down and back, tightening onto the resting point — the `a` of the `@`.
         let u = (v - Leg.straight) / (1 - Leg.straight)
-        let radius = run * (1 - u)
+        let radius = run * pow(1 - u, wind)
         let angle = u * turns * 2 * .pi
         return CGSize(width: direction * radius * cos(angle),
                       height: radius * sin(angle) * flatten)

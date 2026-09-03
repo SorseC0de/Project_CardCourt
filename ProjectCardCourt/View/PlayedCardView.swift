@@ -27,7 +27,7 @@ struct PlayedCardView: View {
     @State private var whistleGone = false
 
     private var origin: UnitPoint {
-        switch played.seat.slot(viewedFrom: GameRules.humanSeat) {
+        switch played.seat.slot(viewedFrom: GameRules.localSeat) {
         case .north: return .top
         case .east:  return .trailing
         case .west:  return .leading

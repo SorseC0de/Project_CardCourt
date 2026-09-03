@@ -15,16 +15,20 @@ BIN="$HERE/.build/harness"
 mkdir -p "$HERE/.build"
 
 newest=$(find "$ROOT/ProjectCardCourt/Model" "$ROOT/ProjectCardCourt/GameRules.swift" \
-         "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" "$HERE" \
+         "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" "$ROOT/ProjectCardCourt/Net" "$HERE" \
          -name '*.swift' -newer "$BIN" 2>/dev/null | head -1 || true)
 if [[ ! -x "$BIN" || -n "$newest" ]]; then
   # Globbed, so a new tool file just needs dropping in here.
   helpers=("$HERE"/*.swift(N))
   helpers=("${(@)helpers:#$HERE/main.swift}")
+  # Net, minus the Game Center half — that one needs GameKit and a device to talk to.
+  net=("$ROOT/ProjectCardCourt/Net"/*.swift(N))
+  net=("${(@)net:#*GameCenterMatch.swift}")
   swiftc -O -o "$BIN" \
     "$ROOT/ProjectCardCourt/Model"/*.swift \
     "$ROOT/ProjectCardCourt/GameRules.swift" \
     "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" \
+    "${net[@]}" \
     "${helpers[@]}" "$HERE/main.swift"
 fi
 exec "$BIN" "$@"

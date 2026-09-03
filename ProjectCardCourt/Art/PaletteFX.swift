@@ -85,13 +85,18 @@ enum PixelPalette {
     static let ball = orange
     static let ballShade = darkOrange
 
-    /// The skin ramps, light entry first.
+    /// The skin ramps, darkest entry first — the palette's own indices 0 through 6.
     ///
-    /// Every side-by-side pair in Zuphy32's warm ramp works as a skin tone, so the
-    /// options are simply the ramp walked two entries at a time — indices 6+5 down to
-    /// 1+0. The sheets are drawn at 5+4, which is why that pair swaps nothing.
+    /// Every side-by-side pair in the warm ramp works as a skin tone, so the options are
+    /// the ramp walked two entries at a time: 6+5 down to 1+0. The sheets are drawn at
+    /// 4+3, which is why that pair swaps nothing.
+    ///
+    /// Read off `CardCourt_Palette.png` rather than from this file's declaration order,
+    /// which is *not* the same thing. Starting the ramp at `warmBlack` shifted every pair
+    /// by one: it dropped the lightest tone and invented a darkest one shaded with
+    /// palette index 11 — a grey, and no part of the skin ramp.
     static let skinRamp: [Color] = [
-        warmBlack, mocha, coffee, maroon, darkBrown, brown, khaki,
+        mocha, coffee, maroon, darkBrown, brown, khaki, cream,
     ]
 
     /// The pairs, lightest first. Index into this, not into the ramp.
@@ -99,8 +104,9 @@ enum PixelPalette {
         .reversed()
         .map { (light: skinRamp[$0], dark: skinRamp[$0 - 1]) }
 
-    /// Where the sheets already sit — khaki over brown is tone 0, so 5+4 is tone 1.
-    static let drawnSkinTone = 1
+    /// Where the sheets already sit: brown over darkBrown, the ramp's 4+3, which is the
+    /// third pair counting down from the lightest.
+    static let drawnSkinTone = 2
 
     static func skin(tone: Int) -> [PaletteSwap] {
         guard let pair = skinTones[safe: tone], tone != drawnSkinTone else { return [] }

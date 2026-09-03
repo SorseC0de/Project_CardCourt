@@ -1,35 +1,54 @@
 import SwiftUI
 
-/// Stands on the sideline whenever a Whistle is armed. Deliberately says nothing about
-/// whose it is or what it watches for — his presence is the whole tell.
+/// A referee, on the floor for as long as the Whistle that called him is armed.
+///
+/// One per armed Whistle, and deliberately silent about whose it is or what it watches
+/// for — that a referee is out there at all is the whole tell.
 struct RefereeFigure: View {
-    var stripes = 3
-
-    private var head: CGFloat { Theme.Figure.headDiameter }
-    private var bodyWidth: CGFloat { Theme.Figure.bodyWidth }
-    private var bodyHeight: CGFloat { Theme.Figure.bodyHeight }
+    /// The sheet faces the right-hand touchline. The left-hand posts turn him around.
+    var mirrored = false
+    /// His own offset into the sprite clock, so two referees do not jog in step.
+    var phase: TimeInterval = 0
+    var scale: CGFloat = Theme.Figure.playerScale
 
     var body: some View {
-        VStack(spacing: Theme.Figure.gap) {
-            Circle()
-                .fill(Color(white: 0.94))
-                .frame(width: head, height: head)
-                .shadow(color: .black.opacity(0.38), radius: 2.5, x: 0, y: 3)
-                .zIndex(1)
-
-            Capsule()
-                .fill(Color(white: 0.94))
-                .overlay {
-                    HStack(spacing: bodyWidth / CGFloat(stripes * 2)) {
-                        ForEach(0..<stripes, id: \.self) { _ in
-                            Rectangle()
-                                .fill(Color(white: 0.09))
-                                .frame(width: bodyWidth / (CGFloat(stripes) * 2.6))
-                        }
-                    }
-                    .clipShape(Capsule())
-                }
-                .frame(width: bodyWidth, height: bodyHeight)
+        ZStack(alignment: .bottom) {
+            SpriteShadow(scale: scale)
+            SpriteAnimation(sprite: .refereeRunLook, scale: scale,
+                            fps: Theme.Figure.playerFPS, phase: phase)
+                .scaleEffect(x: mirrored ? -1 : 1)
         }
     }
 }
+
+/// What a sprite puts on the floor.
+///
+/// Drawn at the sheet's own frame size, because the art is already placed inside a 32×32
+/// frame to sit under a character in one — so there is nothing to position here.
+struct SpriteShadow: View {
+    var scale: CGFloat = Theme.Figure.playerScale
+
+    /// The art fills its frame, which turned out to be a good deal bigger than a figure
+    /// standing in the middle of one.
+    private static let shrink: CGFloat = 0.75
+
+    private var side: CGFloat { Sprite.run.frameSize * scale * Self.shrink }
+
+    var body: some View {
+        Image("PlayerShadow")
+            .interpolation(.none)
+            .resizable()
+            .frame(width: side, height: side)
+            .opacity(0.66)
+    }
+}
+
+#if DEBUG
+#Preview("Referee") {
+    HStack(spacing: 0) {
+        RefereeFigure(scale: 4)
+        RefereeFigure(mirrored: true, scale: 4)
+    }
+    .background(Theme.courtFloor)
+}
+#endif

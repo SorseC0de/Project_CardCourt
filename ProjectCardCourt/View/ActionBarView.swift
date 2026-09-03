@@ -12,7 +12,7 @@ struct ActionBarView: View {
     /// bound by a Clamp and the human would not.
     private var legal: [Move] {
         guard case .awaitingMove = controller.gate else { return [] }
-        return Rules.legalMoves(state, for: GameRules.humanSeat)
+        return Rules.legalMoves(state, for: GameRules.localSeat)
     }
 
     private var playableCards: Set<Card.ID> {
@@ -22,7 +22,7 @@ struct ActionBarView: View {
     private var canShoot: Bool { legal.contains(.shoot) }
 
     private var dormantCards: Set<Card.ID> {
-        Set(bag.filter { Rules.isDormant($0.descriptor, for: GameRules.humanSeat, in: state) }
+        Set(bag.filter { Rules.isDormant($0.descriptor, for: GameRules.localSeat, in: state) }
             .map(\.id))
     }
 
@@ -37,7 +37,7 @@ struct ActionBarView: View {
     var body: some View {
         VStack(spacing: 6) {
             FannedBagView(cards: bag,
-                          seat: GameRules.humanSeat,
+                          seat: GameRules.localSeat,
                           lastPasser: state.lastPasser,
                           playable: playableCards,
                           dormant: dormantCards,

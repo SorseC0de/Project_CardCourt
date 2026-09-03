@@ -6,7 +6,7 @@ struct IntangibleSlotsView: View {
     let held: [CardDescriptor]
     var dormant: Set<String> = []
     let slots: Int
-    var onSelect: (CardDescriptor) -> Void = { _ in }
+    var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -18,7 +18,17 @@ struct IntangibleSlotsView: View {
                     let card = held.indices.contains(index) ? held[index] : nil
                     slot(card)
                         .contentShape(Rectangle())
-                        .onTapGesture { if let card { onSelect(card) } }
+                        .overlay {
+                            GeometryReader { slot in
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        guard let card else { return }
+                                        onSelect(card, CGPoint(x: slot.frame(in: .global).midX,
+                                                               y: slot.frame(in: .global).midY))
+                                    }
+                            }
+                        }
                 }
             }
         }

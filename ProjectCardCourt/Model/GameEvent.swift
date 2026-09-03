@@ -1,6 +1,6 @@
 import Foundation
 
-enum GameEvent: Hashable {
+enum GameEvent: Hashable, Codable {
     case gameBegan(firstInbounder: Seat)
     case roundBegan(round: Int, inbounder: Seat)
     case inbounded(from: Seat, to: Seat)
@@ -18,6 +18,7 @@ enum GameEvent: Hashable {
     case whistleArmed(seat: Seat)
     case whistleRefocused
     case whistlesDismissed
+    case whistlesRecalled(count: Int)
     case intangiblesStripped(seat: Seat)
     case gameBreakRevealed(seat: Seat, card: CardDescriptor)
     case intangibleRevealed(seat: Seat, card: CardDescriptor)
@@ -89,6 +90,8 @@ enum GameEvent: Hashable {
             return "The Referees are watching intently…"
         case .whistlesDismissed:
             return "The referees leave the floor."
+        case .whistlesRecalled(let count):
+            return "\(count) whistle\(count == 1 ? "" : "s") back in the deck."
         case .whistleRefocused:
             return "The referees seem to have shifted their focus…"
         case .reinbound(let seat):
@@ -101,8 +104,15 @@ enum GameEvent: Hashable {
             return "WHISTLE! \(owner.playerName)'s \(card.name) cancels \(cancelled)."
         case .failedReturn(let seat):
             return "\(seat.playerName) \(seat.verb("has", "have")) nobody to give it back to!"
-        case .shotAttempted(let seat, let chance, _):
-            return "\(seat.playerName) \(seat.verb("pulls", "pull")) up at \(chance)%…"
+        case .shotAttempted(let seat, let chance, let breakdown):
+            // The stack is spelled out. A shot coming in at a number nobody expects is
+            // otherwise unanswerable after the fact — the whole question is *which* step
+            // did or did not happen, and this is the only place that knows.
+            let stack = breakdown.steps
+                .map { "\($0.label) → \($0.total)%" }
+                .joined(separator: " · ")
+            let from = breakdown.steps.isEmpty ? "" : "  [\(breakdown.base)% · \(stack)]"
+            return "\(seat.playerName) \(seat.verb("pulls", "pull")) up at \(chance)%…\(from)"
         case .shotMade(let seat, let points, _):
             return "GOOD! \(seat.playerName) +\(points) PTS."
         case .shotMissed(let seat, _):

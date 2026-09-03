@@ -49,8 +49,20 @@ enum Perspective {
     /// sprite frame is mostly padding above the character, so it floats without this.
     static let playerDrop: CGFloat = 0.25
 
-    static let refereeDepth: CGFloat = 0.42
-    static let refereeLateral: CGFloat = 0.94
+    /// How far out a referee stands, as a share of the floor's half-width at his depth.
+    /// Just past 1 puts him on the paint's outside line rather than in play.
+    static let refereeLateral: CGFloat = 0.98
+    /// How far up the floor he stands from the player he is posted beside. Small — he is
+    /// off their shoulder, not away downcourt.
+    static let refereeUpcourt: CGFloat = 0.06
+
+    /// How wide a card in a pile reads, as a share of the view. The stage sizes the piles
+    /// to this and the deck's floor shadow is drawn from it, so the shadow cannot come out
+    /// a different size from the thing casting it.
+    static let pileCardShare: CGFloat = 0.19
+    /// How flat something lying on the floor reads. The camera sits 34° above it, so a
+    /// circle down there is an ellipse this much shorter than it is wide.
+    static let floorSquash: CGFloat = 0.55
 
     /// Where the draw pile sits: off the centre column, so it never sits on top of
     /// North. Lateral is a share of the floor's half-width at that depth.
@@ -60,6 +72,35 @@ enum Perspective {
     /// The discard sits beside the deck, at the same depth.
     static let discardLateral: CGFloat = 0.42
 
+}
+
+/// Where a referee can stand: outside a player and a little up the floor from them, along
+/// the sideline. Four posts, so the three a game can field never share one.
+///
+/// Named for the slots they sit beside rather than the seats, so they stay in the same
+/// places on screen whoever the court is being drawn for.
+enum RefereePost: CaseIterable {
+    /// Off the right-hand flank player's outside shoulder, and the left-hand one's.
+    case rightWing, leftWing
+    /// Either side of the player upcourt, and smaller for it.
+    case farRight, farLeft
+
+    /// Which touchline he is on — which is also which way he faces.
+    var isLeft: Bool { self == .leftWing || self == .farLeft }
+
+    var depth: CGFloat {
+        let beside: Seat = (self == .rightWing || self == .leftWing) ? .east : .north
+        return Perspective.depth(of: beside) - Perspective.refereeUpcourt
+    }
+
+    var lateral: CGFloat {
+        Perspective.refereeLateral * (isLeft ? -1 : 1)
+    }
+
+    /// Keeps two referees out of step with each other.
+    var phase: TimeInterval {
+        TimeInterval(RefereePost.allCases.firstIndex(of: self) ?? 0) * 0.4
+    }
 }
 
 struct CourtGeometry {
@@ -144,6 +185,45 @@ struct CourtGeometry {
 struct CourtFloorShape: Shape {
     func path(in rect: CGRect) -> Path {
         CourtGeometry(size: rect.size).floor.offsetBy(dx: rect.minX, dy: rect.minY)
+    }
+}
+
+/// What the floating deck puts on the floor.
+///
+/// It tracks the drift rather than sitting still under the middle of it: a shadow that
+/// does not move says the deck is not moving either, and a shadow that does not shrink
+/// says it is not off the floor. Both are read from `DeckDrift`, which is the same clock
+/// the pile itself is flying by.
+struct PileShadow: View {
+    /// How wide the shadow is with the deck at the bottom of its breath.
+    var width: CGFloat
+    /// How wide the court is on screen, which is what turns the drift into points.
+    var across: CGFloat
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let rise = DeckDrift.rise(at: timeline.date)
+            let drift = DeckDrift.offset(at: timeline.date)
+            // Smaller and fainter the higher it rides, which is the whole reading.
+            let size = width * (1 - Shadow.shrink * rise)
+
+            RoundedRectangle(cornerRadius: size * 0.08)
+                .fill(PixelPalette.warmBlack.opacity(Shadow.opacity
+                                                     * (1 - Shadow.fade * rise)))
+                .frame(width: size,
+                       height: size / CardMetrics.aspect * Perspective.floorSquash)
+                // The floor point under the deck: its lift does not move the shadow, only
+                // its drift across the floor does.
+                .offset(x: across * CGFloat(drift.x),
+                        y: across * CGFloat(drift.z) * Perspective.floorSquash)
+        }
+    }
+
+    private enum Shadow {
+        static let opacity: CGFloat = 0.66
+        /// How much smaller and fainter it gets at the top of the breath.
+        static let shrink: CGFloat = 0.20
+        static let fade: CGFloat = 0.25
     }
 }
 

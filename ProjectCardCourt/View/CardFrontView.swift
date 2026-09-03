@@ -28,6 +28,7 @@ struct CardFrontView: View {
         ZStack {
             CardBodyFill(type: descriptor.type,
                          isInjury: descriptor.gameBreak?.isInjury == true,
+                         isDormant: isDormant,
                          bandFraction: CardLayout.whistleBandFraction,
                          glossFraction: CardLayout.whistleGlossFraction)
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
@@ -50,7 +51,6 @@ struct CardFrontView: View {
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
         // Flattened to one texture. Without it the overlay's blend mode costs an
         // offscreen pass per card, which a fanned hand pays for every frame.
-        .grayscale(isDormant ? 1 : 0)
         .drawingGroup()
         .scaleEffect(1 / CardLayout.rasterScale)
         .frame(width: displayWidth, height: displayWidth / CardMetrics.aspect)
@@ -196,15 +196,19 @@ struct CardFrontView: View {
     }
 
     /// Carries its own radius, so tuning it cannot disturb the card's.
-    /// The inner ring, and the name over it.
+    /// The inner ring, and the text over the body.
     ///
-    /// Navy on everything but an Intangible, which is navy-bodied — the ring would
-    /// disappear into it and the name would be unreadable, so both go the other way.
+    /// Two different questions. The ring only changes on a card whose body is the same
+    /// navy the ring is drawn in, which is Intangibles alone. The text changes on any card
+    /// dark enough to swallow navy lettering, which is Intangibles and Game Breaks both.
     private var isNavyBodied: Bool { descriptor.type == .intangible }
+    private var isDarkBodied: Bool {
+        descriptor.type == .intangible || descriptor.type == .gameBreak
+    }
     private var ringColour: Color { isNavyBodied ? CardPalette.gold : CardPalette.navy }
     /// The name sits on the gold plate, so it stays navy whatever the body is. The effect
     /// text sits on the body itself, which is why that one turns white on a navy card.
-    private var effectColour: Color { isNavyBodied ? .white : CardPalette.navy }
+    private var effectColour: Color { isDarkBodied ? .white : CardPalette.navy }
     /// Blue is what the artwork used to carry baked in; only the navy-bodied cards
     /// change it, because blue on navy would not read at all.
     private var namePlateShadow: Color { isNavyBodied ? CardPalette.gold : CardPalette.blue }

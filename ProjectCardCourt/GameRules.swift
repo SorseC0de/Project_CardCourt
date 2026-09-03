@@ -3,10 +3,13 @@ import Foundation
 /// Client-side facts that are not part of a match's rules and never travel with it.
 /// Everything that governs play lives in `MatchRules`, frozen into the state.
 enum GameRules {
-    static let humanSeat: Seat = .south
+    /// Which seat this device is playing. A constant in a solo game and set from the
+    /// match once there are other people at the table — every device believes a different
+    /// answer, which is what lets each of them draw themselves at the near edge.
+    static var localSeat: Seat = .south
 
     /// How long a played card is held in the middle of the screen.
-    static let playedCardSeconds = 3.0
+    static let playedCardSeconds = 2.5
 
     /// Forces the opening inbound to a seat instead of rolling for it. nil plays normally.
     /// Point it at whoever is being tested.

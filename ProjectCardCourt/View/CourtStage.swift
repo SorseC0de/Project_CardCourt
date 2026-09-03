@@ -36,6 +36,22 @@ struct CourtStage: View {
         static let slab: Float = 0.0016
         static let maxLayers = 40
 
+        /// How wide a pile should read, as a share of the view.
+        ///
+        /// Measured, not assumed. `DeckStackView` asks for a 138pt *frame*, and the old
+        /// per-pile camera framed the card inside it — at a fixed distance of 0.30 in a
+        /// 138×172 frame the card came out about 77pt, not 138. Sizing to the frame made
+        /// the deck 1.8× too big; this is the card.
+        static let cardShare = Float(Perspective.pileCardShare)
+
+        /// The card's size in the world, in one place.
+        ///
+        /// Two copies of this is what made the deck giant twice over: the meshes were
+        /// built from a literal while `fit` sized against `cardShare`, so changing the
+        /// share only taught `fit` a card size the geometry did not have — and it scaled
+        /// up to make up the difference.
+        static var cardWidth: Float { courtWidth * cardShare }
+        static var cardDepth: Float { cardWidth / Float(CardMetrics.aspect) }
         /// How far above the floor the deck rides while it is working.
         static let hover: Float = 0.030
         /// Where it comes in from: high, and beyond the far edge.
@@ -66,19 +82,39 @@ struct CourtStage: View {
                 let navy = UnlitMaterial(color: UIColor(CardPalette.navy))
                 let mesh = slabMesh()
 
+                // The printed back, grown by however much artboard sits outside the card
+                // so it lands exactly on the slab beneath it.
+                var facing = UnlitMaterial(color: UIColor(CardPalette.navy))
+                if let art = DeckBody.printedBack(),
+                   let texture = try? await TextureResource(image: art, withName: "card-back",
+                                                            options: .init(semantic: .color)) {
+                    facing.color = .init(tint: .white, texture: .init(texture))
+                    facing.blending = .transparent(opacity: 1.0)
+                }
+                let faceMesh = MeshResource.generatePlane(
+                    width: Stage.cardWidth
+                        * Float(CardMetrics.artboard.width / CardMetrics.backShape.width),
+                    depth: Stage.cardDepth
+                        * Float(CardMetrics.artboard.height / CardMetrics.backShape.height))
+
                 for index in 0..<Stage.maxLayers {
                     let card = ModelEntity(mesh: mesh,
                                            materials: [index.isMultiple(of: 2) ? gold : navy])
                     card.name = "slab\(index)"
-                    deck.adopt(card, at: index, thickness: Stage.slab)
+                    deck.adopt(card, face: ModelEntity(mesh: faceMesh, materials: [facing]),
+                               at: index, thickness: Stage.slab)
 
                     let spent = ModelEntity(mesh: mesh,
                                             materials: [index.isMultiple(of: 2) ? gold : navy])
                     spent.name = "spent\(index)"
-                    discard.adopt(spent, at: index, thickness: Stage.slab)
+                    discard.adopt(spent, face: ModelEntity(mesh: faceMesh, materials: [facing]),
+                                  at: index, thickness: Stage.slab)
                 }
                 dealer.build(mesh: mesh, material: gold)
 
+                deck.ground = floorPoint(deckAt, in: geo.size)
+                deck.pile.position = deck.ground
+                discard.pile.position = floorPoint(discardAt, in: geo.size)
                 place(camera: camera, in: geo.size)
             } update: { content in
                 guard let camera = content.entities
@@ -87,18 +123,28 @@ struct CourtStage: View {
 
                 deck.show(deckLayers, of: Stage.maxLayers, thickness: Stage.slab)
                 discard.show(discardLayers, of: Stage.maxLayers, thickness: Stage.slab)
-                // Left alone while it is performing — see `DeckStage.travelling`.
-                if !deck.travelling {
-                    deck.pile.position = floorPoint(deckAt, in: geo.size)
-                }
+                // The idle owns where the deck actually is — it is never sitting
+                // still — so the court hands it a home point rather than a position.
+                deck.ground = floorPoint(deckAt, in: geo.size)
+                if !deck.travelling { fit(deck.pile, in: geo.size) }
                 discard.pile.position = floorPoint(discardAt, in: geo.size)
+                fit(discard.pile, in: geo.size)
             }
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
+            // Runs for as long as the court is on screen. Cancelled with the view, and
+            // it stands aside on its own whenever a routine takes the deck over.
+            .task { await deck.idle(across: Stage.courtWidth) }
             .task(id: flight?.id) {
                 guard let flight else { return }
+                let to = floorPoint(flight.to, in: geo.size)
+                // It stays home for a single card and just turns to face whoever is
+                // drawing. Flying the whole deck across on every draw would be a lot of
+                // deck for one card.
+                await deck.bow(toward: to)
                 await dealer.fly(from: floorPoint(flight.from, in: geo.size),
-                                 to: floorPoint(flight.to, in: geo.size),
-                                 seconds: flight.seconds)
+                                 to: to, seconds: flight.seconds)
+                await deck.straighten()
+                deck.settle()
             }
             .task(id: opening?.id) {
                 guard let opening else { return }
@@ -109,9 +155,10 @@ struct CourtStage: View {
     }
 
     private func slabMesh() -> MeshResource {
-        let depth = Stage.courtWidth * 0.354 / Float(CardMetrics.aspect)
-        return RoundedSlab.mesh(width: depth * Float(CardMetrics.aspect), depth: depth,
-                                thickness: Stage.slab, radius: tuning.major)
+        // The card's own eight per cent. A fixed radius was being shared with `DeckBody`,
+        // whose card is nearly twice as wide — the same number rounded these far harder.
+        RoundedSlab.mesh(width: Stage.cardWidth, depth: Stage.cardDepth,
+                         thickness: Stage.slab, radius: Stage.cardWidth * 0.08)
     }
 
     // MARK: - The opening
@@ -132,10 +179,14 @@ struct CourtStage: View {
         for seat in deal.order {
             guard let at = seatsAt[seat] else { continue }
             let stand = floorPoint(at, in: size)
-            await deck.travel(to: stand + hover * 1.6, seconds: 0.42)
+            // Zippy between players. The beat of the opening is the dealing, not the
+            // getting there.
+            await deck.travel(to: stand + hover * 1.6, seconds: 0.22)
+            await deck.bow(toward: stand)
             for _ in 0..<deal.each {
                 await dealer.fly(from: stand + hover * 1.6, to: stand, seconds: 0.34)
             }
+            await deck.straighten()
         }
 
         await deck.travel(to: home + hover, seconds: 0.55)
@@ -164,6 +215,35 @@ struct CourtStage: View {
         transform.rotation = simd_quatf(from: [0, 0, -1], to: normalize(-eye))
         return transform
     }
+
+    /// Sizes a pile so it reads at `cardShare` of the view wherever it is standing.
+    ///
+    /// A card's apparent size falls off with its distance from the camera, and a pile's
+    /// court point can unproject anywhere on the floor — the deck's landed well forward,
+    /// which is why it came out enormous. Normalising against its own distance keeps a
+    /// pile the size the court drew it before this scene existed.
+    private func fit(_ pile: Entity, in size: CGSize) {
+        let eye = Self.cameraTransform(for: size).translation
+        let away = distance(eye, pile.position)
+        let aspect = Float(size.width / max(size.height, 1))
+        let across = 2 * away * tan(Stage.fieldOfView * .pi / 360) * aspect
+        let scale = Stage.cardShare * Float(tuning.size) * across / Stage.cardWidth
+        pile.scale = .one * scale
+
+        // Reported once per change, not per frame: the arithmetic says this lands at the
+        // court's own 138 of 390, so if the pile is not that size on screen the number
+        // here says whether the sizing is wrong or something downstream is.
+        if abs(scale - Self.lastFit) > 0.01 {
+            Self.lastFit = scale
+            DevLog.say(.deck, String(
+                format: "fit %@  scale %.3f  away %.3f  view %.0fx%.0f  → card reads %.0fpt",
+                pile.name, scale, away, size.width, size.height,
+                Double(Stage.cardWidth * scale / across) * size.width))
+        }
+    }
+
+    /// The last scale reported, so the console is not filled with the same line.
+    private static var lastFit: Float = 0
 
     /// A point on the court, fired through the camera onto the floor.
     ///

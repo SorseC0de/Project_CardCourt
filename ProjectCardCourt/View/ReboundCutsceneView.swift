@@ -5,6 +5,8 @@ import SwiftUI
 struct ReboundCutsceneView: View {
     let shooter: Seat
     let revealedBids: [Seat: Int]?
+    /// The board comes with, because a bid is a decision and SHOT is what it is made on.
+    let state: GameState
 
     @State private var spin = false
     @State private var lift = false
@@ -15,17 +17,17 @@ struct ReboundCutsceneView: View {
     private static let lift: CGFloat = 44
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             Rectangle()
                 .fill(Color.black)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             SideStreaks()
 
             VStack(spacing: 10) {
-                Text(revealedBids == nil ? "LOOSE BALL" : "CRASHING THE GLASS")
-                    .font(.system(size: 13, weight: .black))
-                    .tracking(2.2)
-                    .foregroundStyle(Theme.ball)
+                // The same lettering a made shot gets. This is a moment, not a caption.
+                SwisshTitle(text: revealedBids == nil ? "Loose Ball!" : "Crashing the Glass!",
+                            size: 34)
 
                 BallView(diameter: 150)
                     .rotationEffect(.degrees(spin ? 360 : 0))
@@ -51,13 +53,19 @@ struct ReboundCutsceneView: View {
                     }
                     .transition(.scale.combined(with: .opacity))
                 } else {
-                    Text("\(shooter.isHuman ? "your" : shooter.playerName + "'s") miss · SHOT stays live")
+                    Text("\(shooter.isLocal ? "your" : shooter.playerName + "'s") miss · SHOT stays live")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.inkDim)
                 }
             }
             // Clear of the hand, which the centred stack was sitting on top of.
             .offset(y: -Self.lift)
+
+            // The board, larger than the court draws it. A bid is a decision and this
+            // is the only number it is made on, so it belongs in the room.
+            StatusHUDView(state: state, ballSize: 74)
+                .padding(.trailing, 20)
+                .padding(.top, 14)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: revealedBids)
         .onAppear {

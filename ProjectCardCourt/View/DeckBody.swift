@@ -25,8 +25,6 @@ struct DeckBody: View {
     /// What the deck should be doing. Changing it starts that routine.
     var routine: DeckStage.Routine = .rest
 
-    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
-    @State private var tuning = DeckTuning.shared
     /// Owns the slabs, so a routine can be danced across frames without the view
     /// rebuilding underneath it.
     @State private var stage = DeckStage()
@@ -55,7 +53,8 @@ struct DeckBody: View {
         /// tall and CardCourt's cards are 0.747, so a fixed width left every slab narrower
         /// than the back printed over it.
         static var cardWidth: Float { cardDepth * Float(CardMetrics.aspect) }
-        /// The card's own eight per cent — the radius its artwork is drawn with.
+        /// The card's own eight per cent — the radius its artwork is drawn with, which
+        /// is what a slab under it has to wear to disappear behind it.
         static var corner: Float { cardWidth * 0.08 }
         /// Takes the hard edge off the thin side. Kept under half the slab's thickness,
         /// which is the most a box will accept.
@@ -87,15 +86,6 @@ struct DeckBody: View {
             let gold = UnlitMaterial(color: UIColor(CardPalette.gold))
             let dark = UnlitMaterial(color: UIColor(CardPalette.navy))
 
-            for index in 0..<Slab.maxLayers {
-                let card = ModelEntity(mesh: Self.slab(thickness: thickness, radius: 0),
-                                       materials: [index.isMultiple(of: 2) ? gold : dark])
-                card.name = "slab\(index)"
-                stage.adopt(card, at: index, thickness: thickness)
-            }
-
-            // The printed back, sitting on the top slab. A separate plane rather than a
-            // face of the box, so the texture cannot end up wrapped down the sides.
             var facing = UnlitMaterial(color: UIColor(CardPalette.navy))
             if let art = Self.printedBack(),
                let texture = try? await TextureResource(image: art, withName: "card-back",
@@ -104,18 +94,20 @@ struct DeckBody: View {
                 facing.blending = .transparent(opacity: 1.0)
             }
             // Grown by however much artboard sits outside the printed card, so the card
-            // lands exactly on the slabs. Measured against the *back's* own shape: doing
-            // it against the front's panel made the card 7% too big for the stack, which
-            // is the mismatch the slab scales were being used to paper over.
-            let top = ModelEntity(
-                mesh: .generatePlane(
-                    width: Slab.cardWidth
-                        * Float(CardMetrics.artboard.width / CardMetrics.backShape.width),
-                    depth: Slab.cardDepth
-                        * Float(CardMetrics.artboard.height / CardMetrics.backShape.height)),
-                materials: [facing])
-            top.name = "face"
-            pile.addChild(top)
+            // lands exactly on the slab under it.
+            let faceMesh = MeshResource.generatePlane(
+                width: Slab.cardWidth
+                    * Float(CardMetrics.artboard.width / CardMetrics.backShape.width),
+                depth: Slab.cardDepth
+                    * Float(CardMetrics.artboard.height / CardMetrics.backShape.height))
+
+            for index in 0..<Slab.maxLayers {
+                let card = ModelEntity(mesh: Self.slab(thickness: thickness),
+                                       materials: [index.isMultiple(of: 2) ? gold : dark])
+                card.name = "slab\(index)"
+                stage.adopt(card, face: ModelEntity(mesh: faceMesh, materials: [facing]),
+                            at: index, thickness: thickness)
+            }
 
             arrange(pile: pile, camera: camera)
         } update: { content in
@@ -134,7 +126,7 @@ struct DeckBody: View {
     /// The catalog entry is vector art, so this renders it at a size chosen for the
     /// texture rather than taking whatever @2x bitmap the catalog would otherwise hand
     /// over — which is why the deck can wear the drawn back and not the pixel one.
-    private static func printedBack() -> CGImage? {
+    static func printedBack() -> CGImage? {
         guard let art = UIImage(named: "CardBackFull") else { return nil }
         let width: CGFloat = 512
         let size = CGSize(width: width,
@@ -144,19 +136,16 @@ struct DeckBody: View {
             .cgImage
     }
 
-    /// One slab, at whatever corner the slider is asking for.
+    /// One slab, at the card's own proportions and corner.
     ///
     /// Written out by hand — see `RoundedSlab` for why none of RealityKit's own boxes
     /// can make this shape.
-    private static func slab(thickness: Float, radius: Float,
-                             width: Float = 1, depth: Float = 1) -> MeshResource {
-        RoundedSlab.mesh(width: Slab.cardWidth * width, depth: Slab.cardDepth * depth,
-                         thickness: thickness, radius: radius)
+    private static func slab(thickness: Float) -> MeshResource {
+        RoundedSlab.mesh(width: Slab.cardWidth, depth: Slab.cardDepth,
+                         thickness: thickness, radius: Slab.corner)
     }
 
-    /// Everything that changes with the deck's height, its turn, or the corner it is being
-    /// tuned to. One mesh is made per update and shared by every slab, so dragging a
-    /// slider costs one box rather than twenty.
+    /// Everything that changes with the deck's height or its turn.
     private func arrange(pile: Entity, camera: PerspectiveCamera) {
         let shown = max(1, min(Slab.maxLayers, layers))
         pile.transform.rotation = simd_quatf(angle: spin * .pi / 180, axis: [0, 1, 0])
@@ -166,18 +155,8 @@ struct DeckBody: View {
         for index in 0..<Slab.maxLayers {
             pile.findEntity(named: "slab\(index)")?.isEnabled = index < shown
         }
-        // Both of these do nothing unless their inputs have actually moved. Rebuilding a
-        // mesh on every update — which is every state change in the app, twice over for
-        // the two piles — is what had the fans running.
-        stage.wear(radius: tuning.major, thickness: thickness,
-                   width: tuning.widthScale, depth: tuning.depthScale) { r, t, w, d in
-            Self.slab(thickness: t, radius: r, width: w, depth: d)
-        }
+        // Does nothing unless the height has actually moved.
         stage.rehome(thickness: thickness)
-        // Just clear of the top slab, or the two z-fight.
-        pile.findEntity(named: "face")?.position.y =
-            Float(shown) * thickness - thickness / 2 + 0.0001
-
         let height = Float(shown) * thickness
         let target = SIMD3<Float>(0, height / 2, 0)
         let angle = pitch * .pi / 180
@@ -194,13 +173,11 @@ struct DeckBody: View {
     DeckSpinPreview()
 }
 
-/// Turns it, which is the whole reason for the geometry — and the bench for its corners.
+/// Turns it, which is the whole reason for the geometry.
 private struct DeckSpinPreview: View {
     @State private var spin: Double = 45
     @State private var pitch: Double = 34
     @State private var layers: Double = 10
-    /// The radii live on the shared tuning, so the deck on the court moves with these too.
-    @State private var tuning = DeckTuning.shared
 
     var body: some View {
         VStack {
@@ -214,27 +191,10 @@ private struct DeckSpinPreview: View {
                 Slider(value: $pitch, in: 0...90)
                 Text("layers \(Int(layers))").font(.caption.monospaced())
                 Slider(value: $layers, in: 1...20)
-
-                Text("major \(tuning.major, format: .number.precision(.fractionLength(4)))")
-                    .font(.caption.monospaced())
-                Slider(value: radius(\.major), in: 0...0.03)
-                // The slabs only. The card on top keeps the artwork's own proportions
-                // whatever these say, which is what makes matching by eye possible.
-                Text("slab W ×\(tuning.widthScale, format: .number.precision(.fractionLength(3)))")
-                    .font(.caption.monospaced())
-                Slider(value: radius(\.widthScale), in: 0.85...1.15)
-                Text("slab D ×\(tuning.depthScale, format: .number.precision(.fractionLength(3)))")
-                    .font(.caption.monospaced())
-                Slider(value: radius(\.depthScale), in: 0.85...1.15)
             }
             .padding()
         }
         .background(Theme.courtFloor)
-    }
-
-    private func radius(_ path: ReferenceWritableKeyPath<DeckTuning, Float>) -> Binding<Double> {
-        Binding(get: { Double(tuning[keyPath: path]) },
-                set: { tuning[keyPath: path] = Float($0) })
     }
 }
 #endif

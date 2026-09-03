@@ -12,14 +12,23 @@ enum Pacing {
     static let turnover = 4.0
     /// The ball arriving, three cuts on it, and then the clock.
     static let shotClockTurnover = 5.5
-    static let reveal = 1.5
+    static let reveal = 1.0
     /// The whistle, the back, the flip, and the name under it.
-    static let whistleReveal = 3.5
+    static let whistleReveal = 3.0
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
     static let drawFlight = 0.30
     static let dealFlight = 0.15
     static let bidReveal = 1.5
+    /// How long a live match waits on somebody's phone before deciding for them.
+    ///
+    /// One number for every decision, because a player learning two different clocks is a
+    /// worse game than one that is occasionally generous.
+    ///
+    /// **nil turns the clocks off**, which is where they are for the first live tests: a
+    /// seat that never answers should hang where you can see it rather than be quietly
+    /// papered over by a fallback that looks like the game working. Put it back to 30.
+    static let actionClock: Double? = nil
     /// One opponent attempt from the line, start to finish.
     static let freeThrow = 2.5
 
@@ -147,7 +156,7 @@ struct TurnoverCutscene: Identifiable, Equatable {
         self.kind = kind
         // Whoever last threw it decides which side it comes in from; with nobody to read,
         // either side is as true as the other.
-        self.fromLeft = thrower.map { $0.slot(viewedFrom: GameRules.humanSeat) == .west }
+        self.fromLeft = thrower.map { $0.slot(viewedFrom: GameRules.localSeat) == .west }
             ?? Bool.random()
         self.travelBit = kind == .whistle("Travel") ? .allCases.randomElement() : nil
     }
@@ -301,32 +310,219 @@ final class GameController {
         self.seed = seed
         self.mode = mode
         self.ai = AITable(seed: seed)
-        PlayerLook.shared.randomiseOpponents(except: GameRules.humanSeat)
         let (state, events) = Rules.newGame(seed: seed, rules: mode)
         self.state = state
         self.openingDraws = events
         record(events)
     }
 
-    var human: PlayerState { state[GameRules.humanSeat] }
+    var human: PlayerState { state[GameRules.localSeat] }
 
     /// Passives sitting in a slot that currently pay nothing — Hot Hand without a make
     /// behind it, and anything like it.
     var dormantIntangibles: Set<String> {
         Set(human.intangibles
-            .filter { Rules.isDormant($0, for: GameRules.humanSeat, in: state) }
+            .filter { Rules.isDormant($0, for: GameRules.localSeat, in: state) }
             .map(\.id))
     }
 
     var humanPasses: [Card] { human.bag.filter(\.isPass) }
 
-    func begin() {
+    // MARK: - The match
+
+    /// The other devices, when there are any. `nil` is a solo game, and every path below
+    /// falls through to exactly what it did before there was such a thing as a match.
+    private(set) var match: (any MatchTransport)?
+
+    /// True when this device only chooses and watches. The rules are running elsewhere,
+    /// and nothing here may touch `state` except by being told to.
+    var isGuest: Bool { match.map { !$0.isHost } ?? false }
+
+    /// What has arrived from the other devices and not been acted on yet. One slot per
+    /// seat: a client that sends twice before the host looks has changed its mind, which
+    /// is allowed — it is still only ever one decision.
+    private var bidsFromWire: [Seat: [Card.ID]] = [:]
+    private var movesFromWire: [Seat: Move] = [:]
+    private var discardsFromWire: [Seat: [Card.ID]] = [:]
+    private var freeThrowsFromWire: [Seat: Bool] = [:]
+
+    func join(_ transport: any MatchTransport) {
+        match = transport
+        transport.onHostMessage = { [weak self] in self?.receive($0) }
+        transport.onClientMessage = { [weak self] in self?.receive($1, from: $0) }
+        // A seat whose player has gone is played by the house for the rest of the game.
+        // Pausing a four-handed game on one dropped phone would end it in practice.
+        transport.onSeatLost = { [weak self] seat in
+            guard let self, !self.isGuest else { return }
+            Table.shared.replaceWithComputer(at: seat)
+            self.loop?.cancel()
+            self.loop = Task { await self.run() }
+        }
+    }
+
+    /// Hands every other device the game as it is allowed to see it.
+    ///
+    /// One snapshot each, redacted for its own seat — the host holds the only complete
+    /// state and never sends it anywhere.
+    private func broadcast(_ events: [GameEvent]) {
+        guard let match, match.isHost else { return }
+        try? match.broadcast { seat in
+            .turn(state: state.redacted(for: seat), events: events)
+        }
+    }
+
+    /// What this device's player is being asked for, read off the state alone.
+    ///
+    /// The host works this out on its way round `run`. A guest has only the state, so this
+    /// is the whole of how it knows whose turn it is.
+    private var localGate: Gate {
+        if state.isOver { return .gameOver }
+        switch state.phase {
+        case .awaitingRebound(let shooter):
+            // Everybody bids on a miss, so this one is never somebody else's turn.
+            return .awaitingBid(shooter: shooter)
+        case .freeThrows(let trip):
+            return trip.shooter.isLocal ? .awaitingFreeThrow(trip) : .thinking
+        case .awaitingDiscard(let seat, let card, let bonus):
+            return seat.isLocal ? .awaitingDiscard(card: card, bonusEach: bonus) : .thinking
+        case .inbound(let seat):
+            return seat.isLocal ? .awaitingInbound(seat) : .thinking
+        case .possession(let seat):
+            return seat.isLocal ? .awaitingMove(seat) : .thinking
+        case .gameOver:
+            return .gameOver
+        }
+    }
+
+    /// The host, hearing what somebody chose.
+    ///
+    /// Every branch checks that the sender is the seat actually being asked. A client that
+    /// speaks out of turn is ignored rather than believed — that check is the whole of the
+    /// host's authority, and the reason a modified client can make bad choices but cannot
+    /// rewrite the game.
+    private func receive(_ message: ClientMessage, from seat: Seat) {
+        guard let match, match.isHost else { return }
+        switch message {
+        case .ready:
+            try? match.send(.turn(state: state.redacted(for: seat), events: []), to: seat)
+        // Posted rather than played. The loop is already standing at this seat waiting
+        // for exactly this, and cancelling it to apply the move from here is how a client
+        // that answers a moment late ends up racing the seat's own clock.
+        case .move(let move):
+            guard state.phase.actingSeat == seat else { return }
+            movesFromWire[seat] = move
+        case .reboundBid(let cards):
+            guard case .awaitingRebound = state.phase else { return }
+            bidsFromWire[seat] = cards
+        case .discardForShot(let cards):
+            guard case .awaitingDiscard(let asked, _, _) = state.phase, asked == seat
+            else { return }
+            discardsFromWire[seat] = cards
+        case .freeThrow(let made):
+            guard case .freeThrows(let trip) = state.phase, trip.shooter == seat
+            else { return }
+            freeThrowsFromWire[seat] = made
+        }
+    }
+
+    /// A guest, hearing what happened.
+    private func receive(_ message: HostMessage) {
+        switch message {
+        case .seated(let seat, let chairs):
+            Table.shared.seat(chairs, asLocal: seat)
+        case .turn(let state, let events):
+            loop?.cancel()
+            self.state = state
+            loop = Task {
+                await self.present(events,
+                                   defenders: self.defenderCount(on: state.phase.actingSeat
+                                                                 ?? GameRules.localSeat))
+                self.gate = self.localGate
+            }
+        }
+    }
+
+    /// A choice this device's player made.
+    ///
+    /// On a guest it goes up the wire and the board does not move until the host says what
+    /// it meant. Anywhere else it is resolved here and now.
+    private func choose(_ move: Move) {
         loop?.cancel()
+        if isGuest {
+            gate = .thinking
+            try? match?.send(.move(move))
+            return
+        }
+        loop = Task {
+            await apply(move, by: GameRules.localSeat)
+            await run()
+        }
+    }
+
+    func begin() {
+        // Rolled here rather than in `init`. SwiftUI re-creates a View struct on every
+        // state change, so `@State private var controller = GameController()` runs that
+        // initialiser every time and throws all but the first result away — but any side
+        // effect in it has already happened. Faces were being re-rolled on every inbound.
+        PlayerLook.shared.randomiseOpponents(except: GameRules.localSeat)
+        loop?.cancel()
+        // A guest has no game of its own to open. It says it is on screen and waits to be
+        // dealt to, which is what a player does at a table.
+        if isGuest {
+            gate = .thinking
+            try? match?.send(.ready)
+            return
+        }
         loop = Task {
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
             openingDraws = []
             await run()
+        }
+    }
+
+    /// Waits on one seat's device for one decision, and gives up when its clock runs out.
+    ///
+    /// Written against the inbox rather than a continuation because a client is allowed to
+    /// answer twice — a player who taps a card and then changes their mind before the host
+    /// has looked has simply made one decision, and a continuation would have fired on the
+    /// first tap.
+    private func waitOn<T>(_ seat: Seat,
+                           for inbox: ReferenceWritableKeyPath<GameController, [Seat: T]>) async -> T? {
+        let deadline = Pacing.actionClock.map { Date().addingTimeInterval($0) }
+        while !Task.isCancelled, deadline.map({ Date() < $0 }) ?? true {
+            if let answer = self[keyPath: inbox].removeValue(forKey: seat) { return answer }
+            try? await Task.sleep(for: .milliseconds(80))
+        }
+        return nil
+    }
+
+    /// What a seat does when its clock runs out.
+    ///
+    /// A shot is always legal — whatever is in the bag, and whatever the SHOT reads, even
+    /// at nothing. Paired with the free draw every possession opens with, that closes the
+    /// loop: a table of four absent players still draws, still shoots, still leaves the
+    /// board to nobody, and still runs out of rounds with a winner at the end of them.
+    /// Nothing about an idle match can stall it.
+    private func fallback(for seat: Seat) -> Move {
+        guard case .inbound = state.phase else { return .shoot }
+        // The one decision with no way to decline it — the ball has to go somewhere, so
+        // the house throws it in.
+        return ai.move(state, for: seat) ?? .inbound(to: seat.clockwise)
+    }
+
+    /// Holds the board up until every other device has bid, or until it is plain that one
+    /// of them is not going to.
+    ///
+    /// A seat that says nothing in time bids nothing. A game that stops dead on one quiet
+    /// phone is a worse outcome than a player who missed a board.
+    private func waitForBids() async {
+        let remotes = Table.shared.remotes
+        guard !remotes.isEmpty else { return }
+        let deadline = Pacing.actionClock.map { Date().addingTimeInterval($0) }
+        while !Task.isCancelled, remotes.contains(where: { bidsFromWire[$0] == nil }),
+              deadline.map({ Date() < $0 }) ?? true {
+            try? await Task.sleep(for: .milliseconds(80))
         }
     }
 
@@ -345,29 +541,23 @@ final class GameController {
 
     func inbound(to seat: Seat) {
         guard case .awaitingInbound = gate else { return }
-        loop?.cancel()
-        loop = Task {
-            await apply(.inbound(to: seat), by: GameRules.humanSeat)
-            await run()
-        }
+        choose(.inbound(to: seat))
     }
 
     func play(_ card: Card) {
-        guard case .awaitingMove = gate else { return }
-        loop?.cancel()
-        loop = Task {
-            await apply(.play(card.id), by: GameRules.humanSeat)
-            await run()
+        guard case .awaitingMove = gate else {
+            DevLog.say(.input, "tapped \(card.name) — ignored, gate is \(gate)")
+            return
         }
+        DevLog.say(.input, "play \(card.name)"
+                   + (card.descriptor.special?.shotOverride.map { "  (SHOT = \($0)%)" } ?? ""))
+        choose(.play(card.id))
     }
 
     func shoot() {
         guard case .awaitingMove = gate else { return }
-        loop?.cancel()
-        loop = Task {
-            await apply(.shoot, by: GameRules.humanSeat)
-            await run()
-        }
+        DevLog.say(.input, "shoot (the free action, no card)")
+        choose(.shoot)
     }
 
     func submitDiscard() {
@@ -375,10 +565,15 @@ final class GameController {
         loop?.cancel()
         let chosen = Array(bidSelection)
         bidSelection.removeAll()
+        if isGuest {
+            gate = .thinking
+            try? match?.send(.discardForShot(chosen))
+            return
+        }
         loop = Task {
-            let defenders = defenderCount(on: GameRules.humanSeat)
-            await applyEvents(Rules.resolveDiscardForShot(chosen, state: &state),
-                              defenders: defenders)
+            let defenders = defenderCount(on: GameRules.localSeat)
+            await present(Rules.resolveDiscardForShot(chosen, state: &state),
+                          defenders: defenders)
             await run()
         }
     }
@@ -386,9 +581,15 @@ final class GameController {
     /// The player's own attempt, decided by the mini-game rather than by a roll.
     func shootFreeThrow(made: Bool) {
         guard case .awaitingFreeThrow = gate else { return }
+        DevLog.say(.input, "free throw \(made ? "good" : "missed")")
         loop?.cancel()
+        if isGuest {
+            gate = .thinking
+            try? match?.send(.freeThrow(made: made))
+            return
+        }
         loop = Task {
-            await applyEvents(Rules.resolveFreeThrow(made: made, state: &state))
+            await present(Rules.resolveFreeThrow(made: made, state: &state))
             await run()
         }
     }
@@ -398,23 +599,44 @@ final class GameController {
         loop?.cancel()
         let mine = Array(bidSelection)
         bidSelection.removeAll()
+        if isGuest {
+            gate = .thinking
+            try? match?.send(.reboundBid(mine))
+            return
+        }
         loop = Task {
             var bids: [Seat: [Card.ID]] = [:]
-            for seat in Seat.allCases {
-                bids[seat] = seat == GameRules.humanSeat ? mine : ai.reboundBid(state, for: seat)
+            bids[GameRules.localSeat] = mine
+            for seat in Seat.allCases where seat != GameRules.localSeat {
+                guard !Table.shared.isRemote(seat) else { continue }
+                bids[seat] = ai.reboundBid(state, for: seat)
             }
+            // Everybody bids at once, so the board waits on the other devices rather than
+            // asking them one at a time.
+            await waitForBids()
+            for seat in Table.shared.remotes { bids[seat] = bidsFromWire[seat] ?? [] }
+            bidsFromWire.removeAll()
+
             let events = Rules.resolveRebound(bids: bids, state: &state)
-            record(events)
-            if let scene = TurnoverCutscene(events: events) {
-                turnover = scene
-                try? await Task.sleep(for: .seconds(Pacing.turnover))
-                turnover = nil
-            }
+            broadcast(events)
+            var ledger = events
+
+            // The bids are shown before they are read out, and who won the board is not
+            // written until the numbers are on screen.
             for case .reboundBids(let counts, _) in events {
                 revealedBids = counts
                 try? await Task.sleep(for: .seconds(Pacing.bidReveal))
                 revealedBids = nil
             }
+            release(.bid, from: &ledger)
+
+            if let scene = TurnoverCutscene(events: events) {
+                turnover = scene
+                try? await Task.sleep(for: .seconds(scene.hold))
+                turnover = nil
+            }
+            release(.turnover, from: &ledger)
+            record(ledger)
             await run()
         }
     }
@@ -425,14 +647,14 @@ final class GameController {
         loop?.cancel()
         loop = Task {
             var events: [GameEvent] = []
-            Rules.testDraw(GameRules.humanSeat, state: &state, events: &events)
-            await applyEvents(events)
+            Rules.testDraw(GameRules.localSeat, state: &state, events: &events)
+            await present(events)
             await run()
         }
     }
 
     func debugDiscardHand() {
-        Rules.discardHand(GameRules.humanSeat, state: &state)
+        Rules.discardHand(GameRules.localSeat, state: &state)
     }
 
     /// Asks the deck to perform. Nothing about the game changes — it is the deck doing a
@@ -448,13 +670,13 @@ final class GameController {
     /// Runs the whole opening: in from the horizon, round the table, home, and down.
     func debugOpening() {
         opening = OpeningDeal(id: UUID(),
-                              order: GameRules.humanSeat.clockwiseOrderFromHere,
+                              order: GameRules.localSeat.clockwiseOrderFromHere,
                               each: state.rules.startingBagSize)
     }
 
     /// Throws one card from the deck to the next seat round, on the court-wide stage.
     func debugDeal() {
-        let next = stageDeal.map { $0.seat.clockwise } ?? GameRules.humanSeat
+        let next = stageDeal.map { $0.seat.clockwise } ?? GameRules.localSeat
         stageDeal = (next, UUID())
     }
 
@@ -462,7 +684,7 @@ final class GameController {
     func debugArmWhistle() {
         loop?.cancel()
         loop = Task {
-            playedCard = PlayedCard(seat: GameRules.humanSeat,
+            playedCard = PlayedCard(seat: GameRules.localSeat,
                                     descriptor: Self.aWhistle(), faceDown: true)
             try? await Task.sleep(for: .seconds(GameRules.playedCardSeconds))
             playedCard = nil
@@ -478,7 +700,7 @@ final class GameController {
         loop?.cancel()
         loop = Task {
             let card = Self.aWhistle()
-            let scene = WhistleReveal(owner: GameRules.humanSeat, card: card,
+            let scene = WhistleReveal(owner: GameRules.localSeat, card: card,
                                       cancelled: "Drive", cancelledCard: CardLibrary.drive,
                                       isNew: SeenCards.shared.meet(card.id))
             whistleReveal = scene
@@ -497,7 +719,7 @@ final class GameController {
     func debugTurnover(_ kind: TurnoverCutscene.Kind) {
         loop?.cancel()
         loop = Task {
-            let scene = TurnoverCutscene(seat: GameRules.humanSeat, kind: kind)
+            let scene = TurnoverCutscene(seat: GameRules.localSeat, kind: kind)
             turnover = scene
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil
@@ -509,15 +731,15 @@ final class GameController {
     func debugPass(to seat: Seat) {
         loop?.cancel()
         loop = Task {
-            practicePass = (GameRules.humanSeat, seat)
+            practicePass = (GameRules.localSeat, seat)
             // Restamped, so a second press replays rather than being ignored.
             ballSettledAt = Date()
             // Long enough for the throw *and* the catch that follows it. Clearing this
             // at the end of the flight pulled the receiver's `caughtAt` away a tenth of a
             // second into the catch, so the sheet never got past its first frames.
-            let tuning = BallTuning.shared
-            let catchSeconds = Double(Sprite.catchBall.frames) / tuning.catchFPS
-            try? await Task.sleep(for: .seconds(tuning.flightSeconds + tuning.holdSeconds
+            let catchSeconds = Double(Sprite.catchBall.frames) / Theme.Pass.catchFPS
+            try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds
+                                                + Theme.Pass.holdSeconds
                                                 + catchSeconds + 0.2))
             practicePass = nil
             await run()
@@ -528,7 +750,7 @@ final class GameController {
     func debugFreeThrows() {
         loop?.cancel()
         loop = Task {
-            await applyEvents(Rules.debugAwardFreeThrows(2, to: GameRules.humanSeat,
+            await present(Rules.debugAwardFreeThrows(2, to: GameRules.localSeat,
                                                          state: &state))
             await run()
         }
@@ -538,7 +760,7 @@ final class GameController {
     func debugMiss() {
         loop?.cancel()
         loop = Task {
-            cutscene = ShotCutscene(shooter: GameRules.humanSeat,
+            cutscene = ShotCutscene(shooter: GameRules.localSeat,
                                     chance: Int(ShotTuning.shared.debugChance),
                                     made: false, defenders: 0)
             try? await Task.sleep(for: .seconds(Pacing.cutscene + (cutscene?.drama.seconds ?? 0)))
@@ -551,7 +773,7 @@ final class GameController {
     func debugShot() {
         loop?.cancel()
         loop = Task {
-            cutscene = ShotCutscene(shooter: GameRules.humanSeat,
+            cutscene = ShotCutscene(shooter: GameRules.localSeat,
                                     chance: Int(ShotTuning.shared.debugChance),
                                     made: true, defenders: 0)
             try? await Task.sleep(for: .seconds(Pacing.cutscene + (cutscene?.drama.seconds ?? 0)))
@@ -562,7 +784,7 @@ final class GameController {
 
     /// Dump and redraw, for getting to a hand worth testing quickly.
     func debugReshuffleHand() {
-        Rules.reshuffleHand(GameRules.humanSeat, state: &state)
+        Rules.reshuffleHand(GameRules.localSeat, state: &state)
     }
 #endif
 
@@ -577,9 +799,19 @@ final class GameController {
                 return
             }
             if case .freeThrows(let trip) = state.phase {
-                if trip.shooter == GameRules.humanSeat {
+                if trip.shooter == GameRules.localSeat {
                     gate = .awaitingFreeThrow(trip)
                     return
+                }
+                // Somebody else's line. Their device is playing the mini-game, and if it
+                // never answers that is a violation — no points, same as standing at the
+                // line and not shooting.
+                if Table.shared.isRemote(trip.shooter) {
+                    gate = .thinking
+                    let made = await waitOn(trip.shooter, for: \.freeThrowsFromWire) ?? false
+                    if Task.isCancelled { return }
+                    await present(Rules.resolveFreeThrow(made: made, state: &state))
+                    continue
                 }
                 gate = .thinking
                 try? await Task.sleep(for: .seconds(Pacing.think()))
@@ -588,29 +820,48 @@ final class GameController {
                 aiFreeThrow = AIFreeThrow(trip: trip, made: made)
                 try? await Task.sleep(for: .seconds(Pacing.freeThrow))
                 aiFreeThrow = nil
-                await applyEvents(Rules.resolveFreeThrow(made: made, state: &state))
+                await present(Rules.resolveFreeThrow(made: made, state: &state))
                 continue
             }
             if case .awaitingDiscard(let seat, let card, let bonusEach) = state.phase {
-                if seat == GameRules.humanSeat {
+                if seat == GameRules.localSeat {
                     gate = .awaitingDiscard(card: card, bonusEach: bonusEach)
                     return
+                }
+                if Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    // Nothing fed into the shot is a legal answer, so it is the one an
+                    // absent player gives.
+                    let chosen = await waitOn(seat, for: \.discardsFromWire) ?? []
+                    if Task.isCancelled { return }
+                    await present(Rules.resolveDiscardForShot(chosen, state: &state),
+                                  defenders: defenderCount(on: seat))
+                    continue
                 }
                 gate = .thinking
                 try? await Task.sleep(for: .seconds(Pacing.think()))
                 if Task.isCancelled { return }
                 let chosen = ai.discardForShot(state, for: seat)
                 let defenders = defenderCount(on: seat)
-                await applyEvents(Rules.resolveDiscardForShot(chosen, state: &state),
+                await present(Rules.resolveDiscardForShot(chosen, state: &state),
                                   defenders: defenders)
                 continue
             }
             guard let seat = state.phase.actingSeat else { gate = .thinking; return }
 
-            if seat == GameRules.humanSeat {
+            if seat == GameRules.localSeat {
                 gate = { if case .inbound = state.phase { return .awaitingInbound(seat) }
                          return .awaitingMove(seat) }()
                 return
+            }
+            // A seat somebody is sitting in decides for itself — but not forever. The
+            // loop stands here holding that seat's clock.
+            if Table.shared.isRemote(seat) {
+                gate = .thinking
+                let move = await waitOn(seat, for: \.movesFromWire) ?? fallback(for: seat)
+                if Task.isCancelled { return }
+                await apply(move, by: seat)
+                continue
             }
 
             gate = .thinking
@@ -621,23 +872,51 @@ final class GameController {
         }
     }
 
-    private func applyEvents(_ events: [GameEvent], defenders: Int = 0) async {
-        record(events)
-        await showWhistle(in: events)
-        stampSettled(events)
-        await flyDraws(in: events, each: Pacing.drawFlight)
-        await showReveals(in: events)
-        if let scene = ShotCutscene(events: events, defenders: defenders) {
-            cutscene = scene
-            try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
-            cutscene = nil
-            await celebrateThree(in: events)
+    // MARK: - Telling the player in the right order
+
+    /// Which beat of the presentation an event belongs to.
+    ///
+    /// Everything a move does is decided the instant the rules run, but the player learns
+    /// it from the table, one beat at a time. Writing the whole log up front means the
+    /// reader is told the outcome before the scene that shows it — bid nothing and the
+    /// log already says who got the board. So each line is held until its own beat plays.
+    private enum Beat {
+        case play, whistle, draw, reveal, shot, turnover, bid, freeThrow, after
+    }
+
+    private func beat(of event: GameEvent) -> Beat {
+        switch event {
+        case .passed, .movePlayed, .clampSet, .whistleArmed, .comboLanded, .coinRun,
+             .discardedForShot:
+            return .play
+        case .whistleBlew, .whistleRefocused, .whistlesDismissed, .clampVoided,
+             .clampsShaken, .intangiblesStripped, .clampBit:
+            return .whistle
+        case .drew, .deckReshuffled:
+            return .draw
+        case .gameBreakRevealed, .intangibleRevealed, .intangibleDisplaced:
+            return .reveal
+        case .shotAttempted, .shotMade, .shotMissed, .assisted:
+            return .shot
+        case .turnover, .failedReturn:
+            return .turnover
+        case .reboundBids, .rebounded:
+            return .bid
+        case .freeThrowsAwarded, .freeThrowBonus, .freeThrowMade, .freeThrowMissed,
+             .freeThrowsEnded:
+            return .freeThrow
+        default:
+            return .after
         }
-        if let scene = TurnoverCutscene(events: events) {
-            turnover = scene
-            try? await Task.sleep(for: .seconds(scene.hold))
-            turnover = nil
-        }
+    }
+
+    /// Writes the lines for one beat and takes them off the ledger, in the order the rules
+    /// produced them.
+    private func release(_ beat: Beat, from ledger: inout [GameEvent]) {
+        let due = ledger.filter { self.beat(of: $0) == beat }
+        guard !due.isEmpty else { return }
+        ledger.removeAll { self.beat(of: $0) == beat }
+        record(due)
     }
 
     /// Every card turned up by this play, one at a time.
@@ -715,27 +994,55 @@ final class GameController {
     private func apply(_ move: Move, by seat: Seat) async {
         let defenders = defenderCount(on: seat)
         let events = Rules.apply(move, by: seat, to: &state)
-        record(events)
-        // Held up first, then thrown. The card is what caused the pass, so it reads
-        // before the ball moves rather than over the top of it.
-        await showPlayedCard(in: events)
+        await present(events, defenders: defenders, playedCard: true)
+    }
+
+    /// Everything the table is shown, in the order it happens at one.
+    ///
+    /// Takes only events, never a move — which is what lets a guest play exactly the same
+    /// scenes off the wire that the host plays off its own rules. The host resolves and
+    /// then presents; a guest is handed the resolution and presents.
+    private func present(_ events: [GameEvent], defenders: Int = 0,
+                         playedCard: Bool = false) async {
+        // The gate is what the stage draws from, and it still holds whatever the player
+        // was last asked for. Left alone, the rebound board sits behind every cutscene
+        // that follows a bid and flashes back the moment one clears.
+        gate = .thinking
+        broadcast(events)
+        var ledger = events
+
+        if playedCard {
+            // Held up first, then thrown. The card is what caused the pass, so it reads
+            // before the ball moves rather than over the top of it.
+            await showPlayedCard(in: events)
+        }
+        release(.play, from: &ledger)
         await showWhistle(in: events)
+        release(.whistle, from: &ledger)
         stampSettled(events)
         await flyDraws(in: events, each: Pacing.drawFlight)
+        release(.draw, from: &ledger)
         await showReveals(in: events)
-        if let scene = ShotCutscene(events: events) {
+        release(.reveal, from: &ledger)
+
+        if let scene = ShotCutscene(events: events, defenders: defenders) {
             cutscene = scene
             try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
             cutscene = nil
+            await celebrateThree(in: events)
         }
+        release(.shot, from: &ledger)
+
         if let scene = TurnoverCutscene(events: events) {
             turnover = scene
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil
         }
+        record(ledger)
     }
 
     private func record(_ events: [GameEvent]) {
+        DevLog.record(events)
         for event in events where event.isLoggable {
             log.append(LogLine(text: event.logLine, kind: kind(of: event)))
         }

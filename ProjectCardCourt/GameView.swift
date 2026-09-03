@@ -5,7 +5,8 @@ struct GameView: View {
     @State private var logStyle: LogStyle = .overlay
     @State private var detail: Card?
     /// A slotted passive or an active debuff, held up to be read.
-    @State private var inspecting: CardDescriptor?
+    /// A slotted card held up, and the slot it came from.
+    @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
     @State private var browsingDiscard = false
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
@@ -42,10 +43,10 @@ struct GameView: View {
                     IntangibleSlotsView(held: controller.human.intangibles,
                                         dormant: controller.dormantIntangibles,
                                         slots: controller.state.rules.intangibleSlots,
-                                        onSelect: { inspecting = $0 })
+                                        onSelect: { inspecting = (card: $0, from: $1) })
                     Spacer()
                     DebuffSlotsView(cards: controller.human.clamps.map(\.card),
-                                    onSelect: { inspecting = $0 })
+                                    onSelect: { inspecting = (card: $0, from: $1) })
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
@@ -57,10 +58,9 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
-            if let card = inspecting {
-                CardFrontView(descriptor: card, displayWidth: 96, expanded: true)
-                    .scaleEffect(2)
-                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+            if let inspecting {
+                InspectedCardView(card: inspecting.card, from: inspecting.from)
+                    .id(inspecting.card.id)
                     .zIndex(9)
             }
             #if DEBUG
@@ -132,7 +132,7 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
         .onChange(of: controller.gate) { detail = nil }
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: inspecting)
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: inspecting?.card)
         .background(keyboardCommands)
         .task { controller.begin() }
     }
@@ -170,7 +170,8 @@ struct GameView: View {
     private var stage: some View {
         Group {
             if case .awaitingBid(let shooter) = controller.gate {
-                ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids)
+                ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids,
+                                    state: controller.state)
                     .frame(maxHeight: .infinity)
                     .transition(.opacity)
             } else {
@@ -312,7 +313,7 @@ struct GameView: View {
             VStack(spacing: 14) {
                 HStack(spacing: 22) {
                     ForEach(winners, id: \.self) { seat in
-                        PlayerFigure(seat: seat)
+                        PlayerFigure(seat: seat, mirrored: false)
                             .scaleEffect(2.1, anchor: .bottom)
                             .frame(width: Theme.Figure.headDiameter * 2.1,
                                    height: Theme.Figure.height * 2.1, alignment: .bottom)

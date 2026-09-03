@@ -9,7 +9,6 @@ struct DiscardPileView: View {
     /// False when a court-wide stage is drawing the pile instead.
     var showsPile = true
 
-    @State private var render = RenderDebug.shared
 
     private enum Pile {
         /// The same rule the deck grows by, so the two piles are the same object at
@@ -29,19 +28,13 @@ struct DiscardPileView: View {
     /// SwiftUI's `perspective` and a RealityKit camera are different projections, so no
     /// tilt makes them agree — and even a matched top card would have its stacked edges
     /// recede differently. Sharing the camera removes the question.
-    @ViewBuilder
     private var pile: some View {
-        if render.flatPiles {
-            FlatPile(width: width, tall: false)
-                .frame(width: width, height: width * DeckBody.frameHeight)
-        } else {
-            DeckBody(layers: layers)
-                .frame(width: width, height: width * DeckBody.frameHeight)
-                // Spent cards. Only the pile is drained of colour — a card pulled back
-                // out to be read is drawn by `CardFrontView` and is untouched.
-                .grayscale(1)
-                .allowsHitTesting(false)
-        }
+        DeckBody(layers: layers)
+            .frame(width: width, height: width * DeckBody.frameHeight)
+            // Spent cards. Only the pile is drained of colour — a card pulled back out to
+            // be read is drawn by `CardFrontView` and is untouched.
+            .grayscale(1)
+            .allowsHitTesting(false)
     }
 
     var body: some View {

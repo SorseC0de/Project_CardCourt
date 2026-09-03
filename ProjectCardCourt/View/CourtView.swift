@@ -12,7 +12,7 @@ struct CourtView: View {
     /// can be watched without the rules having moved anything.
     var receiver: Seat?
     /// Whose seat the court is drawn from. Multiplayer passes the local player's.
-    var viewer: Seat = GameRules.humanSeat
+    var viewer: Seat = GameRules.localSeat
     var flight: DrawFlight?
     var deckRoutine: DeckStage.Routine = .rest
     /// A card the stage should throw, and to whom.
@@ -50,15 +50,18 @@ struct CourtView: View {
     /// the ball's destination all read this rather than `state.ball` directly.
     private var holder: Seat? { receiver ?? state.ball }
 
+    /// How wide a pile is drawn before the bench's multiplier.
+    private static let pileWidth: CGFloat = 138
+
     /// Fixed so a bid badge appearing cannot shift a figure off its footing.
     private var nodeHeight: CGFloat { Theme.Figure.height + 26 }
 
     @State private var sweep: CGFloat = 0
     /// Stamped when the ball changes hands, which starts the catch animation.
-    @State private var tuning = CourtTuning.shared
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
-    @State private var ballTuning = BallTuning.shared
     @State private var render = RenderDebug.shared
+    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
+    @State private var deckTuning = DeckTuning.shared
     /// True while the ball is crossing between players.
     @State private var ballInFlight = false
     /// 0 at the passer, 1 at the receiver. Named apart from the draw's `flight`.
@@ -85,6 +88,14 @@ struct CourtView: View {
                 CourtStreaks()
 
                 room(court)
+
+                // Between the floor and the stage. The 3D piles are a layer of their
+                // own, so a shadow drawn alongside them would land on top instead of
+                // under.
+                PileShadow(width: geo.size.width * Perspective.pileCardShare
+                                  * deckTuning.size,
+                           across: geo.size.width)
+                    .position(deckPoint(on: court))
 
                 // One scene for the whole floor. Everything on it is placed from the same
                 // court points the sprites use, so the two cannot disagree.
@@ -113,11 +124,12 @@ struct CourtView: View {
 
                 // Painted far to near, so anything upcourt is overlapped by what
                 // stands in front of it instead of by whatever draws last.
-                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer), id: \.self) { item in
+                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: refereePosts),
+                        id: \.self) { item in
                     place(item, on: court, in: geo.size)
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
-                           value: state.armedWhistles.isEmpty)
+                           value: refereePosts)
 
                 if let flight {
                     let deck = CGPoint(
@@ -161,9 +173,9 @@ struct CourtView: View {
                 // Every pass takes the same time, whoever it is between: the ball
                 // simply travels faster across the diamond than to a neighbour. The
                 // arrival is what the catch is timed against, so it stays put.
-                withAnimation(.easeInOut(duration: ballTuning.flightSeconds)) { passFlight = 1 }
-                try? await Task.sleep(for: .seconds(ballTuning.flightSeconds
-                                                    + ballTuning.holdSeconds))
+                withAnimation(.easeInOut(duration: Theme.Pass.flightSeconds)) { passFlight = 1 }
+                try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds
+                                                    + Theme.Pass.holdSeconds))
 
                 var vanish = Transaction(); vanish.disablesAnimations = true
                 withTransaction(vanish) { ballInFlight = false }
@@ -208,15 +220,21 @@ struct CourtView: View {
 
     /// Where the deck and the discard stand, as court points.
     private func deckPoint(on court: CourtGeometry) -> CGPoint {
-        CGPoint(x: court.centreX
-                + court.halfWidth(at: Perspective.deckDepth) * Perspective.deckLateral,
-                y: court.y(at: Perspective.deckDepth))
+        pilePoint(lateral: Perspective.deckLateral, on: court)
     }
 
     private func discardPoint(on court: CourtGeometry) -> CGPoint {
+        pilePoint(lateral: Perspective.discardLateral, on: court)
+    }
+
+    /// Where a pile stands, nudged by the bench. Both renderers come through here, which
+    /// is the only reason the flat pile and the staged one land on the same spot.
+    private func pilePoint(lateral: CGFloat, on court: CourtGeometry) -> CGPoint {
         CGPoint(x: court.centreX
-                + court.halfWidth(at: Perspective.deckDepth) * Perspective.discardLateral,
-                y: court.y(at: Perspective.deckDepth))
+                + court.halfWidth(at: Perspective.deckDepth) * lateral
+                + court.size.width * deckTuning.x,
+                y: court.y(at: Perspective.deckDepth)
+                + court.size.height * deckTuning.y)
     }
 
     /// A court point as a share of the view, which is the only language the stage speaks.
@@ -239,8 +257,8 @@ struct CourtView: View {
         // receiver flips — the thrower is still dribbling, and dribbling never mirrors.
         let flip: CGFloat = catching
             && PlayerFigure.catchIsMirrored(seat: seat, facing: passer) ? -1 : 1
-        return CGPoint(x: footing.x + side * ballTuning.handX * flip,
-                       y: footing.y - side * ballTuning.handY)
+        return CGPoint(x: footing.x + side * Theme.Pass.handX * flip,
+                       y: footing.y - side * Theme.Pass.handY)
     }
 
     /// Both ends of the throw, so the flight is drawn and timed off the same two points.
@@ -249,6 +267,26 @@ struct CourtView: View {
         let to = ballPoint(of: holder, on: court, catching: true)
         let from = passer.map { ballPoint(of: $0, on: court, catching: false) } ?? to
         return (from, to)
+    }
+
+    /// One referee per armed Whistle, each at his own post.
+    ///
+    /// Read off the Whistle's own id rather than rolled, so a redraw cannot move a
+    /// referee mid-round — the skin tones re-rolling on every inbound taught that. The
+    /// first byte is the coin flip for the side, the second picks between that side's two
+    /// posts, and anyone finding both taken takes whatever is left.
+    private var refereePosts: [RefereePost] {
+        var free = Set(RefereePost.allCases)
+        return state.armedWhistles.compactMap { whistle in
+            let coin = withUnsafeBytes(of: whistle.id.uuid) { Array($0.prefix(2)) }
+            let side: [RefereePost] = coin[0].isMultiple(of: 2)
+                ? [.leftWing, .farLeft] : [.rightWing, .farRight]
+            let wanted = coin[1].isMultiple(of: 2) ? side : side.reversed()
+            guard let post = (wanted + RefereePost.allCases).first(where: free.contains)
+            else { return nil }
+            free.remove(post)
+            return post
+        }
     }
 
     /// The seat furthest from the camera, whose label the nearest player sits over.
@@ -279,18 +317,20 @@ struct CourtView: View {
     private enum CourtItem: Hashable {
         case player(Seat)
         case deck
-        case referee
+        case referee(RefereePost)
 
         func depth(viewedFrom viewer: Seat) -> CGFloat {
             switch self {
             case .player(let seat): return Perspective.depth(of: seat.slot(viewedFrom: viewer))
             case .deck:             return Perspective.deckDepth
-            case .referee:          return Perspective.refereeDepth
+            case .referee(let post): return post.depth
             }
         }
 
-        static func inDepthOrder(viewedFrom viewer: Seat) -> [CourtItem] {
-            (Seat.allCases.map(CourtItem.player) + [.deck, .referee])
+        static func inDepthOrder(viewedFrom viewer: Seat,
+                                 referees: [RefereePost]) -> [CourtItem] {
+            (Seat.allCases.map(CourtItem.player) + [.deck]
+                + referees.map(CourtItem.referee))
                 .sorted { $0.depth(viewedFrom: viewer) < $1.depth(viewedFrom: viewer) }
         }
     }
@@ -299,30 +339,31 @@ struct CourtView: View {
     private func place(_ item: CourtItem, on court: CourtGeometry,
                        in geo: CGSize) -> some View {
         switch item {
-        case .referee:
-            if !state.armedWhistles.isEmpty {
-                let depth = Perspective.refereeDepth
-                RefereeFigure()
-                    .scaleEffect(court.scale(at: depth), anchor: .bottom)
-                    .position(x: court.centreX + court.halfWidth(at: depth) * Perspective.refereeLateral,
-                              y: court.y(at: depth))
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-            }
+        case .referee(let post):
+            // Framed and dropped exactly as a player is, so his feet land on the same
+            // floor line theirs would at that depth. Top-aligned because he has no name
+            // plate under him taking up the bottom of the box.
+            RefereeFigure(mirrored: post.isLeft, phase: post.phase)
+                .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
+                .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .top)
+                .position(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,
+                          y: court.y(at: post.depth) - nodeHeight / 2
+                             + Theme.Figure.height * Perspective.playerDrop)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
         case .deck:
             let depth = Perspective.deckDepth
-            DeckStackView(remaining: state.deck.count, width: 138, routine: deckRoutine,
+            let width = Self.pileWidth * deckTuning.size
+            DeckStackView(remaining: state.deck.count, width: width, routine: deckRoutine,
                           showsPile: !render.courtStage)
                 .scaleEffect(court.scale(at: depth), anchor: .bottom)
-                .position(x: court.centreX + court.halfWidth(at: depth) * Perspective.deckLateral,
-                          y: court.y(at: depth) + geo.height * 0.02)
+                .position(deckPoint(on: court))
 
-            DiscardPileView(count: state.discard.count, width: 138,
+            DiscardPileView(count: state.discard.count, width: width,
                             showsPile: !render.courtStage)
                 .scaleEffect(court.scale(at: depth), anchor: .bottom)
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onOpenDiscard)
-                .position(x: court.centreX + court.halfWidth(at: depth) * Perspective.discardLateral,
-                          y: court.y(at: depth) + geo.height * 0.02)
+                .position(discardPoint(on: court))
         case .player(let seat):
             let footing = court.footing(of: seat)
             let scale = court.scale(of: seat)
@@ -357,7 +398,6 @@ struct CourtView: View {
 
     private func node(_ seat: Seat) -> some View {
         let selectable = selectableSeats.contains(seat)
-        let far = seat.slot(viewedFrom: viewer) == .north
         return VStack(spacing: 3) {
             PlayerFigure(
                 seat: seat,

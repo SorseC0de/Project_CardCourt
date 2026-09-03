@@ -43,7 +43,7 @@ struct ScoreboardView: View {
     }
 
     private func row(_ player: PlayerState) -> some View {
-        let isHuman = player.seat == GameRules.humanSeat
+        let isLocal = player.seat == GameRules.localSeat
         let isCalledOut = highlighted.contains(player.seat)
         let tint = Theme.color(for: player.seat)
         return HStack(spacing: 0) {
@@ -52,8 +52,8 @@ struct ScoreboardView: View {
                     .fill(tint)
                     .frame(width: 7, height: 7)
                 Text(player.seat.playerName)
-                    .font(.system(size: 12, weight: isHuman || isCalledOut ? .bold : .regular))
-                    .foregroundStyle(isHuman || isCalledOut ? Theme.ink : Theme.inkDim)
+                    .font(.system(size: 12, weight: isLocal || isCalledOut ? .bold : .regular))
+                    .foregroundStyle(isLocal || isCalledOut ? Theme.ink : Theme.inkDim)
             }
             .frame(width: 74, alignment: .leading)
 
@@ -66,7 +66,7 @@ struct ScoreboardView: View {
 
             Text("\(shownScore(player))")
                 .font(.system(size: 14, weight: .heavy, design: .rounded))
-                .foregroundStyle(isHuman || isCalledOut ? tint : Theme.ink)
+                .foregroundStyle(isLocal || isCalledOut ? tint : Theme.ink)
                 .frame(width: 34, alignment: .trailing)
                 .contentTransition(.numericText())
         }

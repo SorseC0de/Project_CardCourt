@@ -9,9 +9,11 @@ import Observation
 final class RenderDebug {
     static let shared = RenderDebug()
 
-    /// Draws the piles as flat cards instead of geometry.
-    var flatPiles = false
-    /// One court-wide 3D scene instead of a renderer per pile. What lets a card leave the
-    /// deck and travel — a pile in its own small frame clips at the frame's edge.
-    var courtStage = false
+    /// One court-wide 3D scene instead of a renderer per pile.
+    ///
+    /// On by default: it is the only place a card can leave the deck and travel, and the
+    /// only frame wide enough for a shuffle — a pile in its own small frame clips the
+    /// moment a slab is thrown more than a couple of centimetres.
+    ///
+    var courtStage = true
 }

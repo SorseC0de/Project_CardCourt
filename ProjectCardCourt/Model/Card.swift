@@ -169,6 +169,19 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var isSlashed: Bool { id == "swallowed-whistle" }
 
     var artwork: (name: String, mirrored: Bool, scale: CGFloat)? {
+        // It is a Game Break, but what it is *about* is Whistles — and with the slash
+        // through it the whistle says the whole effect without a word.
+        if id == "swallowed-whistle" { return ("WhistleIcon", true, 1.6) }
+        // Cards with art of their own. Each carries its own multiplier: the drawings are
+        // trimmed to their subject, so one shared number reads at different sizes.
+        switch id {
+        case "off-night":    return ("OffNightIcon", false, 1)
+        case "benched":      return ("BenchIcon", false, 1)
+        case "crowd-noise":  return ("CrowdNoiseIcon", false, 1)
+        case "putback-tip":  return ("PutbackIcon", false, 1)
+        case "slam-dunk":    return ("DunkIcon", false, 1)
+        default: break
+        }
         switch type {
         case .whistle:    return ("WhistleIcon", true, 1.6)
         case .clamp:      return ("ClampIcon", false, 1.44)
@@ -295,6 +308,12 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "benched":                     return "arrow.left.arrow.right.circle.fill"
         case "off-night":                   return "cloud.rain.fill"
         case "swallowed-whistle":           return "speaker.slash.fill"
+        // Not all of these are built yet — the sheet has them, the library does not. The
+        // mapping is written now so a card arrives wearing the right mark rather than the
+        // type's default the first time it is dealt.
+        case "shooting-slump":              return "snowflake"
+        case "great-conditioning":          return "figure.strengthtraining.traditional"
+        case "triple-threat":               return "move.3d"
         case "shot-creator":                return "plus.rectangle.on.rectangle"
         case "hot-hand":                    return "flame.fill"
         case "euro-step":                   return "shuffle"
@@ -322,7 +341,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         }
         switch type {
         case .pass:         return "arrow.forward"
-        case .move:         return "figure.basketball"
+        case .move:         return "figure.bowling"
         case .specialMove:  return "basketball.fill"
         case .clamp:        return "hand.raised.fill"
         case .whistle:      return "flag.fill"

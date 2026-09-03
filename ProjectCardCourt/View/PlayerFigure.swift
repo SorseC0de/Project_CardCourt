@@ -48,8 +48,6 @@ struct PlayerFigure: View {
     var scale: CGFloat = Theme.Figure.playerScale
 
     @State private var look = PlayerLook.shared
-    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
-    @State private var ballTuning = BallTuning.shared
     @State private var catching = false
     /// When this catch began. The sheet is counted from here, not from the wall clock.
     @State private var caughtFrom: Date?
@@ -60,12 +58,21 @@ struct PlayerFigure: View {
 
     private var tint: Color { Theme.color(for: seat) }
 
+    /// The bag and the count above a player's head.
+    private enum Bag {
+        static let number: CGFloat = 34
+        /// The art is trimmed to its own subject rather than squared off, so this is not
+        /// the number's own size — it is what reads as the same size beside it.
+        static let side: CGFloat = 34
+        static let gap: CGFloat = 3
+    }
+
     /// The rate this sprite runs at. The catch has its own, and the hold that keeps
     /// `catching` true is measured from the same number — set them apart and the sprite
     /// finishes before the state does, or keeps playing after it.
     private var frameRate: Double {
         if let fps { return fps }
-        return action == .catchBall ? ballTuning.catchFPS : Theme.Figure.playerFPS
+        return action == .catchBall ? Theme.Pass.catchFPS : Theme.Figure.playerFPS
     }
 
     /// Catching for a beat as the ball arrives, then dribbling; jogging without it.
@@ -79,7 +86,7 @@ struct PlayerFigure: View {
     /// Idle opponents jog and glance back every few seconds. The human never does —
     /// they are at the near edge facing upcourt, with nothing behind them to look at.
     private var glance: Sprite? {
-        guard sprite == nil, !isHolding, !seat.isHuman else { return nil }
+        guard sprite == nil, !isHolding, !seat.isLocal else { return nil }
         return .runLook
     }
 
@@ -117,70 +124,85 @@ struct PlayerFigure: View {
     }
 
     var body: some View {
-        SpriteAnimation(sprite: action, scale: scale,
-                        fps: frameRate,
-                        // A catch is a one-shot like the shot is. Looping it meant its
-                        // frame came from `timeIntervalSinceReferenceDate % frames` — the
-                        // wall clock — so every catch began on whatever frame the world
-                        // happened to be on, and no two played the same.
-                        playsOnce: playsOnce || action == .catchBall,
-                        alternate: playsOnce ? nil : glance,
-                        phase: Double(seat.rawValue) * 1.3,
-                        // A catch on the court counts from when the ball landed; one a
-                        // cutscene asks for directly counts from when it appeared.
-                        startedAt: action == .catchBall ? (caughtFrom ?? startedAt) : startedAt,
-                        stopAtFrame: stopAtFrame)
-            .scaleEffect(x: isMirrored ? -1 : 1)
-            // Never animated. Interpolating a flip runs the sprite through zero width,
-            // which reads as a sheet of cardboard turning rather than a player facing
-            // the other way.
-            .animation(nil, value: isMirrored)
-            .onAppear { if playsOnce { startedAt = Date() } }
-            .paletteSwap(PixelPalette.uniform(for: seat)
-                         + PixelPalette.skin(tone: look.tone(for: seat)))
-            .opacity(isDimmed ? 0.4 : 1)
-            .overlay(alignment: .top) {
-                if let handCount {
-                    // The number alone, at the size the badge around it used to be. Its
-                    // own hard drop in the seat's colour is what ties it to its player now
-                    // that there is no ring doing it.
-                    Text("\(handCount)")
-                        .font(.custom("AvenirNextCondensed-Heavy", size: 34))
+        // Bottom-aligned: the shadow is drawn for the 32-pixel frame, and every sheet
+        // that is larger has its extra rows above the character rather than below.
+        ZStack(alignment: .bottom) {
+            SpriteShadow(scale: scale)
+            SpriteAnimation(sprite: action, scale: scale,
+                            fps: frameRate,
+                            // A catch is a one-shot like the shot is. Looping it meant its
+                            // frame came from `timeIntervalSinceReferenceDate % frames` — the
+                            // wall clock — so every catch began on whatever frame the world
+                            // happened to be on, and no two played the same.
+                            playsOnce: playsOnce || action == .catchBall,
+                            alternate: playsOnce ? nil : glance,
+                            phase: Double(seat.rawValue) * 1.3,
+                            // A catch on the court counts from when the ball landed; one a
+                            // cutscene asks for directly counts from when it appeared.
+                            startedAt: action == .catchBall ? (caughtFrom ?? startedAt) : startedAt,
+                            stopAtFrame: stopAtFrame)
+                .scaleEffect(x: isMirrored ? -1 : 1)
+                // Never animated. Interpolating a flip runs the sprite through zero width,
+                // which reads as a sheet of cardboard turning rather than a player facing
+                // the other way.
+                .animation(nil, value: isMirrored)
+                .onAppear { if playsOnce { startedAt = Date() } }
+                .paletteSwap(PixelPalette.uniform(for: seat)
+                             + PixelPalette.skin(tone: look.tone(for: seat)))
+                .opacity(isDimmed ? 0.4 : 1)
+                .overlay(alignment: .top) {
+                    if let handCount {
+                        // The bag says what the number is counting. Its own hard drop in the
+                        // seat's colour is what ties the pair to its player now that there is
+                        // no ring doing it.
+                        HStack(spacing: Bag.gap) {
+                            Image("BagIcon")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: Bag.side, height: Bag.side)
+                            Text("\(handCount)")
+                                .font(.custom("AvenirNextCondensed-Heavy", size: Bag.number))
+                                .contentTransition(.numericText())
+                        }
                         .foregroundStyle(.white)
+                        // One drop for the pair. Without this SwiftUI casts one per child and
+                        // the bag's falls across the number.
+                        .compositingGroup()
                         .shadow(color: tint, radius: 0, x: 4, y: 4)
                         .offset(y: -5)
-                        .contentTransition(.numericText())
+                    }
+                    if let marker {
+                        MarkerTriangle()
+                            .fill(marker)
+                            .frame(width: 28, height: 14)
+                            .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+                            .offset(y: -35 + hop)
+                    }
                 }
-                if let marker {
-                    MarkerTriangle()
-                        .fill(marker)
-                        .frame(width: 28, height: 14)
-                        .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                        .offset(y: -35 + hop)
+                .onChange(of: marker == nil) { hop = 0 }
+                .task(id: marker == nil) {
+                    guard marker != nil else { return }
+                    while !Task.isCancelled {
+                        hop = hop == 0 ? -12 : 0
+                        try? await Task.sleep(for: .milliseconds(340))
+                    }
                 }
-            }
-            .onChange(of: marker == nil) { hop = 0 }
-            .task(id: marker == nil) {
-                guard marker != nil else { return }
-                while !Task.isCancelled {
-                    hop = hop == 0 ? -12 : 0
-                    try? await Task.sleep(for: .milliseconds(340))
+                .animation(.easeOut(duration: 0.22), value: marker)
+                .animation(.easeOut(duration: 0.25), value: handCount)
+                .animation(.easeOut(duration: 0.22), value: isDimmed)
+                .task(id: caughtAt) {
+                    guard caughtAt != nil, isHolding, sprite == nil else { return }
+                    // Stamped before the sheet swaps in, or the first frame is drawn against
+                    // a start time that does not exist yet.
+                    caughtFrom = Date()
+                    catching = true
+                    // One pass of the catch sheet at its own frame rate.
+                    try? await Task.sleep(for: .seconds(Double(Sprite.catchBall.frames)
+                                                        / Theme.Pass.catchFPS))
+                    catching = false
                 }
-            }
-            .animation(.easeOut(duration: 0.22), value: marker)
-            .animation(.easeOut(duration: 0.25), value: handCount)
-            .animation(.easeOut(duration: 0.22), value: isDimmed)
-            .task(id: caughtAt) {
-                guard caughtAt != nil, isHolding, sprite == nil else { return }
-                // Stamped before the sheet swaps in, or the first frame is drawn against
-                // a start time that does not exist yet.
-                caughtFrom = Date()
-                catching = true
-                // One pass of the catch sheet at its own frame rate.
-                try? await Task.sleep(for: .seconds(Double(Sprite.catchBall.frames)
-                                                    / ballTuning.catchFPS))
-                catching = false
-            }
+        }
     }
 }
 

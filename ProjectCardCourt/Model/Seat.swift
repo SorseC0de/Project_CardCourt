@@ -45,7 +45,10 @@ enum Seat: Int, CaseIterable, Hashable, Identifiable, Codable {
 
     /// Who sits here. Fixed to the seat for now; when archetypes are shuffled per game
     /// these move onto the player alongside the personality.
-    var playerName: String {
+    var playerName: String { Table.shared.name(at: self) }
+
+    /// The house names, worn by any seat a person is not sitting in.
+    var houseName: String {
         switch self {
         case .north: return "Raheem"
         case .east:  return "Tanaka"
@@ -54,7 +57,8 @@ enum Seat: Int, CaseIterable, Hashable, Identifiable, Codable {
         }
     }
 
-    var isHuman: Bool { self == GameRules.humanSeat }
+    /// Whoever is holding this device.
+    var isLocal: Bool { self == GameRules.localSeat }
 
     /// Where this seat appears on screen for a given viewer. The viewer is always nearest,
     /// their opposite is upcourt, and their own left and right are screen left and right.
@@ -70,6 +74,6 @@ enum Seat: Int, CaseIterable, Hashable, Identifiable, Codable {
 
     /// "John plays", but "You play".
     func verb(_ thirdPerson: String, _ secondPerson: String) -> String {
-        isHuman ? secondPerson : thirdPerson
+        isLocal ? secondPerson : thirdPerson
     }
 }

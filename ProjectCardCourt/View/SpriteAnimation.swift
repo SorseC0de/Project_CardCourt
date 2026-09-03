@@ -6,6 +6,9 @@ enum Sprite: String, CaseIterable {
     case dribble = "Player_Dribble"
     case run = "Player_Run"
     case runLook = "Player_Run_Look"
+    /// The referee's own sheet. He jogs and looks about like everyone else — a referee
+    /// standing dead still would read as a prop rather than a man watching you.
+    case refereeRunLook = "Referee_Run_Look"
     case shoot = "Player_Shoot"
     case sparkleBurst = "SparkleBurst"
 
@@ -46,7 +49,8 @@ struct SpriteAnimation: View {
     /// now and then.
     var alternate: Sprite?
     var alternateEvery: TimeInterval = 5
-    /// Staggers the alternate, so four players do not glance in unison.
+    /// This sprite's own offset into the clock, so four players do not run — or glance —
+    /// in unison.
     var phase: TimeInterval = 0
     /// When a one-shot started. Frames are counted from here.
     var startedAt: Date?
@@ -82,7 +86,7 @@ struct SpriteAnimation: View {
 
     private func frame(of showing: Sprite, at date: Date) -> Int {
         guard playsOnce else {
-            let elapsed = date.timeIntervalSinceReferenceDate * fps
+            let elapsed = (date.timeIntervalSinceReferenceDate + phase) * fps
             return Int(elapsed.rounded(.down)) % showing.frames
         }
         guard let startedAt else { return 0 }

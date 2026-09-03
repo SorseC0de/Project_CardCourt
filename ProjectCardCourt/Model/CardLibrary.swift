@@ -61,48 +61,48 @@ enum CardLibrary {
 
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
-        effect: "Cancel Next Shot. TOV +1", numberInDeck: 5,
+        effect: "Cancel Next Shot. TOV +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true))
 
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
-        effect: "Cancel Next Move. TOV +1", numberInDeck: 5,
+        effect: "Cancel Next Move. TOV +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true))
 
     static let doubleDribble = CardDescriptor(
         id: "double-dribble", name: "Double Dribble", type: .whistle,
-        effect: "Cancel Next Dribble. Discard 1. TOV +1", numberInDeck: 5,
+        effect: "Cancel Next Dribble. Discard 1. TOV +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .dribblePlayed, turnoverOnOffender: true,
                                offenderDiscards: 1))
 
     static let backCourtViolation = CardDescriptor(
         id: "back-court-violation", name: "Back Court Violation", type: .whistle,
         effect: "Cancel Next Pass. TOV +1. You choose who inbounds",
-        numberInDeck: 5,
+        numberInDeck: 1,
         whistle: WhistleEffect(trigger: .passPlayed, turnoverOnOffender: true,
                                setterChoosesInbound: true))
 
     static let inadvertentWhistle = CardDescriptor(
         id: "inadvertent-whistle", name: "Inadvertent Whistle", type: .whistle,
         effect: "Cancel Next Non-Whistle. Player draws 1",
-        numberInDeck: 5,
+        numberInDeck: 1,
         whistle: WhistleEffect(trigger: .anyNonWhistlePlayed, offenderDraws: 1))
 
     static let coachsChallenge = CardDescriptor(
         id: "coachs-challenge", name: "Coach's Challenge", type: .whistle,
         effect: "Cancel Next Whistle. +1 Timeout",
-        numberInDeck: 5,
+        numberInDeck: 1,
         whistle: WhistleEffect(trigger: .whistlePlayed, recoversTimeout: true))
 
     static let officialReview = CardDescriptor(
         id: "official-review", name: "Official Review", type: .whistle,
-        effect: "Next Intangible: discard all theirs", numberInDeck: 5,
+        effect: "Next Intangible: discard all theirs", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .intangiblePlayed, stripsIntangibles: true))
 
     static let goaltending = CardDescriptor(
         id: "goaltending", name: "Goaltending", type: .whistle,
         effect: "Cancel Next Clamp. +2 PTS. End round",
-        numberInDeck: 3,
+        numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, endsRound: true, pointsToVictim: 2))
 
     // These three let the Clamp resolve and negate what it does, so that "the clamped
@@ -110,14 +110,14 @@ enum CardLibrary {
 
     static let blockingFoul = CardDescriptor(
         id: "blocking-foul", name: "Blocking Foul", type: .whistle,
-        effect: "Next Clamp: no effect. Clamped player +1 FT", numberInDeck: 5,
+        effect: "Next Clamp: no effect. Clamped player +1 FT", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, voidsClampOnLanding: true,
                                freeThrowsToClampVictim: 1))
 
     static let flagrantFoul = CardDescriptor(
         id: "flagrant-foul", name: "Flagrant Foul", type: .whistle,
         effect: "Next Clamp: no effect. Clamper discards 1. Clamped player +1 FT and keeps the ball",
-        numberInDeck: 3,
+        numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 1,
                                voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
                                victimKeepsBall: true))
@@ -132,24 +132,24 @@ enum CardLibrary {
 
     static let charge = CardDescriptor(
         id: "charge", name: "Charge", type: .whistle,
-        effect: "Cancel Next Shot. Shooter inbounds", numberInDeck: 5,
+        effect: "Cancel Next Shot. Shooter inbounds", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotAttempt, offenderInbounds: true))
 
     static let technicalFoul = CardDescriptor(
         id: "technical-foul", name: "Technical Foul", type: .whistle,
-        effect: "Cancel Next Non-Whistle", numberInDeck: 5,
+        effect: "Cancel Next Non-Whistle", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .anyNonWhistlePlayed))
 
     static let delayOfGameWarning = CardDescriptor(
         id: "delay-of-game-warning", name: "Delay-of-Game Warning", type: .whistle,
         effect: "Cancel Next Shot-Clock card. 2nd call this round: Take 1 FT",
-        numberInDeck: 6,
+        numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotClockLowered, freeThrowsOnRepeatCall: 1,
                                keepsClockCost: true, staysArmed: true))
 
     static let timeout = CardDescriptor(
         id: "timeout", name: "Timeout", type: .whistle,
-        effect: "Reset Shot Clock. All draw 1", numberInDeck: 5,
+        effect: "Reset Shot Clock. All draw 1", numberInDeck: 1,
         whistle: WhistleEffect(resetsShotClock: true, everyoneDraws: 1))
 
     // ── Intangibles ───────────────────────────────────────────────────
@@ -212,7 +212,7 @@ enum CardLibrary {
 
     static let swallowedWhistle = CardDescriptor(
         id: "swallowed-whistle", name: "Swallowed Whistle", type: .gameBreak,
-        effect: "This round:",
+        effect: "This round",
         numberInDeck: 5,
         gameBreak: GameBreakEffect(silencesWhistles: true))
 
@@ -286,6 +286,15 @@ enum CardLibrary {
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul,
     ]
+
+    /// A card somebody else is holding, or one still in the deck.
+    ///
+    /// Never built into a deck — `numberInDeck: 0` keeps it out of `all` and out of any
+    /// pool. It exists so a redacted hand is still a hand of cards with the right count in
+    /// it, rather than an empty one with a number beside it.
+    static let faceDown = CardDescriptor(
+        id: "face-down", name: "", type: .gameBreak,
+        effect: "", numberInDeck: 0)
 
     static let all: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack, dribble, drive, rhythmDribble,

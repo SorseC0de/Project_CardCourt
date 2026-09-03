@@ -65,6 +65,29 @@ enum Theme {
         }
     }
 
+    /// Where a pass lands in a player's hands, and how long it stays there.
+    ///
+    /// The position is in shares of a figure's own height rather than points, so one pair
+    /// of numbers lands in the same place on every seat, whatever their scale or where
+    /// they stand. Dialled in on the bench and frozen here.
+    enum Pass {
+        /// Out from the middle of the player's feet. Negative sits it on their far side.
+        static let handX: CGFloat = -0.14
+        /// Up from them.
+        static let handY: CGFloat = 0.18
+
+        /// How long the ball takes to cross.
+        static let flightSeconds: Double = 0.26
+        /// How long it stays in the receiver's hands before the sprite's own ball takes
+        /// over.
+        static let holdSeconds: Double = 0.08
+
+        /// The catch's own frame rate. Slower than the run cycle it used to borrow — a
+        /// catch is a beat, not a loop. Read in several places, so it cannot desync from
+        /// its own hold.
+        static let catchFPS: Double = 10
+    }
+
     enum Figure {
         /// Wider than the body. Looking down at someone, the head is the widest thing.
         static let headDiameter: CGFloat = 32
