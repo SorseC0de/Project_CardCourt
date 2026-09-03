@@ -7,23 +7,24 @@ import SwiftUI
 /// spinner says the app is busy; this says what it is busy *with*, and that the thing it
 /// is waiting for is a person.
 ///
-/// **The art.** One image of two hands shaking, clipped down the middle — the left half is
-/// yours, the right half is theirs. Drop the vector in as `Handshake` and set
-/// `Art.hasVector`; until then it draws two raised hands as a stand-in, which moves the
-/// same way and reads the same way at a glance.
+/// **The art.** Two drawings, `HandshakeL` and `HandshakeR`, on one viewBox — so they are
+/// simply laid over each other at the same size and land where the hands actually meet.
+/// Nothing is clipped and nothing has to be aligned by hand, which is why they are two
+/// files rather than one.
 struct HandshakeView: View {
     /// False while waiting, true once the other half has arrived.
     var clasped: Bool
     var side: CGFloat = 220
 
     private enum Art {
-        /// Flip to true once `Handshake` is in the catalog.
-        static let hasVector = false
-        static let name = "Handshake"
-        /// How far out each half starts, as a share of the whole.
+        /// How far out each half waits, as a share of the whole.
         static let apart: CGFloat = 0.42
         /// The squeeze when they meet.
         static let clench: CGFloat = 1.08
+        /// The halves carry no fill of their own, so each is tinted — yours and theirs,
+        /// which is the only thing on screen saying which is which.
+        static let mine = CardPalette.gold
+        static let theirs = CardPalette.blue
     }
 
     @State private var breath: CGFloat = 1
@@ -60,33 +61,23 @@ struct HandshakeView: View {
     }
 
     /// One half of the shake. Yours is always there; theirs arrives.
-    @ViewBuilder
+    ///
+    /// Both halves are drawn at the same size on the same viewBox, so they are laid over
+    /// one another rather than placed beside one another — the drawing decides where the
+    /// hands meet, not this file.
     private func half(mine: Bool) -> some View {
-        let shown = mine || clasped
-        Group {
-            if Art.hasVector {
-                // The whole image, clipped to its own half, so one drawing serves both and
-                // the two always line up exactly where the hands meet.
-                Image(Art.name)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: side, height: side)
-                    .mask(alignment: mine ? .leading : .trailing) {
-                        Rectangle().frame(width: side / 2)
-                    }
-            } else {
-                Image(systemName: "hand.raised.fill")
-                    .font(.system(size: side * 0.46, weight: .heavy))
-                    .foregroundStyle(mine ? CardPalette.gold : CardPalette.blue)
-                    .rotationEffect(.degrees(mine ? -28 : 28))
-                    .scaleEffect(x: mine ? 1 : -1)
-            }
-        }
-        .shadow(color: Chrome.shade, radius: 0, x: mine ? 4 : -4, y: 4)
-        // Apart while waiting, together once clasped.
-        .offset(x: clasped ? 0 : (mine ? -side * Art.apart : side * Art.apart))
-        .opacity(shown ? 1 : 0)
-        .animation(.spring(response: 0.45, dampingFraction: 0.7), value: clasped)
+        Image(mine ? "HandshakeL" : "HandshakeR")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: side, height: side)
+            .foregroundStyle(mine ? Art.mine : Art.theirs)
+            .drawingGroup()
+            .shadow(color: Chrome.shade, radius: 0, x: mine ? 4 : -4, y: 4)
+            // Apart while waiting, together once clasped.
+            .offset(x: clasped ? 0 : (mine ? -side * Art.apart : side * Art.apart))
+            .opacity(mine || clasped ? 1 : 0)
+            .animation(.spring(response: 0.45, dampingFraction: 0.7), value: clasped)
     }
 }
 
