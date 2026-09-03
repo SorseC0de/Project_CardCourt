@@ -8,6 +8,7 @@ struct GameView: View {
     /// A slotted card held up, and the slot it came from.
     @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
     @State private var browsingDiscard = false
+    @State private var showingLobby = false
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
     private let logHeight: CGFloat = 74
@@ -167,6 +168,26 @@ struct GameView: View {
         .accessibilityHidden(true)
     }
 
+    /// The way to a match, until there is a front screen for it to live on.
+    private var matchButton: some View {
+        Button { showingLobby = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 13, weight: .heavy))
+                SmallCapsText(text: "Play online", font: Chrome.display, size: 15)
+            }
+            .foregroundStyle(.white)
+            .shadow(color: Chrome.shade, radius: 0, x: 2, y: 2)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(CardPalette.blue))
+            .overlay(Capsule().strokeBorder(CardPalette.gold, lineWidth: 3))
+            .compositingGroup()
+            .shadow(color: CardPalette.orange, radius: 0, x: 4, y: 4)
+        }
+        .buttonStyle(.plain)
+    }
+
     private var stage: some View {
         Group {
             if case .awaitingBid(let shooter) = controller.gate {
@@ -221,11 +242,21 @@ struct GameView: View {
                     .padding(.top, 6)
             }
             .overlay(alignment: .topLeading) {
-                #if DEBUG
-                DebugActionsView(controller: controller)
-                    .padding(.leading, 14)
-                    .padding(.top, 6)
-                #endif
+                VStack(alignment: .leading, spacing: 6) {
+                    // The only way into a match. It lived on the bench, which is compiled
+                    // out of a release build — so on TestFlight there was no way to reach
+                    // the lobby at all. It stays here until the game has a front screen to
+                    // put it on.
+                    matchButton
+                    #if DEBUG
+                    DebugActionsView(controller: controller)
+                    #endif
+                }
+                .padding(.leading, 14)
+                .padding(.top, 6)
+            }
+            .sheet(isPresented: $showingLobby) {
+                MatchLobbyView(controller: controller)
             }
     }
 
