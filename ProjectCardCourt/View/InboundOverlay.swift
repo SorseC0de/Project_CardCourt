@@ -59,12 +59,12 @@ struct InboundOverlay: View {
                 // The one throwing it in, off the floor. His running figure on the court
                 // is hidden while this is up, so there is only ever one of him.
                 if let inbounder {
-                    let depth = Perspective.inbounderDepth
-                    InbounderFigure(seat: inbounder)
-                        .scaleEffect(court.scale(at: depth), anchor: .bottom)
+                    let post = RefereePost.inbounding(inbounder.slot(viewedFrom: viewer))
+                    InbounderFigure(seat: inbounder, mirrored: !post.isLeft)
+                        .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
                         .position(x: origin.x + court.centreX
-                                  + court.halfWidth(at: depth) * Perspective.inbounderLateral,
-                                  y: origin.y + court.y(at: depth)
+                                  + court.halfWidth(at: post.depth) * post.lateral,
+                                  y: origin.y + court.y(at: post.depth)
                                      - Theme.Figure.height / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
                 }
