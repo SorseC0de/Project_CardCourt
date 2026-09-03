@@ -693,6 +693,16 @@ final class GameController {
                 turnover = nil
             }
             release(.turnover, from: &ledger)
+
+            // Off the scene before the winner's card flies. Whoever takes the board draws
+            // to open the possession that follows it, and that draw belongs to the
+            // possession — not to the scramble, which is over. Recording it here was
+            // moving the hand and the pile while the rebound was still on screen.
+            gate = .thinking
+            await playDrawsAndReveals(in: events)
+            release(.draw, from: &ledger)
+            release(.reveal, from: &ledger)
+
             record(ledger)
             await run()
         }

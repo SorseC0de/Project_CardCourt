@@ -273,6 +273,27 @@ func runTests() {
         Check.that(events.contains { if case .shotAttempted = $0 { return true }; return false },
                    "and then the shot goes up")
     }
+    do {
+        // What the discard bought belongs to that attempt and to nothing after it.
+        var (state, seat, _) = openPossession(seed: 402, cards: [])
+        state.shot = 20
+        state[seat].bag = (0..<3).map { _ in matchCard(CardLibrary.dribble, state.rules) }
+        state.phase = .awaitingDiscard(seat: seat, card: CardLibrary.turnaroundThree,
+                                       bonusEach: 10)
+        let before = state.round
+        let ids = state[seat].bag.map(\.id)
+        let events = Rules.resolveDiscardForShot(ids, state: &state)
+        for case .shotAttempted(_, let chance, _) in events {
+            Check.that(chance == 50, "three fed cards carry the attempt from 20 to 50")
+        }
+        if state.round == before {
+            Check.that(state.shot == 20,
+                       "and the bonus is gone once the attempt is over")
+        } else {
+            Check.that(state.shot == state.rules.startingShot,
+                       "or the round turned over and SHOT reset on its own")
+        }
+    }
     print("Game Breaks")
     do {
         var (state, seat, _) = openPossession(seed: 61, cards: [])

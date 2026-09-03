@@ -322,16 +322,25 @@ enum Rules {
         state[seat].bag.removeAll { chosen.contains($0.id) }
         state.discard.append(contentsOf: spent)
 
-        adjustShot(by: bonusEach * spent.count, state: &state)
+        // What the cards bought, and only for the shot they bought it for. Feeding a
+        // Turnaround Three is a price paid for *that* attempt; letting it stay in SHOT
+        // meant a miss handed the whole bonus to whoever took the rebound.
+        let bought = bonusEach * spent.count
+        adjustShot(by: bought, state: &state)
         events.append(.discardedForShot(seat: seat, card: card, count: spent.count))
 
         state.phase = .possession(holder: seat)
         if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
+            adjustShot(by: -bought, state: &state)
             return events
         }
+        let roundBefore = state.round
         resolveShot(by: seat, bonusPoints: card.special?.bonusPointOnMake ?? 0,
                     state: &state, events: &events)
+        // Only when the round is still running. A round that turned over has already had
+        // SHOT reset, and taking the bonus back out of a fresh number would go negative.
+        if state.round == roundBefore { adjustShot(by: -bought, state: &state) }
         return events
     }
 
