@@ -15,7 +15,15 @@ struct MatchLobbyView: View {
     var controller: GameController
     @State private var session = GameCenterMatch()
     @State private var table = Table.shared
+    /// Held between the clasp and the table appearing, so the shake gets its moment
+    /// rather than being cut off by the thing it was waiting for.
+    @State private var shaking = false
     @Environment(\.dismiss) private var dismiss
+
+    private enum Beat {
+        /// How long the full handshake holds before the table comes up.
+        static let clasp = 1.2
+    }
 
     var body: some View {
         ZStack {
@@ -28,7 +36,7 @@ struct MatchLobbyView: View {
                     VStack(spacing: 16) {
                         ScreenTitle(text: "Pickup Game", drop: CardPalette.blue)
                             .padding(.top, 22)
-                        Text(caption)
+                        Text(shaking ? "Matched." : caption)
                             .font(.custom(Chrome.display, size: 17))
                             .foregroundStyle(.white.opacity(0.72))
                             .multilineTextAlignment(.center)
@@ -37,7 +45,10 @@ struct MatchLobbyView: View {
                     }
                     .padding(.bottom, 20)
                 }
-                actions.padding(.horizontal, 22).padding(.bottom, 26)
+                if !shaking {
+                    actions.padding(.horizontal, 22).padding(.bottom, 26)
+                        .transition(.opacity)
+                }
             }
         }
         .onAppear {
@@ -50,6 +61,15 @@ struct MatchLobbyView: View {
             SignInSheet(controller: sheet.controller).ignoresSafeArea()
         }
         .onChange(of: session.status) { _, status in
+            // Matched. The hands come together before the table is shown — the shake is
+            // the moment the two of you met, and it is over in a second and a bit.
+            if status == .seated {
+                withAnimation(.easeOut(duration: 0.3)) { shaking = true }
+                Task {
+                    try? await Task.sleep(for: .seconds(Beat.clasp))
+                    withAnimation(.easeOut(duration: 0.3)) { shaking = false }
+                }
+            }
             // The host starts it; everybody else is told. Either way the lobby's job is
             // done the moment the game is running.
             guard status == .playing else { return }
@@ -97,7 +117,12 @@ struct MatchLobbyView: View {
     /// the game starts they might still be somebody. They only become the house when the
     /// host starts with the table short.
     @ViewBuilder private var chairs: some View {
-        if session.isActive {
+        if shaking {
+            // The clasp, alone on the screen. Whatever it was waiting for can wait.
+            HandshakeView(clasped: true)
+                .padding(.vertical, 30)
+                .transition(.opacity)
+        } else if session.isActive {
             ForEach(Seat.allCases, id: \.self) { chair($0) }
         } else if case .searching = session.status {
             waiting
@@ -135,7 +160,8 @@ struct MatchLobbyView: View {
     private var waiting: some View {
         Panel(fill: Chrome.ground) {
             VStack(spacing: 14) {
-                ProgressView().tint(CardPalette.gold).scaleEffect(1.4)
+                // Your half of it, with nothing yet to hold.
+                HandshakeView(clasped: false, side: 180)
                 SmallCapsText(text: "Waiting for players", font: Chrome.display, size: 22)
                     .foregroundStyle(.white)
                 Text("You will be paired with anyone else searching right now. "
