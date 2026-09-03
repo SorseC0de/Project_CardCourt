@@ -406,23 +406,22 @@ struct CourtView: View {
                           y: footing.y - nodeHeight / 2
                              + Theme.Figure.height * Perspective.playerDrop)
 
-            // A Clamp puts bodies on the floor next to its victim, one per defender the
-            // card calls for, alternating sides so a Triple-Team reads as a crowd.
+            // Being clamped is drawn on the player rather than beside them. Two little
+            // red bodies on the floor read as two more players; the coils read as
+            // something being done to this one. The defender himself shows up when they
+            // actually shoot — that is when he matters.
             let bodies = defenders(on: seat)
-            ForEach(0..<bodies, id: \.self) { index in
-                let side: CGFloat = index.isMultiple(of: 2) ? 1 : -1
-                let rank = CGFloat(index / 2 + 1)
-                DefenderFigure()
+            if bodies > 0 {
+                BindLines(defenders: bodies, height: Theme.Figure.height)
                     .scaleEffect(scale, anchor: .bottom)
-                    .position(x: footing.x + side * 26 * rank * scale,
-                              y: footing.y - 4 * rank * scale)
-                    .transition(.scale(scale: 0.01).combined(with: .opacity))
-                    // Keyed to the seat, so a Clamp moving to another player reads as one
-                    // defender leaving and a different one arriving — not as a single guy
-                    // sprinting across the court.
-                    .id("defender-\(seat.rawValue)-\(index)")
+                    .position(x: footing.x,
+                              y: footing.y - Theme.Figure.height / 2
+                                 + Theme.Figure.height * Perspective.playerDrop)
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    .id("bind-\(seat.rawValue)")
+                    .animation(.spring(response: 0.34, dampingFraction: 0.68),
+                               value: clampLayout)
             }
-            .animation(.spring(response: 0.34, dampingFraction: 0.68), value: clampLayout)
         }
     }
 

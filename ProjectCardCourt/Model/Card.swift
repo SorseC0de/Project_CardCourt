@@ -8,6 +8,11 @@ enum PassTarget: String, Hashable, Codable {
 /// What a Clamp does to whoever it lands on. Most Clamps attach to the next ball-holder,
 /// which is what makes passing into a Clamp a real decision.
 struct ClampEffect: Hashable, Codable {
+    /// True when the Clamp goes on standing there. A Clamp that debuffs SHOT is a
+    /// defender in your way for the whole possession; one that only takes cards has done
+    /// its work the moment it arrives and leaves again.
+    var isStanding: Bool { shotDebuff != 0 }
+
     /// Bodies this Clamp puts next to its victim. Double-Team is two, Triple-Team three.
     var defenders = 1
     /// Feeds the debuff layer of the SHOT stack if the clamped player shoots.

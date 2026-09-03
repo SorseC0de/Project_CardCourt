@@ -15,8 +15,22 @@ final class PlayerLook {
 
     private var tones: [Seat: Int] = [:]
 
+    private var defenderTones: [Seat: Int] = [:]
+
     func tone(for seat: Seat) -> Int {
         tones[seat] ?? PixelPalette.drawnSkinTone
+    }
+
+    /// The skin of whoever is guarding this seat.
+    ///
+    /// Rolled once per seat and kept, so a defender who arrives twice in a possession is
+    /// the same man twice rather than two strangers. Deliberately not the clamped
+    /// player's own tone — he is somebody else.
+    func defenderTone(for seat: Seat) -> Int {
+        if let known = defenderTones[seat] { return known }
+        let rolled = Int.random(in: 0..<PixelPalette.skinTones.count)
+        defenderTones[seat] = rolled
+        return rolled
     }
 
     /// Set by the picker, once there is one.

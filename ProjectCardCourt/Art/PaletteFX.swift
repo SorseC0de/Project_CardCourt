@@ -108,9 +108,21 @@ enum PixelPalette {
     /// third pair counting down from the lightest.
     static let drawnSkinTone = 2
 
+    /// The third skin colour, which only the defender sheets carry: one more step down
+    /// the ramp than the shade. Sheets without it are unaffected — a swap whose colour is
+    /// not in the picture does nothing.
+    static let skinDeepShade = maroon
+
     static func skin(tone: Int) -> [PaletteSwap] {
         guard let pair = skinTones[safe: tone], tone != drawnSkinTone else { return [] }
-        return [PaletteSwap(skin, pair.light), PaletteSwap(skinShade, pair.dark)]
+        // Where `pair.light` sits in the ramp. The deep tone is two below it, and the
+        // darkest skin has nothing two below — so it takes warmBlack, which is where the
+        // ramp was heading anyway.
+        let top = skinRamp.count - 1 - tone
+        let deep = top >= 2 ? skinRamp[top - 2] : warmBlack
+        return [PaletteSwap(skin, pair.light),
+                PaletteSwap(skinShade, pair.dark),
+                PaletteSwap(skinDeepShade, deep)]
     }
 
     /// The uniform each seat wears. The human keeps the sheet's own blue, so their swap
@@ -126,6 +138,10 @@ enum PixelPalette {
         case .west:  return swap(to: rose, shade: darkMagenta)
         }
     }
+
+    /// What a defender wears. Red, whoever put him there — a Clamp is not that player's
+    /// teammate arriving, it is the defence.
+    static let defenderUniform: [PaletteSwap] = swap(to: vermilion, shade: darkRed)
 
     private static func swap(to body: Color, shade: Color) -> [PaletteSwap] {
         [PaletteSwap(jersey, body), PaletteSwap(jerseyShade, shade)]

@@ -570,6 +570,10 @@ enum Rules {
             }
             events.append(.clampBit(seat: seat, card: clamp.card, discarded: count))
         }
+        // A Clamp that does its work the moment it lands has nothing left to do, so it
+        // does not stay on the floor. Only the ones that sit on your SHOT are defenders
+        // in any lasting sense — the rest are one swipe and gone.
+        state[seat].clamps.removeAll { $0.card.clamp?.isStanding == false }
 
         // A Whistle that was waiting for these defenders to land. This is the first
         // moment the clamped player exists, which is the whole reason it waited.
