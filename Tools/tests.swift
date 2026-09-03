@@ -273,21 +273,6 @@ func runTests() {
         Check.that(events.contains { if case .shotAttempted = $0 { return true }; return false },
                    "and then the shot goes up")
     }
-    do {
-        var (state, seat, _) = openPossession(seed: 77, cards: [])
-        let holder = state.ball!
-        var seen = Set<Seat>()
-        for extra in UInt64(0)...UInt64(30) {
-            var copy = state
-            copy.rng = SeededRNG(seed: 900 + extra)
-            copy.deck.append(matchCard(CardLibrary.benched, copy.rules))
-            var events: [GameEvent] = []
-            Rules.testDraw(seat, state: &copy, events: &events)
-            if let ball = copy.ball, ball != holder { seen.insert(ball) }
-        }
-        Check.that(seen.count > 1, "Benched picks at random, not the same player every time")
-    }
-
     print("Game Breaks")
     do {
         var (state, seat, _) = openPossession(seed: 61, cards: [])
@@ -339,7 +324,14 @@ func runTests() {
         state.deck.append(matchCard(CardLibrary.benched, state.rules))
         var events: [GameEvent] = []
         Rules.testDraw(seat, state: &state, events: &events)
-        Check.that(state.ball != holder, "Benched moves the ball")
+        Check.that(state.ball == holder, "Benched does not move the ball itself")
+        if case .inbound(let inbounder) = state.phase {
+            Check.that(inbounder == holder, "it asks whoever is benched where it goes")
+        } else {
+            Check.that(false, "it asks whoever is benched where it goes")
+        }
+        Check.that(Rules.legalMoves(state, for: holder).count == Seat.allCases.count - 1,
+                   "and every other seat is a legal answer")
         Check.that(state.lastPasser == nil, "and it is not a pass, so no assist is owed")
     }
 

@@ -796,9 +796,12 @@ enum Rules {
                             state: &state, events: &events)
         }
         if effect.givesBallAway, let holder = state.ball {
-            let target = state.pick(from: Seat.allCases.filter { $0 != holder })
+            // Handed over, not taken away: whoever is benched decides where the ball
+            // goes. The inbound phase already asks exactly this question, so it is the
+            // same choice the rules put to a player at the top of a round.
             state.lastPasser = nil
-            beginPossession(target, tickClock: false, state: &state, events: &events)
+            state.phase = .inbound(inbounder: holder)
+            state.inbounder = holder
         }
     }
 

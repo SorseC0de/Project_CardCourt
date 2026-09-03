@@ -61,8 +61,9 @@ enum CardLibrary {
 
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
-        effect: "Cancel Next Shot. TOV +1", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true))
+        effect: "Cancel Next Shot. TOV +1. Shooter inbounds", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true,
+                               offenderInbounds: true))
 
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
@@ -166,7 +167,7 @@ enum CardLibrary {
 
     static let freethrowMerchant = CardDescriptor(
         id: "freethrow-merchant", name: "Freethrow Merchant", type: .intangible,
-        effect: "All Clamps on you grant 1 FT", numberInDeck: 1,
+        effect: "Any Clamp on you becomes \"Take 1 FT\"", numberInDeck: 1,
         intangible: IntangibleEffect(freeThrowPerClamp: 1))
 
     static let generationalWhistle = CardDescriptor(
@@ -207,7 +208,7 @@ enum CardLibrary {
 
     static let benched = CardDescriptor(
         id: "benched", name: "Benched", type: .gameBreak,
-        effect: "Give ball to random player", numberInDeck: 5,
+        effect: "Give up the ball. You choose who to", numberInDeck: 5,
         gameBreak: GameBreakEffect(givesBallAway: true))
 
     static let swallowedWhistle = CardDescriptor(
