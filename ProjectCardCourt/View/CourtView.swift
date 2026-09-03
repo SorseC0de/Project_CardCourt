@@ -70,6 +70,10 @@ struct CourtView: View {
     /// `settledAt`, which is when it *left* — feeding that to the catch played it over the
     /// top of the throw.
     @State private var landedAt: Date?
+    /// The stamp the ball has already been flown for. `.task(id:)` re-runs whenever its
+    /// subtree is rebuilt, not only when the id changes — so without this the same pass
+    /// can be thrown twice, which is what "players sometimes pass the ball twice" was.
+    @State private var flewAt: Date?
 
     private var selectableSeats: Set<Seat> {
         if case .awaitingInbound(let inbounder) = gate {
@@ -163,7 +167,15 @@ struct CourtView: View {
             }
             .animation(.spring(response: 0.42, dampingFraction: 0.72), value: state.ball)
             .task(id: settledAt) {
-                guard settledAt != nil, passer != nil else { return }
+                guard let settledAt, passer != nil, flewAt != settledAt else { return }
+                flewAt = settledAt
+                // Whatever happens after this, the ball is not left in the air. A stranded
+                // `ballInFlight` makes its holder run forever instead of dribbling, since
+                // a player waiting on a ball is drawn as running to meet it.
+                defer {
+                    var vanish = Transaction(); vanish.disablesAnimations = true
+                    withTransaction(vanish) { ballInFlight = false }
+                }
                 // On and off instantly — the sprite already holds a ball, so a fade
                 // would read as two balls dissolving into each other.
                 var appear = Transaction(); appear.disablesAnimations = true
@@ -177,8 +189,6 @@ struct CourtView: View {
                 try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds
                                                     + Theme.Pass.holdSeconds))
 
-                var vanish = Transaction(); vanish.disablesAnimations = true
-                withTransaction(vanish) { ballInFlight = false }
                 landedAt = Date()
             }
         }

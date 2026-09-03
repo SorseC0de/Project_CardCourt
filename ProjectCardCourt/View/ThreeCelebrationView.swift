@@ -19,6 +19,13 @@ struct ThreeCelebrationView: View {
     @State private var fading = false
 
     private let side: CGFloat = 260
+    /// Room for a finger to overshoot into. The layers are rasterised, and a raster is
+    /// clipped to its own bounds — a spring that springs past 1 has to have somewhere to
+    /// go or it is cut off at the moment it is most visible.
+    private var room: CGFloat { side * 1.35 }
+    /// The burst, in whole art pixels. Its sheet is 64 square, so this is 192 points —
+    /// inside the hand rather than swallowing it.
+    private let sparkleScale: CGFloat = 3
 
     var body: some View {
         GeometryReader { geo in
@@ -28,6 +35,11 @@ struct ThreeCelebrationView: View {
                 ZStack {
                     ForEach(0..<4, id: \.self) { layer in
                         Image("ThreeHand_\(layer)")
+                            // The art is filled black in the file. Without this the tint
+                            // is silently ignored, all four layers draw as identical black
+                            // silhouettes over one another, and the whole sequence is
+                            // invisible — which is exactly how it looked.
+                            .renderingMode(.template)
                             .resizable()
                             .scaledToFit()
                             .frame(width: side, height: side)
@@ -37,10 +49,11 @@ struct ThreeCelebrationView: View {
                             .opacity(arrived[layer] ? 1 : 0)
                     }
                 }
+                .frame(width: room, height: room)
                 .position(centre)
 
                 if let sparkleAt {
-                    SpriteAnimation(sprite: .sparkleBurst, scale: 5, fps: 14,
+                    SpriteAnimation(sprite: .sparkleBurst, scale: sparkleScale, fps: 14,
                                     playsOnce: true, startedAt: sparkleAt)
                         .position(centre)
                         .allowsHitTesting(false)
@@ -67,9 +80,10 @@ struct ThreeCelebrationView: View {
     }
 
     private func run() async {
-        sparkleAt = Date()
-        // The palm just arrives; only the fingers overshoot, left to right.
+        // The palm lands first and the burst goes off with it, not before it — the sparkle
+        // was firing against an empty screen.
         withAnimation(.spring(response: 0.28, dampingFraction: 1)) { arrived[0] = true }
+        sparkleAt = Date()
         try? await Task.sleep(for: .seconds(0.11))
         for finger in 1..<4 {
             withAnimation(.spring(response: 0.26, dampingFraction: 0.42)) { arrived[finger] = true }
