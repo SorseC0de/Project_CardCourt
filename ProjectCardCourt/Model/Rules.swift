@@ -570,10 +570,6 @@ enum Rules {
             }
             events.append(.clampBit(seat: seat, card: clamp.card, discarded: count))
         }
-        // A Clamp that does its work the moment it lands has nothing left to do, so it
-        // does not stay on the floor. Only the ones that sit on your SHOT are defenders
-        // in any lasting sense — the rest are one swipe and gone.
-        state[seat].clamps.removeAll { $0.card.clamp?.isStanding == false }
 
         // A Whistle that was waiting for these defenders to land. This is the first
         // moment the clamped player exists, which is the whole reason it waited.
@@ -618,6 +614,17 @@ enum Rules {
             awardFreeThrows(perClamp * waved, to: seat, offender: first.from,
                             source: "Freethrow Merchant", state: &state, events: &events)
         }
+
+        // A Clamp that does its work the moment it lands has nothing left to do, so it
+        // does not stay on the floor. Only the ones that sit on your SHOT are defenders
+        // in any lasting sense — the rest are one swipe and gone.
+        //
+        // **Last, and that is the whole of it.** Everything that answers a Clamp — a
+        // Blocking Foul waiting to void one, Freethrow Merchant turning one into a trip
+        // to the line — runs above this and has to find the Clamp still there. Dropping
+        // it any earlier makes those cards quietly stop working on Full-Court Press,
+        // which is the only one-off there is.
+        state[seat].clamps.removeAll { $0.card.clamp?.isStanding == false }
 
         if shouldTick, tickClock(by: -1, holder: seat, state: &state, events: &events) { return }
         state.phase = .possession(holder: seat)
