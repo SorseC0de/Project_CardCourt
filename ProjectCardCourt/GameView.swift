@@ -98,7 +98,14 @@ struct GameView: View {
             }
             if let scene = controller.reveal {
                 RevealCutsceneView(scene: scene) { controller.dismissReveal() }
-                    .transition(.opacity)
+                    // Keyed to the card, so two reveals in a row are two views rather than
+                    // one view whose contents changed. Without it SwiftUI reuses the first
+                    // and simply morphs the artwork, which reads as one card mutating
+                    // instead of a second card arriving.
+                    .id(scene.id)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.6).combined(with: .opacity),
+                        removal: .scale(scale: 0.85).combined(with: .opacity)))
                     .zIndex(12)
             }
             if let scene = controller.whistleReveal {
@@ -192,7 +199,8 @@ struct GameView: View {
         Group {
             if case .awaitingBid(let shooter) = controller.gate {
                 ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids,
-                                    state: controller.state)
+                                    state: controller.state, shot: controller.shownShot,
+                                    deck: controller.shownDeck)
                     .frame(maxHeight: .infinity)
                     .transition(.opacity)
             } else {
@@ -237,7 +245,8 @@ struct GameView: View {
             // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
-                StatusHUDView(state: controller.state, shot: controller.shownShot)
+                StatusHUDView(state: controller.state, shot: controller.shownShot,
+                              deck: controller.shownDeck)
                     .padding(.trailing, 18)
                     .padding(.top, 6)
             }

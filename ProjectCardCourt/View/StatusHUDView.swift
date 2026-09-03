@@ -83,6 +83,8 @@ struct StatusHUDView: View {
     /// decided — see `GameController.shownShot`. Defaults to the live number for anything
     /// drawn outside a beat.
     var shot: Int?
+    /// What the pile should read — see `GameController.shownDeck`.
+    var deck: Int?
     var ballSize: CGFloat = 58
 
     /// Which way the count is arranged against the deck. A setting, so it is kept.
@@ -125,7 +127,7 @@ struct StatusHUDView: View {
             // square, so a right angle costs no layout.
             .rotationEffect(.degrees(readout.rotation))
             .overlay {
-                Text("\(state.deck.count)")
+                Text("\(deck ?? state.deck.count)")
                     .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
                     .foregroundStyle(.white)
                     .shadow(color: CardPalette.blue, radius: 0, x: Deck.drop, y: Deck.drop)
@@ -133,7 +135,7 @@ struct StatusHUDView: View {
                     .offset(x: readout.textX, y: readout.textY)
             }
             .offset(x: readout.x, y: readout.y)
-            .animation(.easeOut(duration: 0.25), value: state.deck.count)
+            .animation(.easeOut(duration: 0.25), value: deck ?? state.deck.count)
             .animation(.easeOut(duration: 0.25), value: layout)
     }
 

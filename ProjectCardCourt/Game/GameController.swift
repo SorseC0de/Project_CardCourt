@@ -19,6 +19,8 @@ enum Pacing {
     /// twenty of them go by at once.
     static let drawFlight = 0.30
     static let dealFlight = 0.15
+    /// The beat between one revealed card leaving and the next arriving.
+    static let betweenReveals = 0.3
     static let bidReveal = 1.5
     /// How long a live match waits on somebody's phone before deciding for them.
     ///
@@ -276,6 +278,9 @@ final class GameController {
     /// changed and then the reason for it appeared. This catches up on the play's own
     /// beat, like every line in the log.
     private(set) var shownShot = 0
+    /// What the pile is showing. A card leaves the deck when it lands in a hand, not when
+    /// the rules decide it has — the same lag `shownShot` carries, for the same reason.
+    private(set) var shownDeck = 0
     private(set) var log: [LogLine] = []
     private(set) var gate: Gate = .thinking
     private(set) var cutscene: ShotCutscene?
@@ -561,6 +566,8 @@ final class GameController {
     }
 
     private func fly(to seat: Seat, over duration: Double) async {
+        // Counted off as it leaves, not when the rules dealt it.
+        if shownDeck > 0 { shownDeck -= 1 }
         flightDuration = duration
         flight = DrawFlight(seat: seat)
         try? await Task.sleep(for: .seconds(duration))
@@ -974,6 +981,10 @@ final class GameController {
             reveal = scene
             await hold(scene.isNew, seconds: Pacing.reveal) { self.reveal }
             reveal = nil
+            // The gap is the point. Clearing and setting in the same breath gives SwiftUI
+            // nothing to animate between, and the card appears to change rather than to be
+            // replaced — which tells the player one card did two things.
+            try? await Task.sleep(for: .seconds(Pacing.betweenReveals))
         }
     }
 
@@ -1092,6 +1103,8 @@ final class GameController {
 
     private func record(_ events: [GameEvent]) {
         shownShot = state.shot
+        // Catches a reshuffle, and anything that moved the pile without flying a card.
+        shownDeck = state.deck.count
         DevLog.record(events)
         for event in events where event.isLoggable {
             log.append(LogLine(text: event.logLine, kind: kind(of: event)))

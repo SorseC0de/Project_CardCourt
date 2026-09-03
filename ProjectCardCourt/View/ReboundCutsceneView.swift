@@ -7,6 +7,10 @@ struct ReboundCutsceneView: View {
     let revealedBids: [Seat: Int]?
     /// The board comes with, because a bid is a decision and SHOT is what it is made on.
     let state: GameState
+    /// What the board should read. The scene is played after the rules have run, so the
+    /// live numbers are already the ones from the other side of it.
+    var shot: Int?
+    var deck: Int?
 
     @State private var spin = false
     @State private var lift = false
@@ -78,7 +82,7 @@ struct ReboundCutsceneView: View {
         // The board, larger than the court draws it. A bid is a decision and this is the
         // only number it is made on, so it belongs in the room.
         .overlay(alignment: .topTrailing) {
-            StatusHUDView(state: state, ballSize: 74)
+            StatusHUDView(state: state, shot: shot, deck: deck, ballSize: 74)
                 .padding(.trailing, 20)
                 .padding(.top, 14)
         }
