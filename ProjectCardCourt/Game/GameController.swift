@@ -346,7 +346,7 @@ final class GameController {
 
     /// True when this device only chooses and watches. The rules are running elsewhere,
     /// and nothing here may touch `state` except by being told to.
-    var isGuest: Bool { match.map { !$0.isHost } ?? false }
+    var isGuest: Bool { match.map { $0.isActive && !$0.isHost } ?? false }
 
     /// What has arrived from the other devices and not been acted on yet. One slot per
     /// seat: a client that sends twice before the host looks has changed its mind, which
@@ -356,6 +356,9 @@ final class GameController {
     private var discardsFromWire: [Seat: [Card.ID]] = [:]
     private var freeThrowsFromWire: [Seat: Bool] = [:]
 
+    /// Attaches the transport. Safe to call before there is a match: nothing changes
+    /// until `isActive`, and doing it early is the point — a handler wired after the
+    /// first message has already been delivered will never see it.
     func join(_ transport: any MatchTransport) {
         match = transport
         transport.onHostMessage = { [weak self] in self?.receive($0) }
@@ -414,7 +417,13 @@ final class GameController {
         guard let match, match.isHost else { return }
         switch message {
         case .ready:
+            // Seated again before the state, because the first seating goes out the
+            // instant the match is adopted — before the other device has a handler to
+            // catch it. A guest that missed it is sitting in the wrong chair and does not
+            // know it.
+            (match as? GameCenterMatch)?.reseat(seat)
             try? match.send(.turn(state: state.redacted(for: seat), events: []), to: seat)
+            DevLog.say(.net, "\(seat.name) is ready — sent the table and the board")
         // Posted rather than played. The loop is already standing at this seat waiting
         // for exactly this, and cancelling it to apply the move from here is how a client
         // that answers a moment late ends up racing the seat's own clock.
@@ -440,7 +449,10 @@ final class GameController {
         switch message {
         case .seated(let seat, let chairs):
             Table.shared.seat(chairs, asLocal: seat)
+            DevLog.say(.net, "seated at \(seat.name)")
         case .turn(let state, let events):
+            DevLog.say(.net, "board arrived — \(events.count) event(s), "
+                       + "phase \(String(describing: state.phase))")
             loop?.cancel()
             self.state = state
             loop = Task {

@@ -44,7 +44,12 @@ struct MatchLobbyView: View {
                     .padding(.bottom, 26)
             }
         }
-        .onAppear { session.signIn() }
+        .onAppear {
+            // Wired before signing in, so the handlers are live before the first message
+            // can arrive. `isActive` keeps a solo game solo until a match is running.
+            controller.join(session)
+            session.signIn()
+        }
         // Apple's own sign-in, handed over rather than reimplemented. Without this the
         // whole thing stalls silently on a device that is not already signed in.
         .sheet(item: $session.pendingSignIn) { sheet in
@@ -52,7 +57,6 @@ struct MatchLobbyView: View {
         }
         .onChange(of: session.status) { _, status in
             guard status == .playing else { return }
-            controller.join(session)
             controller.begin()
         }
     }

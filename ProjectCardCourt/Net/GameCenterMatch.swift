@@ -32,11 +32,22 @@ final class GameCenterMatch: NSObject, MatchTransport {
 
     private var match: GKMatch?
     private var hostID: String?
+    /// Kept so the table can be sent again. The first `seated` goes out the moment the
+    /// match is adopted, which can be before the other device has anywhere to put it.
+    private var chairs: [Seat: Table.Chair] = [:]
+
+    /// Tells one seat where it is sitting, again. Harmless to repeat, and it is the only
+    /// thing standing between a guest and playing a solo game by mistake.
+    func reseat(_ seat: Seat) {
+        guard isHost, !chairs.isEmpty else { return }
+        try? send(.seated(seat: seat, chairs: chairs), to: seat)
+    }
 
     var onClientMessage: ((Seat, ClientMessage) -> Void)?
     var onHostMessage: ((HostMessage) -> Void)?
     var onSeatLost: ((Seat) -> Void)?
 
+    var isActive: Bool { match != nil && !seats.isEmpty }
     var isHost: Bool { hostID != nil && hostID == GKLocalPlayer.local.gamePlayerID }
 
     // MARK: - Signing in
@@ -135,6 +146,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
         match = nil
         hostID = nil
         seats = [:]
+        chairs = [:]
         Table.shared.seatSolo()
         status = GKLocalPlayer.local.isAuthenticated
             ? .ready(player: GKLocalPlayer.local.displayName)
@@ -176,11 +188,13 @@ final class GameCenterMatch: NSObject, MatchTransport {
         }
         Table.shared.seat(chairs, asLocal: seats[GKLocalPlayer.local.gamePlayerID] ?? .south)
 
+        self.chairs = chairs
         for player in match.players {
             guard let seat = seats[player.gamePlayerID] else { continue }
             // Each device is told its own chair, and the same table.
             try? send(.seated(seat: seat, chairs: chairs), to: seat)
         }
+        DevLog.say(.net, "seated \(chairs.count) — host is \(isHost ? "me" : "them")")
     }
 
     // MARK: - Talking

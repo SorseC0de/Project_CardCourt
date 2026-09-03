@@ -7,6 +7,10 @@ import Foundation
 /// what makes the host and guest paths testable without four phones.
 @MainActor
 protocol MatchTransport: AnyObject {
+    /// True once a match is actually running. Before that the game is solo, whatever
+    /// else is wired up — without this, a transport attached early makes every local
+    /// game think it is a guest with no host to talk to.
+    var isActive: Bool { get }
     /// True on the one device running the rules.
     var isHost: Bool { get }
 
