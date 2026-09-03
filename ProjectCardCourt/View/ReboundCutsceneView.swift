@@ -13,8 +13,11 @@ struct ReboundCutsceneView: View {
 
     private var order: [Seat] { shooter.clockwiseOrderFromHere }
 
-    /// How far the whole stack rides above centre.
+    /// How far the title and ball ride above centre.
     private static let lift: CGFloat = 44
+    /// Where the bids sit, measured from centre rather than from the ball — which is the
+    /// whole point of them being a separate layer.
+    private static let bidsY: CGFloat = 96
 
     var body: some View {
         // Centred. The board used to share this alignment, which pinned the ball and the
@@ -26,6 +29,10 @@ struct ReboundCutsceneView: View {
 
             SideStreaks()
 
+            // The title and the ball, and nothing else. They were stacked with the bids,
+            // so the row of bids appearing grew the stack and re-centred it — which shoved
+            // both of these upward at the exact moment the scene was meant to hold still.
+            // Their own layer, at their own offset, and nothing below can reach them.
             VStack(spacing: 10) {
                 // The same lettering a made shot gets. This is a moment, not a caption.
                 SwisshTitle(text: revealedBids == nil ? "Loose Ball!" : "Crashing the Glass!",
@@ -35,7 +42,13 @@ struct ReboundCutsceneView: View {
                     .rotationEffect(.degrees(spin ? 360 : 0))
                     .offset(y: lift ? -7 : 7)
                     .shadow(color: Theme.ball.opacity(0.55), radius: 14)
+            }
+            // Clear of the hand, which the centred stack was sitting on top of.
+            .offset(y: -Self.lift)
 
+            // The bids, placed from the centre of the screen rather than from the bottom
+            // of whatever happens to be above them.
+            Group {
                 if let revealedBids {
                     // Revealed shooter-first then clockwise, the order the rule names.
                     HStack(spacing: 10) {
@@ -60,9 +73,7 @@ struct ReboundCutsceneView: View {
                         .foregroundStyle(Theme.inkDim)
                 }
             }
-            // Clear of the hand, which the centred stack was sitting on top of.
-            .offset(y: -Self.lift)
-
+            .offset(y: Self.bidsY)
         }
         // The board, larger than the court draws it. A bid is a decision and this is the
         // only number it is made on, so it belongs in the room.

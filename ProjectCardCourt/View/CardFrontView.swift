@@ -109,7 +109,11 @@ struct CardFrontView: View {
             }
         }
         .foregroundStyle(CardLayout.iconTint(for: descriptor.type))
-        .modifier(SlashIfNeeded(on: descriptor.isSlashed, side: side,
+        // The *drawn* side, not the nominal one. `SlashedMark` frames its content and
+        // masks against that frame, so a drawing bigger than the icon slot — every piece
+        // of artwork carries its own multiplier — was being cut off at the slot's edge.
+        .modifier(SlashIfNeeded(on: descriptor.isSlashed,
+                                side: side * (descriptor.artwork?.scale ?? 1),
                                 slash: CardLayout.iconShadow(for: descriptor.type)))
         .rotationEffect(.degrees(descriptor.iconRotation))
         .shadow(color: descriptor.id == "behind-the-back"
