@@ -9,12 +9,13 @@ struct RimHalf: View {
     let isNear: Bool
     var width: CGFloat
     var thickness: CGFloat = 4
+    var tint: Color = Theme.ball
 
     private var height: CGFloat { width * 0.27 }
 
     var body: some View {
         Ellipse()
-            .stroke(Theme.ball, lineWidth: thickness)
+            .stroke(tint, lineWidth: thickness)
             .frame(width: width, height: height)
             .mask(
                 VStack(spacing: 0) {
@@ -31,6 +32,20 @@ struct RimHalf: View {
 /// thing is a function of the clock — nothing is stored or stepped per frame, and the
 /// decay cannot drift.
 struct NetView: View {
+    /// The swish. The ball drives the waist of the net down and out, and the hem is
+    /// thrown up past the ring behind it — so one strand reads down-then-up, and the
+    /// whole net snaps into a ~ at the top of the flip.
+    private enum Swish {
+        /// How far out the hem is thrown, as a share of the net's width.
+        static let flare: CGFloat = 0.42
+        /// The waist being punched down, as a share of the net's depth.
+        static let waist: CGFloat = 0.35
+        /// The hem coming back up. Above 1 carries it over the ring.
+        static let hem: CGFloat = 1.05
+        /// What is left to swing once the whip has gone.
+        static let settle: CGFloat = 0.15
+    }
+
     var width: CGFloat
     var strands = 12
     var segments = 5
@@ -47,26 +62,50 @@ struct NetView: View {
                 let energy = energy(at: now)
                 let phase = now.timeIntervalSinceReferenceDate
 
+                let kick = snap(at: now)
+
+                func knot(_ strand: Int, _ segment: Int) -> CGPoint {
+                    let angle = Double(strand % strands) / Double(strands) * 2 * .pi
+                    let t = CGFloat(segment) / CGFloat(segments)
+                    // Cinched toward the bottom, the way a real net tapers.
+                    let radius = size.width / 2 * (1 - t * 0.55)
+                    let sway = swing(strand: strand, t: t, energy: energy, phase: phase)
+                    // Thrown outward hardest at the hem, so the taper inverts as it flips.
+                    let flare = size.width * Swish.flare * kick * (t * t)
+                    return CGPoint(
+                        x: size.width / 2 + CGFloat(cos(angle)) * (radius + sway + flare),
+                        y: rimHeight / 2 + depth * t
+                            + CGFloat(sin(angle)) * (radius + sway + flare) * 0.27
+                            // The waist goes down — nothing at either end, most in the
+                            // middle — while the hem is thrown up hard enough to pass the
+                            // ring. Down then up along one strand is the tilde.
+                            + depth * Swish.waist * kick * CGFloat(sin(Double(t) * .pi))
+                            - depth * Swish.hem * kick * (t * t * t)
+                            // What is left once the whip has gone: an ordinary settle.
+                            + depth * Swish.settle * energy * t)
+                }
+
+                let ink = GraphicsContext.Shading.color(.white.opacity(0.55))
+                let stroke = StrokeStyle(lineWidth: 1, lineCap: .round)
+
+                // Down the strands.
                 for strand in 0..<strands {
-                    let angle = Double(strand) / Double(strands) * 2 * .pi
                     var path = Path()
-
                     for segment in 0...segments {
-                        let t = CGFloat(segment) / CGFloat(segments)
-                        // Cinched toward the bottom, the way a real net tapers.
-                        let radius = size.width / 2 * (1 - t * 0.55)
-                        let sway = swing(strand: strand, t: t, energy: energy, phase: phase)
-
-                        let point = CGPoint(
-                            x: size.width / 2 + CGFloat(cos(angle)) * (radius + sway),
-                            y: rimHeight / 2 + depth * t
-                                + CGFloat(sin(angle)) * (radius + sway) * 0.27
-                                // Dragged down as the ball passes, springing back after.
-                                + depth * 0.18 * energy * t)
+                        let point = knot(strand, segment)
                         segment == 0 ? path.move(to: point) : path.addLine(to: point)
                     }
-                    context.stroke(path, with: .color(.white.opacity(0.55)),
-                                   style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                    context.stroke(path, with: ink, style: stroke)
+                }
+
+                // And around them. Without these rings it reads as fringe, not a net.
+                for segment in 1...segments {
+                    var ring = Path()
+                    for strand in 0...strands {
+                        let point = knot(strand, segment)
+                        strand == 0 ? ring.move(to: point) : ring.addLine(to: point)
+                    }
+                    context.stroke(ring, with: ink, style: stroke)
                 }
             }
         }
@@ -79,15 +118,31 @@ struct NetView: View {
         guard let struckAt else { return 0 }
         let elapsed = now.timeIntervalSince(struckAt)
         guard elapsed >= 0, elapsed < 3 else { return 0 }
-        return CGFloat(exp(-elapsed * 2.6))
+        return CGFloat(exp(-elapsed * 1.5))
+    }
+
+    /// The kick of the ball going through: hard, brief, and gone before the sway is.
+    ///
+    /// The whole flip has to be over quickly — a net that hangs inside-out reads as
+    /// broken rather than as a swish.
+    private func snap(at now: Date) -> CGFloat {
+        guard let struckAt else { return 0 }
+        let elapsed = now.timeIntervalSince(struckAt)
+        guard elapsed >= 0, elapsed < 0.8 else { return 0 }
+        // Rises almost instantly, then falls away.
+        let rise = min(1, elapsed / 0.05)
+        return CGFloat(rise * exp(-(elapsed - 0.05) * 9))
     }
 
     /// Pinned at the rim, free at the hem — so the swing grows down the strand.
     private func swing(strand: Int, t: CGFloat, energy: CGFloat, phase: Double) -> CGFloat {
         guard energy > 0 else { return 0 }
         let offset = Double(strand) * 0.7
-        let wobble = sin(phase * 9 + offset) * Double(energy)
-        return CGFloat(wobble) * width * 0.10 * t
+        // Lagged down the strand, so the hem trails the rim rather than swinging with it.
+        let lag = Double(t) * 1.1
+        let fast = sin(phase * 11 + offset - lag)
+        let slow = sin(phase * 4.3 + offset * 0.5 - lag) * 0.55
+        return CGFloat((fast + slow) * Double(energy)) * width * 0.26 * t * t
     }
 }
 
@@ -95,6 +150,9 @@ struct NetView: View {
 struct HoopBackdrop: View {
     var width: CGFloat = 138
     var struckAt: Date?
+    /// What the board is lit with, if anything. Green for a make — and green then red
+    /// when a shot is counted and then taken away.
+    var light: Color?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -102,16 +160,20 @@ struct HoopBackdrop: View {
                 RoundedRectangle(cornerRadius: 5)
                     .fill(Color.white.opacity(0.10))
                 RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.white.opacity(0.75), lineWidth: 2.5)
+                    .stroke(light ?? Color.white.opacity(0.75), lineWidth: 2.5)
+                    .shadow(color: light ?? .clear, radius: 10)
                 Rectangle()
-                    .stroke(Color.white.opacity(0.85), lineWidth: 2)
+                    .stroke(light ?? Color.white.opacity(0.85), lineWidth: 2)
+                    .shadow(color: light ?? .clear, radius: 10)
                     .frame(width: width * 0.40, height: width * 0.30)
                     .offset(y: width * 0.12)
             }
             .frame(width: width, height: width * 0.67)
+            .animation(.easeOut(duration: 0.18), value: light)
 
             ZStack(alignment: .top) {
-                RimHalf(isNear: false, width: width * 0.54)
+                RimHalf(isNear: false, width: width * 0.54,
+                        thickness: 8, tint: PixelPalette.darkRed)
                 NetView(width: width * 0.54, struckAt: struckAt)
             }
             .offset(y: -width * 0.04)

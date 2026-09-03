@@ -4,21 +4,34 @@ struct ShotCutsceneView: View {
     let scene: ShotCutscene
 
     @State private var flight: CGFloat = 0
-    @State private var settle: CGFloat = 0
     @State private var showResult = false
     @State private var showBurst = false
     /// When the ball reached the rim, which is what the net decays from.
     @State private var struckAt: Date?
+    /// Kept off the flight animation, so the ball appears rather than fading in.
+    @State private var released = false
+    @State private var ballGone = false
+    /// The camera pushing in while the ball is at the rim.
+    @State private var zoom: CGFloat = 1
+    /// The ball's whole performance at the rim, as one value.
+    @State private var drama: CGFloat = 0
+    /// Set when a robbery turns: the board goes red as the ball starts climbing out.
+    @State private var robbed = false
+    /// Set once it is all the way out, which is when the word is taken back.
+    @State private var siiike = false
+    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
+    @State private var tuning = ShotTuning.shared
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color.black.opacity(0.96).ignoresSafeArea()
+                Color.black.ignoresSafeArea()
 
                 // Backdrop, ball, then the near half of the rim on top — the ball
                 // passes between the two halves rather than over the ring.
                 VStack {
-                    HoopBackdrop(struckAt: struckAt)
+                    HoopBackdrop(width: tuning.rimWidth, struckAt: struckAt,
+                                 light: boardLight)
                         .padding(.top, 46)
                     Spacer()
                 }
@@ -32,7 +45,22 @@ struct ShotCutsceneView: View {
 
                 Group {
                     if scene.made {
-                        if showResult { SwisshTitle() }
+                        if showResult { SwisshTitle(line: scene.line) }
+                    } else if scene.drama == .robbery {
+                        // It counts, right up until it doesn't. The make's word holds
+                        // until the robbery arrives, then clears out from under it —
+                        // stacked, the two are unreadable.
+                        ZStack {
+                            if showResult {
+                                SwisshTitle()
+                                    .opacity(siiike ? 0 : 1)
+                                    .animation(.easeOut(duration: 0.15), value: siiike)
+                            }
+                            if siiike {
+                                SwisshTitle(text: "Siiike!!!", top: Theme.ball,
+                                            bottom: Theme.danger, glow: Theme.danger)
+                            }
+                        }
                     } else {
                         Text(scene.missCall)
                             .font(.system(size: scene.missCall == "BRRRICK" ? 40 : 34,
@@ -56,7 +84,8 @@ struct ShotCutsceneView: View {
                 }
 
                 VStack(spacing: 8) {
-                    PlayerFigure(seat: scene.shooter, sprite: .shoot)
+                    PlayerFigure(seat: scene.shooter, sprite: .shoot,
+                                 playsOnce: true, fps: Theme.Figure.shootFPS)
                         .scaleEffect(1.7)
                     Text(scene.shooter.playerName.uppercased())
                         .font(.system(size: 12, weight: .heavy))
@@ -68,17 +97,34 @@ struct ShotCutsceneView: View {
                 }
                 .position(x: geo.size.width / 2, y: geo.size.height - 132)
 
-                PixelBallView(scale: 4)
-                    .position(ballPoint(in: geo.size))
+                PixelBallView(scale: tuning.ballScale
+                              + (tuning.ballEndScale - tuning.ballScale) * min(flight, 1))
+                    .opacity(released && !ballGone ? 1 : 0)
+                    .animation(released ? .easeOut(duration: 0.25) : nil, value: ballGone)
+                    // Spin the ball itself, then place it, then move it. Rotating after
+                    // `.position` swings the whole layer around the container's centre
+                    // rather than turning the ball, and any translation after that is
+                    // composed with the rotation — which is what threw it across the
+                    // screen.
+                    .rotationEffect(.degrees(Double(flight) * 540 + Double(drama) * 360))
+                    .position(startPoint(in: geo.size))
+                    .modifier(DramaPath(progress: drama, drama: scene.drama,
+                                        rim: tuning.rimWidth * 0.5))
+                    .modifier(BallFlight(t: flight,
+                                         start: startPoint(in: geo.size),
+                                         control: controlPoint(in: geo.size),
+                                         rim: rimPoint(in: geo.size),
+                                         after: afterPoint(in: geo.size)))
                     .zIndex(1)
 
-                VStack {
-                    RimHalf(isNear: true, width: 138 * 0.54)
-                        .padding(.top, 46 + 138 * 0.67 - 138 * 0.04)
-                    Spacer()
-                }
-                .zIndex(2)
+                // Red and heavy while the layering is being sorted out.
+                RimHalf(isNear: true, width: tuning.rimWidth * 0.54,
+                        thickness: 8, tint: PixelPalette.vermilion)
+                    .position(x: rimPoint(in: geo.size).x,
+                              y: rimPoint(in: geo.size).y + geo.size.height * tuning.rimNearY)
+                    .zIndex(2)
             }
+            .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
             .task { await run() }
         }
     }
@@ -86,47 +132,110 @@ struct ShotCutsceneView: View {
     /// What the hoop throws back. Deliberately gapped — an ordinary make or a
     /// respectable miss gets nothing, so the burst always means something.
     private var burst: (emoji: String, count: Int)? {
+        if let banked = scene.drama.burst { return banked }
         if scene.made {
+            // A line brings its own — the emoji is part of the joke, so it beats both the
+            // fire and the spoils rather than being averaged with them.
+            if let emoji = scene.line.emoji { return (emoji, 22) }
             if scene.chance >= 80 { return ("🔥", 24) }
-            if scene.chance >= 50 { return ("🪣", 20) }
+            // Buckets, flying cash or a bag of it — a decent make is worth something.
+            if scene.chance >= 50 { return (scene.spoils, 20) }
             return nil
         }
         return scene.chance < 40 ? ("🧱", 22) : nil
     }
 
     private func rimPoint(in size: CGSize) -> CGPoint {
-        CGPoint(x: size.width / 2, y: 46 + 92 + 4)
+        return CGPoint(x: size.width * tuning.rimX, y: size.height * tuning.rimY)
     }
 
-    private func ballPoint(in size: CGSize) -> CGPoint {
-        let start = CGPoint(x: size.width / 2, y: size.height - 178)
-        let end = rimPoint(in: size)
-        let control = CGPoint(x: size.width / 2 - 40, y: end.y - 130)
-        let arc = quadratic(start, control, end, t: flight)
-
-        guard settle > 0 else { return arc }
-        // Through the net, or kicked out off the iron.
-        let after = scene.made
-            ? CGPoint(x: end.x, y: end.y + 96)
-            : CGPoint(x: end.x + 118, y: end.y + 54)
-        return CGPoint(x: arc.x + (after.x - arc.x) * settle,
-                       y: arc.y + (after.y - arc.y) * settle)
+    /// A make lights the board green. A robbery counts first and is taken back after, so
+    /// its green hangs off the very same flag a make's does and lands on the same clock.
+    private var boardLight: Color? {
+        if scene.drama == .robbery {
+            if robbed { return Theme.danger }
+            return showResult ? Theme.live : nil
+        }
+        return scene.made && showResult ? Theme.live : nil
     }
 
-    private func quadratic(_ p0: CGPoint, _ p1: CGPoint, _ p2: CGPoint, t: CGFloat) -> CGPoint {
-        let u = 1 - t
-        return CGPoint(x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
-                       y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y)
+    private func startPoint(in size: CGSize) -> CGPoint {
+        CGPoint(x: size.width * tuning.startX, y: size.height * tuning.startY)
+    }
+
+    private func controlPoint(in size: CGSize) -> CGPoint {
+        CGPoint(x: size.width * (0.5 + tuning.archX),
+                y: rimPoint(in: size).y - size.height * tuning.archHeight)
+    }
+
+    /// Down through the net, or off the iron — up and away at an angle, clear of the
+    /// screen before the rebound takes over.
+    private func afterPoint(in size: CGSize) -> CGPoint {
+        let rim = rimPoint(in: size)
+        return scene.made
+            ? CGPoint(x: rim.x, y: size.height * 1.25)
+            : CGPoint(x: rim.x + size.width * 0.9 * scene.caromSide, y: -size.height * 0.35)
     }
 
     private func run() async {
-        try? await Task.sleep(for: .seconds(0.35))
-        withAnimation(.easeOut(duration: 0.62)) { flight = 1 }
-        try? await Task.sleep(for: .seconds(0.62))
+        let tempo = max(0.1, tuning.tempo)
+        try? await Task.sleep(for: .seconds(tuning.releaseDelay / tempo))
+        released = true
+        // Linear: easing out here made the ball decelerate into the rim and stall.
+        withAnimation(.linear(duration: tuning.flightSeconds / tempo)) { flight = 1 }
+
+        // Fire and forget, so the word keeps its own clock and can land while the ball
+        // is still in the air. Awaiting it would just stall everything behind it.
+        // A robbery is a make for as long as it lasts, so its word keeps a make's clock
+        // instead of waiting the drama out like every other variant's does.
+        let wordDelay = tuning.wordDelay / tempo
+            + (scene.drama == .robbery ? 0 : scene.drama.seconds)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(wordDelay))
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) { showResult = true }
+        }
+
+        try? await Task.sleep(for: .seconds(tuning.flightSeconds / tempo))
+        await playDrama(tempo: tempo)
+
         showBurst = true
         // Only a make disturbs the net; a miss never reaches it.
         if scene.made { struckAt = Date() }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) { showResult = true }
-        withAnimation(.easeIn(duration: 0.42)) { settle = 1 }
+        // A make drops; a miss carries its speed off the top of the screen.
+        withAnimation(.easeIn(duration: scene.made ? 0.55 : 0.6)) { flight = 2 }
+        try? await Task.sleep(for: .seconds(0.42))
+        ballGone = true
+    }
+
+    /// The ball's business at the rim. Every branch ends where the rules already decided
+    /// it would; the variant only chooses how long it takes to admit it.
+    private func playDrama(tempo: Double) async {
+        guard scene.drama != .none else { return }
+        let seconds = scene.drama.seconds / tempo
+
+        // Every variant but the robbery pushes in. A real make never does, and a camera
+        // move here would announce the miss before the board takes the points back.
+        if scene.drama != .robbery {
+            withAnimation(.easeInOut(duration: 0.28)) { zoom = 1.75 }
+        }
+
+        // A robbery really does go through, so the net has to whip — otherwise the ball
+        // reads as passing in front of it. The green is already up by now; this is the
+        // moment it is taken away.
+        if scene.drama == .robbery {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(seconds * Double(Robbery.through)))
+                struckAt = Date()
+                try? await Task.sleep(for: .seconds(seconds * Double(Robbery.reverse - Robbery.through)))
+                robbed = true
+            }
+        }
+        // One value, one curve. The path itself decides what the ball does.
+        withAnimation(scene.drama == .robbery ? .linear(duration: seconds)
+                                              : .easeInOut(duration: seconds)) { drama = 1 }
+        try? await Task.sleep(for: .seconds(seconds))
+        if scene.drama == .robbery { siiike = true; return }
+
+        withAnimation(.easeInOut(duration: 0.3)) { zoom = 1 }
     }
 }

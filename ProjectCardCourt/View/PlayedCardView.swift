@@ -8,7 +8,23 @@ struct PlayedCardView: View {
     let played: PlayedCard
     let width: CGFloat
 
+    /// One element shrinking away.
+    private static let shrink = 0.32
+    /// How long the whistle waits after the card before following it.
+    private static let stagger = 0.20
+    /// How long the pair take to leave, added up rather than guessed — the controller's
+    /// hold has to cover this, and a number typed by hand was 0.18s short, which tore the
+    /// whistle off the screen a third of the way through its exit.
+    static let exitSeconds = shrink + stagger + shrink
+
     @State private var arrived = false
+    /// The whistle lands after the card, not with it — the card is put down, and only
+    /// then does the referee's mark come over the top of it.
+    @State private var stamped = false
+    /// They leave one at a time, in the order they came. Shrinking both at once reads as
+    /// the pair being deleted rather than the play being put away.
+    @State private var cardGone = false
+    @State private var whistleGone = false
 
     private var origin: UnitPoint {
         switch played.seat.slot(viewedFrom: GameRules.humanSeat) {
@@ -26,12 +42,30 @@ struct PlayedCardView: View {
 
             Group {
                 if played.faceDown {
-                    Image("CardBackFull")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: width)
+                    // A trap, not a card: the back drops back and the whistle sits over
+                    // it. `WhistleRevealView` runs this in reverse when it is called.
+                    ZStack {
+                        Image("CardBackFull")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: width)
+                            .drawingGroup()
+                            // Steps back only once the whistle is over it.
+                            .opacity(stamped ? 0.66 : 1)
+                            .scaleEffect(cardGone ? 0.01 : 1)
+                        Image("GoldWhistle")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: width * 0.72)
+                            .drawingGroup()
+                            .shadow(color: .black.opacity(0.7), radius: 10, y: 3)
+                            // Out from the middle of the card rather than down onto it.
+                            .scaleEffect(whistleGone ? 0.01 : (stamped ? 1 : 0.15))
+                            .opacity(stamped ? 1 : 0)
+                    }
                 } else {
                     CardFrontView(descriptor: played.descriptor, displayWidth: width)
+                        .scaleEffect(cardGone ? 0.01 : 1)
                 }
             }
             .shadow(color: .black.opacity(0.6), radius: 24, y: 12)
@@ -41,8 +75,21 @@ struct PlayedCardView: View {
             .opacity(arrived ? 1 : 0)
         }
         .allowsHitTesting(false)
-        .onAppear {
+        .task {
             withAnimation(.spring(response: 0.42, dampingFraction: 0.68)) { arrived = true }
+            if played.faceDown {
+                try? await Task.sleep(for: .seconds(0.42))
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { stamped = true }
+            }
+
+            // Held, then put away — the card first and the whistle after it, so the mark
+            // is the last thing off the table.
+            let hold = GameRules.playedCardSeconds - Self.exitSeconds
+            try? await Task.sleep(for: .seconds(max(0, hold)))
+            withAnimation(.easeIn(duration: Self.shrink)) { cardGone = true }
+            guard played.faceDown else { return }
+            try? await Task.sleep(for: .seconds(Self.stagger))
+            withAnimation(.easeIn(duration: Self.shrink)) { whistleGone = true }
         }
     }
 }

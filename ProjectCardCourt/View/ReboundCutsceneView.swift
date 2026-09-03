@@ -11,10 +11,13 @@ struct ReboundCutsceneView: View {
 
     private var order: [Seat] { shooter.clockwiseOrderFromHere }
 
+    /// How far the whole stack rides above centre.
+    private static let lift: CGFloat = 44
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.black.opacity(0.55))
+            Rectangle()
+                .fill(Color.black)
 
             SideStreaks()
 
@@ -24,7 +27,7 @@ struct ReboundCutsceneView: View {
                     .tracking(2.2)
                     .foregroundStyle(Theme.ball)
 
-                BallView(diameter: 260)
+                BallView(diameter: 150)
                     .rotationEffect(.degrees(spin ? 360 : 0))
                     .offset(y: lift ? -7 : 7)
                     .shadow(color: Theme.ball.opacity(0.55), radius: 14)
@@ -53,8 +56,9 @@ struct ReboundCutsceneView: View {
                         .foregroundStyle(Theme.inkDim)
                 }
             }
+            // Clear of the hand, which the centred stack was sitting on top of.
+            .offset(y: -Self.lift)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14))
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: revealedBids)
         .onAppear {
             withAnimation(.linear(duration: 0.85).repeatForever(autoreverses: false)) { spin = true }
