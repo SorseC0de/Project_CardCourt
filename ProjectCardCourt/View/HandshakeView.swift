@@ -3,8 +3,8 @@ import SwiftUI
 /// The connection, drawn as what it is.
 ///
 /// Two slots, both there from the start: your half and theirs. An empty slot is flat
-/// grey; a filled one is white with the blue drop everything else in the game wears. Yours
-/// fills the moment you start looking, theirs when they arrive.
+/// grey; a filled one is white, yours dropping blue and theirs red. Yours fills the moment
+/// you start looking, theirs when they arrive.
 ///
 /// Nothing moves. The whole point is to read the state at a glance — one filled and one
 /// empty means it is still waiting, and two filled means it is done. Motion would only
@@ -20,7 +20,10 @@ struct HandshakeView: View {
     private enum Art {
         static let empty = CardPalette.gray
         static let filled = Color.white
-        static let drop = CardPalette.blue
+        /// A drop each, so the two halves read as two people rather than one shape —
+        /// which is the whole job while one of them is still missing.
+        static let mineDrop = CardPalette.blue
+        static let theirsDrop = CardPalette.red
         /// A share of the whole, so the drop keeps its weight at any size.
         static let dropShare: CGFloat = 0.022
     }
@@ -43,7 +46,8 @@ struct HandshakeView: View {
             .foregroundStyle(filled ? Art.filled : Art.empty)
             // Flattened before the shadow, or SwiftUI casts one per path in the drawing.
             .drawingGroup()
-            .shadow(color: filled ? Art.drop : .clear, radius: 0,
+            .shadow(color: filled ? (mine ? Art.mineDrop : Art.theirsDrop) : .clear,
+                    radius: 0,
                     x: side * Art.dropShare, y: side * Art.dropShare)
     }
 }
