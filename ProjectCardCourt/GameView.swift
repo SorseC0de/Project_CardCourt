@@ -96,6 +96,12 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(11)
             }
+            if let call = controller.actionCall {
+                ActionCallView(call: call) { controller.actionCallFinished() }
+                    .transition(.opacity)
+                    // Over everything, cards included. It is the game speaking.
+                    .zIndex(40)
+            }
             if let scene = controller.reveal {
                 RevealCutsceneView(scene: scene) { controller.dismissReveal() }
                     // Keyed to the card, so two reveals in a row are two views rather than

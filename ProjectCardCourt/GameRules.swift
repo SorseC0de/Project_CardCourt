@@ -8,6 +8,10 @@ enum GameRules {
     /// answer, which is what lets each of them draw themselves at the near edge.
     static var localSeat: Seat = .south
 
+    /// Whether a phase or event announces itself across the screen before it happens.
+    /// One switch, because four cards a possession is a lot of card.
+    static let announcesPhases = true
+
     /// How long a played card is held in the middle of the screen.
     static let playedCardSeconds = 2.5
 

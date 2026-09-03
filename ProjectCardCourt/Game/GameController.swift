@@ -19,6 +19,8 @@ enum Pacing {
     /// twenty of them go by at once.
     static let drawFlight = 0.30
     static let dealFlight = 0.15
+    /// How long a phase call holds before it takes itself off.
+    static let actionCall = 1.4
     /// The beat between one revealed card leaving and the next arriving.
     static let betweenReveals = 0.3
     static let bidReveal = 1.5
@@ -307,6 +309,8 @@ final class GameController {
     /// A made three, celebrating. The points are withheld from the scoreboard until the
     /// number reaches it.
     private(set) var celebratingThree: Seat?
+    /// The phase or event currently announcing itself. See `ActionCall`.
+    private(set) var actionCall: ActionCall?
     private(set) var withheldPoints: (seat: Seat, amount: Int)?
     private(set) var flightDuration = Pacing.drawFlight
     /// Set for a beat after a rebound so the reveal can be shown, then cleared.
@@ -584,7 +588,13 @@ final class GameController {
             switch event {
             case .drew(let seat, _):
                 await fly(to: seat, over: Pacing.drawFlight)
-            case .gameBreakRevealed, .intangibleRevealed:
+            case .gameBreakRevealed:
+                flight = nil
+                // Announced before it is shown: a Break is not something anybody played,
+                // and the call is what says so before the card can be mistaken for a play.
+                await announce(.gameBreak)
+                await showReveals(in: [event])
+            case .intangibleRevealed:
                 flight = nil
                 await showReveals(in: [event])
             default:
@@ -861,6 +871,8 @@ final class GameController {
             if state.isOver { gate = .gameOver; return }
 
             if case .awaitingRebound(let shooter) = state.phase {
+                await announce(.rebound)
+                if Task.isCancelled { return }
                 gate = .awaitingBid(shooter: shooter)
                 return
             }
@@ -916,8 +928,13 @@ final class GameController {
             guard let seat = state.phase.actingSeat else { gate = .thinking; return }
 
             if seat == GameRules.localSeat {
-                gate = { if case .inbound = state.phase { return .awaitingInbound(seat) }
-                         return .awaitingMove(seat) }()
+                if case .inbound = state.phase {
+                    await announce(.inbound)
+                    if Task.isCancelled { return }
+                    gate = .awaitingInbound(seat)
+                } else {
+                    gate = .awaitingMove(seat)
+                }
                 return
             }
             // A seat somebody is sitting in decides for itself — but not forever. The
@@ -1055,6 +1072,16 @@ final class GameController {
 
     func threeScoreLanded() { withheldPoints = nil }
     func threeCelebrationFinished() { celebratingThree = nil }
+    func actionCallFinished() { actionCall = nil }
+
+    /// Puts a call up and waits for it to take itself off again.
+    private func announce(_ call: ActionCall) async {
+        guard GameRules.announcesPhases else { return }
+        actionCall = call
+        while actionCall != nil, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(60))
+        }
+    }
 
     /// Counted before the move, because resolving a shot clears the Clamps that caused it.
     private func defenderCount(on seat: Seat) -> Int {
@@ -1088,6 +1115,9 @@ final class GameController {
         }
         release(.play, from: &ledger)
         shownShot = state.shot
+        if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
+            await announce(.whistle)
+        }
         await showWhistle(in: events)
         release(.whistle, from: &ledger)
         stampSettled(events)
