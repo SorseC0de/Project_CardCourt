@@ -83,12 +83,23 @@ struct CardFrontView: View {
                     .shadow(color: CardPalette.navy, radius: 0, x: drop, y: 0)
                     .shadow(color: CardPalette.red, radius: 0, x: drop, y: 0)
             } else if let art = descriptor.artwork {
-                Image(art.name)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: side * art.scale, height: side * art.scale)
-                    .scaleEffect(x: art.mirrored ? -1 : 1)
+                ZStack {
+                    Image(art.name)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: side * art.scale, height: side * art.scale)
+                        .scaleEffect(x: art.mirrored ? -1 : 1)
+                    // Left as its own artwork rather than tinted with the icon: a ball the
+                    // same colour as the hand holding it is not a ball.
+                    if let ball = descriptor.artworkAccent {
+                        Image(ball.name)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: side * ball.scale, height: side * ball.scale)
+                            .offset(x: side * ball.x, y: side * ball.y)
+                    }
+                }
             } else if let accent = descriptor.accentSymbol {
                 ZStack {
                     Image(systemName: descriptor.symbol)

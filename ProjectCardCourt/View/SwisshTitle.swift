@@ -106,28 +106,64 @@ struct SwisshTitle: View {
 /// The word itself never changes — it is the game's name. These set it inside a sentence,
 /// with the emoji the hoop throws back chosen to match rather than picked at random.
 struct SwisshLine: Equatable {
+    /// When a line is allowed out. nil is any day of the year.
+    enum Season: Equatable { case christmas, halloween, thanksgiving }
+
     /// Sits north-west of the word.
     let before: String?
     /// Sits south-east of it.
     let after: String?
-    /// What bursts on the make. nil leaves the usual spoils.
-    let emoji: String?
+    /// What bursts on the make. Empty leaves the usual spoils; more than one and the
+    /// burst throws a mix.
+    let emoji: [String]
+    /// **Disarmed while this is set.** `roll` will not pick a seasonal line until there is
+    /// something that knows what day it is — see `isArmed`.
+    let season: Season?
 
-    static let plain = SwisshLine(before: nil, after: nil, emoji: nil)
+    init(before: String? = nil, after: String? = nil,
+         emoji: [String] = [], season: Season? = nil) {
+        self.before = before
+        self.after = after
+        self.emoji = emoji
+        self.season = season
+    }
+
+    static let plain = SwisshLine()
 
     static let all: [SwisshLine] = [
-        SwisshLine(before: nil, after: "upon a star!", emoji: "💫"),
-        SwisshLine(before: nil, after: "cheese!", emoji: "🧀"),
+        SwisshLine(after: "upon a star!", emoji: ["💫"]),
+        SwisshLine(after: "cheese!", emoji: ["🧀"]),
         // No lamp emoji reads as a genie's, so this one takes the genie and the second
         // genie line goes, per the rule set when they were written.
-        SwisshLine(before: "As you", after: nil, emoji: "🧞‍♂️"),
-        SwisshLine(before: nil, after: "a ninja would!", emoji: "🥷"),
-        SwisshLine(before: "Going", after: "-ing!", emoji: "🎣"),
-        SwisshLine(before: "Hit \'em with the", after: "up!", emoji: "🆙"),
+        SwisshLine(before: "As you", emoji: ["🧞‍♂️"]),
+        SwisshLine(after: "a ninja would!", emoji: ["🥷"]),
+        SwisshLine(before: "Going", after: "-ing!", emoji: ["🎣"]),
+        SwisshLine(before: "Hit \'em with the", after: "up!", emoji: ["🆙"]),
+
+        // Seasonal, and disarmed until the calendar is wired up. Written now so the
+        // catalogue is complete rather than remembered later.
+        SwisshLine(before: "Merry", after: "-mas!",
+                   // No gingerbread man exists, so the cookie stands in for it — which
+                   // is the one left out for Santa anyway.
+                   emoji: ["🎄", "🎅", "🎁", "❄️", "⛄", "🛷", "🍪"],
+                   season: .christmas),
+        SwisshLine(after: "or Treat!",
+                   emoji: ["🎃", "🐈‍⬛", "🦇", "🕸️", "👻", "🍬"],
+                   season: .halloween),
+        SwisshLine(before: "Happy Thanks", after: "-ing!",
+                   emoji: ["🦃", "🍗", "🍁", "🥧", "🌽", "🍠"],
+                   season: .thanksgiving),
     ]
+
+    /// True for a line that may be rolled today.
+    ///
+    /// Every seasonal line is out of bounds for now. When there is a calendar this becomes
+    /// "in season or no season", and nothing else here has to change.
+    var isArmed: Bool { season == nil }
 
     /// Most makes are the plain word. A line is a treat, not the default.
     static func roll() -> SwisshLine {
-        Int.random(in: 0..<3) == 0 ? all.randomElement() ?? .plain : .plain
+        guard Int.random(in: 0..<3) == 0 else { return .plain }
+        return all.filter(\.isArmed).randomElement() ?? .plain
     }
 }

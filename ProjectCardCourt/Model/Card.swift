@@ -168,6 +168,18 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Drawn with a slash through it — the card says "no" to whatever the icon shows.
     var isSlashed: Bool { id == "swallowed-whistle" }
 
+    /// A second drawing laid over the first, in its own colours.
+    ///
+    /// The putback is a hand tipping a ball back up, and a hand on its own is just a hand
+    /// — the ball is the half of it that says what the card does. Kept out of the SVG so
+    /// the ball is the same ball the rest of the game draws.
+    var artworkAccent: (name: String, scale: CGFloat, x: CGFloat, y: CGFloat)? {
+        switch id {
+        case "putback-tip": return ("BallVector", 0.34, 0.20, -0.26)
+        default: return nil
+        }
+    }
+
     var artwork: (name: String, mirrored: Bool, scale: CGFloat)? {
         // It is a Game Break, but what it is *about* is Whistles — and with the slash
         // through it the whistle says the whole effect without a word.

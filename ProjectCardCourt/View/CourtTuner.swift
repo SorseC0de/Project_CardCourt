@@ -88,6 +88,8 @@ struct DebugActionsView: View {
     @AppStorage("bench.open") private var isOpen = true
     @AppStorage("bench.cuts") private var showCuts = false
     @AppStorage("bench.deck") private var showDeck = false
+    /// The one HUD arrangement that is a setting rather than a measurement.
+    @AppStorage(DeckReadout.setting) private var deckReadout = DeckReadout.over
     @State private var lobby = false
 
     var body: some View {
@@ -117,6 +119,9 @@ struct DebugActionsView: View {
             HStack(spacing: 4) {
                 action(showCuts ? "cuts ▾" : "cuts ▸") { showCuts.toggle() }
                 action(showDeck ? "deck ▾" : "deck ▸") { showDeck.toggle() }
+                action("count: \(deckReadout.rawValue)") {
+                    deckReadout = deckReadout.next
+                }
                 action("unsee") { SeenCards.shared.forgetAll() }
                 // Not a real screen yet, and it cannot be until the app has a Game Center
                 // record to authenticate against.

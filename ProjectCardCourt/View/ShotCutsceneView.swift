@@ -137,18 +137,18 @@ struct ShotCutsceneView: View {
 
     /// What the hoop throws back. Deliberately gapped — an ordinary make or a
     /// respectable miss gets nothing, so the burst always means something.
-    private var burst: (emoji: String, count: Int)? {
+    private var burst: (emoji: [String], count: Int)? {
         if let banked = scene.drama.burst { return banked }
         if scene.made {
             // A line brings its own — the emoji is part of the joke, so it beats both the
             // fire and the spoils rather than being averaged with them.
-            if let emoji = scene.line.emoji { return (emoji, 22) }
-            if scene.chance >= 80 { return ("🔥", 24) }
+            if !scene.line.emoji.isEmpty { return (scene.line.emoji, 22) }
+            if scene.chance >= 80 { return (["🔥"], 24) }
             // Buckets, flying cash or a bag of it — a decent make is worth something.
-            if scene.chance >= 50 { return (scene.spoils, 20) }
+            if scene.chance >= 50 { return ([scene.spoils], 20) }
             return nil
         }
-        return scene.chance < 40 ? ("🧱", 22) : nil
+        return scene.chance < 40 ? (["🧱"], 22) : nil
     }
 
     private func rimPoint(in size: CGSize) -> CGPoint {

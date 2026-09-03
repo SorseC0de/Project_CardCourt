@@ -3,7 +3,9 @@ import SwiftUI
 /// A one-shot spray of emoji out of a point. Every mark is driven by modifiers off a
 /// single state flip, so the burst interpolates without rebuilding the view each frame.
 struct EmojiBurst: View {
-    let emoji: String
+    /// What it throws. More than one and each piece picks its own, so a seasonal burst is
+    /// a handful of different things rather than twenty of the same one.
+    let emoji: [String]
     var count = 20
     var reach: CGFloat = 190
     var size: CGFloat = 30
@@ -18,7 +20,12 @@ struct EmojiBurst: View {
                 let distance = reach * (0.45 + CGFloat(StreakStyle.scatter(index, 2)) * 0.75)
                 let drop = reach * 0.55 * CGFloat(StreakStyle.scatter(index, 3))
 
-                Text(emoji)
+                // Its own question of the same noise the rest of the piece is scattered
+                // by, so the mix is spread rather than clumped at one side of the burst.
+                let roll = StreakStyle.scatter(index, 8) * Double(emoji.count)
+                let which = min(emoji.count - 1, Int(roll))
+
+                Text(emoji[which])
                     .font(.system(size: size * (0.7 + CGFloat(StreakStyle.scatter(index, 4)) * 0.6)))
                     .rotationEffect(.degrees(fired ? Double(StreakStyle.scatter(index, 5)) * 720 - 360 : 0))
                     .offset(x: fired ? cos(angle) * distance : 0,

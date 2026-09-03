@@ -11,11 +11,18 @@ enum Sprite: String, CaseIterable {
     case refereeRunLook = "Referee_Run_Look"
     case shoot = "Player_Shoot"
     case sparkleBurst = "SparkleBurst"
+    /// A player facing the camera. One frame — a pose, not a loop.
+    case front = "Player_front"
+    /// Nine faces on an 8-pixel strip, meant to be worn rather than played: the frame is
+    /// picked, not advanced.
+    case faces = "Player_faces"
 
     var frames: Int {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
+        case .front:        return 1
+        case .faces:        return 9
         default:            return 16
         }
     }
@@ -25,6 +32,7 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 48
         case .sparkleBurst: return 64
+        case .faces:        return 8
         default:            return 32
         }
     }

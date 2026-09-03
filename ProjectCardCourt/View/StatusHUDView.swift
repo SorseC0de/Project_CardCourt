@@ -1,5 +1,53 @@
 import SwiftUI
 
+/// Where the deck count sits against the deck.
+///
+/// Two arrangements, both dialled in by eye rather than derived, which is why they are
+/// written out rather than computed from one another.
+///
+/// `x` and `y` move the icon and the count together — the count is an overlay on the deck
+/// and rides with it — so `textX` and `textY` are the count's place *on* the deck, not on
+/// the screen.
+enum DeckReadout: String, CaseIterable {
+    /// The count on the deck, the way a dealer's hand covers the cards under it.
+    case over
+    /// The count out beside it, with a smaller deck. Reads faster at a glance and takes
+    /// more room.
+    case beside
+
+    static let setting = "hud.deckReadout"
+
+    /// The sheet is two cells stacked: the deck from above, and the deck from the side.
+    static let cells = 2
+
+    struct Metrics {
+        var x: CGFloat
+        var y: CGFloat
+        var side: CGFloat
+        var textX: CGFloat
+        var textY: CGFloat
+        var number: CGFloat
+        /// Which of the sheet's cells this arrangement wears.
+        var cell: Int = 0
+        /// Turns the sheet only. The count is laid on afterwards and stays upright.
+        var rotation: Double = 0
+    }
+
+    var metrics: Metrics {
+        switch self {
+        case .over:
+            // The side-on cell, so a count sitting on the deck sits on something with a
+            // face to sit on. Drawn upright — the turn was only ever standing in for a
+            // sprite that did not exist yet.
+            return Metrics(x: -4, y: -4, side: 48, textX: 0, textY: -2, number: 14, cell: 1)
+        case .beside:
+            return Metrics(x: -30, y: 2, side: 34, textX: 30, textY: -4, number: 18)
+        }
+    }
+
+    var next: DeckReadout { self == .over ? .beside : .over }
+}
+
 /// The top-right readout: what the referees are doing, and the SHOT.
 ///
 /// Pictures rather than words — a struck-through whistle says "silenced" faster than the
@@ -11,6 +59,11 @@ import SwiftUI
 struct StatusHUDView: View {
     let state: GameState
     var ballSize: CGFloat = 58
+
+    /// Which way the count is arranged against the deck. A setting, so it is kept.
+    @AppStorage(DeckReadout.setting) private var layout = DeckReadout.beside
+
+    private var readout: DeckReadout.Metrics { layout.metrics }
 
     /// Each icon gets its own multiplier. The art is trimmed to its own subject rather
     /// than squared off, so two SVGs at the same width do not read at the same size.
@@ -42,35 +95,38 @@ struct StatusHUDView: View {
     /// off `ballSize`: this is pixel art, and half a pixel is worse than a size that does
     /// not quite match its neighbour.
     private var remaining: some View {
-        Image("Deck")
-            .interpolation(.none)
-            .resizable()
-            .frame(width: Deck.side, height: Deck.side)
+        sheet
+            // Before the overlay, so the deck turns and the count does not. The frame is
+            // square, so a right angle costs no layout.
+            .rotationEffect(.degrees(readout.rotation))
             .overlay {
                 Text("\(state.deck.count)")
-                    .font(.custom("AvenirNextCondensed-Heavy", size: Deck.number))
+                    .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
                     .foregroundStyle(.white)
                     .shadow(color: CardPalette.blue, radius: 0, x: Deck.drop, y: Deck.drop)
                     .contentTransition(.numericText())
-                    .offset(y: -Deck.numberLift)
+                    .offset(x: readout.textX, y: readout.textY)
             }
-            .offset(x: Deck.nudgeX)
+            .offset(x: readout.x, y: readout.y)
             .animation(.easeOut(duration: 0.25), value: state.deck.count)
+            .animation(.easeOut(duration: 0.25), value: layout)
+    }
+
+    /// One cell of the deck sheet, cut out the way `SpriteAnimation` cuts a frame —
+    /// drawn at full height behind a clip rather than scaled, so the art stays exact.
+    private var sheet: some View {
+        Image("Deck")
+            .interpolation(.none)
+            .resizable()
+            .frame(width: readout.side,
+                   height: readout.side * CGFloat(DeckReadout.cells))
+            .offset(y: -CGFloat(readout.cell) * readout.side)
+            .frame(width: readout.side, height: readout.side, alignment: .top)
+            .clipped()
     }
 
     private enum Deck {
-        /// The sheet is 48 pixels square. 64 points is four device pixels per art pixel on
-        /// a 3× screen — the sizes that come out exact on 2× as well are only the multiples
-        /// of 48, and 96 is far too much deck for a corner of the HUD.
-        static let side: CGFloat = 64
-        static let number: CGFloat = 18
         static let drop: CGFloat = 3
-        /// Out past the badge above it. The row is trailing-aligned, so this is measured
-        /// from the SHOT's own right edge.
-        static let nudgeX: CGFloat = 8
-        /// Off the middle of the sheet — the count reads better sitting on the top card
-        /// than centred on the whole stack.
-        static let numberLift: CGFloat = 4
     }
 
     /// No Whistle can be called this round. The flat icon, struck out.

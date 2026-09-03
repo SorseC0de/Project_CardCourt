@@ -67,8 +67,8 @@ enum ShotDrama: Equatable {
     }
 
     /// Banking wants its own burst, whatever the percentage would otherwise have given.
-    var burst: (emoji: String, count: Int)? {
-        self == .bank ? ("🏦", 18) : nil
+    var burst: (emoji: [String], count: Int)? {
+        self == .bank ? (["🏦"], 18) : nil
     }
 }
 
