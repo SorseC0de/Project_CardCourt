@@ -31,10 +31,14 @@ struct TurnoverCutsceneView: View {
         /// The catch plays from the top and stops here — the ball is met and never
         /// gathered in. Fourth frame, counting the first as one.
         static let stopAtFrame = 3
+        /// The reach, played slower than the court plays a catch.
+        ///
+        /// A close-up is a different tempo from live play, and this scene is built on the
+        /// reach landing as a beat rather than as part of a possession. Its own number, so
+        /// speeding the court's catch up cannot flick this one past in a sixth of a second.
+        static let fps: Double = 10
         /// How long the first of the catch takes, which is also the ball's flight.
-        static var reachSeconds: Double {
-            Double(stopAtFrame + 1) / Theme.Pass.catchFPS
-        }
+        static var reachSeconds: Double { Double(stopAtFrame + 1) / fps }
 
         /// Three hard cuts on the same held moment, each tighter than the last.
         ///
@@ -181,6 +185,7 @@ struct TurnoverCutsceneView: View {
             // sliding the ball out of his hands.
             ZStack {
                 PlayerFigure(seat: scene.seat, sprite: .catchBall, playsOnce: true,
+                             fps: Held.fps,
                              stopAtFrame: Held.stopAtFrame, mirrored: facingBall,
                              scale: Held.spriteScale)
                     .position(centre)

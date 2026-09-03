@@ -198,8 +198,7 @@ struct PlayerFigure: View {
                     caughtFrom = Date()
                     catching = true
                     // One pass of the catch sheet at its own frame rate.
-                    try? await Task.sleep(for: .seconds(Double(Sprite.catchBall.frames)
-                                                        / Theme.Pass.catchFPS))
+                    try? await Task.sleep(for: .seconds(Theme.Pass.catchSeconds))
                     catching = false
                 }
         }

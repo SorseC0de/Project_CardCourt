@@ -80,9 +80,9 @@ enum DevLog {
                     .joined(separator: " ")
                 say(.shot, "\(seat.dev) at \(chance)%  base \(breakdown.base)"
                     + (stack.isEmpty ? "  (no modifiers)" : "  | \(stack)"))
-            case .shotMade(let seat, let points, let roll):
+            case .shotMade(let seat, let points, let roll, _):
                 say(.shot, "\(seat.dev) MADE  +\(points)  roll \(roll)")
-            case .shotMissed(let seat, let roll):
+            case .shotMissed(let seat, let roll, _):
                 say(.shot, "\(seat.dev) missed  roll \(roll)")
 
             case .passed(let card, let from, let to, let shot):
@@ -113,7 +113,7 @@ enum DevLog {
             case .freeThrowMissed(let seat, let index, let total):
                 say(.freeThrow, "\(seat.dev) \(index)/\(total) missed")
 
-            case .turnover(let seat):
+            case .turnover(let seat, _):
                 say(.phase, "turnover on \(seat.dev)")
             case .reinbound(let seat):
                 say(.phase, "\(seat.dev) re-inbounds, round holds")

@@ -17,7 +17,9 @@ struct ReboundCutsceneView: View {
     private static let lift: CGFloat = 44
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        // Centred. The board used to share this alignment, which pinned the ball and the
+        // title to the right edge along with it and put the two on top of each other.
+        ZStack {
             Rectangle()
                 .fill(Color.black)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -61,8 +63,10 @@ struct ReboundCutsceneView: View {
             // Clear of the hand, which the centred stack was sitting on top of.
             .offset(y: -Self.lift)
 
-            // The board, larger than the court draws it. A bid is a decision and this
-            // is the only number it is made on, so it belongs in the room.
+        }
+        // The board, larger than the court draws it. A bid is a decision and this is the
+        // only number it is made on, so it belongs in the room.
+        .overlay(alignment: .topTrailing) {
             StatusHUDView(state: state, ballSize: 74)
                 .padding(.trailing, 20)
                 .padding(.top, 14)

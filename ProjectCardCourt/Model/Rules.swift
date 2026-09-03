@@ -122,7 +122,7 @@ enum Rules {
             if descriptor.turnoverIfNoClamps, standing.isEmpty {
                 // Thrown yourself down on an empty floor. Costs the ball, not the round.
                 state[seat].turnovers += 1
-                events.append(.turnover(seat))
+                events.append(.turnover(seat, cause: descriptor.name))
                 reinbound(by: seat, state: &state, events: &events)
                 return events
             }
@@ -184,7 +184,7 @@ enum Rules {
                     // Behind-the-Back with nobody behind: a live-ball turnover.
                     state[seat].turnovers += 1
                     events.append(.failedReturn(seat: seat))
-                    events.append(.turnover(seat))
+                    events.append(.turnover(seat, cause: descriptor.name))
                     endRound(state: &state, events: &events)
                     return events
                 }
@@ -376,14 +376,14 @@ enum Rules {
             let points = state.rules.madeShotPoints + bonusPoints
             state[seat].points += points
             state[seat].scoredThisRound = true
-            events.append(.shotMade(seat: seat, points: points, roll: roll))
+            events.append(.shotMade(seat: seat, points: points, roll: roll, chance: chance))
             if let passer = state.lastPasser, passer != seat {
                 state[passer].assists += 1
                 events.append(.assisted(passer))
             }
             endRound(state: &state, events: &events)
         } else {
-            events.append(.shotMissed(seat: seat, roll: roll))
+            events.append(.shotMissed(seat: seat, roll: roll, chance: chance))
             state.phase = .awaitingRebound(shooter: seat)
         }
     }
@@ -454,7 +454,8 @@ enum Rules {
         }
         if effect.turnoverOnOffender {
             state[offender].turnovers += 1
-            events.append(.turnover(offender))
+            // The Whistle that was called, not the card it was called on.
+            events.append(.turnover(offender, cause: whistle.card.name))
         }
         if effect.keepsClockCost, case .playCard(let seat, let card) = action,
            card.descriptor.clockDelta < 0 {

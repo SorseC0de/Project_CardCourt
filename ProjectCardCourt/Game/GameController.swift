@@ -146,7 +146,7 @@ struct TurnoverCutscene: Identifiable, Equatable {
             switch event {
             case .failedReturn:                 kind = .badReturn
             case .whistleBlew(_, let card, _, _): kind = .whistle(card.name)
-            case .turnover(let who):            seat = who
+            case .turnover(let who, _):         seat = who
             case .passed(_, let from, _, _):    thrower = from
             default: break
             }
@@ -737,10 +737,9 @@ final class GameController {
             // Long enough for the throw *and* the catch that follows it. Clearing this
             // at the end of the flight pulled the receiver's `caughtAt` away a tenth of a
             // second into the catch, so the sheet never got past its first frames.
-            let catchSeconds = Double(Sprite.catchBall.frames) / Theme.Pass.catchFPS
             try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds
                                                 + Theme.Pass.holdSeconds
-                                                + catchSeconds + 0.2))
+                                                + Theme.Pass.catchSeconds + 0.2))
             practicePass = nil
             await run()
         }
@@ -969,7 +968,7 @@ final class GameController {
 
     /// A three is anything worth more than an ordinary bucket.
     private func celebrateThree(in events: [GameEvent]) async {
-        for case .shotMade(let seat, let points, _) in events
+        for case .shotMade(let seat, let points, _, _) in events
         where points > state.rules.madeShotPoints {
             withheldPoints = (seat, points)
             celebratingThree = seat

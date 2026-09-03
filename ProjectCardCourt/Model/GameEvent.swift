@@ -27,12 +27,17 @@ enum GameEvent: Hashable, Codable {
     case clampSet(seat: Seat, card: CardDescriptor)
     case clampBit(seat: Seat, card: CardDescriptor, discarded: Int)
     case shotAttempted(seat: Seat, chance: Int, breakdown: ShotResolution)
-    case shotMade(seat: Seat, points: Int, roll: Int)
-    case shotMissed(seat: Seat, roll: Int)
+    /// `chance` is the number the roll was made against, carried so the line can print
+    /// what the shot actually was rather than only whether it went in.
+    case shotMade(seat: Seat, points: Int, roll: Int, chance: Int = 0)
+    case shotMissed(seat: Seat, roll: Int, chance: Int = 0)
     case assisted(Seat)
     case reboundBids(bids: [Seat: Int], order: [Seat])
     case rebounded(Seat)
-    case turnover(Seat)
+    /// `cause` is the card that took the ball away, or nil when the clock did. Without
+    /// it every turnover in the log claimed to be a shot-clock violation, whatever had
+    /// actually happened.
+    case turnover(Seat, cause: String? = nil)
     case freeThrowsAwarded(seat: Seat, count: Int, source: String)
     case freeThrowBonus(seat: Seat, count: Int, card: CardDescriptor)
     case freeThrowMade(seat: Seat, points: Int, index: Int, of: Int)
@@ -113,10 +118,10 @@ enum GameEvent: Hashable, Codable {
                 .joined(separator: " · ")
             let from = breakdown.steps.isEmpty ? "" : "  [\(breakdown.base)% · \(stack)]"
             return "\(seat.playerName) \(seat.verb("pulls", "pull")) up at \(chance)%…\(from)"
-        case .shotMade(let seat, let points, _):
-            return "GOOD! \(seat.playerName) +\(points) PTS."
-        case .shotMissed(let seat, _):
-            return "No good. \(seat.playerName) \(seat.verb("misses", "miss"))."
+        case .shotMade(let seat, let points, _, let chance):
+            return "GOOD! \(seat.playerName) +\(points) PTS. (\(chance)%)"
+        case .shotMissed(let seat, _, let chance):
+            return "No good. \(seat.playerName) \(seat.verb("misses", "miss")). (\(chance)%)"
         case .assisted(let seat):
             return "\(seat.playerName) +1 AST."
         case .reboundBids(let bids, let order):
@@ -124,8 +129,8 @@ enum GameEvent: Hashable, Codable {
             return "Crash the glass: " + parts.joined(separator: " · ")
         case .rebounded(let seat):
             return "\(seat.playerName) \(seat.verb("grabs", "grab")) the board. +1 REB."
-        case .turnover(let seat):
-            return "Shot clock violation! \(seat.playerName) +1 TOV."
+        case .turnover(let seat, let cause):
+            return "\(cause ?? "Shot clock violation")! \(seat.playerName) +1 TOV."
         case .freeThrowsAwarded(let seat, let count, let source):
             return "\(source)! \(seat.playerName) \(seat.verb("goes", "go")) to the line for \(count)."
         case .freeThrowBonus(let seat, let count, let card):

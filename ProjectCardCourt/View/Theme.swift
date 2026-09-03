@@ -82,10 +82,15 @@ enum Theme {
         /// over.
         static let holdSeconds: Double = 0.08
 
-        /// The catch's own frame rate. Slower than the run cycle it used to borrow — a
-        /// catch is a beat, not a loop. Read in several places, so it cannot desync from
-        /// its own hold.
-        static let catchFPS: Double = 10
+        /// How long a catch takes, start to finish.
+        ///
+        /// **The only number to move.** The frame rate follows from it, and everything
+        /// that has to stay in step — the hold, the sprite swap, a cutscene's ball flight
+        /// — is measured from the same place, so speeding a catch up cannot leave one of
+        /// them behind. It ran at 10 frames a second, which is 1.6 seconds of catching
+        /// before a player would so much as start dribbling.
+        static let catchSeconds: Double = 0.60
+        static var catchFPS: Double { Double(Sprite.catchBall.frames) / catchSeconds }
     }
 
     enum Figure {

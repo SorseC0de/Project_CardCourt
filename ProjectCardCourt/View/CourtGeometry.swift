@@ -52,9 +52,11 @@ enum Perspective {
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.
     static let refereeLateral: CGFloat = 0.98
-    /// How far up the floor he stands from the player he is posted beside. Small — he is
-    /// off their shoulder, not away downcourt.
-    static let refereeUpcourt: CGFloat = 0.06
+    /// How far up the floor he stands from the player he is posted beside.
+    ///
+    /// Was 0.06, which put the near pair close enough to the flank players to read as
+    /// standing over them rather than watching from the sideline.
+    static let refereeUpcourt: CGFloat = 0.12
 
     /// How wide a card in a pile reads, as a share of the view. The stage sizes the piles
     /// to this and the deck's floor shadow is drawn from it, so the shadow cannot come out
