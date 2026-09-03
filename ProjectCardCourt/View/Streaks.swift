@@ -41,10 +41,10 @@ enum StreakStyle {
     // ── The court's warp: radial, out of the horizon ───────────────────
     static var warp: Double = 0.30
     static let warpCount = 70
-    static let warpThickness: CGFloat = 3.2
+    static let warpThickness: CGFloat = 7.00
     /// Past the corners, so a streak is still travelling when it leaves.
     static let reach: CGFloat = 3.0
-    static let speed: Double = 0.30
+    static let speed: Double = 0.50
     static let paceSlowest: Double = 0.45
     /// Out faster than time goes — this is what reads as depth rather than a firework.
     static let curve: Double = 2.4

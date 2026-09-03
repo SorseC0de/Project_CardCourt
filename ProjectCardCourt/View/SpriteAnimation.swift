@@ -50,6 +50,9 @@ struct SpriteAnimation: View {
     var phase: TimeInterval = 0
     /// When a one-shot started. Frames are counted from here.
     var startedAt: Date?
+    /// Holds here instead of on the last frame, so a run can be cut short and kept —
+    /// the shot-clock turnover plays the first of the catch and stops on the reach.
+    var stopAtFrame: Int?
 
     private var side: CGFloat { sprite.frameSize * scale }
 
@@ -84,6 +87,7 @@ struct SpriteAnimation: View {
         }
         guard let startedAt else { return 0 }
         let elapsed = date.timeIntervalSince(startedAt) * fps
-        return min(showing.frames - 1, max(0, Int(elapsed.rounded(.down))))
+        let last = min(stopAtFrame ?? showing.frames - 1, showing.frames - 1)
+        return min(last, max(0, Int(elapsed.rounded(.down))))
     }
 }

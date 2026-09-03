@@ -6,12 +6,49 @@ struct CourtView: View {
     let revealedBids: [Seat: Int]?
     /// When the ball finished changing hands, so the catch plays in view.
     var settledAt: Date?
+    /// Who threw it, so the ball has somewhere to travel from.
+    var passer: Seat?
+    /// Stands in for the ball's holder while a practice pass is in the air, so the flight
+    /// can be watched without the rules having moved anything.
+    var receiver: Seat?
     /// Whose seat the court is drawn from. Multiplayer passes the local player's.
     var viewer: Seat = GameRules.humanSeat
     var flight: DrawFlight?
+    var deckRoutine: DeckStage.Routine = .rest
+    /// A card the stage should throw, and to whom.
+    var deal: (seat: Seat, id: UUID)?
+    var opening: OpeningDeal?
     var flightDuration: Double = 0.30
     var onOpenDiscard: () -> Void = {}
     var onSelect: (Seat) -> Void
+
+    /// The name under a player's feet.
+    ///
+    /// Its own numbers, not the card's. A card tightens its name with a negative
+    /// `CardLayout.nameTracking` to fit a fixed width; this one is read at a distance
+    /// over a busy floor, so it wants the opposite — bigger, and opened up.
+    private enum NamePlate {
+        static let size: CGFloat = 26
+        /// A share of the size, so the two stay in step.
+        static let tracking: CGFloat = 0.04
+        static let shadow: CGFloat = 3
+
+        // Where it sits, as shares of a figure's height.
+
+        /// Raheem stands at the back, where a name under his feet is covered by whoever
+        /// is nearest the camera — so his goes out beside him instead.
+        static let farX: CGFloat = 0.42
+        static let farLift: CGFloat = 0.55
+        /// The other three sit closer under their own feet.
+        static let drop: CGFloat = 0.02
+    }
+
+    /// Who the court draws as holding the ball.
+    ///
+    /// A practice pass puts it in the receiver's hands without the rules having moved
+    /// anything, and every part of the catch has to agree — the sprite, the flight, and
+    /// the ball's destination all read this rather than `state.ball` directly.
+    private var holder: Seat? { receiver ?? state.ball }
 
     /// Fixed so a bid badge appearing cannot shift a figure off its footing.
     private var nodeHeight: CGFloat { Theme.Figure.height + 26 }
@@ -19,8 +56,17 @@ struct CourtView: View {
     @State private var sweep: CGFloat = 0
     /// Stamped when the ball changes hands, which starts the catch animation.
     @State private var tuning = CourtTuning.shared
+    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
+    @State private var ballTuning = BallTuning.shared
+    @State private var render = RenderDebug.shared
     /// True while the ball is crossing between players.
     @State private var ballInFlight = false
+    /// 0 at the passer, 1 at the receiver. Named apart from the draw's `flight`.
+    @State private var passFlight: CGFloat = 0
+    /// When the ball actually arrived, which is what the catch counts from. Distinct from
+    /// `settledAt`, which is when it *left* — feeding that to the catch played it over the
+    /// top of the throw.
+    @State private var landedAt: Date?
 
     private var selectableSeats: Set<Seat> {
         if case .awaitingInbound(let inbounder) = gate {
@@ -39,6 +85,25 @@ struct CourtView: View {
                 CourtStreaks()
 
                 room(court)
+
+                // One scene for the whole floor. Everything on it is placed from the same
+                // court points the sprites use, so the two cannot disagree.
+                if render.courtStage {
+                    CourtStage(deckAt: share(deckPoint(on: court), in: geo.size),
+                               discardAt: share(discardPoint(on: court), in: geo.size),
+                               deckLayers: max(1, min(40, state.deck.count / 10)),
+                               discardLayers: max(0, min(40, state.discard.count / 10)),
+                               deckRoutine: deckRoutine,
+                               flight: deal.map { deal in
+                                   CardFlight(id: deal.id,
+                                              from: share(deckPoint(on: court), in: geo.size),
+                                              to: share(court.footing(of: deal.seat), in: geo.size))
+                               },
+                               seatsAt: Dictionary(uniqueKeysWithValues: Seat.allCases.map {
+                                   ($0, share(court.footing(of: $0), in: geo.size))
+                               }),
+                               opening: opening)
+                }
 
                 // Hung above the far baseline so the rim clears it rather than
                 // sitting on North's head.
@@ -68,25 +133,41 @@ struct CourtView: View {
                         .zIndex(300)
                 }
 
-                if let holder = state.ball {
-                    let footing = court.footing(of: holder)
+                // The ball is only its own view while crossing — the dribbling sprite
+                // draws one the rest of the time. It travels from the passer's hands to
+                // the receiver's rather than appearing already arrived.
+                if let holder, ballInFlight, let path = flightPath(on: court) {
+                    let (from, to) = path
                     let scale = court.scale(of: holder)
                     PixelBallView()
                         .scaleEffect(scale)
-                        .position(x: footing.x + 26 * scale, y: footing.y - 22 * scale)
-                        // Only visible on its way over: the dribbling sprite draws its
-                        // own ball once someone has it.
-                        .opacity(ballInFlight ? 1 : 0)
-                        .transition(.scale.combined(with: .opacity))
+                        .position(x: from.x + (to.x - from.x) * passFlight,
+                                  y: from.y + (to.y - from.y) * passFlight)
+                        // Never fades in or out. The sprite is already holding a ball, so
+                        // anything but a hard cut reads as two balls dissolving through
+                        // each other.
+                        .transition(.identity)
                 }
             }
             .animation(.spring(response: 0.42, dampingFraction: 0.72), value: state.ball)
             .task(id: settledAt) {
-                guard settledAt != nil else { return }
-                ballInFlight = true
-                // Long enough to cross, then the receiver's sprite takes it over.
-                try? await Task.sleep(for: .seconds(0.45))
-                ballInFlight = false
+                guard settledAt != nil, passer != nil else { return }
+                // On and off instantly — the sprite already holds a ball, so a fade
+                // would read as two balls dissolving into each other.
+                var appear = Transaction(); appear.disablesAnimations = true
+                withTransaction(appear) { passFlight = 0; ballInFlight = true }
+                landedAt = nil
+
+                // Every pass takes the same time, whoever it is between: the ball
+                // simply travels faster across the diamond than to a neighbour. The
+                // arrival is what the catch is timed against, so it stays put.
+                withAnimation(.easeInOut(duration: ballTuning.flightSeconds)) { passFlight = 1 }
+                try? await Task.sleep(for: .seconds(ballTuning.flightSeconds
+                                                    + ballTuning.holdSeconds))
+
+                var vanish = Transaction(); vanish.disablesAnimations = true
+                withTransaction(vanish) { ballInFlight = false }
+                landedAt = Date()
             }
         }
     }
@@ -123,6 +204,65 @@ struct CourtView: View {
                 sweep = 1
             }
         }
+    }
+
+    /// Where the deck and the discard stand, as court points.
+    private func deckPoint(on court: CourtGeometry) -> CGPoint {
+        CGPoint(x: court.centreX
+                + court.halfWidth(at: Perspective.deckDepth) * Perspective.deckLateral,
+                y: court.y(at: Perspective.deckDepth))
+    }
+
+    private func discardPoint(on court: CourtGeometry) -> CGPoint {
+        CGPoint(x: court.centreX
+                + court.halfWidth(at: Perspective.deckDepth) * Perspective.discardLateral,
+                y: court.y(at: Perspective.deckDepth))
+    }
+
+    /// A court point as a share of the view, which is the only language the stage speaks.
+    private func share(_ point: CGPoint, in size: CGSize) -> CGPoint {
+        CGPoint(x: point.x / max(size.width, 1), y: point.y / max(size.height, 1))
+    }
+
+    /// Where the ball sits in a player's hands.
+    ///
+    /// Measured from the player's own footing in shares of a figure's height, then taken
+    /// through that seat's court scale — so one pair of numbers puts the ball in the same
+    /// spot on all four, however near or far they stand.
+    private func ballPoint(of seat: Seat, on court: CourtGeometry,
+                           catching: Bool) -> CGPoint {
+        let footing = court.footing(of: seat)
+        let scale = court.scale(of: seat)
+        let side = Theme.Figure.height * scale
+        // The offset is measured on the unflipped sprite. A player who turns to meet the
+        // pass catches with the other hand, so the offset turns with them. Only the
+        // receiver flips — the thrower is still dribbling, and dribbling never mirrors.
+        let flip: CGFloat = catching
+            && PlayerFigure.catchIsMirrored(seat: seat, facing: passer) ? -1 : 1
+        return CGPoint(x: footing.x + side * ballTuning.handX * flip,
+                       y: footing.y - side * ballTuning.handY)
+    }
+
+    /// Both ends of the throw, so the flight is drawn and timed off the same two points.
+    private func flightPath(on court: CourtGeometry) -> (CGPoint, CGPoint)? {
+        guard let holder else { return nil }
+        let to = ballPoint(of: holder, on: court, catching: true)
+        let from = passer.map { ballPoint(of: $0, on: court, catching: false) } ?? to
+        return (from, to)
+    }
+
+    /// The seat furthest from the camera, whose label the nearest player sits over.
+    private func isFarSeat(_ seat: Seat) -> Bool {
+        seat.slot(viewedFrom: viewer) == .north
+    }
+
+    /// The wedge means "you can pick this one". During an inbound the inbounder is the
+    /// single seat you cannot pass to, so they wear nothing at all — marking them would
+    /// point at the one illegal target on the floor.
+    private func marker(for seat: Seat, selectable: Bool) -> Color? {
+        if selectable { return Theme.live }
+        if case .inbound = state.phase { return nil }
+        return state.phase.actingSeat == seat ? .white : nil
     }
 
     private func defenders(on seat: Seat) -> Int {
@@ -170,12 +310,14 @@ struct CourtView: View {
             }
         case .deck:
             let depth = Perspective.deckDepth
-            DeckStackView(remaining: state.deck.count, width: 138)
+            DeckStackView(remaining: state.deck.count, width: 138, routine: deckRoutine,
+                          showsPile: !render.courtStage)
                 .scaleEffect(court.scale(at: depth), anchor: .bottom)
                 .position(x: court.centreX + court.halfWidth(at: depth) * Perspective.deckLateral,
                           y: court.y(at: depth) + geo.height * 0.02)
 
-            DiscardPileView(count: state.discard.count, width: 99)
+            DiscardPileView(count: state.discard.count, width: 138,
+                            showsPile: !render.courtStage)
                 .scaleEffect(court.scale(at: depth), anchor: .bottom)
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onOpenDiscard)
@@ -215,30 +357,37 @@ struct CourtView: View {
 
     private func node(_ seat: Seat) -> some View {
         let selectable = selectableSeats.contains(seat)
+        let far = seat.slot(viewedFrom: viewer) == .north
         return VStack(spacing: 3) {
             PlayerFigure(
                 seat: seat,
-                isHolding: state.ball == seat,
+                isHolding: holder == seat,
                 isActing: state.phase.actingSeat == seat,
                 // The seat being asked to choose is never dimmed, even though it is
                 // not a legal target for itself.
                 isDimmed: !selectableSeats.isEmpty && !selectable
                     && state.phase.actingSeat != seat,
-                marker: selectable ? Theme.live
-                    : (state.phase.actingSeat == seat ? .white : nil),
+                marker: marker(for: seat, selectable: selectable),
                 handCount: state[seat].bag.count,
-                facing: state.lastPasser,
-                caughtAt: state.ball == seat ? settledAt : nil)
+                facing: passer,
+                caughtAt: holder == seat ? landedAt : nil,
+                // Nobody dribbles a ball that is still in the air. The thrower has let go
+                // and the receiver has not caught it yet, so both are simply running.
+                awaitingBall: ballInFlight && holder == seat)
             SmallCapsText(text: seat.playerName,
                           font: "AvenirNextCondensed-Heavy",
-                          size: 20,
-                          tracking: 20 * CardLayout.nameTracking)
+                          size: NamePlate.size,
+                          tracking: NamePlate.size * NamePlate.tracking)
                 .foregroundStyle(.white)
-                .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                // Pulled up through the sheet's empty rows, or it sits a long way
-                // under the feet at this scale.
-                .offset(y: -Theme.Figure.height * Theme.Figure.spriteFootPadding)
-                .foregroundStyle(Theme.inkDim)
+                .shadow(color: CardPalette.navy, radius: 0,
+                        x: NamePlate.shadow, y: NamePlate.shadow)
+                .fixedSize()
+                // Pulled up through the sheet's empty rows, or it sits a long way under
+                // the feet at this scale.
+                .offset(x: isFarSeat(seat) ? Theme.Figure.height * NamePlate.farX : 0,
+                        y: -Theme.Figure.height
+                            * (Theme.Figure.spriteFootPadding
+                               + (isFarSeat(seat) ? NamePlate.farLift : -NamePlate.drop)))
         }
         .contentShape(Rectangle())
         .overlay(alignment: .top) {

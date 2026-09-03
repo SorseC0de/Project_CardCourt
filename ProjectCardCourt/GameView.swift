@@ -40,6 +40,7 @@ struct GameView: View {
                 // Takes the band the log used to sit in, just above the hand.
                 HStack(alignment: .bottom) {
                     IntangibleSlotsView(held: controller.human.intangibles,
+                                        dormant: controller.dormantIntangibles,
                                         slots: controller.state.rules.intangibleSlots,
                                         onSelect: { inspecting = $0 })
                     Spacer()
@@ -95,9 +96,28 @@ struct GameView: View {
                     .zIndex(11)
             }
             if let scene = controller.reveal {
-                RevealCutsceneView(scene: scene)
+                RevealCutsceneView(scene: scene) { controller.dismissReveal() }
                     .transition(.opacity)
                     .zIndex(12)
+            }
+            if let scene = controller.whistleReveal {
+                WhistleRevealView(scene: scene) { controller.dismissWhistleReveal() }
+                    .transition(.opacity)
+                    .zIndex(14)
+            }
+            // The player's own trip is a gate; an opponent's plays itself. Both use the
+            // same scene, so a free throw looks the same from either seat.
+            if case .awaitingFreeThrow(let trip) = controller.gate {
+                FreeThrowView(trip: trip, auto: nil,
+                              onResult: { controller.shootFreeThrow(made: $0) })
+                    .id(trip.attempted)
+                    .transition(.opacity)
+                    .zIndex(16)
+            } else if let shot = controller.aiFreeThrow {
+                FreeThrowView(trip: shot.trip, auto: shot.made)
+                    .id(shot.id)
+                    .transition(.opacity)
+                    .zIndex(16)
             }
             if let scene = controller.turnover {
                 TurnoverCutsceneView(scene: scene)
@@ -151,8 +171,6 @@ struct GameView: View {
         Group {
             if case .awaitingBid(let shooter) = controller.gate {
                 ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
                     .frame(maxHeight: .infinity)
                     .transition(.opacity)
             } else {
@@ -162,22 +180,42 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.25), value: controller.gate)
     }
 
+    /// A practice pass overrides both ends of the flight; otherwise the rules say.
+    private var passerOnCourt: Seat? {
+        #if DEBUG
+        if let practice = controller.practicePass { return practice.from }
+        #endif
+        return controller.state.lastPasser
+    }
+
+    private var receiverOnCourt: Seat? {
+        #if DEBUG
+        return controller.practicePass?.to
+        #else
+        return nil
+        #endif
+    }
+
     /// In every style but .panel the court claims the log's real estate.
     private var court: some View {
         CourtView(state: controller.state,
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
                   settledAt: controller.ballSettledAt,
+                  passer: passerOnCourt,
+                  receiver: receiverOnCourt,
                   flight: controller.flight,
+                  deckRoutine: controller.deckRoutine,
+                  deal: controller.stageDeal,
+                  opening: controller.opening,
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },
                   onSelect: { controller.inbound(to: $0) })
-            // Attached to the court itself, so the log stays inside its boundary.
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            // No inset: the floor and the streaks run to the screen edges, and
+            // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
-                ShotBadgeView(shot: controller.state.shot)
+                StatusHUDView(state: controller.state)
                     .padding(.trailing, 18)
                     .padding(.top, 6)
             }
