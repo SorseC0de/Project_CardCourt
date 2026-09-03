@@ -561,15 +561,6 @@ enum Rules {
 
         draw(seat, state: &state, events: &events)
 
-        for clamp in state[seat].clamps {
-            let count = min(clamp.card.clamp?.discardAtStart ?? 0, state[seat].bag.count)
-            guard count > 0 else { continue }
-            for _ in 0..<count {
-                let index = state.roll(0...(state[seat].bag.count - 1))
-                state.discard.append(state[seat].bag.remove(at: index))
-            }
-            events.append(.clampBit(seat: seat, card: clamp.card, discarded: count))
-        }
 
         // A Whistle that was waiting for these defenders to land. This is the first
         // moment the clamped player exists, which is the whole reason it waited.
@@ -613,6 +604,24 @@ enum Rules {
             events.append(.clampVoided(seat: seat, card: CardLibrary.freethrowMerchant, count: waved))
             awardFreeThrows(perClamp * waved, to: seat, offender: first.from,
                             source: "Freethrow Merchant", state: &state, events: &events)
+        }
+
+        // **Last of all, and only what survived.** Everything above can cancel a Clamp
+        // before it bites: a Blocking Foul voiding it, Freethrow Merchant replacing it
+        // with a trip to the line. Taking the cards first and cancelling afterwards left
+        // a player robbed by a Clamp the rules had already thrown out.
+        //
+        // This is why the void waits for the landing at all — the card owes a free throw
+        // to *the clamped player*, and at the moment it is played there is nobody to
+        // name. Waiting costs nothing now that the bite happens after the waiting.
+        for clamp in state[seat].clamps {
+            let count = min(clamp.card.clamp?.discardAtStart ?? 0, state[seat].bag.count)
+            guard count > 0 else { continue }
+            for _ in 0..<count {
+                let index = state.roll(0...(state[seat].bag.count - 1))
+                state.discard.append(state[seat].bag.remove(at: index))
+            }
+            events.append(.clampBit(seat: seat, card: clamp.card, discarded: count))
         }
 
         // A Clamp that does its work the moment it lands has nothing left to do, so it
