@@ -83,6 +83,9 @@ struct GameState: Codable {
     var whistleCallsThisRound: [String: Int] = [:]
     /// Set by a Special Move for the shot it is about to take.
     var pendingShotOverride: ShotOverride?
+    /// True when this possession began by grabbing a miss. Putback Tip is the only card
+    /// that asks, and it is the whole of what makes it a *putback*.
+    var possessionFromRebound = false
     var lastPasser: Seat?
     /// Descriptor id of the last card played in the current possession; arms combos.
     var lastPlayThisPossession: String?

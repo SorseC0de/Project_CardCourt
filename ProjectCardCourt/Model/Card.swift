@@ -65,6 +65,9 @@ struct SpecialMoveEffect: Hashable, Codable {
     var overrideRequiresAtLeast: Int?
     /// Buzzer Beater is unplayable unless the clock reads exactly this.
     var onlyAtShotClock: Int?
+    /// `SHOT = x%`, but only off the glass. Putback Tip is a tip-in: from anywhere else
+    /// it is an ordinary ten per cent, and straight after a board it cannot miss.
+    var shotOverrideAfterRebound: Int?
     /// Euro Step: flip until tails, paying out per head.
     /// Discard any number first, paying this much SHOT for each (Turnaround Three).
     var discardForShotBonus = 0

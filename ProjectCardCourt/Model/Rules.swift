@@ -128,7 +128,11 @@ enum Rules {
             }
 
             if let special = descriptor.special {
-                if let override = special.shotOverride {
+                // A tip-in is only a tip-in off the glass. From anywhere else the card is
+                // its ordinary self.
+                let override = special.shotOverride
+                    ?? (state.possessionFromRebound ? special.shotOverrideAfterRebound : nil)
+                if let override {
                     state.pendingShotOverride = ShotOverride(
                         label: descriptor.name, amount: Double(override),
                         requiresAtLeast: special.overrideRequiresAtLeast)
@@ -357,7 +361,8 @@ enum Rules {
         state.lastPasser = nil
         events.append(.rebounded(winner))
         // SHOT carries over — only an inbound resets it.
-        beginPossession(winner, tickClock: true, state: &state, events: &events)
+        beginPossession(winner, tickClock: true, fromRebound: true,
+                        state: &state, events: &events)
         return events
     }
 
@@ -531,10 +536,12 @@ enum Rules {
     }
 
     private static func beginPossession(_ seat: Seat, tickClock shouldTick: Bool,
+                                        fromRebound: Bool = false,
                                         state: inout GameState, events: inout [GameEvent]) {
         state.ball = seat
         state.lastPlayThisPossession = nil
         state.movesThisPossession = 0
+        state.possessionFromRebound = fromRebound
 
         // Clamps live for exactly one possession, so the board is cleared before the
         // pending ones land. Without the clear they stay on a player forever.

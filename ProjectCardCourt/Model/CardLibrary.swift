@@ -19,7 +19,7 @@ enum CardLibrary {
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
-        effect: "Pass back to last player. SHOT +5%",
+        effect: "Pass back to last player. Nobody to give it back to: TOV +1",
         numberInDeck: 5, passTarget: .backToPasser)
 
     static let dribble = CardDescriptor(
@@ -212,7 +212,7 @@ enum CardLibrary {
 
     static let swallowedWhistle = CardDescriptor(
         id: "swallowed-whistle", name: "Swallowed Whistle", type: .gameBreak,
-        effect: "This round",
+        effect: "Whistles cannot be called for the rest of the round",
         numberInDeck: 5,
         gameBreak: GameBreakEffect(silencesWhistles: true))
 
@@ -254,9 +254,9 @@ enum CardLibrary {
 
     static let putbackTip = CardDescriptor(
         id: "putback-tip", name: "Putback Tip", type: .specialMove,
-        effect: "SHOT +10%. Shoot the ball.", numberInDeck: 3,
+        effect: "SHOT +10%. Shoot the ball. After a rebound: SHOT = 100%", numberInDeck: 3,
         shotDelta: 10,
-        special: SpecialMoveEffect(shootsImmediately: true))
+        special: SpecialMoveEffect(shootsImmediately: true, shotOverrideAfterRebound: 100))
 
     static let euroStep = CardDescriptor(
         id: "euro-step", name: "Euro Step", type: .specialMove,
