@@ -115,6 +115,41 @@ enum RefereePost: CaseIterable {
         slot == .north || slot == .west ? .farLeft : .farRight
     }
 
+    /// True for the two posts beside the flank players, false for the pair upcourt.
+    var isNear: Bool { self == .rightWing || self == .leftWing }
+
+    /// The post on the other side *and* the other end of the floor.
+    var opposite: RefereePost {
+        switch self {
+        case .rightWing: return .farLeft
+        case .leftWing:  return .farRight
+        case .farRight:  return .leftWing
+        case .farLeft:   return .rightWing
+        }
+    }
+
+    /// The same end of the floor, the other side of it.
+    var across: RefereePost {
+        switch self {
+        case .rightWing: return .leftWing
+        case .leftWing:  return .rightWing
+        case .farRight:  return .farLeft
+        case .farLeft:   return .farRight
+        }
+    }
+
+    /// Where a whole crew stands, given where the first one did.
+    ///
+    /// Each referee is placed as far from the one before as the floor allows: the second
+    /// takes the opposite corner, the third crosses back to the far one's other side. Two
+    /// officials side by side read as a pair watching one thing; spread out they read as
+    /// a crew watching the game.
+    static func crew(from first: RefereePost) -> [RefereePost] {
+        let second = first.opposite
+        let third = second.across
+        return [first, second, third, third.opposite]
+    }
+
     /// Keeps two referees out of step with each other.
     var phase: TimeInterval {
         TimeInterval(RefereePost.allCases.firstIndex(of: self) ?? 0) * 0.4

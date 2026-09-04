@@ -344,17 +344,15 @@ struct CourtView: View {
     /// first byte is the coin flip for the side, the second picks between that side's two
     /// posts, and anyone finding both taken takes whatever is left.
     private var refereePosts: [RefereePost] {
-        var free = Set(RefereePost.allCases)
-        return state.armedWhistles.compactMap { whistle in
-            let coin = withUnsafeBytes(of: whistle.id.uuid) { Array($0.prefix(2)) }
-            let side: [RefereePost] = coin[0].isMultiple(of: 2)
-                ? [.leftWing, .farLeft] : [.rightWing, .farRight]
-            let wanted = coin[1].isMultiple(of: 2) ? side : side.reversed()
-            guard let post = (wanted + RefereePost.allCases).first(where: free.contains)
-            else { return nil }
-            free.remove(post)
-            return post
-        }
+        guard let first = state.armedWhistles.first else { return [] }
+        // Only the first is rolled — read off that Whistle's own id rather than a random
+        // number, so a redraw cannot move the crew mid-round. Everyone after him is
+        // placed relative to him.
+        let coin = withUnsafeBytes(of: first.id.uuid) { Array($0.prefix(2)) }
+        let start: RefereePost = coin[0].isMultiple(of: 2)
+            ? (coin[1].isMultiple(of: 2) ? .rightWing : .leftWing)
+            : (coin[1].isMultiple(of: 2) ? .farRight : .farLeft)
+        return Array(RefereePost.crew(from: start).prefix(state.armedWhistles.count))
     }
 
     enum Court {
