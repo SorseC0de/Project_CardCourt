@@ -151,7 +151,7 @@ struct CourtView: View {
                 // whatever height it is handed — an oversized scrim changed the shape of
                 // the court.
                 if isStill {
-                    Color.black.opacity(Court.dim)
+                    Court.wash.opacity(Court.dim)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                         .zIndex(Layer.dim)
@@ -384,10 +384,19 @@ struct CourtView: View {
         static let prompt: Double = 4
     }
 
+
     enum Court {
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
+        /// What the wash is made of. The palette's own dark rather than pure black, so a
+        /// dimmed court still belongs to the same game as a lit one.
+        static let wash: Color = CardPalette.black
         static let dim: Double = 0.66
+        /// How far the hand drops out of the way while an inbound is being chosen. Moved
+        /// rather than dimmed: two translucent layers over one another multiply, and the
+        /// seam where the hand's own sheet met the court's was a black band across the
+        /// screen.
+        static let handDrop: CGFloat = 60
     }
 
     private enum Prompt {

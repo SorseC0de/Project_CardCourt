@@ -54,18 +54,12 @@ struct GameView: View {
                     .padding(.bottom, 4)
                     ActionBarView(controller: controller, detail: $detail)
                 }
-                // Dimmed where the cards actually are, rather than by a sheet over the
-                // screen. The court dims itself; this dims the hand; neither can reach
-                // the other's pixels, so nothing is darkened twice and the court does not
-                // have to be lifted over the cards to make it work — which is what was
-                // hiding them.
-                .overlay {
-                    if isChoosingInbound {
-                        Color.black.opacity(CourtView.Court.dim)
-                            .allowsHitTesting(false)
-                            .transition(.opacity)
-                    }
-                }
+                // Out of the way rather than washed over. Two translucent sheets meeting
+                // multiply, and the seam where the hand's met the court's was a black
+                // band across the screen — so the cards step down instead, which also
+                // keeps them off the prompt.
+                .offset(y: isChoosingInbound ? CourtView.Court.handDrop : 0)
+                .animation(.easeOut(duration: 0.3), value: isChoosingInbound)
             }
 
             if let scene = controller.cutscene {
