@@ -178,6 +178,10 @@ enum CardLayout {
         type == .whistle ? CardPalette.blue : CardPalette.navy
     }
 
+    /// The mark a Dribble card wears at its foot, and the one that goes before the word
+    /// wherever another card names it.
+    static let dribbleSymbol = "figure.basketball"
+
     static let shootIconFraction: CGFloat = 0.30
     static let shootIconBottomFraction: CGFloat = 0.04
     /// How much the shoot mark shrinks so it reads as a footnote.

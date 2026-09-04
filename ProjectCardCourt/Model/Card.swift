@@ -11,7 +11,7 @@ struct ClampEffect: Hashable, Codable {
     /// True when the Clamp goes on standing there. A Clamp that debuffs SHOT is a
     /// defender in your way for the whole possession; one that only takes cards has done
     /// its work the moment it arrives and leaves again.
-    var isStanding: Bool { shotDebuff != 0 }
+    var isStanding: Bool { shotDebuff != 0 || locksRandomCards > 0 || passOnly }
 
     /// Bodies this Clamp puts next to its victim. Double-Team is two, Triple-Team three.
     var defenders = 1
@@ -19,6 +19,12 @@ struct ClampEffect: Hashable, Codable {
     var shotDebuff: Int = 0
     /// Discarded at random when the clamped player's possession begins.
     var discardAtStart: Int = 0
+    /// Cards in the clamped player's hand they cannot play this possession, picked at
+    /// random when the Clamp lands and then fixed — see `ActiveClamp.locked`. Re-rolling
+    /// them each time the hand is drawn would make the lock unreadable.
+    var locksRandomCards: Int = 0
+    /// Nothing but Pass cards. Shooting is a free action rather than a card, so it stays.
+    var passOnly = false
 }
 
 /// A passive that sits in one of a player's slots for the rest of the match.
@@ -39,6 +45,9 @@ struct IntangibleEffect: Hashable, Codable {
 
 /// A one-off that fires the moment it is drawn.
 struct GameBreakEffect: Hashable, Codable {
+    /// Everybody, not only whoever turned it up.
+    var everyoneDraws = 0
+
     /// The drawer discards this many at random.
     var discard = 0
     /// Everyone discards down to this hand size.
@@ -73,6 +82,10 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// `SHOT = x%`, but only off the glass. Putback Tip is a tip-in: from anywhere else
     /// it is an ordinary ten per cent, and straight after a board it cannot miss.
     var shotOverrideAfterRebound: Int?
+    /// Bankshot: one flip, paying this much either way.
+    var coinFlipShot = 0
+    /// Skyhook goes up over everything. The debuff layer is skipped for this shot.
+    var ignoresClamps = false
     /// Euro Step: flip until tails, paying out per head.
     /// Discard any number first, paying this much SHOT for each (Turnaround Three).
     var discardForShotBonus = 0
@@ -116,6 +129,14 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let whistle: WhistleEffect?
     /// Part of the Dribble family, which Double Dribble watches for.
     let isDribble: Bool
+    /// Discarded at random from your own hand after the card resolves. Pound Dribble
+    /// draws two and gives one back.
+    var selfDiscard = 0
+    /// Paid per Clamp shaken off. Spin Move turns being guarded into an advantage.
+    var shotPerClamp = 0
+    var drawPerClamp = 0
+    /// And what it costs whoever sent them.
+    var clamperDiscardsPerClamp = 0
     /// Set on Clamps.
     let clamp: ClampEffect?
     /// Set on Intangibles.
@@ -139,8 +160,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
          special: SpecialMoveEffect? = nil, isDribble: Bool = false,
+         selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
+         clamperDiscardsPerClamp: Int = 0,
          freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
          turnoverIfNoClamps: Bool = false) {
+        self.selfDiscard = selfDiscard; self.shotPerClamp = shotPerClamp
+        self.drawPerClamp = drawPerClamp
+        self.clamperDiscardsPerClamp = clamperDiscardsPerClamp
         self.id = id; self.name = name; self.type = type; self.effect = effect
         self.numberInDeck = numberInDeck; self.passTarget = passTarget
         self.shotDelta = shotDelta; self.drawCount = drawCount; self.clockDelta = clockDelta

@@ -31,7 +31,14 @@ enum Rules {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
         case .possession(let holder) where holder == seat:
+            // A Clamp can hold cards down or allow nothing but passes. Both last the
+            // possession, and both are read here rather than refused on play — a card you
+            // cannot use should look like one.
+            let held = Set(state[seat].clamps.flatMap(\.locked))
+            let passOnly = state[seat].clamps.contains { $0.card.clamp?.passOnly == true }
             let playable = state[seat].bag.filter { card in
+                if held.contains(card.id) { return false }
+                if passOnly, card.descriptor.passTarget == nil { return false }
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
@@ -106,6 +113,7 @@ enum Rules {
             adjustShot(by: delta, state: &state)
 
             for _ in 0..<descriptor.drawCount { draw(seat, state: &state, events: &events) }
+            for _ in 0..<descriptor.selfDiscard { discardAtRandom(from: seat, state: &state) }
 
             // Flop sells the contact: every Clamp on the player is a trip to the line,
             // and they all come off. Counted per Clamp card, so a Double-Team is one
@@ -117,8 +125,24 @@ enum Rules {
                                 state: &state, events: &events)
             }
             if descriptor.clearsClamps, !standing.isEmpty {
+                // Paid per Clamp shaken off, before they are cleared — Spin Move and
+                // Crossover turn being guarded into the reason they are good.
+                let shaken = standing.count
+                if descriptor.shotPerClamp != 0 {
+                    adjustShot(by: descriptor.shotPerClamp * shaken, state: &state)
+                }
+                for _ in 0..<(descriptor.drawPerClamp * shaken) {
+                    draw(seat, state: &state, events: &events)
+                }
+                if descriptor.clamperDiscardsPerClamp > 0 {
+                    for clamp in standing {
+                        for _ in 0..<descriptor.clamperDiscardsPerClamp {
+                            discardAtRandom(from: clamp.from, state: &state)
+                        }
+                    }
+                }
                 state[seat].clamps.removeAll()
-                events.append(.clampsShaken(seat: seat, card: descriptor, count: standing.count))
+                events.append(.clampsShaken(seat: seat, card: descriptor, count: shaken))
             }
             if descriptor.turnoverIfNoClamps, standing.isEmpty {
                 // Thrown yourself down on an empty floor. Costs the ball, not the round.
@@ -137,6 +161,15 @@ enum Rules {
                     state.pendingShotOverride = ShotOverride(
                         label: descriptor.name, amount: Double(override),
                         requiresAtLeast: special.overrideRequiresAtLeast)
+                }
+                if special.coinFlipShot != 0 {
+                    // One flip, and it pays the same either way — the risk is the whole
+                    // card.
+                    let heads = state.roll(0...1) == 1
+                    adjustShot(by: heads ? special.coinFlipShot : -special.coinFlipShot,
+                               state: &state)
+                    events.append(.coinRun(seat: seat, card: descriptor,
+                                           heads: heads ? 1 : 0))
                 }
                 if special.coinRunShot > 0 || special.coinRunDraw > 0 {
                     // Flip until tails, paying out per head.
@@ -162,6 +195,7 @@ enum Rules {
                         return events
                     }
                     resolveShot(by: seat, bonusPoints: special.bonusPointOnMake,
+                                overClamps: special.ignoresClamps,
                                 state: &state, events: &events)
                 } else {
                     events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
@@ -379,9 +413,11 @@ enum Rules {
 
     /// Takes the shot. Shared by the free Shoot action and by Special Moves that shoot.
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
+                                    overClamps: Bool = false,
                                     state: inout GameState, events: inout [GameEvent]) {
         let resolution = ShotMath.resolve(base: state.shot,
-                                          modifiers: state.shotModifiers(for: seat),
+                                          modifiers: state.shotModifiers(
+                                            for: seat, ignoringClamps: overClamps),
                                           rules: state.rules)
         state.pendingShotOverride = nil
         let chance = resolution.chance
@@ -615,6 +651,18 @@ enum Rules {
         // This is why the void waits for the landing at all — the card owes a free throw
         // to *the clamped player*, and at the moment it is played there is nobody to
         // name. Waiting costs nothing now that the bite happens after the waiting.
+        // Picked once, here, and then fixed for the possession.
+        for index in state[seat].clamps.indices {
+            let wanted = state[seat].clamps[index].card.clamp?.locksRandomCards ?? 0
+            guard wanted > 0 else { continue }
+            var pool = state[seat].bag.map(\.id)
+            var chosen: [UUID] = []
+            for _ in 0..<min(wanted, pool.count) {
+                chosen.append(pool.remove(at: state.roll(0...(pool.count - 1))))
+            }
+            state[seat].clamps[index].locked = chosen
+        }
+
         for clamp in state[seat].clamps {
             let count = min(clamp.card.clamp?.discardAtStart ?? 0, state[seat].bag.count)
             guard count > 0 else { continue }
@@ -835,6 +883,9 @@ enum Rules {
         if effect.freeThrows > 0 {
             awardFreeThrows(effect.freeThrows, to: seat, offender: nil, source: name,
                             state: &state, events: &events)
+        }
+        for _ in 0..<effect.everyoneDraws {
+            for other in Seat.allCases { draw(other, state: &state, events: &events) }
         }
         if effect.givesBallAway, let holder = state.ball {
             // Handed over, not taken away: whoever is benched decides where the ball

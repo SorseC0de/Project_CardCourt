@@ -32,6 +32,23 @@ enum CardLibrary {
         effect: "SHOT +10%. Following a Dribble: SHOT +10%", numberInDeck: 7,
         shotDelta: 10, comboAfterDribble: true, comboBonus: 10)
 
+    static let poundDribble = CardDescriptor(
+        id: "pound-dribble", name: "Pound Dribble", type: .move,
+        effect: "Draw 2 then discard 1. SHOT +10%. Shot Clock -1", numberInDeck: 5,
+        shotDelta: 10, drawCount: 2, clockDelta: -1, isDribble: true, selfDiscard: 1)
+
+    static let spinMove = CardDescriptor(
+        id: "spin-move", name: "Spin Move", type: .move,
+        effect: "SHOT +10%. Shake every Clamp: SHOT +10% each", numberInDeck: 10,
+        shotDelta: 10, isDribble: true, shotPerClamp: 10, clearsClamps: true)
+
+    static let crossover = CardDescriptor(
+        id: "crossover", name: "Crossover", type: .move,
+        effect: "Draw 1. SHOT +10%. Shake every Clamp: draw 1 and they discard 1 each",
+        numberInDeck: 5,
+        shotDelta: 10, drawCount: 1, isDribble: true,
+        drawPerClamp: 1, clamperDiscardsPerClamp: 1, clearsClamps: true)
+
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
         effect: "Draw 1. SHOT +10%. Shot Clock -1", numberInDeck: 5,
@@ -49,6 +66,21 @@ enum CardLibrary {
         id: "contest", name: "Contest", type: .clamp,
         effect: "Next player: SHOT -25%", numberInDeck: 10,
         clamp: ClampEffect(shotDebuff: -25))
+
+    static let doubleTeam = CardDescriptor(
+        id: "double-team", name: "Double-Team", type: .clamp,
+        effect: "Next player cannot play 2 random cards", numberInDeck: 4,
+        clamp: ClampEffect(defenders: 2, locksRandomCards: 2))
+
+    static let tripleTeam = CardDescriptor(
+        id: "triple-team", name: "Triple-Team", type: .clamp,
+        effect: "Next player cannot play 3 random cards", numberInDeck: 2,
+        clamp: ClampEffect(defenders: 3, locksRandomCards: 3))
+
+    static let trap = CardDescriptor(
+        id: "trap", name: "Trap", type: .clamp,
+        effect: "Next player can play nothing but Passes", numberInDeck: 5,
+        clamp: ClampEffect(defenders: 2, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
@@ -211,6 +243,11 @@ enum CardLibrary {
         effect: "Give up the ball. You choose who to", numberInDeck: 5,
         gameBreak: GameBreakEffect(givesBallAway: true))
 
+    static let salaryCapIncrease = CardDescriptor(
+        id: "salary-cap-increase", name: "Salary Cap Increase", type: .gameBreak,
+        effect: "All players draw 2", numberInDeck: 4,
+        gameBreak: GameBreakEffect(everyoneDraws: 2))
+
     static let swallowedWhistle = CardDescriptor(
         id: "swallowed-whistle", name: "Swallowed Whistle", type: .gameBreak,
         effect: "Whistles cannot be called for the rest of the round",
@@ -259,6 +296,31 @@ enum CardLibrary {
         shotDelta: 10,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverrideAfterRebound: 100))
 
+    static let bankshot = CardDescriptor(
+        id: "bankshot", name: "Bankshot", type: .specialMove,
+        effect: "Flip a coin. Heads SHOT +10%, tails SHOT -10%. Shoot the ball",
+        numberInDeck: 4,
+        special: SpecialMoveEffect(shootsImmediately: true, coinFlipShot: 10))
+
+    static let daggerThree = CardDescriptor(
+        id: "dagger-three", name: "Dagger Three", type: .specialMove,
+        effect: "SHOT -20%. Shoot the ball. +1 PT on make", numberInDeck: 4,
+        shotDelta: -20,
+        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
+
+    static let skyhook = CardDescriptor(
+        id: "skyhook", name: "Skyhook", type: .specialMove,
+        effect: "SHOT +10%. Shoot the ball over every Clamp", numberInDeck: 4,
+        shotDelta: 10,
+        special: SpecialMoveEffect(shootsImmediately: true, ignoresClamps: true))
+
+    static let slamDunk = CardDescriptor(
+        id: "slam-dunk", name: "Slam Dunk", type: .specialMove,
+        effect: "SHOT +10%. SHOT = 100% if it reaches 70%. Shoot the ball", numberInDeck: 4,
+        shotDelta: 10,
+        special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100,
+                                   overrideRequiresAtLeast: 70))
+
     static let euroStep = CardDescriptor(
         id: "euro-step", name: "Euro Step", type: .specialMove,
         effect: "Flip until Tails. Each Heads: SHOT +5% and Draw 1",
@@ -274,12 +336,12 @@ enum CardLibrary {
 
     static let specialMoves: [CardDescriptor] = [
         fadeaway, fromTheHash, fromTheLogo, fullCourtHeave, buzzerBeater, putbackTip,
-        euroStep, turnaroundThree,
+        euroStep, turnaroundThree, bankshot, daggerThree, skyhook, slamDunk,
     ]
 
     static let gameBreaks: [CardDescriptor] = [
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
-        swallowedWhistle, foul,
+        swallowedWhistle, foul, salaryCapIncrease,
     ]
 
     static let whistles: [CardDescriptor] = [
@@ -298,14 +360,17 @@ enum CardLibrary {
         effect: "", numberInDeck: 0)
 
     static let all: [CardDescriptor] = [
-        swingLeft, swingRight, skipPass, behindTheBack, dribble, drive, rhythmDribble,
+        swingLeft, swingRight, skipPass, behindTheBack,
+        dribble, drive, rhythmDribble, poundDribble, spinMove, crossover,
     ]
 
     /// Classic mode's pool: Pass and Move cards only.
     static let classicPool: [CardDescriptor] = all
 
     /// Standard adds everything else, as each type gets built.
-    static let standardPool: [CardDescriptor] = all + [contest, fullCourtPress, flop] + whistles + intangibles + gameBreaks + specialMoves
+    static let standardPool: [CardDescriptor] = all
+        + [contest, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
+        + whistles + intangibles + gameBreaks + specialMoves
 
     /// Names that turn up inside other cards' text, for highlighting them there. Only
     /// multi-letter names, so a stray word is never mistaken for a reference.

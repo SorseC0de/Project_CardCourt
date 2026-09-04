@@ -44,6 +44,7 @@ struct CardFrontView: View {
                 icon
                 effectText
                 if descriptor.takesShot { shootMark }
+                if descriptor.isDribble { dribbleMark }
             }
             if let shot = descriptor.shotEffect { shotBadge(shot) }
         }
@@ -123,6 +124,22 @@ struct CardFrontView: View {
                   y: height * (CardLayout.iconYFraction + descriptor.iconYAdjust))
     }
 
+    /// Bottom-centre, the way the shoot mark is: some dribbles no longer have the word in
+    /// their name, so the family needs a face rather than a spelling.
+    private var dribbleMark: some View {
+        let side = width * CardLayout.shootIconFraction * CardLayout.shootIconCrowding
+        let drop = width * CardLayout.iconShadowFraction
+        return VStack {
+            Spacer()
+            Image(systemName: CardLayout.dribbleSymbol)
+                .font(.system(size: side, weight: .heavy))
+                .foregroundStyle(.white)
+                .shadow(color: CardLayout.iconShadow(for: descriptor.type),
+                        radius: 0, x: drop, y: drop)
+                .padding(.bottom, height * CardLayout.shootIconBottomFraction)
+        }
+    }
+
     /// Bottom-centre, in place of the words it replaces.
     private var shootMark: some View {
         // Small: it is a footnote under the effect, not the card's icon.
@@ -183,7 +200,8 @@ struct CardFrontView: View {
                          highlightShadowOffset: width * 0.014,
                          namedCards: CardLibrary.namesReferencedInText,
                          nameColour: CardPalette.gold,
-                         nameShadow: CardPalette.red)
+                         nameShadow: CardPalette.red,
+                         glyphBefore: (word: "Dribble", symbol: CardLayout.dribbleSymbol))
             .foregroundStyle(effectColour)
             .frame(width: width - inset * 2)
             .position(x: width / 2,

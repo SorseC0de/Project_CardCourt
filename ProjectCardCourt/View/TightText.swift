@@ -33,6 +33,10 @@ struct TightText: View {
     var namedCards: [String] = []
     var nameColour: Color = .primary
     var nameShadow: Color = .clear
+    /// A symbol drawn just before any run whose name contains this word. Dribble cards
+    /// stopped having "Dribble" in their names, so the word in the text carries the mark
+    /// that says what family is meant.
+    var glyphBefore: (word: String, symbol: String)?
 
     /// The size actually used, after the fit search.
     private var chosenSize: CGFloat {
@@ -59,7 +63,12 @@ struct TightText: View {
                 // can only carry its own by being its own view.
                 HStack(spacing: 0) {
                     ForEach(Array(runs(of: line).enumerated()), id: \.offset) { _, run in
-                        Text(run.text)
+                        // The mark goes *inside* the run, so it carries the run's colour
+                        // and its shadow — a separate view beside it would have to be
+                        // told both, and would drift the first time either changed.
+                        (glyph(for: run).map { Text(Image(systemName: $0)) + Text(" ") }
+                            ?? Text(verbatim: "")
+                            + Text(run.text))
                             .font(.custom(font, size: points))
                             .tracking(tracking)
                             .foregroundStyle(run.isName ? AnyShapeStyle(nameColour)
@@ -95,6 +104,13 @@ struct TightText: View {
     }
 
     /// Splits a line into plain and card-name pieces, keeping the spacing intact.
+    /// The symbol this run leads with, if any.
+    private func glyph(for run: (text: String, isName: Bool)) -> String? {
+        guard run.isName, let glyphBefore,
+              run.text.localizedCaseInsensitiveContains(glyphBefore.word) else { return nil }
+        return glyphBefore.symbol
+    }
+
     private func runs(of line: String) -> [(text: String, isName: Bool)] {
         guard !namedCards.isEmpty else { return [(line, false)] }
         let names = namedCards.sorted { $0.count > $1.count }

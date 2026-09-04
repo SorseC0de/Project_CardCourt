@@ -105,7 +105,7 @@ extension GameState {
     /// What this seat's shot picks up beyond the ball's own SHOT.
     ///
     /// Each source appends to the class it belongs to; the calculation never changes.
-    func shotModifiers(for seat: Seat) -> ShotModifiers {
+    func shotModifiers(for seat: Seat, ignoringClamps: Bool = false) -> ShotModifiers {
         var modifiers = ShotModifiers()
         // Adds first, in the order the passives were received.
         for passive in self[seat].intangibles {
@@ -114,7 +114,9 @@ extension GameState {
             modifiers.adds.append(ShotModifier(label: passive.name, amount: Double(effect.shotBonus)))
         }
         modifiers.override = pendingShotOverride
-        for clamp in self[seat].clamps {
+        // Skyhook goes up over everybody. The debuffs are skipped rather than cancelled:
+        // the Clamps are still there, and are still there afterwards.
+        for clamp in ignoringClamps ? [] : self[seat].clamps {
             let debuff = clamp.card.clamp?.shotDebuff ?? 0
             guard debuff != 0 else { continue }
             modifiers.debuffs.append(ShotModifier(label: clamp.card.name, amount: Double(debuff)))

@@ -2,6 +2,10 @@ import Foundation
 
 /// A Clamp sitting on a player for the duration of their possession.
 struct ActiveClamp: Hashable, Codable, Identifiable {
+    /// Which cards this Clamp is holding down, chosen when it lands and then left alone.
+    /// A lock that moved every time the hand was looked at could not be played around.
+    var locked: [UUID] = []
+
     let id: UUID
     let card: CardDescriptor
     let from: Seat
