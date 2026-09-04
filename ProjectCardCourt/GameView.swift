@@ -100,19 +100,6 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(11)
             }
-            // The cards, dimmed to the same depth the court dims itself to.
-            //
-            // Two scrims rather than one oversized one: the court's own is bounded to the
-            // court because `CourtStage` is a RealityView, and a layer bigger than Metal's
-            // maximum texture size aborts the render thread. This one sits above the hand
-            // and below the raised court row, so it darkens the cards and nothing twice.
-            if isChoosingInbound {
-                Color.black.opacity(CourtView.Court.dim)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                    .zIndex(3)
-            }
             if let call = controller.actionCall {
                 ActionCallView(call: call) { controller.actionCallFinished() }
                     .transition(.opacity)

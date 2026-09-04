@@ -146,7 +146,12 @@ struct CourtView: View {
                 if isStill {
                     Rectangle()
                         .fill(.black.opacity(Court.dim))
-                        .frame(width: geo.size.width, height: geo.size.height)
+                        // Tall enough to reach the cards below the court, which are in
+                        // another row of the same stack. Three times the court rather
+                        // than a flat four thousand: an oversized layer in here asks
+                        // Metal for a drawable past its maximum texture size and takes
+                        // the render thread with it.
+                        .frame(width: geo.size.width, height: geo.size.height * 3)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                         // Under everybody, the thrower included. Declaration order alone
@@ -365,7 +370,7 @@ struct CourtView: View {
     enum Court {
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
-        static let dim: Double = 0.66
+        static let dim: Double = 0.33
     }
 
     private enum Prompt {
