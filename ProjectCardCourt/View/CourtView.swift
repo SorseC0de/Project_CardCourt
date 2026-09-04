@@ -91,11 +91,6 @@ struct CourtView: View {
             let court = CourtGeometry(size: geo.size, viewer: viewer)
 
             ZStack {
-                // Opaque, so the court's row hides whatever is behind it. The cards are
-                // dimmed by their own scrim in `GameView`, and without this the two would
-                // both land on the parts of the court the floor does not cover.
-                Theme.panel
-
                 // Streaks live in the background, behind an opaque floor, so they read
                 // as the space beyond the court rather than markings on it.
                 // Nobody is moving during an inbound, so nothing should be streaming
@@ -392,7 +387,7 @@ struct CourtView: View {
     enum Court {
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
-        static let dim: Double = 0.33
+        static let dim: Double = 0.66
     }
 
     private enum Prompt {

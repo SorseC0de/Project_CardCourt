@@ -27,10 +27,6 @@ struct GameView: View {
                 stage
             }
             .ignoresSafeArea(edges: .bottom)
-            // Raised over the cards while the court is asking for a player. The scrim is
-            // drawn inside the court so the figures stand above it — but the court is a
-            // row *below* the hand in this stack, so the row has to come up with it.
-            .zIndex(isChoosingInbound ? 5 : 0)
 
             // Anywhere off the raised card puts it back down. Only present while one is
             // up, so it never swallows a tap on the court.
@@ -43,19 +39,33 @@ struct GameView: View {
 
             VStack(spacing: 0) {
                 Spacer()
-                // Takes the band the log used to sit in, just above the hand.
-                HStack(alignment: .bottom) {
-                    IntangibleSlotsView(held: controller.human.intangibles,
-                                        dormant: controller.dormantIntangibles,
-                                        slots: controller.state.rules.intangibleSlots,
+                VStack(spacing: 0) {
+                    // Takes the band the log used to sit in, just above the hand.
+                    HStack(alignment: .bottom) {
+                        IntangibleSlotsView(held: controller.human.intangibles,
+                                            dormant: controller.dormantIntangibles,
+                                            slots: controller.state.rules.intangibleSlots,
+                                            onSelect: { inspecting = (card: $0, from: $1) })
+                        Spacer()
+                        DebuffSlotsView(cards: controller.human.clamps.map(\.card),
                                         onSelect: { inspecting = (card: $0, from: $1) })
-                    Spacer()
-                    DebuffSlotsView(cards: controller.human.clamps.map(\.card),
-                                    onSelect: { inspecting = (card: $0, from: $1) })
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+                    ActionBarView(controller: controller, detail: $detail)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 4)
-                ActionBarView(controller: controller, detail: $detail)
+                // Dimmed where the cards actually are, rather than by a sheet over the
+                // screen. The court dims itself; this dims the hand; neither can reach
+                // the other's pixels, so nothing is darkened twice and the court does not
+                // have to be lifted over the cards to make it work — which is what was
+                // hiding them.
+                .overlay {
+                    if isChoosingInbound {
+                        Color.black.opacity(CourtView.Court.dim)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
+                    }
+                }
             }
 
             if let scene = controller.cutscene {
@@ -99,16 +109,6 @@ struct GameView: View {
                                    onDismiss: { browsingDiscard = false })
                     .transition(.opacity)
                     .zIndex(11)
-            }
-            // The cards and the strips above the court, dimmed to the same depth the
-            // court dims itself to. It cannot reach the court — that row is raised over
-            // this and paints opaquely — so nothing is darkened twice.
-            if isChoosingInbound {
-                Color.black.opacity(CourtView.Court.dim)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-                    .zIndex(3)
             }
             if let call = controller.actionCall {
                 ActionCallView(call: call) { controller.actionCallFinished() }

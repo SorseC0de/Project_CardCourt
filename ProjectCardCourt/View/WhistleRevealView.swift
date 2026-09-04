@@ -12,6 +12,9 @@ import SwiftUI
 /// The card starts solid white and the white retreats to the edges — no mask to animate,
 /// and it works over any artwork underneath.
 struct WhistleRevealView: View {
+    /// How dark it goes behind the card. A round number, unlike the 0.82 it inherited.
+    static let dim: Double = 0.80
+
     let scene: WhistleReveal
     var onDismiss: () -> Void = {}
 
@@ -33,7 +36,7 @@ struct WhistleRevealView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(dimmed ? 0.82 : 0).ignoresSafeArea()
+            Color.black.opacity(dimmed ? Self.dim : 0).ignoresSafeArea()
 
             whistle
             card.opacity(backIn ? 1 : 0)
