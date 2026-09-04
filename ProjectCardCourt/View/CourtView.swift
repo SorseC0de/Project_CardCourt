@@ -149,6 +149,10 @@ struct CourtView: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .allowsHitTesting(false)
                         .transition(.opacity)
+                        // Under everybody, the thrower included. Declaration order alone
+                        // put it level with the figures, which meant the one drawn behind
+                        // them was drawn behind this too and came out dimmed.
+                        .zIndex(-2)
                 }
 
                 // Painted far to near, so anything upcourt is overlapped by what
@@ -182,9 +186,9 @@ struct CourtView: View {
                         .position(x: court.centreX + prompt.throwerX * court.scale(at: depth),
                                   y: court.y(at: depth) - nodeHeight / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
-                        // Behind everybody, wedges included. He is upcourt of the line
-                        // and behind it in every sense — the people he is choosing between
-                        // are the thing being looked at.
+                        // Behind everybody, wedges included — but in front of the dim.
+                        // He is upcourt of the line and behind it, not under the scrim
+                        // with the floor.
                         .zIndex(-1)
 
                     inboundPrompt
