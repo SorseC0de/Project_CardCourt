@@ -32,10 +32,13 @@ struct InboundOverlay: View {
             let origin = CGPoint(x: self.court.minX - geo.frame(in: .global).minX,
                                  y: self.court.minY - geo.frame(in: .global).minY)
 
-            ZStack(alignment: .topLeading) {
-                Rectangle()
-                    .fill(.black.opacity(0.66))
-                    .ignoresSafeArea()
+            ZStack {
+                // **The stack has to be the size of the reader.** Everything below is
+                // placed with `.position`, which measures from its container — and a
+                // ZStack takes the size of its largest child, so the scrim reaching past
+                // the safe area was quietly moving every figure up with it. This holds
+                // the coordinate space still; the scrim is a background and sizes nothing.
+                Color.clear
 
                 ForEach(Seat.allCases, id: \.self) { seat in
                     if seat != inbounder {
@@ -45,8 +48,8 @@ struct InboundOverlay: View {
                             // inbound, which is also why the streaks stop.
                             InbounderFigure(seat: seat, sprite: .inboundReceiver)
                                 .scaleEffect(court.scale(of: seat), anchor: .bottom)
-                                .frame(width: Theme.Figure.height, height: Theme.Figure.height,
-                                       alignment: .top)
+                                .frame(width: Theme.Figure.height,
+                                       height: Theme.Figure.height, alignment: .top)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -70,8 +73,17 @@ struct InboundOverlay: View {
                 }
 
                 prompt
+                    .position(x: geo.size.width / 2, y: geo.size.height * Prompt.y)
             }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .background(Color.black.opacity(0.66).ignoresSafeArea())
         }
+        .ignoresSafeArea()
+    }
+
+    private enum Prompt {
+        /// Where the two lines sit, as a share of the screen.
+        static let y: CGFloat = 0.12
     }
 
     /// Two lines, and the second is the quiet one — the instruction is "pick somebody",
@@ -85,8 +97,7 @@ struct InboundOverlay: View {
                               .init(" to!")],
                        size: 26)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding(.top, 60)
+        .fixedSize()
         .allowsHitTesting(false)
     }
 }
