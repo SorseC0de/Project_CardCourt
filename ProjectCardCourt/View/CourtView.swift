@@ -67,6 +67,7 @@ struct CourtView: View {
     /// Stamped when the ball changes hands, which starts the catch animation.
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var render = RenderDebug.shared
+    @State private var look = PlayerLook.shared
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var prompt = InboundTextTuning.shared
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
@@ -605,10 +606,13 @@ struct CourtView: View {
                 handCount: state[seat].bag.count,
                 // Set and waiting for it, like everybody else during an inbound — and
                 // turned to watch whoever is throwing it, rather than facing whichever
-                // way the run of play had left them.
+                // way the run of play had left them. One of four ways of standing, so a
+                // line of four is not one man printed four times.
                 sprite: isStill ? .inboundReceiverBack : nil,
+                spriteFrame: isStill ? look.waiting(for: seat).cell : nil,
                 facing: passer,
-                mirrored: isStill ? facesThrower : nil,
+                mirrored: isStill ? (look.waiting(for: seat).mirrored ? !facesThrower
+                                     : facesThrower) : nil,
                 caughtAt: holder == seat ? landedAt : nil,
                 // Nobody dribbles a ball that is still in the air. The thrower has let go
                 // and the receiver has not caught it yet, so both are simply running.

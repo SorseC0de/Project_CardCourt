@@ -16,9 +16,23 @@ final class PlayerLook {
     private var tones: [Seat: Int] = [:]
 
     private var defenderTones: [Seat: Int] = [:]
+    private var waits: [Seat: (cell: Int, mirrored: Bool)] = [:]
 
     func tone(for seat: Seat) -> Int {
         tones[seat] ?? PixelPalette.drawnSkinTone
+    }
+
+    /// How this seat stands while waiting for a throw-in: one of the sheet's three poses,
+    /// with the third also offered mirrored — four ways of standing between four players.
+    ///
+    /// Rolled once per seat and kept, so nobody changes stance while the thrower is
+    /// deciding.
+    func waiting(for seat: Seat) -> (cell: Int, mirrored: Bool) {
+        if let known = waits[seat] { return known }
+        let rolled = Int.random(in: 0..<4)
+        let look = (cell: min(rolled, 2), mirrored: rolled == 3)
+        waits[seat] = look
+        return look
     }
 
     /// The skin of whoever is guarding this seat.

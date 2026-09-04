@@ -28,6 +28,9 @@ struct PlayerFigure: View {
     var handCount: Int?
     /// Overrides what they are doing. The cutscenes use it to make someone shoot.
     var sprite: Sprite?
+    /// Which cell of that sheet to hold on. A sheet of poses rather than of frames — the
+    /// receivers pick one and stand in it.
+    var spriteFrame: Int?
     /// Stops on the last frame instead of looping. The shot does not repeat.
     var playsOnce = false
     /// Overrides the usual rate for a sprite that wants its own pace.
@@ -130,6 +133,9 @@ struct PlayerFigure: View {
             SpriteShadow(scale: scale)
             SpriteAnimation(sprite: action, scale: scale,
                             fps: frameRate,
+                            // A pose rather than a loop: held on one cell, not played.
+                            isPlaying: spriteFrame == nil,
+                            restFrame: spriteFrame ?? 0,
                             // A catch is a one-shot like the shot is. Looping it meant its
                             // frame came from `timeIntervalSinceReferenceDate % frames` — the
                             // wall clock — so every catch began on whatever frame the world
