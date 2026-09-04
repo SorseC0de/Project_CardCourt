@@ -100,6 +100,16 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(11)
             }
+            // The cards and the strips above the court, dimmed to the same depth the
+            // court dims itself to. It cannot reach the court — that row is raised over
+            // this and paints opaquely — so nothing is darkened twice.
+            if isChoosingInbound {
+                Color.black.opacity(CourtView.Court.dim)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                    .zIndex(3)
+            }
             if let call = controller.actionCall {
                 ActionCallView(call: call) { controller.actionCallFinished() }
                     .transition(.opacity)

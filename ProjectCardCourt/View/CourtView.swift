@@ -91,6 +91,11 @@ struct CourtView: View {
             let court = CourtGeometry(size: geo.size, viewer: viewer)
 
             ZStack {
+                // Opaque, so the court's row hides whatever is behind it. The cards are
+                // dimmed by their own scrim in `GameView`, and without this the two would
+                // both land on the parts of the court the floor does not cover.
+                Theme.panel
+
                 // Streaks live in the background, behind an opaque floor, so they read
                 // as the space beyond the court rather than markings on it.
                 // Nobody is moving during an inbound, so nothing should be streaming
@@ -143,20 +148,17 @@ struct CourtView: View {
                 // stack is not free: `CourtStage` is a RealityView in here, and an
                 // oversized layer asks Metal for a drawable past its maximum texture size,
                 // which fails validation and takes the render thread down with it.
+                // Over the scenery, under the people. The deck goes under it with the
+                // floor — during an inbound it is not what is being looked at.
+                //
+                // Exactly the court's own size. Anything larger grows the stack, and
+                // `room` is a GeometryReader inside it that builds the floor from
+                // whatever height it is handed — an oversized scrim changed the shape of
+                // the court.
                 if isStill {
-                    Rectangle()
-                        .fill(.black.opacity(Court.dim))
-                        // Tall enough to reach the cards below the court, which are in
-                        // another row of the same stack. Three times the court rather
-                        // than a flat four thousand: an oversized layer in here asks
-                        // Metal for a drawable past its maximum texture size and takes
-                        // the render thread with it.
-                        .frame(width: geo.size.width, height: geo.size.height * 3)
+                    Color.black.opacity(Court.dim)
                         .allowsHitTesting(false)
                         .transition(.opacity)
-                        // Over the scenery, under the people. The deck goes under it
-                        // with the floor — during an inbound it is not what is being
-                        // looked at.
                         .zIndex(Layer.dim)
                 }
 
