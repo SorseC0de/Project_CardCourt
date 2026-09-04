@@ -465,8 +465,8 @@ struct CourtView: View {
             let footing = court.footing(of: seat)
             let scale = court.scale(of: seat)
             node(seat)
-                // Whoever is inbounding is drawn by `InboundOverlay` instead, stood on
-                // the sideline. Hidden rather than skipped so nothing below them moves.
+                // Whoever is inbounding is drawn on the sideline instead, further up this
+                // same stack. Hidden rather than skipped so nothing below them moves.
                 .opacity(isInbounding(seat) ? 0 : 1)
                 .scaleEffect(scale, anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .bottom)
