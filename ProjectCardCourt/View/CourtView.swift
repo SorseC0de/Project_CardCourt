@@ -178,8 +178,12 @@ struct CourtView: View {
                     InbounderFigure(seat: thrower, holdsBall: true,
                                     mirrored: !post.isLeft)
                         .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
+                        // His own nudge moves *him*, not the figure on the floor — that
+                        // one is not drawn while he is throwing it in.
                         .position(x: court.centreX
-                                  + court.halfWidth(at: post.depth) * post.lateral,
+                                  + court.halfWidth(at: post.depth) * post.lateral
+                                  + (prompt.seatX[thrower] ?? 0)
+                                    * court.scale(at: post.depth),
                                   y: court.y(at: post.depth) - nodeHeight / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
                         .zIndex(200)

@@ -68,17 +68,18 @@ final class InboundTextTuning {
     static let shared = InboundTextTuning()
 
     var topX: CGFloat = 0
-    var topY: CGFloat = -22
+    var topY: CGFloat = 260
     var bottomX: CGFloat = 0
-    var bottomY: CGFloat = 22
+    var bottomY: CGFloat = 310
 
     /// Where the ball sits in the thrower's hands, in art pixels from his frame's top
     /// left — art pixels rather than points, so it stays put at any scale.
-    var ballX: CGFloat = 19
-    var ballY: CGFloat = 10
+    var ballX: CGFloat = 12
+    var ballY: CGFloat = 12
 
-    /// How far each seat steps aside while an inbound is being chosen.
-    var seatX: [Seat: CGFloat] = [:]
+    /// How far each seat steps aside while an inbound is being chosen. The thrower's own
+    /// entry moves him on the sideline, since his figure on the floor is not drawn.
+    var seatX: [Seat: CGFloat] = [.west: 100, .east: -350]
 }
 
 #if DEBUG

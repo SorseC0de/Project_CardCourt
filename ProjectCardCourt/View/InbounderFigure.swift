@@ -61,7 +61,9 @@ struct InbounderFigure: View {
         // The pixel ball, not the vector one. A vector ball on a pixel sprite is a
         // different drawing sitting on top of the game rather than in it.
         return PixelBallView(scale: scale)
-            .offset(x: (tune.ballX + shift) * scale,
+            // The sway runs against the face, not with it: he is turning the ball away
+            // from where he is looking, which is what winding up to throw looks like.
+            .offset(x: (tune.ballX - shift) * scale,
                     y: (tune.ballY + (shift == 0 ? 0 : -1)) * scale)
     }
 
