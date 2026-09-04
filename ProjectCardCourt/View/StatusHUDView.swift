@@ -86,6 +86,8 @@ struct StatusHUDView: View {
     /// What the pile should read — see `GameController.shownDeck`.
     var deck: Int?
     var ballSize: CGFloat = 58
+    /// Tapping the referee opens the crew's sheet, the same as tapping one on the floor.
+    var onInspectReferees: () -> Void = {}
 
     /// Which way the count is arranged against the deck. A setting, so it is kept.
     @AppStorage(DeckReadout.setting) private var layout = DeckReadout.beside
@@ -167,6 +169,8 @@ struct StatusHUDView: View {
             .frame(width: refereeSide, height: refereeSide)
             .drawingGroup()
             .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onInspectReferees)
             .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 }

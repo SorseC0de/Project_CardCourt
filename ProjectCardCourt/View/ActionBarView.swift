@@ -4,9 +4,12 @@ import SwiftUI
 struct ActionBarView: View {
     let controller: GameController
     @Binding var detail: Card?
+    var onInspectReferees: () -> Void = {}
 
     private var state: GameState { controller.state }
-    private var bag: [Card] { controller.human.bag }
+    /// What the table has seen arrive, not what the rules have dealt — see
+    /// `GameController.undelivered`.
+    private var bag: [Card] { controller.shownBag(of: GameRules.localSeat) }
 
     /// The rules decide what is playable, not the view. Without this the AI would be
     /// bound by a Clamp and the human would not.
@@ -57,6 +60,8 @@ struct ActionBarView: View {
                           selected: controller.bidSelection,
                           locked: lockedCards,
                           wash: isChoosingInbound ? CourtView.Court.cardWash : nil,
+                          activeReferees: controller.state.armedWhistles.count,
+                          onInspectReferees: onInspectReferees,
                           detail: $detail,
                           onCommit: commit)
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }

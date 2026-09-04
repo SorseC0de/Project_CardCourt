@@ -24,6 +24,9 @@ struct PlayerFigure: View {
     var isActing = false
     var isDimmed = false
     var marker: Color?
+    /// Clamps already on this player, shown above their head while a Clamp is being read.
+    /// Nil the rest of the time — a running count of nothing on four heads is clutter.
+    var clampCount: Int?
     /// Cards in this player's bag, shown above their head.
     var handCount: Int?
     /// Overrides what they are doing. The cutscenes use it to make someone shoot.
@@ -78,9 +81,15 @@ struct PlayerFigure: View {
         return action == .catchBall ? Theme.Pass.catchFPS : Theme.Figure.playerFPS
     }
 
+    /// A cutscene pose is a resting pose. The catch interrupts it and hands it back —
+    /// otherwise an inbound receiver stands frozen in his waiting cell while the ball
+    /// lands in his arms.
+    private var pose: Sprite? { catching ? nil : sprite }
+    private var poseFrame: Int? { catching ? nil : spriteFrame }
+
     /// Catching for a beat as the ball arrives, then dribbling; jogging without it.
     private var action: Sprite {
-        if let sprite { return sprite }
+        if let pose { return pose }
         if catching { return .catchBall }
         guard isHolding, !awaitingBall else { return .run }
         return .dribble
@@ -117,6 +126,8 @@ struct PlayerFigure: View {
     /// Dribbling is never mirrored — everyone dribbles right-handed. Only the catch and
     /// the idle glance turn, and the human only turns to meet the pass.
     private var isMirrored: Bool {
+        // Turning to meet the ball beats any pose the cutscene had them held in.
+        if action == .catchBall { return Self.catchIsMirrored(seat: seat, facing: facing) }
         if let mirrored { return mirrored }
         guard action != .dribble else { return false }
         // West faces the other way whatever they are doing; the centre line only turns
@@ -134,8 +145,8 @@ struct PlayerFigure: View {
             SpriteAnimation(sprite: action, scale: scale,
                             fps: frameRate,
                             // A pose rather than a loop: held on one cell, not played.
-                            isPlaying: spriteFrame == nil,
-                            restFrame: spriteFrame ?? 0,
+                            isPlaying: poseFrame == nil,
+                            restFrame: poseFrame ?? 0,
                             // A catch is a one-shot like the shot is. Looping it meant its
                             // frame came from `timeIntervalSinceReferenceDate % frames` — the
                             // wall clock — so every catch began on whatever frame the world
@@ -157,6 +168,17 @@ struct PlayerFigure: View {
                              + PixelPalette.skin(tone: look.tone(for: seat)))
                 .opacity(isDimmed ? 0.4 : 1)
                 .overlay(alignment: .top) {
+                    if let clampCount {
+                        // Red over purple: the coils' own colours, so the number reads as
+                        // the same fact the bind lines are already drawing.
+                        Text("×\(clampCount)")
+                            .font(.custom("AvenirNextCondensed-Heavy", size: Bag.number))
+                            .foregroundStyle(CardPalette.red)
+                            .shadow(color: CardPalette.purple, radius: 0, x: 4, y: 4)
+                            .contentTransition(.numericText())
+                            .offset(y: -5 - Bag.side)
+                            .transition(.scale.combined(with: .opacity))
+                    }
                     if let handCount {
                         // The bag says what the number is counting. Its own hard drop in the
                         // seat's colour is what ties the pair to its player now that there is
@@ -196,9 +218,12 @@ struct PlayerFigure: View {
                 }
                 .animation(.easeOut(duration: 0.22), value: marker)
                 .animation(.easeOut(duration: 0.25), value: handCount)
+                .animation(.easeOut(duration: 0.22), value: clampCount)
                 .animation(.easeOut(duration: 0.22), value: isDimmed)
                 .task(id: caughtAt) {
-                    guard caughtAt != nil, isHolding, sprite == nil else { return }
+                    // The court decides who catches — it is the only thing that stamps
+                    // this, and it stamps nobody but the receiver.
+                    guard caughtAt != nil else { return }
                     // Stamped before the sheet swaps in, or the first frame is drawn against
                     // a start time that does not exist yet.
                     caughtFrom = Date()

@@ -6,7 +6,14 @@ enum Pacing {
     /// An opponent's deliberation lands somewhere in here, so play never feels metronomic.
     /// Global for now; each archetype will carry its own range later.
     static var thinkTime: ClosedRange<Double> = 0.75...1.75
-    static let cutscene = 3.0
+    /// Longer, because a throw-in is a decision made from the sideline with the whole
+    /// floor set and waiting. At the ordinary think the court snapped into position and
+    /// the ball was gone again before anybody could read who was where.
+    static var inboundThink: ClosedRange<Double> = 1.5...2.5
+    /// How long a shot's scene holds, on top of whatever its drama costs. Long enough
+    /// for the burst at the rim to have its life — that is the celebration, and it was
+    /// being cut off with the view.
+    static let cutscene = 4.2
     /// Longer than the ball takes to arrive and settle, or the scene cuts away while it
     /// is still rolling — which is what made it look like it never stopped.
     static let turnover = 4.0
@@ -20,7 +27,9 @@ enum Pacing {
     static let drawFlight = 0.30
     static let dealFlight = 0.15
     /// The whole of a defender's swipe: arrive, take, drift off.
-    static let clampSwipe = 0.8
+    /// The whole of a defender's swipe: arrive, hold, drift off, fade. Must outlast
+    /// `DefenderSwipe`'s own timings or the scene is cut while he is still walking.
+    static let clampSwipe = 1.3
     /// The inbound's own throw: how long the ball takes to cross from the sideline, and
     /// how long the thrower stands there having thrown it. He is watching it land.
     static let inboundThrow = 0.5
@@ -43,6 +52,9 @@ enum Pacing {
     static let freeThrow = 2.5
 
     static func think() -> Double { .random(in: thinkTime) }
+    static func think(onInbound: Bool) -> Double {
+        .random(in: onInbound ? inboundThink : thinkTime)
+    }
 }
 
 struct LogLine: Identifiable {
@@ -338,6 +350,53 @@ final class GameController {
     private(set) var clampSwipe: (seat: Seat, id: UUID)?
     /// The phase or event currently announcing itself. See `ActionCall`.
     private(set) var actionCall: ActionCall?
+    /// The Clamps the `.clamped` call is holding up. Alongside the call rather than
+    /// inside it: every other call is a word and nothing else.
+    private(set) var clampCall: [ClampBrief] = []
+    /// Who the **court** is setting up for on the sideline, which is not the same seat the
+    /// rules have inbounding.
+    ///
+    /// The rules name him the moment a possession ends, and everything that ended it —
+    /// the draws, a Game Break turning up, a reveal — is still queued to be shown. Reading
+    /// the phase directly put the whole floor into the inbound pose behind those, so a
+    /// Game Break played out over four players stood in a line waiting for a throw that
+    /// had not been called yet. This is raised when the presentation gets there.
+    private(set) var inbounding: Seat?
+    /// Raised when the played card's beat is nearly up, so the name over it can leave
+    /// before the card does.
+    private(set) var playedCardLeaving = false
+
+    /// The game held where it stands — the pause button, and anything that takes the
+    /// screen over to be read.
+    ///
+    /// **Only ever a solo thing.** The other phones in a live match are not waiting for
+    /// this one, so pausing there just means missing your turn.
+    private(set) var isPaused = false
+
+    /// Cards the rules have dealt that the table has not seen arrive.
+    ///
+    /// Everything a move does is decided the instant the rules run, and the hand is drawn
+    /// from the rules — so a card that draws put its card in the fan before the card that
+    /// drew it had finished being played, and the flight across the court landed on a hand
+    /// that already had it. Held out of the bag until the flight lands, the same way
+    /// `shownBall` and `shownDeck` hold back the ball and the pile.
+    private(set) var undelivered: Set<UUID> = []
+
+    /// A bag as the table has seen it.
+    func shownBag(of seat: Seat) -> [Card] {
+        guard !undelivered.isEmpty else { return state[seat].bag }
+        return state[seat].bag.filter { !undelivered.contains($0.id) }
+    }
+
+    /// Whether this table can be paused at all.
+    var canPause: Bool { Table.shared.remotes.isEmpty }
+
+    /// Whether the floor can be read right now. Always, when nobody else is waiting; in a
+    /// live match only during your own possession, since the game carries on without you.
+    var canInspect: Bool { canPause || state.ball == GameRules.localSeat }
+
+    func pause() { guard canPause else { return }; isPaused = true }
+    func resume() { isPaused = false }
     private(set) var withheldPoints: (seat: Seat, amount: Int)?
     private(set) var flightDuration = Pacing.drawFlight
     /// Set for a beat after a rebound so the reveal can be shown, then cleared.
@@ -589,19 +648,21 @@ final class GameController {
 
     /// Runs a card across the court for each draw, and blocks until they have all landed.
     private func flyDraws(in events: [GameEvent], each duration: Double) async {
-        for case .drew(let seat, _) in events {
-            await fly(to: seat, over: duration)
+        for case .drew(let seat, _, let card) in events {
+            await fly(to: seat, over: duration, delivering: card)
             if Task.isCancelled { return }
         }
         flight = nil
     }
 
-    private func fly(to seat: Seat, over duration: Double) async {
+    private func fly(to seat: Seat, over duration: Double, delivering card: UUID? = nil) async {
         // Counted off as it leaves, not when the rules dealt it.
         if shownDeck > 0 { shownDeck -= 1 }
         flightDuration = duration
         flight = DrawFlight(seat: seat)
         try? await Task.sleep(for: .seconds(duration))
+        // It is in the bag now, and not a moment before.
+        if let card { undelivered.remove(card) }
     }
 
     /// Cards flying in and cards turning face up, in the order they actually happened.
@@ -613,8 +674,8 @@ final class GameController {
         for event in events {
             if Task.isCancelled { return }
             switch event {
-            case .drew(let seat, _):
-                await fly(to: seat, over: Pacing.drawFlight)
+            case .drew(let seat, _, let card):
+                await fly(to: seat, over: Pacing.drawFlight, delivering: card)
             case .gameBreakRevealed:
                 flight = nil
                 // Announced before it is shown: a Break is not something anybody played,
@@ -634,11 +695,13 @@ final class GameController {
     // MARK: - Human input
 
     func inbound(to seat: Seat) {
+        guard !isPaused else { return }
         guard case .awaitingInbound = gate else { return }
         choose(.inbound(to: seat))
     }
 
     func play(_ card: Card) {
+        guard !isPaused else { return }
         guard case .awaitingMove = gate else {
             DevLog.say(.input, "tapped \(card.name) — ignored, gate is \(gate)")
             return
@@ -649,12 +712,14 @@ final class GameController {
     }
 
     func shoot() {
+        guard !isPaused else { return }
         guard case .awaitingMove = gate else { return }
         DevLog.say(.input, "shoot (the free action, no card)")
         choose(.shoot)
     }
 
     func submitDiscard() {
+        guard !isPaused else { return }
         guard case .awaitingDiscard = gate else { return }
         loop?.cancel()
         let chosen = Array(bidSelection)
@@ -674,6 +739,7 @@ final class GameController {
 
     /// The player's own attempt, decided by the mini-game rather than by a roll.
     func shootFreeThrow(made: Bool) {
+        guard !isPaused else { return }
         guard case .awaitingFreeThrow = gate else { return }
         DevLog.say(.input, "free throw \(made ? "good" : "missed")")
         loop?.cancel()
@@ -689,6 +755,7 @@ final class GameController {
     }
 
     func submitBid() {
+        guard !isPaused else { return }
         guard case .awaitingBid = gate else { return }
         loop?.cancel()
         let mine = Array(bidSelection)
@@ -895,6 +962,12 @@ final class GameController {
 
     private func run() async {
         while !Task.isCancelled {
+            // Held between decisions rather than mid-scene: a cutscene stopped halfway is
+            // a broken animation, not a paused game.
+            while isPaused, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(80))
+            }
+            if Task.isCancelled { return }
             if state.isOver { gate = .gameOver; return }
 
             if case .awaitingRebound(let shooter) = state.phase {
@@ -954,14 +1027,18 @@ final class GameController {
             }
             guard let seat = state.phase.actingSeat else { gate = .thinking; return }
 
+            // **Every** throw-in is called, whoever is taking it. It used to be announced
+            // only when it was yours, which left an opponent's inbound as the one thing
+            // on the floor the game never said out loud.
+            let throwingIn = { if case .inbound = state.phase { return true }; return false }()
+            inbounding = throwingIn ? seat : nil
+            if throwingIn {
+                await announce(.inbound)
+                if Task.isCancelled { return }
+            }
+
             if seat == GameRules.localSeat {
-                if case .inbound = state.phase {
-                    await announce(.inbound)
-                    if Task.isCancelled { return }
-                    gate = .awaitingInbound(seat)
-                } else {
-                    gate = .awaitingMove(seat)
-                }
+                gate = throwingIn ? .awaitingInbound(seat) : .awaitingMove(seat)
                 return
             }
             // A seat somebody is sitting in decides for itself — but not forever. The
@@ -975,7 +1052,7 @@ final class GameController {
             }
 
             gate = .thinking
-            try? await Task.sleep(for: .seconds(Pacing.think()))
+            try? await Task.sleep(for: .seconds(Pacing.think(onInbound: throwingIn)))
             if Task.isCancelled { return }
             guard let move = ai.move(state, for: seat) else { gate = .thinking; return }
             await apply(move, by: seat)
@@ -1076,8 +1153,14 @@ final class GameController {
     /// Holds up whatever was just played, so everyone can read it.
     private func showPlayedCard(in events: [GameEvent]) async {
         guard let card = PlayedCard.first(in: events) else { return }
+        playedCardLeaving = false
         playedCard = card
-        try? await Task.sleep(for: .seconds(GameRules.playedCardSeconds))
+        // The name plate rides the same beat and starts its trip out before the card
+        // does, so its slide finishes on screen rather than being cut with the view.
+        let lead = min(GameRules.playedCardSeconds * 0.4, 0.9)
+        try? await Task.sleep(for: .seconds(GameRules.playedCardSeconds - lead))
+        playedCardLeaving = true
+        try? await Task.sleep(for: .seconds(lead))
         playedCard = nil
     }
 
@@ -1121,18 +1204,18 @@ final class GameController {
     func actionCallFinished() { actionCall = nil }
 
     /// Puts a call up and waits for it to take itself off again.
-    private func announce(_ call: ActionCall) async {
+    private func announce(_ call: ActionCall, clamps: [ClampBrief] = []) async {
         guard GameRules.announcesPhases else { return }
+        clampCall = clamps
         actionCall = call
         while actionCall != nil, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(60))
         }
+        clampCall = []
     }
 
     /// Counted before the move, because resolving a shot clears the Clamps that caused it.
-    private func defenderCount(on seat: Seat) -> Int {
-        state[seat].clamps.reduce(0) { $0 + ($1.card.clamp?.defenders ?? 1) }
-    }
+    private func defenderCount(on seat: Seat) -> Int { state.defenders(on: seat) }
 
     private func apply(_ move: Move, by seat: Seat) async {
         let defenders = defenderCount(on: seat)
@@ -1141,6 +1224,9 @@ final class GameController {
         // and the man who threw it watches it go. Cutting to the next possession the
         // instant the card is chosen is what made him warp off the sideline.
         if case .inbound(let target) = move {
+            // Handed straight over: the throw takes the scene from here, so there is never
+            // a frame with neither of them set.
+            inbounding = nil
             throwing = ThrowIn(from: seat, to: target)
             try? await Task.sleep(for: .seconds(Pacing.inboundThrow + Pacing.inboundHold))
             throwing = nil
@@ -1159,6 +1245,9 @@ final class GameController {
         // was last asked for. Left alone, the rebound board sits behind every cutscene
         // that follows a bid and flashes back the moment one clears.
         gate = .thinking
+        // Marked before a single beat plays: the rules dealt these on the way in, and the
+        // hand must not have them until their flight says so.
+        for case .drew(_, _, let card) in events { undelivered.insert(card) }
         broadcast(events)
         // Anything but a pass moves the ball at once: an inbound, a rebound, a turnover.
         // Only a throw has a journey to wait for.
@@ -1183,11 +1272,25 @@ final class GameController {
         await playDrawsAndReveals(in: events)
         release(.draw, from: &ledger)
         release(.reveal, from: &ledger)
+        // Named before anybody swipes: the call is what the possession opens with, and a
+        // Clamp taking cards out of the bag first leaves the announcement explaining
+        // something that has already happened.
+        for case .clampedPossession(_, let clamps) in events {
+            await announce(.clamped, clamps: clamps)
+            break
+        }
         await showClampBite(in: events)
 
         if let scene = ShotCutscene(events: events, defenders: defenders) {
             cutscene = scene
             try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
+            // The board goes up **behind** the shot before the shot comes down. Clearing
+            // the cutscene first put the bare floor on screen for the beat it took the
+            // loop to reach the rebound, which reads as the game losing its place between
+            // two halves of the same moment.
+            if case .awaitingRebound(let shooter) = state.phase {
+                gate = .awaitingBid(shooter: shooter)
+            }
             cutscene = nil
             await celebrateThree(in: events)
         }
@@ -1202,6 +1305,9 @@ final class GameController {
     }
 
     private func record(_ events: [GameEvent]) {
+        // Whatever is left was never flown — an event released outside the draw beat, or
+        // a presentation cut short. A card stranded here is a card missing from the hand.
+        for case .drew(_, _, let card) in events { undelivered.remove(card) }
         shownShot = state.shot
         shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.

@@ -114,7 +114,10 @@ struct CourtStage: View {
 
                 deck.ground = floorPoint(deckAt, in: geo.size)
                 deck.pile.position = deck.ground
-                discard.pile.position = floorPoint(discardAt, in: geo.size)
+                discard.ground = floorPoint(discardAt, in: geo.size)
+                discard.pile.position = discard.ground
+                // Half a lap behind the live pile, so the two do not breathe in step.
+                discard.phase = 0.5
                 place(camera: camera, in: geo.size)
             } update: { content in
                 guard let camera = content.entities
@@ -127,8 +130,12 @@ struct CourtStage: View {
                 // still — so the court hands it a home point rather than a position.
                 deck.ground = floorPoint(deckAt, in: geo.size)
                 if !deck.travelling { fit(deck.pile, in: geo.size) }
-                discard.pile.position = floorPoint(discardAt, in: geo.size)
-                fit(discard.pile, in: geo.size)
+                // The same for the spent pile, now that it drifts too. Setting its
+                // position outright while `idle` was also writing one left the drift
+                // reading a home point of zero — so the pile flew off to the middle of
+                // the world and only its shadow was left on the floor.
+                discard.ground = floorPoint(discardAt, in: geo.size)
+                if !discard.travelling { fit(discard.pile, in: geo.size) }
             }
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
             // Runs for as long as the court is on screen. Cancelled with the view, and

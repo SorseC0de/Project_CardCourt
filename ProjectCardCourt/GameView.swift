@@ -8,6 +8,8 @@ struct GameView: View {
     /// A slotted card held up, and the slot it came from.
     @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
     @State private var browsingDiscard = false
+    /// What the player has tapped open on the floor. See `Inspection`.
+    @State private var onFloor: Inspection?
     @State private var showingLobby = false
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
@@ -50,9 +52,9 @@ struct GameView: View {
                         DebuffSlotsView(cards: controller.human.clamps.map(\.card),
                                         onSelect: { inspecting = (card: $0, from: $1) })
                     }
-                    .padding(.horizontal, 16)
                     .padding(.bottom, 4)
-                    ActionBarView(controller: controller, detail: $detail)
+                    ActionBarView(controller: controller, detail: $detail,
+                                  onInspectReferees: { open(.referees) })
                 }
                 // Out of the way rather than washed over. Two translucent sheets meeting
                 // multiply, and the seam where the hand's met the court's was a black
@@ -102,6 +104,34 @@ struct GameView: View {
                 PlayedCardView(played: played, width: 210)
                     .transition(.opacity)
                     .zIndex(7)
+                VStack {
+                    GeometryReader { geo in
+                        NameCallView(call: NameCall(seat: played.seat),
+                                     reach: geo.size.width,
+                                     isLeaving: controller.playedCardLeaving)
+                    }
+                    .frame(height: 80)
+                    .padding(.top, 26)
+                    Spacer()
+                }
+                .id(played.id)
+                .allowsHitTesting(false)
+                .zIndex(8)
+            }
+            if let onFloor {
+                Group {
+                    switch onFloor {
+                    case .player(let seat):
+                        PlayerInspectView(state: controller.state, seat: seat,
+                                          onDismiss: closeFloor)
+                    case .referees:
+                        RefereeInspectView(state: controller.state, onDismiss: closeFloor)
+                    }
+                }
+                .id(onFloor.id)
+                // Over the cards, under a call: the game speaking still outranks a thing
+                // the player opened for themselves.
+                .zIndex(11)
             }
             if browsingDiscard {
                 DiscardBrowserView(cards: controller.state.discard,
@@ -110,7 +140,9 @@ struct GameView: View {
                     .zIndex(11)
             }
             if let call = controller.actionCall {
-                ActionCallView(call: call) { controller.actionCallFinished() }
+                ActionCallView(call: call, clamps: controller.clampCall) {
+                    controller.actionCallFinished()
+                }
                     .transition(.opacity)
                     // Over everything, cards included. It is the game speaking.
                     .zIndex(40)
@@ -221,8 +253,28 @@ struct GameView: View {
     }
 
     /// How dark the screen should be, whichever thing has taken it.
+    /// Whatever card is being read right now, from the hand or from a slot. Two ways in,
+    /// one answer — a Clamp raised out of the fan and one raised out of its slot are the
+    /// same card being looked at.
+    private var beingRead: CardDescriptor? { detail?.descriptor ?? inspecting?.card }
+
+    /// Opens a floor sheet, and holds the game behind it where that is allowed.
+    private func open(_ inspection: Inspection) {
+        guard controller.canInspect else { return }
+        controller.pause()
+        onFloor = inspection
+    }
+
+    private func closeFloor() {
+        onFloor = nil
+        controller.resume()
+    }
+
     private var dim: Double {
         if browsingDiscard { return Theme.dimBrowser }
+        // The sheets carry their own, so the screen's stays out of it — two scrims over
+        // one another multiply into black.
+        if onFloor != nil { return 0 }
         if controller.whistleReveal != nil { return Theme.dimWhistle }
         if controller.reveal != nil { return Theme.dimReveal }
         return 0
@@ -266,6 +318,7 @@ struct GameView: View {
                   revealedBids: controller.revealedBids,
                   settledAt: controller.ballSettledAt,
                   shownBall: controller.shownBall,
+                  inbounding: controller.inbounding,
                   throwing: controller.throwing,
                   passer: passerOnCourt,
                   receiver: receiverOnCourt,
@@ -276,13 +329,18 @@ struct GameView: View {
                   opening: controller.opening,
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },
-                  onSelect: { controller.inbound(to: $0) })
+                  onSelect: { controller.inbound(to: $0) },
+                  undelivered: controller.undelivered,
+                  showingClamps: beingRead?.clamp != nil,
+                  onInspectPlayer: { open(.player($0)) },
+                  onInspectReferees: { open(.referees) })
             // No inset: the floor and the streaks run to the screen edges, and
             // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
                 StatusHUDView(state: controller.state, shot: controller.shownShot,
-                              deck: controller.shownDeck)
+                              deck: controller.shownDeck,
+                              onInspectReferees: { open(.referees) })
                     .padding(.trailing, 18)
                     .padding(.top, 6)
             }

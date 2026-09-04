@@ -139,6 +139,17 @@ enum PixelPalette {
         }
     }
 
+    /// The darker half of what a seat wears. What a name is dropped in, so the label
+    /// belongs to the player rather than to the court.
+    static func shade(for seat: Seat) -> Color {
+        switch seat {
+        case .south: return jerseyShade
+        case .north: return orange
+        case .east:  return pine
+        case .west:  return darkMagenta
+        }
+    }
+
     /// What a defender wears. Red, whoever put him there — a Clamp is not that player's
     /// teammate arriving, it is the defence.
     static let defenderUniform: [PaletteSwap] = swap(to: vermilion, shade: darkRed)

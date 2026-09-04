@@ -5,6 +5,14 @@ struct ShotCutsceneView: View {
 
     @State private var flight: CGFloat = 0
     @State private var showResult = false
+    private enum Name {
+        static let drop: CGFloat = 26
+        /// How long before the scene ends the plate starts its trip out. Long enough that
+        /// the slide finishes on screen rather than being cut off with the view.
+        static let lead: Double = 0.9
+    }
+
+    @State private var nameLeaving = false
     @State private var showBurst = false
     /// When the ball reached the rim, which is what the net decays from.
     @State private var struckAt: Date?
@@ -36,6 +44,17 @@ struct ShotCutsceneView: View {
                     Spacer()
                 }
                 .zIndex(0)
+
+                // Whose shot this is, said across the top rather than under his feet: the
+                // camera pushes in on the rim, and a plate on the floor is either off the
+                // bottom of the shot or too small to read.
+                VStack {
+                    NameCallView(call: NameCall(seat: scene.shooter),
+                                 reach: geo.size.width, isLeaving: nameLeaving)
+                        .padding(.top, Name.drop)
+                    Spacer()
+                }
+                .zIndex(1)
 
                 // Held until the ball is actually at the rim.
                 if let burst, showBurst {
@@ -95,10 +114,6 @@ struct ShotCutsceneView: View {
                                  playsOnce: true, fps: Theme.Figure.shootFPS,
                                  mirrored: false)
                         .scaleEffect(1.7)
-                    Text(scene.shooter.playerName.uppercased())
-                        .font(.system(size: 12, weight: .heavy))
-                        .tracking(1.4)
-                        .foregroundStyle(Theme.inkDim)
                     Text("SHOT \(scene.chance)%")
                         .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(Theme.ink)
@@ -187,6 +202,12 @@ struct ShotCutsceneView: View {
 
     private func run() async {
         let tempo = max(0.1, tuning.tempo)
+        // Its own clock, so the name is not waiting on the ball's business at the rim.
+        Task { @MainActor in
+            let scene = Pacing.cutscene + self.scene.drama.seconds - Name.lead
+            try? await Task.sleep(for: .seconds(max(0.2, scene)))
+            nameLeaving = true
+        }
         try? await Task.sleep(for: .seconds(tuning.releaseDelay / tempo))
         released = true
         // Linear: easing out here made the ball decelerate into the rim and stall.

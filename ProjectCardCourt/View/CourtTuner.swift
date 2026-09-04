@@ -70,7 +70,7 @@ final class InboundTextTuning {
     var topX: CGFloat = 0
     var topY: CGFloat = 270
     var bottomX: CGFloat = 0
-    var bottomY: CGFloat = 320
+    var bottomY: CGFloat = 300
 
     /// Where the ball sits in the thrower's hands, in art pixels from his frame's top
     /// left — art pixels rather than points, so it stays put at any scale.

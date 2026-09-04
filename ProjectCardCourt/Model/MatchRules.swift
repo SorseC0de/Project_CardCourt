@@ -26,6 +26,10 @@ struct MatchRules: Hashable, Codable {
     var shotCeiling: Int
     /// How many passives a player can carry. A fourth pushes the oldest out.
     var intangibleSlots: Int
+    /// How many Clamps one player can be carrying. A fourth is simply not playable — the
+    /// floor only holds so many bodies, and an uncapped stack meant a hand could be shut
+    /// down entirely before its owner had touched the ball.
+    var clampSlots: Int
     /// How many Whistles can be armed across the whole table at once. Shared, not per
     /// player — the referees on the floor are the count, and they belong to nobody.
     var refereeSlots: Int
@@ -51,6 +55,7 @@ extension MatchRules {
             shotFloor: 0,
             shotCeiling: 100,
             intangibleSlots: 3,
+            clampSlots: 3,
             refereeSlots: 3,
             cardPool: CardLibrary.classicPool)
     }

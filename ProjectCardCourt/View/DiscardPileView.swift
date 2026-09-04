@@ -52,13 +52,16 @@ struct DiscardPileView: View {
                 pile.offset(y: -width * Spent.lift)
             }
             Text("\(count)")
-                .font(.custom("AvenirNextCondensed-Heavy", size: 18))
-                .foregroundStyle(CardPalette.gray)
+                .font(.custom("AvenirNextCondensed-Heavy", size: 24))
+                .foregroundStyle(.white)
                 .shadow(color: CardPalette.blue, radius: 0, x: 2, y: 2)
                 .contentTransition(.numericText())
                 .offset(y: width * Spent.countDrop)
         }
-        .opacity(count == 0 ? 0.35 : 1)
+        // Nothing at all when nothing has been spent. A greyed-out zero over a bare
+        // patch of floor is a thing that looks broken rather than a thing that is empty.
+        .opacity(count == 0 ? 0 : 1)
+        .animation(.easeOut(duration: 0.25), value: count == 0)
     }
 }
 

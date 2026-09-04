@@ -144,8 +144,10 @@ struct WhistleRevealView: View {
         withAnimation(.easeOut(duration: 0.25)) { dimmed = true }
         try? await Task.sleep(for: .seconds(0.18))
 
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.52)) { whistleIn = true }
-        try? await Task.sleep(for: .seconds(0.62))
+        // Already popped in, on the call — `ActionCall.whistle` shows this same gold
+        // whistle in place of a word. Playing it again here was the one thing said twice,
+        // and a beat spent saying it. It stays behind the card as what summoned it.
+        whistleIn = true
 
         withAnimation(.easeOut(duration: 0.3)) { backIn = true }
         try? await Task.sleep(for: .seconds(0.42))

@@ -10,7 +10,19 @@ struct EmojiBurst: View {
     var reach: CGFloat = 190
     var size: CGFloat = 30
 
+    private enum Burst {
+        /// The throw, and then the long slow drift after it. Two flips rather than one
+        /// curve: a single easeOut long enough to keep them up this long spends almost
+        /// all of it stationary, which reads as the burst having frozen.
+        static let creep: CGFloat = 1.35
+        static let creepSeconds: Double = 2.4
+        /// How long they hold at full before any of them starts to go.
+        static let solid: Double = 2.2
+        static let fade: Double = 0.9
+    }
+
     @State private var fired = false
+    @State private var drifted = false
     @State private var faded = false
 
     var body: some View {
@@ -28,22 +40,29 @@ struct EmojiBurst: View {
                 Text(emoji[which])
                     .font(.system(size: size * (0.7 + CGFloat(StreakStyle.scatter(index, 4)) * 0.6)))
                     .rotationEffect(.degrees(fired ? Double(StreakStyle.scatter(index, 5)) * 720 - 360 : 0))
-                    .offset(x: fired ? cos(angle) * distance : 0,
-                            y: fired ? sin(angle) * distance + drop : 0)
+                    .offset(x: fired ? cos(angle) * distance * carry : 0,
+                            y: fired ? sin(angle) * distance * carry + drop : 0)
                     .opacity(faded ? 0 : 1)
                     .scaleEffect(fired ? 1 : 0.4)
                     .animation(.easeOut(duration: 0.85 + Double(StreakStyle.scatter(index, 6)) * 0.5)
                         .delay(Double(StreakStyle.scatter(index, 7)) * 0.12), value: fired)
+                    // Its own curve, keyed to its own flip, so the drift does not retime
+                    // the throw it follows.
+                    .animation(.easeOut(duration: Burst.creepSeconds), value: drifted)
             }
         }
         .allowsHitTesting(false)
         .task {
             fired = true
-            // Solid for most of the flight; it only thins out on the way off screen.
-            try? await Task.sleep(for: .seconds(0.55))
-            withAnimation(.easeIn(duration: 0.45)) { faded = true }
+            drifted = true
+            // Solid for the whole of the drift; it only thins out at the very end.
+            try? await Task.sleep(for: .seconds(Burst.solid))
+            withAnimation(.easeIn(duration: Burst.fade)) { faded = true }
         }
     }
+
+    /// How far out a piece has carried by now: all the way, and then some.
+    private var carry: CGFloat { drifted ? Burst.creep : 1 }
 
     /// Fanned across the full circle, biased upward and outward from the rim.
     private func spread(_ index: Int) -> CGFloat {

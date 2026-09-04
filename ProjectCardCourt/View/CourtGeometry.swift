@@ -64,6 +64,9 @@ enum Perspective {
     /// Was 0.06, which put the near pair close enough to the flank players to read as
     /// standing over them rather than watching from the sideline.
     static let refereeUpcourt: CGFloat = 0.12
+    /// The near pair stand further up again. They are the two closest to the camera, so
+    /// the same nudge that clears the far pair of North barely moves them off the flanks.
+    static let refereeNearUpcourt: CGFloat = 0.20
 
     /// How wide a card in a pile reads, as a share of the view. The stage sizes the piles
     /// to this and the deck's floor shadow is drawn from it, so the shadow cannot come out
@@ -98,8 +101,10 @@ enum RefereePost: CaseIterable {
     var isLeft: Bool { self == .leftWing || self == .farLeft }
 
     var depth: CGFloat {
-        let beside: Seat = (self == .rightWing || self == .leftWing) ? .east : .north
-        return Perspective.depth(of: beside) - Perspective.refereeUpcourt
+        let onWing = self == .rightWing || self == .leftWing
+        let beside: Seat = onWing ? .east : .north
+        return Perspective.depth(of: beside)
+            - (onWing ? Perspective.refereeNearUpcourt : Perspective.refereeUpcourt)
     }
 
     var lateral: CGFloat {
@@ -259,11 +264,13 @@ struct PileShadow: View {
     var width: CGFloat
     /// How wide the court is on screen, which is what turns the drift into points.
     var across: CGFloat
+    /// Where in the drift the pile it belongs to is. See `DeckDrift.offset`.
+    var phase: Double = 0
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let rise = DeckDrift.rise(at: timeline.date)
-            let drift = DeckDrift.offset(at: timeline.date)
+            let rise = DeckDrift.rise(at: timeline.date, phase: phase)
+            let drift = DeckDrift.offset(at: timeline.date, phase: phase)
             // Smaller and fainter the higher it rides, which is the whole reading.
             let size = width * (1 - Shadow.shrink * rise)
 

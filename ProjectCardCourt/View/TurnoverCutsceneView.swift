@@ -50,6 +50,14 @@ struct TurnoverCutsceneView: View {
         static let cutSeconds = 0.5
     }
 
+    private enum Name {
+        static let drop: CGFloat = 26
+        /// How long before the scene ends the plate starts its trip out, so the slide
+        /// finishes on screen rather than being cut off with the view.
+        static let lead: Double = 0.9
+    }
+
+    @State private var nameLeaving = false
     @State private var expired = false
     @State private var flash = false
     @State private var showCaption = false
@@ -77,8 +85,22 @@ struct TurnoverCutsceneView: View {
                     looseBall(in: geo.size)
                     caption(in: geo.size, y: 0.34)
                 }
+
+                // Whose turnover it is, across the top. The loose-ball scene has nobody
+                // in shot at all, and the shot-clock one is a close-up — neither has room
+                // for a plate under a pair of feet.
+                VStack {
+                    NameCallView(call: NameCall(seat: scene.seat),
+                                 reach: geo.size.width, isLeaving: nameLeaving)
+                        .padding(.top, Name.drop)
+                    Spacer()
+                }
             }
             .task { await run(in: geo.size) }
+            .task {
+                try? await Task.sleep(for: .seconds(max(0.2, scene.hold - Name.lead)))
+                nameLeaving = true
+            }
         }
     }
 
@@ -189,12 +211,6 @@ struct TurnoverCutsceneView: View {
                              stopAtFrame: Held.stopAtFrame, mirrored: facingBall,
                              scale: Held.spriteScale)
                     .position(centre)
-
-                Text(scene.seat.playerName.uppercased())
-                    .font(.system(size: 12, weight: .heavy)).tracking(1.4)
-                    .foregroundStyle(Theme.inkDim)
-                    .opacity(cut == 0 ? 1 : 0)
-                    .position(x: centre.x, y: footing.y + 22)
 
                 // Gone the moment he has it — the sprite is holding one of its own from
                 // here, and two balls in one pair of hands reads as a mistake.

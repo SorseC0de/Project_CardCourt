@@ -21,6 +21,9 @@ struct FannedBagView: View {
     /// A wash over every card, whatever else is going on. The red one marks a card out;
     /// this one marks the whole hand as not being what is being asked about.
     var wash: Color?
+    /// Referees already on the floor. Hung under a Whistle while it is being read.
+    var activeReferees: Int = 0
+    var onInspectReferees: () -> Void = {}
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -73,6 +76,17 @@ struct FannedBagView: View {
                                     }
                                 }
                                 .allowsHitTesting(false)
+                        }
+                    }
+                    // Half off the bottom edge, and inside the card's own frame so it
+                    // grows with the card rather than sitting there at hand size while
+                    // the card doubles around it.
+                    .overlay(alignment: .bottom) {
+                        if expanded, card.descriptor.whistle != nil, activeReferees > 0 {
+                            RefereeTally(count: activeReferees, side: 11,
+                                         onOpen: onInspectReferees)
+                                .alignmentGuide(.bottom) { $0[VerticalAlignment.center] }
+                                .transition(.scale.combined(with: .opacity))
                         }
                     }
                     .modifier(ShakeEffect(progress: refused == card.id ? refusal : 0))

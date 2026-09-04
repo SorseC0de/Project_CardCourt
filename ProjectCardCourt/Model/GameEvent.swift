@@ -4,7 +4,9 @@ enum GameEvent: Hashable, Codable {
     case gameBegan(firstInbounder: Seat)
     case roundBegan(round: Int, inbounder: Seat)
     case inbounded(from: Seat, to: Seat)
-    case drew(seat: Seat, card: CardDescriptor)
+    /// A card off the deck and into a bag. The physical card's id travels with it so the
+    /// table can hold it out of the hand until its flight has actually landed.
+    case drew(seat: Seat, card: CardDescriptor, id: UUID)
     case shotClockSet(Int)
     case shotClockTicked(Int)
     case passed(card: CardDescriptor, from: Seat, to: Seat, shot: Int)
@@ -30,6 +32,9 @@ enum GameEvent: Hashable, Codable {
     case intangibleDisplaced(seat: Seat, card: CardDescriptor)
     case reinbound(seat: Seat)
     case clampSet(seat: Seat, card: CardDescriptor)
+    /// A possession opening with defenders already on the man taking it. Clamps are set
+    /// before the ball arrives, so this is the first moment anybody can be told.
+    case clampedPossession(seat: Seat, clamps: [ClampBrief])
     case clampBit(seat: Seat, card: CardDescriptor, discarded: Int)
     case shotAttempted(seat: Seat, chance: Int, breakdown: ShotResolution)
     /// `chance` is the number the roll was made against, carried so the line can print
@@ -58,7 +63,7 @@ enum GameEvent: Hashable, Codable {
     /// True for events the player should see spelled out; draws and clock sets are noise.
     var isLoggable: Bool {
         switch self {
-        case .drew, .shotClockSet: return false
+        case .drew, .shotClockSet, .clampedPossession: return false
         default: return true
         }
     }
@@ -71,7 +76,7 @@ enum GameEvent: Hashable, Codable {
             return "— Round \(round) — \(inbounder.playerName) to inbound."
         case .inbounded(let from, let to):
             return "\(from.playerName) \(from.verb("inbounds", "inbound")) to \(to.playerName)."
-        case .drew(let seat, let card):
+        case .drew(let seat, let card, _):
             return "\(seat.playerName) drew \(card.name)."
         case .shotClockSet(let value):
             return "Shot clock set to \(value)."
@@ -158,6 +163,8 @@ enum GameEvent: Hashable, Codable {
             return "End of round \(round)."
         case .deckReshuffled:
             return "Deck reshuffled."
+        case .clampedPossession(let seat, let clamps):
+            return "\(seat.playerName) \(seat.verb("opens", "open")) up under \(clamps.count) Clamp\(clamps.count == 1 ? "" : "s")."
         case .halftime:
             return "— HALFTIME — bags and discards reshuffled, fresh 5 each."
         case .gameEnded(let winners):

@@ -1,18 +1,25 @@
 import SwiftUI
 
-/// The three passive slots, bottom-left. Empty slots stay visible so the ceiling is
+/// The three passive slots, bottom-left. Empty wells stay visible so the ceiling is
 /// legible before it is ever reached.
 struct IntangibleSlotsView: View {
     let held: [CardDescriptor]
     var dormant: Set<String> = []
     let slots: Int
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
+    /// Both on the bench while the plate is being looked at — see `SlantPanel`.
+    var lean: CGFloat = 0.30
+    /// The word on the plate's edge, and where it sits against it.
+    var titleSize: CGFloat = 20
+    var titleY: CGFloat = -0.300
+    var wash: Double = Well.wash
+    var sideLip: CGFloat = Well.sideLip
+    var topLip: CGFloat = Well.topLip
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("INTANGIBLES")
-                .font(.system(size: 6.5, weight: .heavy)).tracking(0.9)
-                .foregroundStyle(Theme.inkDim)
+        SlantPanel(title: "Intangibles", fill: CardPalette.blue,
+                   shade: CardPalette.gold, titleDrop: CardPalette.blue,
+                   titleSize: titleSize, titleY: titleY, lean: lean) {
             HStack(spacing: 4) {
                 ForEach(0..<slots, id: \.self) { index in
                     let card = held.indices.contains(index) ? held[index] : nil
@@ -32,30 +39,17 @@ struct IntangibleSlotsView: View {
                 }
             }
         }
+        // Only when there is something to say. An empty rank of dotted boxes taught the
+        // ceiling once and then sat there for the rest of the game.
+        .opacity(held.isEmpty ? 0 : 1)
+        .animation(.easeOut(duration: 0.25), value: held.isEmpty)
     }
 
     private func slot(_ card: CardDescriptor?) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 4)
-                .fill(card == nil ? Color.white.opacity(0.04) : Theme.panelRaised)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(card == nil ? Theme.inkDim.opacity(0.35) : Theme.clockAmber,
-                                      style: StrokeStyle(lineWidth: 1,
-                                                         dash: card == nil ? [2.5, 2.5] : []))
-                }
-            if let card {
-                Text(card.name.uppercased())
-                    .font(.system(size: 5.5, weight: .heavy))
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(3)
-                    .foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 2)
-            }
-        }
-        .frame(width: 30, height: 40)
-        .grayscale(card.map { dormant.contains($0.id) } ?? false ? 1 : 0)
-        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: card)
+        SlotWell(tint: CardPalette.blue, card: card, wash: wash,
+                 sideLip: sideLip, topLip: topLip)
+            // A passive that currently pays nothing, drained rather than dimmed.
+            .grayscale(card.map { dormant.contains($0.id) } ?? false ? 1 : 0)
+            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: card)
     }
 }

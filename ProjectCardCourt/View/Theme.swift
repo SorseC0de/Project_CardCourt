@@ -17,6 +17,9 @@ enum Theme {
     static let dimWhistle: Double = 0.80
     static let dimReveal: Double = 0.72
     static let dimBrowser: Double = 0.85
+    /// Behind a phase call. Lighter than the whistle's, because the call is a word rather
+    /// than a card to be read.
+    static let dimCall: Double = 0.66
 
     static let panel        = Color(red: 0.11, green: 0.12, blue: 0.15)
     static let panelRaised  = Color(red: 0.16, green: 0.17, blue: 0.21)

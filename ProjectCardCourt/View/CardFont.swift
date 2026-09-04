@@ -14,18 +14,21 @@ import SwiftUI
 final class CardFont {
     static let shared = CardFont()
 
-    /// The weights being compared, lightest first. Only Barlow Semi Condensed is
-    /// installed — the narrower plain Condensed cut is not, so it is not offered.
+    /// The cuts being compared: four weights of Semi Condensed, then the narrower plain
+    /// Condensed at bold for the width rather than the weight.
     enum Weight: String, CaseIterable {
         case semibold = "SemiCondensed-SemiBold"
         case bold = "SemiCondensed-Bold"
         case extraBold = "SemiCondensed-ExtraBold"
         case black = "SemiCondensed-Black"
+        /// The narrower cut. Same drawing, less width, so more fits on a line.
+        case condensed = "Condensed-Bold"
 
         var fontName: String { "Barlow\(rawValue)" }
         /// What the bench shows: the part that differs between them.
         var label: String {
             rawValue.replacingOccurrences(of: "SemiCondensed-", with: "")
+                .replacingOccurrences(of: "Condensed-", with: "narrow ")
                 .replacingOccurrences(of: "-", with: " ").lowercased()
         }
         var next: Weight {

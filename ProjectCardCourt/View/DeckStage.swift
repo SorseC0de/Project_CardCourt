@@ -21,8 +21,12 @@ enum DeckDrift {
     static let seconds: TimeInterval = 2.5
 
     /// Where the deck is, as an offset from where the court put it.
-    static func offset(at date: Date) -> SIMD3<Float> {
-        let turn = angle(at: date)
+    ///
+    /// `phase` is a share of a lap. Two piles breathing on the same clock rise and fall
+    /// together, which reads as one mechanism driving both; half a lap apart they read as
+    /// two things each minding itself.
+    static func offset(at date: Date, phase: Double = 0) -> SIMD3<Float> {
+        let turn = angle(at: date, phase: phase)
         // Counter-clockwise as the camera sees it: out to the right first, then upcourt,
         // which is negative z.
         return SIMD3(Float(radius) * cos(turn),
@@ -32,13 +36,13 @@ enum DeckDrift {
 
     /// How high it is riding, 0 at the bottom of the breath and 1 at the top. The shadow
     /// reads this to know how far away the floor is.
-    static func rise(at date: Date) -> CGFloat {
-        CGFloat((sin(angle(at: date)) + 1) / 2)
+    static func rise(at date: Date, phase: Double = 0) -> CGFloat {
+        CGFloat((sin(angle(at: date, phase: phase)) + 1) / 2)
     }
 
-    private static func angle(at date: Date) -> Float {
-        Float(date.timeIntervalSinceReferenceDate
-            .truncatingRemainder(dividingBy: seconds) / seconds) * 2 * .pi
+    private static func angle(at date: Date, phase: Double) -> Float {
+        let lap = date.timeIntervalSinceReferenceDate / seconds + phase
+        return Float(lap.truncatingRemainder(dividingBy: 1)) * 2 * .pi
     }
 }
 
@@ -94,6 +98,10 @@ final class DeckStage {
     /// Where the court says the pile belongs. The idle orbits this rather than replacing
     /// it, so moving the deck on the bench still moves it while it is floating.
     var ground: SIMD3<Float> = .zero
+
+    /// Where in the drift this pile is, as a share of a lap. The spent pile runs half a
+    /// lap behind the live one so the two never breathe in step.
+    var phase: Double = 0
 
     // MARK: - Setup
 
@@ -205,7 +213,7 @@ final class DeckStage {
                 // Aimed a leg ahead, since that is where it will be when it arrives —
                 // otherwise the pile runs one leg behind its own shadow.
                 drifted.translation = ground
-                    + DeckDrift.offset(at: Date().addingTimeInterval(leg)) * width
+                    + DeckDrift.offset(at: Date().addingTimeInterval(leg), phase: phase) * width
                 pile.move(to: drifted, relativeTo: pile.parent,
                           duration: leg, timingFunction: .linear)
                 if beat.isMultiple(of: 6) { jostle() }

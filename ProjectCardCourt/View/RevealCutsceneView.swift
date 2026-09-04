@@ -27,9 +27,7 @@ struct RevealCutsceneView: View {
                         if scene.isNew { NewBadge().offset(x: 10, y: -10) }
                     }
 
-                Text(scene.seat.playerName.uppercased())
-                    .font(.system(size: 11, weight: .heavy)).tracking(1.4)
-                    .foregroundStyle(Theme.inkDim)
+                PlayerNameText(seat: scene.seat, size: 14)
                 if scene.isNew { TapToContinue().padding(.top, 2) }
             }
             .scaleEffect(leaving ? 0.18 : (arrived ? 1 : 0.7))

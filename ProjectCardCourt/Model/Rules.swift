@@ -46,6 +46,12 @@ enum Rules {
                 if card.descriptor.whistle?.trigger != nil {
                     return state.armedWhistles.count < state.rules.refereeSlots
                 }
+                // And only so many defenders on one man. Counted against what is already
+                // waiting rather than what has landed — Clamps are set down a possession
+                // before they bite, so the pending pile is the whole stack.
+                if card.descriptor.clamp != nil {
+                    return state.pendingClamps.count < state.rules.clampSlots
+                }
                 return true
             }
             return [.shoot] + playable.map { Move.play($0.id) }
@@ -228,7 +234,11 @@ enum Rules {
             } else if let clamp = descriptor.clamp {
                 // Set down now, lands on whoever receives the ball next. The possession
                 // continues, like a Move card.
-                state.pendingClamps.append(ActiveClamp(card: descriptor, from: seat))
+                // Belt and braces: `legalMoves` refuses a fourth, and anything reaching
+                // here past that — a card whose effect sets one — still cannot exceed it.
+                if state.pendingClamps.count < state.rules.clampSlots {
+                    state.pendingClamps.append(ActiveClamp(card: descriptor, from: seat))
+                }
                 _ = clamp
                 events.append(.clampSet(seat: seat, card: descriptor))
             } else if let target = descriptor.passTarget {
@@ -455,6 +465,7 @@ enum Rules {
             let points = state.rules.madeShotPoints + bonusPoints
             state[seat].points += points
             state[seat].scoredThisRound = true
+            state[seat].lastMake = Make(round: state.round, chance: chance)
             events.append(.shotMade(seat: seat, points: points, roll: roll, chance: chance))
             if let passer = state.lastPasser, passer != seat {
                 state[passer].assists += 1
@@ -678,6 +689,13 @@ enum Rules {
         // This is why the void waits for the landing at all — the card owes a free throw
         // to *the clamped player*, and at the moment it is played there is nobody to
         // name. Waiting costs nothing now that the bite happens after the waiting.
+        // Named before the one-offs bite and leave: what is announced is everything that
+        // landed on him, not what is still standing a moment later.
+        if !state[seat].clamps.isEmpty {
+            events.append(.clampedPossession(seat: seat,
+                                             clamps: state[seat].clamps.map(\.brief)))
+        }
+
         // Picked once, here, and then fixed for the possession.
         for index in state[seat].clamps.indices {
             let wanted = state[seat].clamps[index].card.clamp?.locksRandomCards ?? 0
@@ -863,7 +881,7 @@ enum Rules {
                              state: &state, events: &events, depth: depth)
         } else {
             state[seat].bag.append(card)
-            events.append(.drew(seat: seat, card: card.descriptor))
+            events.append(.drew(seat: seat, card: card.descriptor, id: card.id))
         }
 
         // Shot Creator pulls extra on every draw. The bonus draw itself grants none,

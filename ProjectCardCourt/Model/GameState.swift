@@ -15,6 +15,26 @@ struct ActiveClamp: Hashable, Codable, Identifiable {
     }
 }
 
+/// A Clamp named for the scene that announces it: which card, and who set it. Carried on
+/// the event rather than read back off the board, because the board is cleared by the
+/// time some of these are read.
+struct ClampBrief: Hashable, Codable, Identifiable {
+    let id: UUID
+    let card: CardDescriptor
+    let from: Seat
+}
+
+extension ActiveClamp {
+    var brief: ClampBrief { ClampBrief(id: id, card: card, from: from) }
+}
+
+/// The last shot a player made: which round it went in, and what its chance had been
+/// talked up to. Public — everybody watched it happen.
+struct Make: Hashable, Codable {
+    let round: Int
+    let chance: Int
+}
+
 struct PlayerState: Hashable, Identifiable, Codable {
     let seat: Seat
     var bag: [Card] = []
@@ -23,6 +43,7 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// Passives in play, oldest first. Capped by MatchRules.intangibleSlots.
     var intangibles: [CardDescriptor] = []
     /// Drives Hot Hand. Rolled over when a round ends.
+    var lastMake: Make?
     var scoredThisRound = false
     var scoredLastRound = false
     var points = 0
@@ -111,6 +132,12 @@ struct GameState: Codable {
     }
 
     var half: Int { round <= rules.roundsPerHalf ? 1 : 2 }
+    /// How many bodies are standing on a player: what every Clamp on them brings, which
+    /// the sheet sets per card.
+    func defenders(on seat: Seat) -> Int {
+        self[seat].clamps.reduce(0) { $0 + ($1.card.clamp?.defenders ?? 1) }
+    }
+
     var isOver: Bool { if case .gameOver = phase { return true }; return false }
 }
 

@@ -56,6 +56,15 @@ struct ModeCardView: View {
 
     var blurbDrop: CGFloat = ModeCardStyle.blurbDrop
 
+    /// Shown across the seam *instead of* the title, for a call whose whole meaning is a
+    /// picture. A word under it would be the same thing said twice.
+    var emblem: String? = nil
+
+    /// Anything the call needs to show beneath its line — the Clamps bearing down on a
+    /// possession, say. Erased rather than generic: every other caller passes nothing,
+    /// and a generic parameter they all have to spell out buys nothing back.
+    var accessory: AnyView? = nil
+
     /// Raised when the player presses Start. The bars leave on it.
     let isLeaving: Bool
 
@@ -131,6 +140,18 @@ struct ModeCardView: View {
 
                 blurb(on: bar)
                     .offset(y: bar.height / 2 + blurbDrop * bar.height)
+
+                if let accessory {
+                    accessory
+                        // Hung from its own top edge, so the drop below clears the line
+                        // above it whatever the accessory turns out to be tall.
+                        .alignmentGuide(VerticalAlignment.center) { $0[.top] }
+                        .scaleEffect(said)
+                        .opacity(said)
+                        .animation(ModeCardStyle.pop, value: said)
+                        .offset(y: bar.height / 2
+                                   + ModeCardStyle.accessoryDrop * bar.height)
+                }
             }
             .frame(width: width, height: geometry.size.height)
         }
@@ -235,15 +256,26 @@ struct ModeCardView: View {
     /// read as one card while they overlap, and a title that respects the seam
     /// draws attention back to the fact that they are two.
     private func title(on bar: ModeCardStyle.Bar) -> some View {
-        // The game's own lettering rather than the port's: a ramp from loud to quiet
-        // across the word, which is what makes a phase read as called out rather than
-        // labelled. See `ActionText`.
-        ActionText(title, size: ModeCardStyle.titleSize * bar.height,
-                   ink: ink, drop: subtitleInk,
-                   taper: ModeCardStyle.titleTaper,
-                   tracking: ModeCardStyle.titleTracking)
-            .lineLimit(1)
-            .minimumScaleFactor(ModeCardStyle.textSqueeze)
+        Group {
+            if let emblem {
+                Image(emblem)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: ModeCardStyle.emblemSize * bar.height)
+                    .drawingGroup()
+                    .shadow(color: subtitleInk.opacity(0.5), radius: 26)
+            } else {
+                // The game's own lettering rather than the port's: a ramp from loud to
+                // quiet across the word, which is what makes a phase read as called out
+                // rather than labelled. See `ActionText`.
+                ActionText(title, size: ModeCardStyle.titleSize * bar.height,
+                           ink: ink, drop: subtitleInk,
+                           taper: ModeCardStyle.titleTaper,
+                           tracking: ModeCardStyle.titleTracking)
+                    .lineLimit(1)
+                    .minimumScaleFactor(ModeCardStyle.textSqueeze)
+            }
+        }
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)
             .scaleEffect(said)
             .opacity(said)
@@ -322,6 +354,8 @@ enum ModeCardStyle {
 
     /// How far the name falls away across its own length. Gentler than the prompts —
     /// a phase is announced, not shouted off the edge of the screen.
+    /// A picture standing in for the name, as a share of the bar it crosses.
+    static let emblemSize: CGFloat = 1.1
     static let titleTaper: CGFloat = 0.62
 
     /// How solid the bars ever get. Just short of opaque, so the board is
@@ -576,6 +610,8 @@ enum ModeCardStyle {
     /// The description's size and its place under the name.
     static let blurbSize: CGFloat = 0.155
     static let blurbDrop: CGFloat = 0.03
+    /// Where the *top* of the accessory sits, clear of the line above it.
+    static let accessoryDrop: CGFloat = 0.28
 
     /// The widest either line may be before it is squeezed to fit.
     ///

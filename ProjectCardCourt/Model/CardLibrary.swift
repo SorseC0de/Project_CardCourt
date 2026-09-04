@@ -80,7 +80,7 @@ enum CardLibrary {
     static let trap = CardDescriptor(
         id: "trap", name: "Trap", type: .clamp,
         effect: "Next player can play nothing but Passes", numberInDeck: 5,
-        clamp: ClampEffect(defenders: 2, passOnly: true))
+        clamp: ClampEffect(defenders: 3, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,

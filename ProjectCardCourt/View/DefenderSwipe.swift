@@ -15,12 +15,17 @@ struct DefenderSwipe: View {
     private enum Drift {
         /// How far he travels on his way out, as a share of his own height.
         static let away: CGFloat = 0.34
-        static let seconds: Double = 0.55
+        static let seconds: Double = 0.70
         /// How long the swipe reads before it starts to leave.
-        static let hold: Double = 0.18
+        static let hold: Double = 0.55
+        /// The fade rides the tail of the drift rather than the whole of it. Fading from
+        /// the first frame of the walk meant he was half gone before he had gone
+        /// anywhere, which read as the sprite failing rather than as a man leaving.
+        static let fade: Double = 0.30
     }
 
     @State private var gone = false
+    @State private var faded = false
     @State private var look = PlayerLook.shared
 
     private var side: CGFloat { Sprite.defenderSwipe.frameSize * scale }
@@ -39,10 +44,12 @@ struct DefenderSwipe: View {
             .scaleEffect(x: mirrored ? -1 : 1)
             .offset(x: gone ? (mirrored ? side : -side) * Drift.away : 0,
                     y: gone ? side * Drift.away : 0)
-            .opacity(gone ? 0 : 1)
+            .opacity(faded ? 0 : 1)
             .task {
                 try? await Task.sleep(for: .seconds(Drift.hold))
                 withAnimation(.easeOut(duration: Drift.seconds)) { gone = true }
+                withAnimation(.easeIn(duration: Drift.fade)
+                    .delay(Drift.seconds - Drift.fade)) { faded = true }
             }
             .allowsHitTesting(false)
     }

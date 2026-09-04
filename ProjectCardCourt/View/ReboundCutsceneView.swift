@@ -58,9 +58,7 @@ struct ReboundCutsceneView: View {
                     HStack(spacing: 10) {
                         ForEach(order, id: \.self) { seat in
                             VStack(spacing: 2) {
-                                Text(seat.playerName.uppercased())
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(Theme.inkDim)
+                                PlayerNameText(seat: seat, size: 12)
                                 Text("\(revealedBids[seat] ?? 0)")
                                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                                     .foregroundStyle(Theme.ink)

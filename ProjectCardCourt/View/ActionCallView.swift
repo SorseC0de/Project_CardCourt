@@ -6,7 +6,7 @@ import SwiftUI
 /// different here is that nothing is being chosen: a mode card in Stars waits for a Start
 /// button, and this one is telling you what just happened, so it leaves on its own.
 enum ActionCall: String, Identifiable, Equatable, CaseIterable {
-    case inbound, rebound, gameBreak, whistle
+    case inbound, rebound, gameBreak, whistle, clamped
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         case .rebound:   return "Rebound"
         case .gameBreak: return "Game Break"
         case .whistle:   return "Whistle"
+        case .clamped:   return "Clamped!"
         }
     }
 
@@ -25,7 +26,9 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         case .inbound:   return "Put it back in play"
         case .rebound:   return "The board is live"
         case .gameBreak: return "Nobody played this"
-        case .whistle:   return "Play stops"
+        // The whistle says it with the whistle. See `emblem`.
+        case .whistle:   return ""
+        case .clamped:   return "They were waiting for you"
         }
     }
 
@@ -38,27 +41,69 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         case .rebound:   return CardPalette.orange
         case .gameBreak: return CardPalette.purple
         case .whistle:   return CardPalette.red
+        case .clamped:   return CardPalette.purple
         }
+    }
+
+    /// A call that shows a picture rather than a word. The gold whistle is the same art
+    /// the reveal opens with, moved up onto the call so the two are one moment instead of
+    /// the whistle being announced and then shown.
+    var emblem: String? { self == .whistle ? "GoldWhistle" : nil }
+
+    /// Whether the call darkens the floor behind it. All of them but the inbound, which
+    /// already sits on a court the inbound pose has dimmed — a second scrim over that one
+    /// multiplies into near-black.
+    var dims: Bool { self != .inbound }
+
+    /// The one exception to the white. A Clamp is the only call that is something being
+    /// done *to* the player rather than something the game is doing, and red over purple
+    /// is what the coils on the floor already say.
+    var ink: Color {
+        self == .clamped ? CardPalette.red : .white
     }
 }
 
 /// The call, held for a beat and then gone.
 struct ActionCallView: View {
     let call: ActionCall
+    /// Who is on him, shown under the line. Empty for every call but `.clamped`.
+    var clamps: [ClampBrief] = []
     var onFinished: () -> Void
 
     @State private var leaving = false
 
     var body: some View {
+        ZStack {
+            if call.dims {
+                DimLayer(on: !leaving, amount: Theme.dimCall)
+            }
+            card
+        }
+        // Nothing underneath is live while the game is speaking. The card and its dim
+        // both stand aside for hit testing, so with the rebound board now raised behind
+        // the call a bid could be tapped in before the call had finished making it.
+        .contentShape(Rectangle())
+        .onTapGesture {}
+    }
+
+    private var card: some View {
         ModeCardView(title: call.title,
                      subtitle: call.blurb,
-                     ink: .white,
+                     ink: call.ink,
                      subtitleInk: call.drop,
+                     emblem: call.emblem,
+                     accessory: clamps.isEmpty ? nil
+                                : AnyView(ClampRosterView(clamps: clamps)),
                      isLeaving: leaving,
                      onLanded: {},
                      onFinished: onFinished)
             // Auto-dismiss. There is nothing here to agree to.
-            .task {
+            //
+            // Keyed, and `leaving` reset with it: an unkeyed task runs once for the life
+            // of the view, so a second call landing on a view SwiftUI had kept alive would
+            // never raise `leaving` — and `announce` waits on that, forever.
+            .task(id: call) {
+                leaving = false
                 try? await Task.sleep(for: .seconds(Pacing.actionCall))
                 leaving = true
             }

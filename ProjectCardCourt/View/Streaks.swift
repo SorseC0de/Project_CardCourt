@@ -69,6 +69,42 @@ enum StreakStyle {
     /// A streak's length, as a share of the depth it has already covered.
     static let trail: CGFloat = 0.42
 
+    // ── The floor's own: dark marks running with the boards ────────────
+    /// Deliberately a fraction of the side field's. These are polish on a surface, not
+    /// the space going past — anything you can count is too many.
+    static var floorWarp: Double = 0.30
+    static let floorCount = 20
+    /// Wide, and squared off rather than capped. These are boards, not marks.
+    static let floorThickness: CGFloat = 32.0
+    /// How much of a tile's length is spent fading out behind it, as a share. The head is
+    /// a clean edge and the tail is not there at all — a plank you can see both ends of
+    /// is a stripe.
+    static let floorTail: CGFloat = 0.55
+    /// The faintest a tile gets, as a share of the ceiling. The ceiling is `floorWarp`,
+    /// so this only ever spreads them below it.
+    static let floorDimmest: Double = 0.28
+
+    /// The grain, as it were. Warm black is the ground note and the browns are the boards
+    /// that are not quite the same as their neighbours — which is the whole of what makes
+    /// a floor read as laid rather than painted.
+    static let floorTones: [Color] = [
+        PixelPalette.warmBlack, PixelPalette.warmBlack,
+        PixelPalette.mocha, PixelPalette.coffee, PixelPalette.maroon,
+    ]
+
+    static func floorTone(_ index: Int) -> Color {
+        floorTones[min(floorTones.count - 1,
+                       Int(scatter(index, 16) * Double(floorTones.count)))]
+    }
+    /// How far out they run, as a share of the floor's half-width. Inside 1, so they are
+    /// on the boards rather than past the edge like `CourtStreaks`.
+    static let floorReach: CGFloat = 0.88
+    /// And clear of the middle, where the players stand and the piles sit.
+    static let floorClear: CGFloat = 0.12
+    /// Slower than the side field. The floor is the thing being travelled over, so its
+    /// marks should read as sliding under rather than tearing past.
+    static let floorSpeed: Double = 0.30
+
     // ── The rebound's streaks: sideways, passing ───────────────────────
     static var sideWarp: Double = 0.72
     static let sideCount = 40
@@ -135,6 +171,85 @@ struct CourtStreaks: View {
 
                     context.stroke(path, with: .color(colour.opacity(glow)),
                                    style: StrokeStyle(lineWidth: width, lineCap: .round))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Dark marks on the boards, running the way the court runs.
+///
+/// The same depth sampling `CourtStreaks` uses, so they bend exactly as the floor bends —
+/// but inside its edge rather than outside it, in warm black rather than sparks, and few
+/// enough to read as a surface rather than as weather. Drawn **normally**, not under
+/// `plusLighter`: adding a dark colour to a dark floor adds nothing, and the whole point
+/// of these is that they darken.
+struct FloorStreaks: View {
+    var intensity: Double = StreakStyle.floorWarp
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                guard intensity > 0 else { return }
+
+                let court = CourtGeometry(size: size)
+                let now = timeline.date.timeIntervalSinceReferenceDate
+
+                for index in 0..<StreakStyle.floorCount {
+                    let side: CGFloat = index.isMultiple(of: 2) ? 1 : -1
+                    let spread = StreakStyle.floorReach - StreakStyle.floorClear
+                    // Own question numbers, or this field would sit in the same lanes the
+                    // side one does and the two would read as one interrupted set.
+                    let lateral = side * (StreakStyle.floorClear
+                        + CGFloat(StreakStyle.scatter(index, 11)) * spread)
+
+                    let pace = StreakStyle.paceSlowest + StreakStyle.scatter(index, 12)
+                    let turn = now * StreakStyle.floorSpeed * pace
+                        + StreakStyle.scatter(index, 13)
+                    let phase = turn - turn.rounded(.down)
+
+                    let head = CGFloat(pow(phase, StreakStyle.curve)) * StreakStyle.overrun
+                    let tail = max(0, head - head * StreakStyle.trail
+                                   * CGFloat(StreakStyle.stretchLeast
+                                             + StreakStyle.scatter(index, 14)
+                                             * (1 - StreakStyle.stretchLeast)))
+                    guard head > tail else { continue }
+
+                    var path = Path()
+                    let steps = 10
+                    var ends: (head: CGPoint, tail: CGPoint) = (.zero, .zero)
+                    for step in 0...steps {
+                        let depth = tail + (head - tail) * CGFloat(step) / CGFloat(steps)
+                        let point = CGPoint(x: court.centreX + court.halfWidth(at: depth) * lateral,
+                                            y: court.y(at: depth))
+                        step == 0 ? path.move(to: point) : path.addLine(to: point)
+                        if step == 0 { ends.tail = point }
+                        if step == steps { ends.head = point }
+                    }
+
+                    let width = StreakStyle.floorThickness
+                        * (StreakStyle.thinnest + CGFloat(phase))
+                    let entering = min(1, phase / StreakStyle.dawn)
+                    let leaving = min(1, (1 - phase) / StreakStyle.dusk)
+                    // Spread under the ceiling rather than up to it: `intensity` is the
+                    // most a tile is ever worth, and every one of them is some share of it.
+                    let own = StreakStyle.floorDimmest
+                        + StreakStyle.scatter(index, 15) * (1 - StreakStyle.floorDimmest)
+                    let ink = intensity * entering * leaving * own
+
+                    // Solid at the leading edge and gone behind it, run along the tile's
+                    // own axis so the fade follows the bend the same way the shape does.
+                    let tone = StreakStyle.floorTone(index)
+                    let grain = Gradient(stops: [
+                        .init(color: tone.opacity(0), location: 0),
+                        .init(color: tone.opacity(ink), location: StreakStyle.floorTail),
+                        .init(color: tone.opacity(ink), location: 1),
+                    ])
+                    context.stroke(path,
+                                   with: .linearGradient(grain, startPoint: ends.tail,
+                                                         endPoint: ends.head),
+                                   style: StrokeStyle(lineWidth: width, lineCap: .butt))
                 }
             }
         }
