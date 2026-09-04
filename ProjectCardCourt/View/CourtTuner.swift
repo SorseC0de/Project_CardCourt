@@ -96,7 +96,6 @@ struct DebugActionsView: View {
     var controller: GameController
 
     @State private var deck = DeckTuning.shared
-    @State private var prompt = InboundTextTuning.shared
     /// Observed, or the switch's own label never changes and it reads as dead.
     @State private var render = RenderDebug.shared
     /// Who a practice pass goes to. Always from the player, so this is the whole choice.
@@ -109,7 +108,6 @@ struct DebugActionsView: View {
     @AppStorage("bench.open") private var isOpen = true
     @AppStorage("bench.cuts") private var showCuts = false
     @AppStorage("bench.deck") private var showDeck = false
-    @AppStorage("bench.prompt") private var showPrompt = false
     /// The one HUD arrangement that is a setting rather than a measurement.
     @AppStorage(DeckReadout.setting) private var deckReadout = DeckReadout.over
     @State private var lobby = false
@@ -141,7 +139,6 @@ struct DebugActionsView: View {
             HStack(spacing: 4) {
                 action(showCuts ? "cuts ▾" : "cuts ▸") { showCuts.toggle() }
                 action(showDeck ? "deck ▾" : "deck ▸") { showDeck.toggle() }
-                action(showPrompt ? "text ▾" : "text ▸") { showPrompt.toggle() }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -159,28 +156,6 @@ struct DebugActionsView: View {
                     action("miss") { controller.debugMiss() }
                     action("FTs") { controller.debugFreeThrows() }
                 }
-            }
-            if showPrompt {
-                HStack(spacing: 4) {
-                    action("reset text") {
-                        prompt.topX = 0; prompt.topY = -22
-                        prompt.bottomX = 0; prompt.bottomY = 22
-                        prompt.ballX = 19; prompt.ballY = 10
-                        prompt.seatX = [:]
-                    }
-                }
-                VStack(alignment: .leading, spacing: 0) {
-                    slider("line 1 x", text(\.topX), -200...200)
-                    slider("line 1 y", text(\.topY), -300...300)
-                    slider("line 2 x", text(\.bottomX), -200...200)
-                    slider("line 2 y", text(\.bottomY), -300...300)
-                    slider("ball x", text(\.ballX), 0...32)
-                    slider("ball y", text(\.ballY), 0...32)
-                    ForEach(Seat.allCases, id: \.self) { seat in
-                        slider("\(seat.playerName) x", seatX(seat), -160...160)
-                    }
-                }
-                .frame(width: 150)
             }
             if showDeck {
                 HStack(spacing: 4) {
@@ -205,16 +180,6 @@ struct DebugActionsView: View {
             slider("y", bind(\.y), -0.25...0.25)
         }
         .frame(width: 150)
-    }
-
-    private func seatX(_ seat: Seat) -> Binding<Double> {
-        Binding(get: { Double(prompt.seatX[seat] ?? 0) },
-                set: { prompt.seatX[seat] = CGFloat($0) })
-    }
-
-    private func text(_ path: ReferenceWritableKeyPath<InboundTextTuning, CGFloat>) -> Binding<Double> {
-        Binding(get: { Double(prompt[keyPath: path]) },
-                set: { prompt[keyPath: path] = CGFloat($0) })
     }
 
     private func bind(_ path: ReferenceWritableKeyPath<DeckTuning, CGFloat>) -> Binding<Double> {
