@@ -732,6 +732,22 @@ func runTests() {
         Check.that(back.phase == state.phase, "so does the phase")
     }
 
+    print("Euro Step is a Special Move that does not shoot")
+    do {
+        var (state, seat, cards) = openPossession(seed: 91, cards: [CardLibrary.euroStep])
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(!events.contains { if case .shotAttempted = $0 { return true }; return false },
+                   "no shot goes up")
+        Check.that(state.ball == seat, "and the ball stays where it was")
+        Check.that(events.contains { if case .movePlayed = $0 { return true }; return false },
+                   "it resolves as a Move play")
+        // The one card of its type. If this ever fails, something has started assuming
+        // every Special Move is a shot.
+        let shooters = CardLibrary.specialMoves.filter { $0.special?.shootsImmediately == true }
+        Check.that(shooters.count == CardLibrary.specialMoves.count - 1,
+                   "and it is the only Special Move that does not")
+    }
+
     print("Drive follows any dribble")
     do {
         for opener in [CardLibrary.dribble, CardLibrary.rhythmDribble] {
