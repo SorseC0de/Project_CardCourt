@@ -37,14 +37,26 @@ struct DiscardPileView: View {
             .allowsHitTesting(false)
     }
 
+    private enum Spent {
+        /// The same lift the draw pile rides at, so the two sit on one floor.
+        static let lift: CGFloat = 0.12
+        /// How far under that the count sits, as a share of the width. Placed rather than
+        /// stacked: the pile is drawn by the 3D stage most of the time, so there is
+        /// nothing here for a `VStack` to measure against — which is what displaced it.
+        static let countDrop: CGFloat = 0.30
+    }
+
     var body: some View {
-        VStack(spacing: showsPile ? -width * DeckBody.labelGap : 4) {
-            if showsPile { pile }
+        ZStack {
+            if showsPile {
+                pile.offset(y: -width * Spent.lift)
+            }
             Text("\(count)")
                 .font(.custom("AvenirNextCondensed-Heavy", size: 18))
                 .foregroundStyle(CardPalette.gray)
                 .shadow(color: CardPalette.blue, radius: 0, x: 2, y: 2)
                 .contentTransition(.numericText())
+                .offset(y: width * Spent.countDrop)
         }
         .opacity(count == 0 ? 0.35 : 1)
     }
@@ -65,7 +77,7 @@ struct DiscardBrowserView: View {
 
     var body: some View {
         ZStack {
-            DimLayer(on: true, amount: 0.85)
+            DimLayer(on: true, amount: Theme.dimBrowser)
                 .onTapGesture(perform: onDismiss)
 
             VStack(spacing: 10) {

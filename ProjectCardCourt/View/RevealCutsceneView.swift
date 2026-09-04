@@ -13,7 +13,7 @@ struct RevealCutsceneView: View {
 
     var body: some View {
         ZStack {
-            DimLayer(on: true, amount: 0.72)
+            Color.clear
 
             VStack(spacing: 10) {
                 Text(scene.isIntangible ? "INTANGIBLE" : "GAME BREAK")

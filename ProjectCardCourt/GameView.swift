@@ -62,6 +62,11 @@ struct GameView: View {
                 .animation(.easeOut(duration: 0.3), value: isChoosingInbound)
             }
 
+            // One dim for the whole screen, always in the hierarchy and turned up when
+            // something takes the screen over. Never inserted, so it can only ever fade.
+            DimLayer(on: dim > 0, amount: dim, seconds: 0.22)
+                .zIndex(9)
+
             if let scene = controller.cutscene {
                 ShotCutsceneView(scene: scene)
                     .transition(.opacity)
@@ -213,6 +218,14 @@ struct GameView: View {
     private var isChoosingInbound: Bool {
         if case .awaitingInbound = controller.gate { return true }
         return false
+    }
+
+    /// How dark the screen should be, whichever thing has taken it.
+    private var dim: Double {
+        if browsingDiscard { return Theme.dimBrowser }
+        if controller.whistleReveal != nil { return Theme.dimWhistle }
+        if controller.reveal != nil { return Theme.dimReveal }
+        return 0
     }
 
     private var stage: some View {

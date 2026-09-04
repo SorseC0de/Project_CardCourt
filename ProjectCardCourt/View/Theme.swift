@@ -12,6 +12,12 @@ enum Theme {
     static let courtLine    = Color.white.opacity(0.28)
     /// The light that travels down the floor.
     static let courtSweep   = Color(red: 0.98, green: 0.72, blue: 0.35).opacity(0.22)
+    /// How dark the screen goes behind each thing that takes it over. One place, because
+    /// there is one dim doing all of it — see `GameView.dim`.
+    static let dimWhistle: Double = 0.80
+    static let dimReveal: Double = 0.72
+    static let dimBrowser: Double = 0.85
+
     static let panel        = Color(red: 0.11, green: 0.12, blue: 0.15)
     static let panelRaised  = Color(red: 0.16, green: 0.17, blue: 0.21)
     static let ink          = Color(red: 0.93, green: 0.93, blue: 0.95)

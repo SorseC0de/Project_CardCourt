@@ -333,6 +333,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
                 guard sentence.range(of: "for each", options: .caseInsensitive) == nil else {
                     return sentence
                 }
+                // An `=` figure replaces the number rather than adding to it, so there is
+                // no "more" about it — Putback Tip's hundred per cent off the glass is
+                // the whole SHOT, not a hundred on top of one.
+                guard sentence.range(of: "(?i)SHOT\\s*=",
+                                     options: .regularExpression) == nil else {
+                    return sentence
+                }
                 return sentence.replacingOccurrences(
                     of: "(?i)SHOT\\s*([+\\-\u{2212}=]?\\s*\\d+%)",
                     with: "$1 More", options: .regularExpression)

@@ -82,6 +82,13 @@ struct GameState: Codable {
     /// Awarded but not yet shot. Never set straight into `phase` — a Foul is drawn from
     /// inside `beginPossession`, which overwrites whatever phase it finds on the way out.
     var pendingFreeThrows: FreeThrowTrip?
+    /// Benched: whoever has to hand the ball over, queued rather than set.
+    ///
+    /// A Game Break resolves from inside `draw`, which runs in the middle of
+    /// `beginPossession` — and `beginPossession` sets the phase on its way out, over
+    /// whatever it finds there. Setting the phase from inside it is writing to something
+    /// that is about to be overwritten, which is why Benched did nothing at all.
+    var pendingInbound: Seat?
     /// How many times each Whistle has been called this round, by descriptor id. Cleared
     /// at the top of a round, which is what makes Delay-of-Game's second call a foul.
     var whistleCallsThisRound: [String: Int] = [:]

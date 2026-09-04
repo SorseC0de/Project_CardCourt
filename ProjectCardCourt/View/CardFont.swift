@@ -14,16 +14,20 @@ import SwiftUI
 final class CardFont {
     static let shared = CardFont()
 
-    /// The weights being compared. Semibold reads lightest and Black is the loudest the
-    /// family goes; Bold is the one to beat.
+    /// The weights being compared, lightest first. Only Barlow Semi Condensed is
+    /// installed — the narrower plain Condensed cut is not, so it is not offered.
     enum Weight: String, CaseIterable {
-        case semibold = "SemiBold"
-        case bold = "Bold"
-        case black = "Black"
+        case semibold = "SemiCondensed-SemiBold"
+        case bold = "SemiCondensed-Bold"
+        case extraBold = "SemiCondensed-ExtraBold"
+        case black = "SemiCondensed-Black"
 
-        var fontName: String { "BarlowSemiCondensed-\(rawValue)" }
-        /// What the bench shows.
-        var label: String { rawValue.lowercased() }
+        var fontName: String { "Barlow\(rawValue)" }
+        /// What the bench shows: the part that differs between them.
+        var label: String {
+            rawValue.replacingOccurrences(of: "SemiCondensed-", with: "")
+                .replacingOccurrences(of: "-", with: " ").lowercased()
+        }
         var next: Weight {
             let all = Weight.allCases
             return all[(all.firstIndex(of: self)! + 1) % all.count]

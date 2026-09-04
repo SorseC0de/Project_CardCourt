@@ -36,7 +36,10 @@ struct WhistleRevealView: View {
 
     var body: some View {
         ZStack {
-            DimLayer(on: dimmed, amount: Self.dim)
+            // The screen's dim is `GameView`'s, always there and turned up — a scrim
+            // that arrives with the view it belongs to is laid out as it arrives, which
+            // reads as a rectangle growing rather than the lights going down.
+            Color.clear
 
             whistle
             card.opacity(backIn ? 1 : 0)

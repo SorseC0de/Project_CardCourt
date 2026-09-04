@@ -266,6 +266,10 @@ enum Rules {
             resolveShot(by: seat, bonusPoints: 0, state: &state, events: &events)
         }
         takeTheLine(state: &state, events: &events)
+        // A card that draws can turn up a Game Break, and a Break can hand the ball over.
+        // `beginPossession` catches the ones drawn at the top of a possession; this
+        // catches the ones a play turned up mid-possession.
+        handOverBall(state: &state, events: &events)
         return events
     }
 
@@ -302,6 +306,17 @@ enum Rules {
     }
 
     /// Hands the floor over to a waiting trip, once the phase has settled.
+    /// Whatever a Game Break queued up while the possession was being built.
+    ///
+    /// Called after `beginPossession` has set the phase, for the same reason the trip to
+    /// the line is: anything set from inside it is set on something about to be replaced.
+    private static func handOverBall(state: inout GameState, events: inout [GameEvent]) {
+        guard let holder = state.pendingInbound, !state.isOver else { return }
+        state.pendingInbound = nil
+        state.inbounder = holder
+        state.phase = .inbound(inbounder: holder)
+    }
+
     private static func takeTheLine(state: inout GameState, events: inout [GameEvent]) {
         guard let trip = state.pendingFreeThrows, !state.isOver else { return }
         state.pendingFreeThrows = nil
@@ -699,6 +714,7 @@ enum Rules {
         if shouldTick, tickClock(by: -1, holder: seat, state: &state, events: &events) { return }
         state.phase = .possession(holder: seat)
         takeTheLine(state: &state, events: &events)
+        handOverBall(state: &state, events: &events)
     }
 
     /// Whether the card played immediately before was a dribble of any kind.
@@ -901,11 +917,9 @@ enum Rules {
         }
         if effect.givesBallAway, let holder = state.ball {
             // Handed over, not taken away: whoever is benched decides where the ball
-            // goes. The inbound phase already asks exactly this question, so it is the
-            // same choice the rules put to a player at the top of a round.
+            // goes. Queued rather than set — see `pendingInbound`.
             state.lastPasser = nil
-            state.phase = .inbound(inbounder: holder)
-            state.inbounder = holder
+            state.pendingInbound = holder
         }
     }
 
@@ -953,6 +967,9 @@ enum Rules {
     /// Draws one card. Exposed only so the harness can exercise draw-time effects.
     static func testDraw(_ seat: Seat, state: inout GameState, events: inout [GameEvent]) {
         draw(seat, state: &state, events: &events)
+        // Play resolves what a draw queued; a test drawing straight into the deck has to
+        // do the same or it is testing a state the game never sits in.
+        handOverBall(state: &state, events: &events)
     }
 
     /// True when a card is playable, or already in play, and yet does nothing at all.
