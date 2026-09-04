@@ -13,6 +13,8 @@ struct InbounderFigure: View {
     var seat: Seat
     /// Which body. The thrower's four frames, or the receiver's one.
     var sprite: Sprite = .inbounder
+    /// The thrower has it; the people waiting for it do not.
+    var holdsBall = false
     /// Which face he wears. Nine to choose from; customisation later.
     var face: Int = 0
     var scale: CGFloat = Theme.Figure.playerScale
@@ -23,6 +25,10 @@ struct InbounderFigure: View {
     private var side: CGFloat { sprite.frameSize * scale }
     /// The face's shift per frame, in art pixels — the loop, written out.
     private static let sway: [CGFloat] = [0, 1, 0, -1]
+    /// Where the ball sits in his hands, in art pixels from the frame's top left.
+    private static let ballOrigin = CGPoint(x: 17, y: 9)
+    /// How big it is, in art pixels.
+    private static let ballSide: CGFloat = 9
 
     @State private var look = PlayerLook.shared
 
@@ -34,14 +40,26 @@ struct InbounderFigure: View {
                 ? Int(timeline.date.timeIntervalSinceReferenceDate * fps) % sprite.frames : 0
             ZStack(alignment: .topLeading) {
                 cell(sprite, index: step, size: sprite.frameSize)
-                head(.heads, index: look.tone(for: seat) == nil ? 0 : 0, shift: 0)
+                head(.heads, index: 0, shift: 0)
                 head(.faces, index: face, shift: Self.sway[step % Self.sway.count])
+                if holdsBall { ball(step: step) }
             }
             .frame(width: side, height: side)
         }
         .paletteSwap(PixelPalette.uniform(for: seat)
                      + PixelPalette.skin(tone: look.tone(for: seat)))
         .scaleEffect(x: mirrored ? -1 : 1)
+    }
+
+    /// The ball, riding the same beat his eyes do.
+    ///
+    /// It lifts a pixel whenever it shifts, so the two poses are a small hoist rather than
+    /// a slide — the same movement a person makes settling a ball before throwing it.
+    private func ball(step: Int) -> some View {
+        let shift = Self.sway[step % Self.sway.count]
+        return BallView(diameter: Self.ballSide * scale)
+            .offset(x: (Self.ballOrigin.x + shift) * scale,
+                    y: (Self.ballOrigin.y + (shift == 0 ? 0 : -1)) * scale)
     }
 
     /// One cell of a sheet, drawn at the body's size.
@@ -66,7 +84,7 @@ struct InbounderFigure: View {
 #if DEBUG
 #Preview("Inbounder") {
     HStack(spacing: 30) {
-        InbounderFigure(seat: .south, scale: 5)
+        InbounderFigure(seat: .south, holdsBall: true, scale: 5)
         InbounderFigure(seat: .east, sprite: .inboundReceiver, scale: 5, mirrored: true)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)

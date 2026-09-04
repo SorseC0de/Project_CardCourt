@@ -364,8 +364,16 @@ struct GameView: View {
         .background(Theme.panel)
     }
 
+    /// The last number the clock actually showed.
+    ///
+    /// It reads `--` only before the first inbound of a round. Everything else that
+    /// clears it — a Whistle stopping play, a round turning over mid-scene — is an event,
+    /// and blanking the clock for the length of one says the clock is gone when it is
+    /// only waiting.
+    @State private var lastClock: Int?
+
     private var shotClock: some View {
-        let clock = controller.state.shotClock
+        let clock = controller.state.shotClock ?? lastClock
         return VStack(spacing: 3) {
             SevenSegmentClock(value: clock)
             Text("SHOT CLOCK")
@@ -373,6 +381,11 @@ struct GameView: View {
                 .foregroundStyle(Theme.inkDim)
         }
         .animation(.easeOut(duration: 0.25), value: clock)
+        .onChange(of: controller.state.shotClock) { _, now in
+            if let now { lastClock = now }
+        }
+        // A new round starts the clock over, so the memory goes with it.
+        .onChange(of: controller.state.round) { _, _ in lastClock = nil }
     }
 
     private var finalCard: some View {

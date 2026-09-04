@@ -6,8 +6,8 @@ import SwiftUI
 /// viewBox, so `scaledToFit` sizes them independently and they never line back up.
 struct ThreeHandMark: View {
     var width: CGFloat
-    var tint: Color = CardPalette.gold
-    var shadow: Color = CardPalette.navy
+    var tint: Color = .white
+    var shadow: Color = CardPalette.blue
     var shadowOffset: CGFloat = 0
 
     var body: some View {

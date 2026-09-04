@@ -63,6 +63,8 @@ struct CourtView: View {
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var render = RenderDebug.shared
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
+    @State private var prompt = InboundTextTuning.shared
+    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var deckTuning = DeckTuning.shared
     /// True while the ball is crossing between players.
     @State private var ballInFlight = false
@@ -173,7 +175,8 @@ struct CourtView: View {
 
                 if case .awaitingInbound(let thrower) = gate {
                     let post = RefereePost.inbounding(thrower.slot(viewedFrom: viewer))
-                    InbounderFigure(seat: thrower, mirrored: !post.isLeft)
+                    InbounderFigure(seat: thrower, holdsBall: true,
+                                    mirrored: !post.isLeft)
                         .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
                         .position(x: court.centreX
                                   + court.halfWidth(at: post.depth) * post.lateral,
@@ -357,7 +360,7 @@ struct CourtView: View {
     enum Court {
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
-        static let dim: Double = 0.66
+        static let dim: Double = 0.82
     }
 
     private enum Prompt {
@@ -370,12 +373,16 @@ struct CourtView: View {
     /// `Inbound` is picked out because it is the only word in the sentence that is a rule
     /// rather than English.
     private var inboundPrompt: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // Each line placed on its own, because the two are different sizes and the gap
+        // that looks right between them is not a spacing — it is where each one sits.
+        ZStack {
             ActionText("Select a Player", size: 46)
+                .offset(x: prompt.topX, y: prompt.topY)
             ActionText(runs: [.init("to "),
                               .init("Inbound", ink: CardPalette.gold, drop: CardPalette.orange),
                               .init(" to!")],
                        size: 26)
+                .offset(x: prompt.bottomX, y: prompt.bottomY)
         }
         .fixedSize()
         .allowsHitTesting(false)
@@ -515,6 +522,8 @@ struct CourtView: View {
                     && state.phase.actingSeat != seat,
                 marker: marker(for: seat, selectable: selectable),
                 handCount: state[seat].bag.count,
+                // Set and waiting for it, like everybody else during an inbound.
+                sprite: isStill ? .inboundReceiver : nil,
                 facing: passer,
                 caughtAt: holder == seat ? landedAt : nil,
                 // Nobody dribbles a ball that is still in the air. The thrower has let go
