@@ -287,11 +287,14 @@ struct CourtView: View {
                     // the view every frame.
                     .offset(y: -band + sweep * (geo.size.height + band))
                     .frame(maxHeight: .infinity, alignment: .top)
+                    // **The light only.** This sat on the whole stack, so an inbound took
+                    // the floor away with it rather than stopping the thing moving over
+                    // it — which is why everything standing on the floor looked far
+                    // darker than the scrim over it could account for.
+                    .opacity(isStill ? 0 : 1)
+                    .animation(.easeOut(duration: 0.4), value: isStill)
             }
             .mask(CourtFloorShape())
-            // The light travelling down the floor stops with everything else.
-            .opacity(isStill ? 0 : 1)
-            .animation(.easeOut(duration: 0.4), value: isStill)
         }
         .onAppear {
             withAnimation(.linear(duration: Perspective.sweepSeconds).repeatForever(autoreverses: false)) {
