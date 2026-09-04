@@ -34,16 +34,32 @@ struct ActionText: View {
     /// Both as shares of each character's own size, so they taper with it.
     var tracking: CGFloat = 0.02
     var dropShare: CGFloat = 0.10
+    /// An outline behind every letter, each at a radius of its own size. Nil for the
+    /// ordinary case, which is most of them.
+    var outline: (ink: Color, share: CGFloat)?
+    /// Characters to leave out **without leaving out their space**. The letter is still
+    /// laid out, still tapers the ones after it, and still reports its frame — it simply
+    /// is not drawn. For a wordmark whose first letter is a picture, which has to sit
+    /// exactly where the letter would have.
+    var blanked: Set<Int> = []
+
+    /// The coordinate space letter frames are reported in. Declare it on whatever
+    /// contains the text and read `LetterFrames`.
+    static let space = "action-text"
 
     init(_ text: String, font: String = Chrome.display, size: CGFloat,
          ink: Color = .white, drop: Color = CardPalette.navy,
-         taper: CGFloat = 0.55, tracking: CGFloat = 0.02, dropShare: CGFloat = 0.10) {
+         taper: CGFloat = 0.55, tracking: CGFloat = 0.02, dropShare: CGFloat = 0.10,
+         outline: (ink: Color, share: CGFloat)? = nil,
+         blanked: Set<Int> = []) {
         self.runs = [Run(text, ink: ink, drop: drop)]
         self.font = font
         self.size = size
         self.taper = taper
         self.tracking = tracking
         self.dropShare = dropShare
+        self.outline = outline
+        self.blanked = blanked
     }
 
     init(runs: [Run], font: String = Chrome.display, size: CGFloat,
@@ -63,15 +79,80 @@ struct ActionText: View {
                 let along = letters.count > 1
                     ? CGFloat(index) / CGFloat(letters.count - 1) : 0
                 let point = size * (1 - (1 - taper) * along)
+                let out = blanked.contains(index)
                 Text(String(letters[index].character))
                     .font(.custom(font, size: point))
-                    .foregroundStyle(letters[index].run.ink)
-                    .shadow(color: letters[index].run.drop, radius: 0,
+                    .foregroundStyle(out ? .clear : letters[index].run.ink)
+                    // Behind the letter, and sized to it — a background changes no layout
+                    // and moves no baseline, which is the only reason the outline can be
+                    // drawn per character at all.
+                    .background {
+                        if !out { ring(letters[index].character, point: point) }
+                    }
+                    .shadow(color: out ? .clear : letters[index].run.drop, radius: 0,
                             x: point * dropShare, y: point * dropShare)
                     .padding(.trailing, point * tracking)
+                    .background { reporter(index) }
             }
         }
         .fixedSize()
+    }
+
+    /// One letter drawn all the way round itself.
+    ///
+    /// **The radius is a share of that letter's own size, not the run's.** A fixed radius
+    /// outlines the big letters and floods the small ones, which on a tapered word means
+    /// the last few close up into a blob.
+    @ViewBuilder private func ring(_ character: Character, point: CGFloat) -> some View {
+        if let outline {
+            let radius = point * outline.share
+            let points = Ring.points(radius: radius)
+            ZStack {
+                ForEach(0..<points, id: \.self) { step in
+                    let turn = Double(step) / Double(points) * 2 * .pi
+                    Text(String(character))
+                        .font(.custom(font, size: point))
+                        .foregroundStyle(outline.ink)
+                        .offset(x: radius * cos(turn), y: radius * sin(turn))
+                }
+            }
+            .fixedSize()
+        }
+    }
+
+    /// Publishes where a character landed, for anything that has to sit on one — see
+    /// `SwisshWordmark`, which puts a ball on the dot of the i.
+    private func reporter(_ index: Int) -> some View {
+        GeometryReader { box in
+            Color.clear.preference(key: LetterFrames.self,
+                                   value: [index: box.frame(in: .named(ActionText.space))])
+        }
+    }
+}
+
+/// How many copies it takes to draw a stroke by ringing a shape with itself.
+enum Ring {
+    /// Enough that the polygon the copies trace stays within `tolerance` of the circle
+    /// they are standing in for.
+    ///
+    /// **A fixed count is wrong at both ends.** Twenty is extravagant on a hairline and
+    /// twelve is visibly faceted on a heavy edge — the first cost a bench its frame rate
+    /// and the second put jitter on every curve in the wordmark. This spends copies where
+    /// the radius actually needs them, and none at all on a radius of nothing.
+    static func points(radius: CGFloat, tolerance: CGFloat = 0.15) -> Int {
+        guard radius > 0 else { return 0 }
+        guard radius > tolerance else { return 4 }
+        let step = acos(max(-1, min(1, 1 - tolerance / radius)))
+        guard step > 0 else { return 48 }
+        return min(48, max(6, Int((.pi / step).rounded(.up))))
+    }
+}
+
+/// Where each character of an `ActionText` ended up. Read by whatever declared the space.
+struct LetterFrames: PreferenceKey {
+    static let defaultValue: [Int: CGRect] = [:]
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 

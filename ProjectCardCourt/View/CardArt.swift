@@ -22,6 +22,9 @@ enum CardPalette {
     /// L 0.32. Drop the chroma further and it goes grey; raise it and navy has a rival;
     /// darken it and it stops being a surface. Not a ground — navy keeps that.
     static let black   = Color(red: 0x2F / 255, green: 0x31 / 255, blue: 0x43 / 255)
+    /// A tint of the blue rather than a rival to it: the wordmark's lower half, where a
+    /// second saturated colour would have read as a different mark stuck to the first.
+    static let lightBlue = Color(red: 0x89 / 255, green: 0xD7 / 255, blue: 0xED / 255)
     static let green   = Color(red: 0x2E / 255, green: 0xA9 / 255, blue: 0x3E / 255)
     static let magenta = Color(red: 0xD3 / 255, green: 0x4B / 255, blue: 0xD2 / 255)
     static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)

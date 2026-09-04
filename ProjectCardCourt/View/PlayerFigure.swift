@@ -164,8 +164,7 @@ struct PlayerFigure: View {
                 // the other way.
                 .animation(nil, value: isMirrored)
                 .onAppear { if playsOnce { startedAt = Date() } }
-                .paletteSwap(PixelPalette.uniform(for: seat)
-                             + PixelPalette.skin(tone: look.tone(for: seat)))
+                .paletteSwap(PlayerLook.shared.kit(for: seat))
                 .opacity(isDimmed ? 0.4 : 1)
                 .overlay(alignment: .top) {
                     if let clampCount {

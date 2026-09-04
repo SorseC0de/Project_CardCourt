@@ -19,7 +19,20 @@ final class PlayerLook {
     private var waits: [Seat: (cell: Int, mirrored: Bool)] = [:]
 
     func tone(for seat: Seat) -> Int {
-        tones[seat] ?? PixelPalette.drawnSkinTone
+        if seat.isLocal { return HooperKit.shared.tone }
+        return tones[seat] ?? PixelPalette.drawnSkinTone
+    }
+
+    /// What a seat wears, skin and all.
+    ///
+    /// Your own chair is whatever you built on the My Hooper screen; everybody else wears
+    /// the seat's colours and a rolled tone. One question, asked in one place, so a
+    /// figure cannot come out in the kit and the wrong skin.
+    func kit(for seat: Seat) -> [PaletteSwap] {
+        guard seat.isLocal else {
+            return PixelPalette.uniform(for: seat) + PixelPalette.skin(tone: tone(for: seat))
+        }
+        return HooperKit.shared.swaps
     }
 
     /// How this seat stands while waiting for a throw-in: one of the sheet's three poses,

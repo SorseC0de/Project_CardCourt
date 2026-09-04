@@ -11,6 +11,10 @@ struct GameView: View {
     /// What the player has tapped open on the floor. See `Inspection`.
     @State private var onFloor: Inspection?
     @State private var showingLobby = false
+    /// Set by the front screen when Play Online is what brought you here. The lobby needs
+    /// a controller and the controller lives down here, so the way in is a flag rather
+    /// than a screen of its own.
+    var opensLobby = false
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
     private let logHeight: CGFloat = 74
@@ -44,7 +48,7 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     // Takes the band the log used to sit in, just above the hand.
                     HStack(alignment: .bottom) {
-                        IntangibleSlotsView(held: controller.human.intangibles,
+                        IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
                                             dormant: controller.dormantIntangibles,
                                             slots: controller.state.rules.intangibleSlots,
                                             onSelect: { inspecting = (card: $0, from: $1) })
@@ -226,25 +230,6 @@ struct GameView: View {
         .accessibilityHidden(true)
     }
 
-    /// The way to a match, until there is a front screen for it to live on.
-    private var matchButton: some View {
-        Button { showingLobby = true } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 13, weight: .heavy))
-                SmallCapsText(text: "Play online", font: Chrome.display, size: 15)
-            }
-            .foregroundStyle(.white)
-            .shadow(color: Chrome.shade, radius: 0, x: 2, y: 2)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(CardPalette.blue))
-            .overlay(Capsule().strokeBorder(CardPalette.gold, lineWidth: 3))
-            .compositingGroup()
-            .shadow(color: CardPalette.orange, radius: 0, x: 4, y: 4)
-        }
-        .buttonStyle(.plain)
-    }
 
     /// The court is asking the player to pick somebody to throw to.
     private var isChoosingInbound: Bool {
@@ -345,22 +330,18 @@ struct GameView: View {
                     .padding(.top, 6)
             }
             .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 6) {
-                    // The only way into a match. It lived on the bench, which is compiled
-                    // out of a release build — so on TestFlight there was no way to reach
-                    // the lobby at all. It stays here until the game has a front screen to
-                    // put it on.
-                    matchButton
-                    #if DEBUG
-                    DebugActionsView(controller: controller)
-                    #endif
-                }
-                .padding(.leading, 14)
-                .padding(.top, 6)
+                #if DEBUG
+                // The lobby has moved to the front screen — see `EntryScreenView`, which
+                // is where it always belonged.
+                DebugActionsView(controller: controller)
+                    .padding(.leading, 14)
+                    .padding(.top, 6)
+                #endif
             }
             .sheet(isPresented: $showingLobby) {
                 MatchLobbyView(controller: controller)
             }
+            .task { if opensLobby { showingLobby = true } }
     }
 
     /// Sits under the scoreboard. Overlay drops the solid panel for a scrim so the top
@@ -505,4 +486,9 @@ struct GameView: View {
     }
 }
 
-#Preview { GameView() }
+// Two, because the canvas in this file is where the game gets tested and the front
+// screen is behind `@main` — a GameView preview is the game by definition, and will never
+// show what the app actually opens on. Pick this one to start where the player starts.
+#Preview("App") { RootView() }
+
+#Preview("Straight to the table") { GameView() }

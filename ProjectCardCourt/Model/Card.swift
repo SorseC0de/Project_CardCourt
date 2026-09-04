@@ -215,6 +215,11 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         // Cards with art of their own. Each carries its own multiplier: the drawings are
         // trimmed to their subject, so one shared number reads at different sizes.
         switch id {
+        case "dribble":      return ("DribbleIcon", false, 1)
+        case "drive":        return ("DriveIcon", false, 1)
+        case "hesi":         return ("HesiIcon", false, 1)
+        case "full-court-heave": return ("HeaveIcon", false, 1)
+        case "contest":      return ("ContestIcon", false, 1)
         case "off-night":    return ("OffNightIcon", false, 1)
         case "benched":      return ("BenchIcon", false, 1)
         case "crowd-noise":  return ("CrowdNoiseIcon", false, 1)

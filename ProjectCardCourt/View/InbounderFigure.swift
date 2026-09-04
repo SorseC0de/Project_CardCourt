@@ -50,8 +50,7 @@ struct InbounderFigure: View {
             }
             .frame(width: side, height: side)
         }
-        .paletteSwap(PixelPalette.uniform(for: seat)
-                     + PixelPalette.skin(tone: look.tone(for: seat)))
+        .paletteSwap(PlayerLook.shared.kit(for: seat))
         .scaleEffect(x: mirrored ? -1 : 1)
     }
 

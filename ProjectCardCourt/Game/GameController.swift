@@ -382,6 +382,20 @@ final class GameController {
     /// `shownBall` and `shownDeck` hold back the ball and the pile.
     private(set) var undelivered: Set<UUID> = []
 
+    /// Passives the rules have slotted that the table has not seen turn over.
+    ///
+    /// Same fault as an instant draw, one board along: a passive drawn in the opening
+    /// deal took its slot the moment the rules ran, so it was sitting on the plate before
+    /// the card that put it there had been shown. Counted per seat rather than held by
+    /// id — an Intangible is a descriptor and has none, and they are appended, so the
+    /// ones still owed are the ones on the end.
+    private(set) var unrevealed: [Seat: Int] = [:]
+
+    /// The slots as the table has seen them.
+    func shownIntangibles(of seat: Seat) -> [CardDescriptor] {
+        Array(state[seat].intangibles.dropLast(unrevealed[seat] ?? 0))
+    }
+
     /// A bag as the table has seen it.
     func shownBag(of seat: Seat) -> [Card] {
         guard !undelivered.isEmpty else { return state[seat].bag }
@@ -426,7 +440,7 @@ final class GameController {
     /// Passives sitting in a slot that currently pay nothing — Hot Hand without a make
     /// behind it, and anything like it.
     var dormantIntangibles: Set<String> {
-        Set(human.intangibles
+        Set(shownIntangibles(of: GameRules.localSeat)
             .filter { Rules.isDormant($0, for: GameRules.localSeat, in: state) }
             .map(\.id))
     }
@@ -1112,6 +1126,10 @@ final class GameController {
             reveal = scene
             await hold(scene.isNew, seconds: Pacing.reveal) { self.reveal }
             reveal = nil
+            // Turned over, so it can take its slot. Not a moment before.
+            if scene.isIntangible, let owed = unrevealed[scene.seat], owed > 0 {
+                unrevealed[scene.seat] = owed - 1
+            }
             // The gap is the point. Clearing and setting in the same breath gives SwiftUI
             // nothing to animate between, and the card appears to change rather than to be
             // replaced — which tells the player one card did two things.
@@ -1248,6 +1266,9 @@ final class GameController {
         // Marked before a single beat plays: the rules dealt these on the way in, and the
         // hand must not have them until their flight says so.
         for case .drew(_, _, let card) in events { undelivered.insert(card) }
+        for case .intangibleRevealed(let seat, _) in events {
+            unrevealed[seat, default: 0] += 1
+        }
         broadcast(events)
         // Anything but a pass moves the ball at once: an inbound, a rebound, a turnover.
         // Only a throw has a journey to wait for.
@@ -1308,6 +1329,10 @@ final class GameController {
         // Whatever is left was never flown — an event released outside the draw beat, or
         // a presentation cut short. A card stranded here is a card missing from the hand.
         for case .drew(_, _, let card) in events { undelivered.remove(card) }
+        // Anything still owed here was never turned over — a beat that did not play, or
+        // a presentation cut short. A passive stranded here is a slot missing from the
+        // board for the rest of the game.
+        unrevealed.removeAll()
         shownShot = state.shot
         shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.

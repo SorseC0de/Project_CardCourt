@@ -86,8 +86,7 @@ struct PlayerInspectView: View {
     /// The front pose, wearing this seat's kit — and the ball beside him if he has it.
     private var figure: some View {
         SpriteAnimation(sprite: .front, scale: Figure.scale, isPlaying: false, restFrame: 0)
-            .paletteSwap(PixelPalette.uniform(for: seat)
-                         + PixelPalette.skin(tone: PlayerLook.shared.tone(for: seat)))
+            .paletteSwap(PlayerLook.shared.kit(for: seat))
             .overlay(alignment: .topTrailing) {
                 if hasBall {
                     BallView(diameter: Figure.ball)

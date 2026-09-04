@@ -157,6 +157,24 @@ enum PixelPalette {
     private static func swap(to body: Color, shade: Color) -> [PaletteSwap] {
         [PaletteSwap(jersey, body), PaletteSwap(jerseyShade, shade)]
     }
+
+    /// A kit the player has chosen, rather than one a seat comes with.
+    static func kit(_ pair: Kit.Pair) -> [PaletteSwap] {
+        swap(to: pair.main, shade: pair.shade)
+    }
+
+    /// The belt — **and the shoes.**
+    ///
+    /// Measured off `Player_front`: `slate` and `stone` appear on row 20, which is the
+    /// waist, and again on rows 26–27, which are the feet. One pair paints both, so
+    /// choosing a belt colour chooses a trim colour. Splitting them needs a third pair in
+    /// the art, not another swap here.
+    static let trim = slate
+    static let trimShade = stone
+
+    static func trim(_ pair: Kit.Pair) -> [PaletteSwap] {
+        [PaletteSwap(trim, pair.main), PaletteSwap(trimShade, pair.shade)]
+    }
 }
 
 extension Color {

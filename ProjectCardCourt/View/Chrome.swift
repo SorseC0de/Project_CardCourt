@@ -80,6 +80,9 @@ struct ChunkyButton: View {
     var stroke: Color = CardPalette.gold
     var shade: Color = CardPalette.orange
     var ink: Color = .white
+    /// What falls behind the label. Its own colour, not the button's — a white face wants
+    /// a drop that reads against white type, and the pill's drop is a separate question.
+    var inkShade: Color = Chrome.shade
     var size: CGFloat = 22
     var isEnabled = true
     let run: () -> Void
@@ -91,7 +94,7 @@ struct ChunkyButton: View {
                 .foregroundStyle(ink)
                 // The label carries its own drop, the way the cards' numbers do. It is
                 // what keeps heavy type legible on a saturated fill.
-                .shadow(color: Chrome.shade, radius: 0, x: 3, y: 3)
+                .shadow(color: inkShade, radius: 0, x: 3, y: 3)
                 .padding(.horizontal, size)
                 .padding(.vertical, size * 0.42)
                 .frame(maxWidth: .infinity)
