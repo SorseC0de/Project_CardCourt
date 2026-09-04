@@ -25,10 +25,9 @@ struct InbounderFigure: View {
     private var side: CGFloat { sprite.frameSize * scale }
     /// The face's shift per frame, in art pixels — the loop, written out.
     private static let sway: [CGFloat] = [0, 1, 0, -1]
-    /// Where the ball sits in his hands, in art pixels from the frame's top left.
-    private static let ballOrigin = CGPoint(x: 17, y: 9)
-    /// How big it is, in art pixels.
-    private static let ballSide: CGFloat = 9
+    /// Where the ball sits in his hands, in art pixels from the frame's top left. The
+    /// sheet's own ball is 6 pixels across, so it needs no size of its own.
+    private static let ballOrigin = CGPoint(x: 19, y: 10)
 
     @State private var look = PlayerLook.shared
 
@@ -57,7 +56,9 @@ struct InbounderFigure: View {
     /// a slide — the same movement a person makes settling a ball before throwing it.
     private func ball(step: Int) -> some View {
         let shift = Self.sway[step % Self.sway.count]
-        return BallView(diameter: Self.ballSide * scale)
+        // The pixel ball, not the vector one. A vector ball on a pixel sprite is a
+        // different drawing sitting on top of the game rather than in it.
+        return PixelBallView(scale: scale)
             .offset(x: (Self.ballOrigin.x + shift) * scale,
                     y: (Self.ballOrigin.y + (shift == 0 ? 0 : -1)) * scale)
     }
