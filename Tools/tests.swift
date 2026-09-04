@@ -64,8 +64,8 @@ func runTests() {
         var (state, seat, cards) = openPossession(seed: 4, cards: [CardLibrary.rhythmDribble, CardLibrary.drive])
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         let events = Rules.apply(.play(cards[1].id), by: seat, to: &state)
-        Check.that(!events.contains { if case .comboLanded = $0 { return true }; return false },
-                   "Rhythm Dribble is a different card and does NOT arm Drive")
+        Check.that(events.contains { if case .comboLanded = $0 { return true }; return false },
+                   "Rhythm Dribble is a Dribble too, and arms Drive")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 5, cards: [CardLibrary.dribble, CardLibrary.swingLeft, CardLibrary.drive])
@@ -730,6 +730,24 @@ func runTests() {
         Check.that(back[.south].bag == state[.south].bag, "bags survive with their effects intact")
         Check.that(back.rules == state.rules, "the match's rules travel with it")
         Check.that(back.phase == state.phase, "so does the phase")
+    }
+
+    print("Drive follows any dribble")
+    do {
+        for opener in [CardLibrary.dribble, CardLibrary.rhythmDribble] {
+            var (state, seat, _) = openPossession(seed: 88, cards: [])
+            state.shot = 20
+            state[seat].bag = [matchCard(opener, state.rules),
+                               matchCard(CardLibrary.drive, state.rules)]
+            let first = state[seat].bag[0].id
+            let second = state[seat].bag[1].id
+            _ = Rules.apply(.play(first), by: seat, to: &state)
+            _ = Rules.apply(.play(second), by: seat, to: &state)
+            // Drive's own ten, plus the ten it pays for following a dribble.
+            let expected = 20 + opener.baseShotDelta + 10 + 10
+            Check.that(state.shot == expected,
+                       "\(opener.name) arms Drive's combo")
+        }
     }
 
     print("What a player is allowed to see")

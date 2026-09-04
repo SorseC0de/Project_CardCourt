@@ -99,8 +99,9 @@ enum Rules {
             }
 
             var delta = descriptor.baseShotDelta
-            let comboArmed = descriptor.comboAfter != nil
-                && descriptor.comboAfter == state.lastPlayThisPossession
+            let comboArmed = (descriptor.comboAfter != nil
+                              && descriptor.comboAfter == state.lastPlayThisPossession)
+                || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
             if comboArmed { delta += descriptor.comboBonus }
             adjustShot(by: delta, state: &state)
 
@@ -638,6 +639,16 @@ enum Rules {
         if shouldTick, tickClock(by: -1, holder: seat, state: &state, events: &events) { return }
         state.phase = .possession(holder: seat)
         takeTheLine(state: &state, events: &events)
+    }
+
+    /// Whether the card played immediately before was a dribble of any kind.
+    ///
+    /// Read back out of the library rather than kept on the state: the id is already
+    /// there, the library already knows what it is, and a second field saying the same
+    /// thing is a second field to keep in step across the wire.
+    private static func lastPlayWasDribble(_ state: GameState) -> Bool {
+        guard let last = state.lastPlayThisPossession else { return false }
+        return CardLibrary.all.first { $0.id == last }?.isDribble ?? false
     }
 
     /// Returns true when the clock ran out and the round has already been ended.

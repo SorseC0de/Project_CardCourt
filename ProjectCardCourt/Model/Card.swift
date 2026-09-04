@@ -107,6 +107,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let clockDelta: Int
     /// Descriptor id that must be the immediately preceding play to arm `comboBonus`.
     let comboAfter: String?
+    /// Or any Dribble at all, rather than one named card. Drive follows *a* dribble —
+    /// naming the base one meant Rhythm Dribble, which is equally a dribble, did not
+    /// arm it.
+    var comboAfterDribble = false
     let comboBonus: Int
     /// Set on Whistles.
     let whistle: WhistleEffect?
@@ -130,7 +134,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
 
     init(id: String, name: String, type: CardType, effect: String, numberInDeck: Int,
          passTarget: PassTarget? = nil, shotDelta: Int? = nil, drawCount: Int = 0,
-         clockDelta: Int = 0, comboAfter: String? = nil, comboBonus: Int = 0,
+         clockDelta: Int = 0, comboAfter: String? = nil,
+         comboAfterDribble: Bool = false, comboBonus: Int = 0,
          whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
          special: SpecialMoveEffect? = nil, isDribble: Bool = false,
@@ -139,7 +144,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.id = id; self.name = name; self.type = type; self.effect = effect
         self.numberInDeck = numberInDeck; self.passTarget = passTarget
         self.shotDelta = shotDelta; self.drawCount = drawCount; self.clockDelta = clockDelta
-        self.comboAfter = comboAfter; self.comboBonus = comboBonus
+        self.comboAfter = comboAfter; self.comboAfterDribble = comboAfterDribble
+        self.comboBonus = comboBonus
         self.whistle = whistle; self.clamp = clamp
         self.intangible = intangible; self.gameBreak = gameBreak
         self.special = special; self.isDribble = isDribble

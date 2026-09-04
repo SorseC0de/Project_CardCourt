@@ -29,8 +29,8 @@ enum CardLibrary {
 
     static let drive = CardDescriptor(
         id: "drive", name: "Drive", type: .move,
-        effect: "SHOT +10%. Following Dribble: SHOT +10%", numberInDeck: 7,
-        shotDelta: 10, comboAfter: "dribble", comboBonus: 10)
+        effect: "SHOT +10%. Following a Dribble: SHOT +10%", numberInDeck: 7,
+        shotDelta: 10, comboAfterDribble: true, comboBonus: 10)
 
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
@@ -72,7 +72,7 @@ enum CardLibrary {
 
     static let doubleDribble = CardDescriptor(
         id: "double-dribble", name: "Double Dribble", type: .whistle,
-        effect: "Cancel Next Dribble. Discard 1. TOV +1", numberInDeck: 1,
+        effect: "Cancel a Dribble. Discard 1. TOV +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .dribblePlayed, turnoverOnOffender: true,
                                offenderDiscards: 1))
 

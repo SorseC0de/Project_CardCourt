@@ -182,7 +182,10 @@ struct CourtView: View {
                         .position(x: court.centreX + prompt.throwerX * court.scale(at: depth),
                                   y: court.y(at: depth) - nodeHeight / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
-                        .zIndex(200)
+                        // Behind everybody, wedges included. He is upcourt of the line
+                        // and behind it in every sense — the people he is choosing between
+                        // are the thing being looked at.
+                        .zIndex(-1)
 
                     inboundPrompt
                         .position(x: geo.size.width / 2,

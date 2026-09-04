@@ -60,8 +60,8 @@ struct InboundTuningBench: View {
     }
 
     private func reset() {
-        tune.topX = 0; tune.topY = 260
-        tune.bottomX = 0; tune.bottomY = 310
+        tune.topX = 0; tune.topY = 270
+        tune.bottomX = 0; tune.bottomY = 320
         tune.ballX = 14; tune.ballY = 14
         tune.throwerX = 0
     }
