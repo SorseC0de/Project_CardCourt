@@ -25,11 +25,10 @@ struct InbounderFigure: View {
     private var side: CGFloat { sprite.frameSize * scale }
     /// The face's shift per frame, in art pixels — the loop, written out.
     private static let sway: [CGFloat] = [0, 1, 0, -1]
-    /// Where the ball sits in his hands, in art pixels from the frame's top left. The
-    /// sheet's own ball is 6 pixels across, so it needs no size of its own.
-    private static let ballOrigin = CGPoint(x: 19, y: 10)
 
     @State private var look = PlayerLook.shared
+    /// Observed, not just read — otherwise moving a slider changes nothing on screen.
+    @State private var tune = InboundTextTuning.shared
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / fps)) { timeline in
@@ -39,7 +38,10 @@ struct InbounderFigure: View {
                 ? Int(timeline.date.timeIntervalSinceReferenceDate * fps) % sprite.frames : 0
             ZStack(alignment: .topLeading) {
                 cell(sprite, index: step, size: sprite.frameSize)
-                head(.heads, index: 0, shift: 0)
+                // **The face, and no head.** The body sheets have a head drawn on them
+                // already — they are simply faceless, which is what the face sheet is
+                // for. Laying a head on as well put a second head over the first, and
+                // since the heads sheet carries its own eyes, a second pair of those.
                 head(.faces, index: face, shift: Self.sway[step % Self.sway.count])
                 if holdsBall { ball(step: step) }
             }
@@ -59,8 +61,8 @@ struct InbounderFigure: View {
         // The pixel ball, not the vector one. A vector ball on a pixel sprite is a
         // different drawing sitting on top of the game rather than in it.
         return PixelBallView(scale: scale)
-            .offset(x: (Self.ballOrigin.x + shift) * scale,
-                    y: (Self.ballOrigin.y + (shift == 0 ? 0 : -1)) * scale)
+            .offset(x: (tune.ballX + shift) * scale,
+                    y: (tune.ballY + (shift == 0 ? 0 : -1)) * scale)
     }
 
     /// One cell of a sheet, drawn at the body's size.

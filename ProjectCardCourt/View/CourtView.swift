@@ -388,6 +388,13 @@ struct CourtView: View {
         .allowsHitTesting(false)
     }
 
+    /// Which way to turn to look at the thrower. He stands at one of two posts, so this
+    /// is one answer for the whole floor.
+    private var facesThrower: Bool {
+        guard case .awaitingInbound(let thrower) = gate else { return false }
+        return RefereePost.inbounding(thrower.slot(viewedFrom: viewer)).isLeft
+    }
+
     /// The whole court is stationary — an inbound has been called and everyone is set.
     private var isStill: Bool {
         if case .awaitingInbound = gate { return true }
@@ -479,6 +486,8 @@ struct CourtView: View {
             let footing = court.footing(of: seat)
             let scale = court.scale(of: seat)
             node(seat)
+                // Nudged aside for the inbound, per seat, while that is being eyeballed.
+                .offset(x: isStill ? (prompt.seatX[seat] ?? 0) * scale : 0)
                 // Whoever is inbounding is drawn on the sideline instead, further up this
                 // same stack. Hidden rather than skipped so nothing below them moves.
                 .opacity(isInbounding(seat) ? 0 : 1)
@@ -522,9 +531,12 @@ struct CourtView: View {
                     && state.phase.actingSeat != seat,
                 marker: marker(for: seat, selectable: selectable),
                 handCount: state[seat].bag.count,
-                // Set and waiting for it, like everybody else during an inbound.
+                // Set and waiting for it, like everybody else during an inbound — and
+                // turned to watch whoever is throwing it, rather than facing whichever
+                // way the run of play had left them.
                 sprite: isStill ? .inboundReceiver : nil,
                 facing: passer,
+                mirrored: isStill ? facesThrower : nil,
                 caughtAt: holder == seat ? landedAt : nil,
                 // Nobody dribbles a ball that is still in the air. The thrower has let go
                 // and the receiver has not caught it yet, so both are simply running.
