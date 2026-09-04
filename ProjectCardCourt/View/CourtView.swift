@@ -161,12 +161,8 @@ struct CourtView: View {
                 // `room` is a GeometryReader inside it that builds the floor from
                 // whatever height it is handed — an oversized scrim changed the shape of
                 // the court.
-                if isStill {
-                    Color.black.opacity(Court.dim)
-                        .allowsHitTesting(false)
-                        .transition(.opacity)
-                        .zIndex(Layer.dim)
-                }
+                DimLayer(on: isStill, amount: Court.dim, full: false)
+                    .zIndex(Layer.dim)
 
                 // Painted far to near, so anything upcourt is overlapped by what
                 // stands in front of it instead of by whatever draws last.

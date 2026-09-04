@@ -36,7 +36,7 @@ struct WhistleRevealView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(dimmed ? Self.dim : 0).ignoresSafeArea()
+            DimLayer(on: dimmed, amount: Self.dim)
 
             whistle
             card.opacity(backIn ? 1 : 0)

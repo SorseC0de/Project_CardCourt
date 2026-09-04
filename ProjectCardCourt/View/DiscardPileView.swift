@@ -65,7 +65,7 @@ struct DiscardBrowserView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.85).ignoresSafeArea()
+            DimLayer(on: true, amount: 0.85)
                 .onTapGesture(perform: onDismiss)
 
             VStack(spacing: 10) {
