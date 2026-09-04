@@ -12,9 +12,6 @@ struct GameView: View {
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
     private let logHeight: CGFloat = 74
-    /// Where the court actually is on screen, so the inbound overlay can put its copies
-    /// of the players exactly where the real ones are standing.
-    @State private var courtFrame: CGRect = .zero
 
     var body: some View {
         ZStack {
@@ -28,13 +25,12 @@ struct GameView: View {
                 ScoreboardView(state: controller.state, withheld: controller.withheldPoints)
                 logStrip
                 stage
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(key: CourtFrameKey.self,
-                                               value: geo.frame(in: .global))
-                    })
             }
-            .onPreferenceChange(CourtFrameKey.self) { courtFrame = $0 }
             .ignoresSafeArea(edges: .bottom)
+            // Raised over the cards while the court is asking for a player. The scrim is
+            // drawn inside the court so the figures stand above it — but the court is a
+            // row *below* the hand in this stack, so the row has to come up with it.
+            .zIndex(isChoosingInbound ? 5 : 0)
 
             // Anywhere off the raised card puts it back down. Only present while one is
             // up, so it never swallows a tap on the court.
@@ -103,13 +99,6 @@ struct GameView: View {
                                    onDismiss: { browsingDiscard = false })
                     .transition(.opacity)
                     .zIndex(11)
-            }
-            if isChoosingInbound {
-                InboundOverlay(state: controller.state,
-                               court: courtFrame,
-                               onSelect: { controller.inbound(to: $0) })
-                    .transition(.opacity)
-                    .zIndex(30)
             }
             if let call = controller.actionCall {
                 ActionCallView(call: call) { controller.actionCallFinished() }

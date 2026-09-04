@@ -132,6 +132,22 @@ struct CourtView: View {
                     .position(x: court.centreX,
                               y: court.horizonY - 18 - geo.size.height * 0.05)
 
+                // **Bigger than this cell on purpose.** The court is one row of a stack
+                // and the hand is another below it, so a scrim that stops at the court's
+                // edge leaves the cards lit. `GameView` raises this whole row above the
+                // hand while an inbound is being asked for.
+                //
+                // Drawn here, before the figures, which is the entire point: the players
+                // stand above it without anything being duplicated or measured against a
+                // frame in another coordinate space.
+                if isStill {
+                    Rectangle()
+                        .fill(.black.opacity(0.66))
+                        .frame(width: 4000, height: 4000)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+
                 // Painted far to near, so anything upcourt is overlapped by what
                 // stands in front of it instead of by whatever draws last.
                 ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: refereePosts),
@@ -152,6 +168,22 @@ struct CourtView: View {
                                   y: footing.y - Theme.Figure.height / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
                         .zIndex(250)
+                }
+
+                if case .awaitingInbound(let thrower) = gate {
+                    let post = RefereePost.inbounding(thrower.slot(viewedFrom: viewer))
+                    InbounderFigure(seat: thrower, mirrored: !post.isLeft)
+                        .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
+                        .position(x: court.centreX
+                                  + court.halfWidth(at: post.depth) * post.lateral,
+                                  y: court.y(at: post.depth) - nodeHeight / 2
+                                     + Theme.Figure.height * Perspective.playerDrop)
+                        .zIndex(200)
+
+                    inboundPrompt
+                        .position(x: geo.size.width / 2,
+                                  y: geo.size.height * Prompt.y)
+                        .zIndex(201)
                 }
 
                 if let flight {
@@ -319,6 +351,27 @@ struct CourtView: View {
             free.remove(post)
             return post
         }
+    }
+
+    private enum Prompt {
+        /// Where the two lines sit, as a share of the court's own height.
+        static let y: CGFloat = 0.14
+    }
+
+    /// What the dimmed court is asking for.
+    ///
+    /// `Inbound` is picked out because it is the only word in the sentence that is a rule
+    /// rather than English.
+    private var inboundPrompt: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ActionText("Select a Player", size: 46)
+            ActionText(runs: [.init("to "),
+                              .init("Inbound", ink: CardPalette.gold, drop: CardPalette.orange),
+                              .init(" to!")],
+                       size: 26)
+        }
+        .fixedSize()
+        .allowsHitTesting(false)
     }
 
     /// The whole court is stationary — an inbound has been called and everyone is set.
