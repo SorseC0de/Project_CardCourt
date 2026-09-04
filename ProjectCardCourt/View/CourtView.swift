@@ -6,6 +6,11 @@ struct CourtView: View {
     let revealedBids: [Seat: Int]?
     /// When the ball finished changing hands, so the catch plays in view.
     var settledAt: Date?
+    /// Who is drawn holding it, which lags the rules across a pass — see
+    /// `GameController.shownBall`.
+    var shownBall: Seat?
+    /// A throw-in in the air — see `GameController.throwing`.
+    var throwing: (from: Seat, to: Seat)?
     /// Who threw it, so the ball has somewhere to travel from.
     var passer: Seat?
     /// Stands in for the ball's holder while a practice pass is in the air, so the flight
@@ -50,7 +55,7 @@ struct CourtView: View {
     /// A practice pass puts it in the receiver's hands without the rules having moved
     /// anything, and every part of the catch has to agree — the sprite, the flight, and
     /// the ball's destination all read this rather than `state.ball` directly.
-    private var holder: Seat? { receiver ?? state.ball }
+    private var holder: Seat? { receiver ?? shownBall ?? state.ball }
 
     /// How wide a pile is drawn before the bench's multiplier.
     private static let pileWidth: CGFloat = 138
@@ -183,11 +188,14 @@ struct CourtView: View {
                         .zIndex(250)
                 }
 
-                if case .awaitingInbound(let thrower) = gate {
+                if let thrower {
                     // Dead centre, facing the line of three. He is not on the floor,
                     // so there is no side for him to be on.
                     let depth = RefereePost.farLeft.depth
-                    InbounderFigure(seat: thrower, holdsBall: true)
+                    // The ball leaves his hands the moment he throws, and he holds the
+                    // pose he threw in until it lands.
+                    InbounderFigure(seat: thrower, holdsBall: throwing == nil,
+                                    frozen: throwing != nil)
                         .scaleEffect(court.scale(at: depth), anchor: .bottom)
                         .position(x: court.centreX + prompt.throwerX * court.scale(at: depth),
                                   y: court.y(at: depth) - nodeHeight / 2
@@ -195,9 +203,21 @@ struct CourtView: View {
                         // Behind everybody, wedges included — but in front of the dim.
                         .zIndex(Layer.thrower)
 
-                    inboundPrompt
-                        .position(x: geo.size.width / 2,
-                                  y: geo.size.height * Prompt.y)
+                    // The question is answered once it is in the air.
+                    if throwing == nil {
+                        inboundPrompt
+                            .position(x: geo.size.width / 2,
+                                      y: geo.size.height * Prompt.y)
+                            .zIndex(Layer.prompt)
+                    }
+                }
+
+                // The throw itself, crossing from the sideline to whoever was chosen.
+                if let throwing {
+                    InboundThrow(from: throwOrigin(on: court),
+                                 to: ballPoint(of: throwing.to, on: court, catching: false),
+                                 seconds: Pacing.inboundThrow,
+                                 scale: court.scale(of: throwing.to, inbounding: true))
                         .zIndex(Layer.prompt)
                 }
 
@@ -433,8 +453,23 @@ struct CourtView: View {
 
     /// The whole court is stationary — an inbound has been called and everyone is set.
     private var isStill: Bool {
+        if throwing != nil { return true }
         if case .awaitingInbound = gate { return true }
         return false
+    }
+
+    /// Whoever is on the sideline: the one being asked, or the one who has just thrown.
+    private var thrower: Seat? {
+        if let throwing { return throwing.from }
+        if case .awaitingInbound(let seat) = gate { return seat }
+        return nil
+    }
+
+    /// Where the throw leaves from. The same spot the thrower is drawn standing on.
+    private func throwOrigin(on court: CourtGeometry) -> CGPoint {
+        let depth = RefereePost.farLeft.depth
+        return CGPoint(x: court.centreX + prompt.throwerX * court.scale(at: depth),
+                       y: court.y(at: depth) - Theme.Figure.height * 0.4)
     }
 
     /// True while this seat is the one being asked to throw it back in.
@@ -607,5 +642,28 @@ struct CourtView: View {
         }
         .onTapGesture { if selectable { onSelect(seat) } }
         .animation(.easeOut(duration: 0.2), value: revealedBids?[seat])
+    }
+}
+
+/// The throw-in, crossing the floor.
+///
+/// Its own view so the flight owns its clock: the court redraws for every state change in
+/// the game, and a ball whose position came from that would stutter across.
+private struct InboundThrow: View {
+    let from: CGPoint
+    let to: CGPoint
+    let seconds: Double
+    var scale: CGFloat = 1
+
+    @State private var travelled: CGFloat = 0
+
+    var body: some View {
+        PixelBallView(scale: Theme.Figure.playerScale * scale)
+            .position(x: from.x + (to.x - from.x) * travelled,
+                      y: from.y + (to.y - from.y) * travelled)
+            .onAppear {
+                withAnimation(.easeOut(duration: seconds)) { travelled = 1 }
+            }
+            .allowsHitTesting(false)
     }
 }

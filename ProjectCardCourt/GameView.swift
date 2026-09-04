@@ -252,6 +252,7 @@ struct GameView: View {
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
                   settledAt: controller.ballSettledAt,
+                  shownBall: controller.shownBall,
                   passer: passerOnCourt,
                   receiver: receiverOnCourt,
                   flight: controller.flight,

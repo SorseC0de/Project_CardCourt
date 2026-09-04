@@ -21,6 +21,10 @@ enum Pacing {
     static let dealFlight = 0.15
     /// The whole of a defender's swipe: arrive, take, drift off.
     static let clampSwipe = 0.8
+    /// The inbound's own throw: how long the ball takes to cross from the sideline, and
+    /// how long the thrower stands there having thrown it. He is watching it land.
+    static let inboundThrow = 0.5
+    static let inboundHold = 0.5
     /// How long a phase call holds before it takes itself off.
     static let actionCall = 1.4
     /// The beat between one revealed card leaving and the next arriving.
@@ -285,6 +289,16 @@ final class GameController {
     /// What the pile is showing. A card leaves the deck when it lands in a hand, not when
     /// the rules decide it has — the same lag `shownShot` carries, for the same reason.
     private(set) var shownDeck = 0
+    /// Who the court draws holding the ball.
+    ///
+    /// The rules hand it over the instant the card is played, so the receiver was already
+    /// holding it before the throw had been drawn — and then the throw was drawn, which
+    /// is the ball crossing twice. This lags across a pass and nothing else.
+    private(set) var shownBall: Seat?
+    /// A throw-in that has left his hands and not yet arrived. The court keeps its set
+    /// while this is on: the dim stays, everybody stays where they were, and the thrower
+    /// stands frozen on the pose he threw in.
+    private(set) var throwing: (from: Seat, to: Seat)?
     private(set) var log: [LogLine] = []
     private(set) var gate: Gate = .thinking
     private(set) var cutscene: ShotCutscene?
@@ -1068,6 +1082,12 @@ final class GameController {
     private func stampSettled(_ events: [GameEvent]) {
         for case .passed in events {
             ballSettledAt = Date()
+            // Handed over when it lands, not when it was played. The court flies it for
+            // exactly this long — both read the same constant, so they cannot drift.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds))
+                self.shownBall = self.state.ball
+            }
             return
         }
     }
@@ -1109,6 +1129,14 @@ final class GameController {
     private func apply(_ move: Move, by seat: Seat) async {
         let defenders = defenderCount(on: seat)
         let events = Rules.apply(move, by: seat, to: &state)
+        // The throw-in gets its own beat before anything else happens: the ball crosses,
+        // and the man who threw it watches it go. Cutting to the next possession the
+        // instant the card is chosen is what made him warp off the sideline.
+        if case .inbound(let target) = move {
+            throwing = (from: seat, to: target)
+            try? await Task.sleep(for: .seconds(Pacing.inboundThrow + Pacing.inboundHold))
+            throwing = nil
+        }
         await present(events, defenders: defenders, playedCard: true)
     }
 
@@ -1124,6 +1152,11 @@ final class GameController {
         // that follows a bid and flashes back the moment one clears.
         gate = .thinking
         broadcast(events)
+        // Anything but a pass moves the ball at once: an inbound, a rebound, a turnover.
+        // Only a throw has a journey to wait for.
+        if !events.contains(where: { if case .passed = $0 { return true }; return false }) {
+            shownBall = state.ball
+        }
         var ledger = events
 
         if playedCard {
@@ -1162,6 +1195,7 @@ final class GameController {
 
     private func record(_ events: [GameEvent]) {
         shownShot = state.shot
+        shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.
         shownDeck = state.deck.count
         DevLog.record(events)

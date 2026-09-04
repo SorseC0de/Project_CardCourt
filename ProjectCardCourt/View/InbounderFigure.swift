@@ -15,6 +15,9 @@ struct InbounderFigure: View {
     var sprite: Sprite = .inbounder
     /// The thrower has it; the people waiting for it do not.
     var holdsBall = false
+    /// Held on the first pose. He has thrown it and is watching it land, which is not a
+    /// moment to be swaying in.
+    var frozen = false
     /// Which face he wears. Nine to choose from; customisation later.
     var face: Int = 0
     var scale: CGFloat = Theme.Figure.playerScale
@@ -34,7 +37,7 @@ struct InbounderFigure: View {
         TimelineView(.animation(minimumInterval: 1 / fps)) { timeline in
             // A one-frame body has nothing to step through, and a face that swayed on
             // its own would be a head shaking on a statue.
-            let step = sprite.frames > 1
+            let step = sprite.frames > 1 && !frozen
                 ? Int(timeline.date.timeIntervalSinceReferenceDate * fps) % sprite.frames : 0
             ZStack(alignment: .topLeading) {
                 cell(sprite, index: step, size: sprite.frameSize)

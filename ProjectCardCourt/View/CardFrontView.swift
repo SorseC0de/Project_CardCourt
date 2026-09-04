@@ -152,16 +152,9 @@ struct CardFrontView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: side, height: side)
-                    // Laid over its own shape, so the drawing's palette colours give way
-                    // to one flat blue and it reads as a pair with the three beside it.
-                    .overlay { CardPalette.blue }
-                    .mask {
-                        Image("ShootIcon").resizable().scaledToFit()
-                            .frame(width: side, height: side)
-                    }
-                    // On the image, not the stack — the hand carries its own.
-                    .shadow(color: CardLayout.iconShadow(for: descriptor.type),
-                            radius: 0, x: drop, y: drop)
+                    // On the image, not the stack — the hand carries its own. The drop is
+                    // blue to match the three beside it; the drawing keeps its own colours.
+                    .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
                 if descriptor.isThree {
                     ThreeHandMark(width: side, shadowOffset: drop)
                 }
