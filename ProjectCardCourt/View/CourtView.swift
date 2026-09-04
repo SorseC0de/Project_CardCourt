@@ -365,7 +365,7 @@ struct CourtView: View {
     enum Court {
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
-        static let dim: Double = 0.82
+        static let dim: Double = 0.66
     }
 
     private enum Prompt {
