@@ -18,6 +18,9 @@ struct FannedBagView: View {
     let selected: Set<Card.ID>
     /// Cards a Clamp is holding down — see `Rules.lockedCards`.
     var locked: Set<Card.ID> = []
+    /// A wash over every card, whatever else is going on. The red one marks a card out;
+    /// this one marks the whole hand as not being what is being asked about.
+    var wash: Color?
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -51,17 +54,23 @@ struct FannedBagView: View {
                               expanded: expanded,
                               isDormant: dormant.contains(card.id))
                     .overlay {
-                        // A held card wears the same wash a refused one does, because
-                        // it is the same fact: this one is not going to be played.
-                        if selected.contains(card.id) || refused == card.id
-                            || locked.contains(card.id) {
+                        // One wash, whatever it is for. A held card wears the same red a
+                        // refused one does, because it is the same fact: this one is not
+                        // going to be played. A whole hand wears the dark one when the
+                        // question on screen is not about cards at all.
+                        let marked = selected.contains(card.id) || refused == card.id
+                            || locked.contains(card.id)
+                        if let tint = marked ? Theme.danger.opacity(0.33) : wash {
                             RoundedRectangle(cornerRadius: 76 * CardLayout.cornerFraction,
                                              style: .continuous)
-                                .fill(Theme.danger.opacity(0.33))
+                                .fill(tint)
                                 .overlay {
-                                    RoundedRectangle(cornerRadius: 76 * CardLayout.cornerFraction,
-                                                     style: .continuous)
-                                        .stroke(Theme.danger, lineWidth: 2.5)
+                                    if marked {
+                                        RoundedRectangle(
+                                            cornerRadius: 76 * CardLayout.cornerFraction,
+                                            style: .continuous)
+                                            .stroke(Theme.danger, lineWidth: 2.5)
+                                    }
                                 }
                                 .allowsHitTesting(false)
                         }

@@ -21,6 +21,12 @@ struct ActionBarView: View {
 
     private var canShoot: Bool { legal.contains(.shoot) }
 
+    /// The court is asking who to throw to, so the hand is not the question.
+    private var isChoosingInbound: Bool {
+        if case .awaitingInbound = controller.gate { return true }
+        return false
+    }
+
     /// What a Clamp is holding down. Marked whether or not it is your turn — a lock is a
     /// standing fact about your hand, not a thing that only exists while you are asked.
     private var lockedCards: Set<Card.ID> {
@@ -50,6 +56,7 @@ struct ActionBarView: View {
                           isSelecting: isSelecting,
                           selected: controller.bidSelection,
                           locked: lockedCards,
+                          wash: isChoosingInbound ? CourtView.Court.cardWash : nil,
                           detail: $detail,
                           onCommit: commit)
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
