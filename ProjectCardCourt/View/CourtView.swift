@@ -154,10 +154,10 @@ struct CourtView: View {
                         .frame(width: geo.size.width, height: geo.size.height * 3)
                         .allowsHitTesting(false)
                         .transition(.opacity)
-                        // Under everybody, the thrower included. Declaration order alone
-                        // put it level with the figures, which meant the one drawn behind
-                        // them was drawn behind this too and came out dimmed.
-                        .zIndex(-2)
+                        // Over the scenery, under the people. The deck goes under it
+                        // with the floor — during an inbound it is not what is being
+                        // looked at.
+                        .zIndex(Layer.dim)
                 }
 
                 // Painted far to near, so anything upcourt is overlapped by what
@@ -165,6 +165,10 @@ struct CourtView: View {
                 ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: refereePosts),
                         id: \.self) { item in
                     place(item, on: court, in: geo.size)
+                        // People come up over the dim; the piles stay under it. Equal
+                        // numbers keep their declaration order, so the far-to-near sort
+                        // still decides who overlaps whom.
+                        .zIndex(isStill && item.isPerson ? Layer.people : 0)
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
                            value: refereePosts)
@@ -192,14 +196,12 @@ struct CourtView: View {
                                   y: court.y(at: depth) - nodeHeight / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
                         // Behind everybody, wedges included — but in front of the dim.
-                        // He is upcourt of the line and behind it, not under the scrim
-                        // with the floor.
-                        .zIndex(-1)
+                        .zIndex(Layer.thrower)
 
                     inboundPrompt
                         .position(x: geo.size.width / 2,
                                   y: geo.size.height * Prompt.y)
-                        .zIndex(201)
+                        .zIndex(Layer.prompt)
                 }
 
                 if let flight {
@@ -367,6 +369,21 @@ struct CourtView: View {
         return Array(RefereePost.crew(from: start).prefix(state.armedWhistles.count))
     }
 
+    /// What sits above what while an inbound is being asked for.
+    ///
+    /// Spelled out because a ZStack gives every child that does not ask for a number a
+    /// zero, and a negative one therefore goes *behind the floor* rather than behind the
+    /// people — which is how the scrim ended up showing only around the edges of the
+    /// court and the thrower ended up under it.
+    private enum Layer {
+        /// The floor, the streaks, the piles. Everything that is scenery keeps the zero
+        /// it already had.
+        static let dim: Double = 1
+        static let thrower: Double = 2
+        static let people: Double = 3
+        static let prompt: Double = 4
+    }
+
     enum Court {
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
@@ -446,6 +463,9 @@ struct CourtView: View {
         case player(Seat)
         case deck
         case referee(RefereePost)
+
+        /// A player or a referee, rather than the furniture.
+        var isPerson: Bool { if case .deck = self { return false }; return true }
 
         func depth(viewedFrom viewer: Seat) -> CGFloat {
             switch self {
