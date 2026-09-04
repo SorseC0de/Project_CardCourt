@@ -2,6 +2,21 @@
 
 Things agreed on but not built. Newest at the top.
 
+## The deal, from the inbound
+
+Low priority, both parts. The inbound looks right now; the dealing that follows it does
+not.
+
+**The deck should travel and bow.** It already can — `DeckStage.travel` banks into a move
+and `bow(toward:)` turns and dips at each stop, and `CourtStage.open` uses both for the
+opening lap. Nothing calls them for an ordinary deal, so the pile sits still and only the
+card moves. What is missing is the wiring, not the movement.
+
+**The dealt cards are tiny.** A card in flight comes out far smaller than a card in a hand,
+so a deal reads as something being flicked rather than dealt. Worth measuring what the
+flight is actually sized against before changing the number — see `CardFlight` and the
+`dealer` in `CourtStage`.
+
 ## The dealing itself
 
 The deck's own performance landed — the jostle, the bank into a flight, the bow at each
