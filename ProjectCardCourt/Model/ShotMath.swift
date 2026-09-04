@@ -114,8 +114,9 @@ extension GameState {
             modifiers.adds.append(ShotModifier(label: passive.name, amount: Double(effect.shotBonus)))
         }
         modifiers.override = pendingShotOverride
-        // Skyhook goes up over everybody. The debuffs are skipped rather than cancelled:
-        // the Clamps are still there, and are still there afterwards.
+        // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
+        // Nothing is cancelled, though that makes no odds — Clamps come off at the end of
+        // the possession anyway, and a shot ends one.
         for clamp in ignoringClamps ? [] : self[seat].clamps {
             let debuff = clamp.card.clamp?.shotDebuff ?? 0
             guard debuff != 0 else { continue }

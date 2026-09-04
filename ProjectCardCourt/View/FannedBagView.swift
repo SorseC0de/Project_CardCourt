@@ -16,6 +16,8 @@ struct FannedBagView: View {
     /// Rebound bids and Turnaround Three pick cards rather than playing one.
     let isSelecting: Bool
     let selected: Set<Card.ID>
+    /// Cards a Clamp is holding down — see `Rules.lockedCards`.
+    var locked: Set<Card.ID> = []
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -49,7 +51,10 @@ struct FannedBagView: View {
                               expanded: expanded,
                               isDormant: dormant.contains(card.id))
                     .overlay {
-                        if selected.contains(card.id) || refused == card.id {
+                        // A held card wears the same wash a refused one does, because
+                        // it is the same fact: this one is not going to be played.
+                        if selected.contains(card.id) || refused == card.id
+                            || locked.contains(card.id) {
                             RoundedRectangle(cornerRadius: 76 * CardLayout.cornerFraction,
                                              style: .continuous)
                                 .fill(Theme.danger.opacity(0.33))
@@ -70,7 +75,8 @@ struct FannedBagView: View {
                     // up and they stay there, which is the whole gesture.
                     .offset(x: placement.x + (lifted ? drag.width : 0),
                             y: placement.y + (lifted ? drag.height : 0) + (expanded ? -14 : 0)
-                               + (selected.contains(card.id) ? -Hand.chosenLift : 0))
+                               + (selected.contains(card.id) || locked.contains(card.id)
+                                  ? -Hand.chosenLift : 0))
                     .shadow(color: .black.opacity(lifted || expanded ? 0.5 : 0.28),
                             radius: lifted || expanded ? 14 : 4, y: lifted || expanded ? 10 : 2)
                     .zIndex(expanded ? 200 : (lifted ? 100 : Double(index)))

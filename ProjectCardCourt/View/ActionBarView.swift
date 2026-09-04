@@ -21,6 +21,12 @@ struct ActionBarView: View {
 
     private var canShoot: Bool { legal.contains(.shoot) }
 
+    /// What a Clamp is holding down. Marked whether or not it is your turn — a lock is a
+    /// standing fact about your hand, not a thing that only exists while you are asked.
+    private var lockedCards: Set<Card.ID> {
+        Rules.lockedCards(state, for: GameRules.localSeat)
+    }
+
     private var dormantCards: Set<Card.ID> {
         Set(bag.filter { Rules.isDormant($0.descriptor, for: GameRules.localSeat, in: state) }
             .map(\.id))
@@ -43,6 +49,7 @@ struct ActionBarView: View {
                           dormant: dormantCards,
                           isSelecting: isSelecting,
                           selected: controller.bidSelection,
+                          locked: lockedCards,
                           detail: $detail,
                           onCommit: commit)
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }

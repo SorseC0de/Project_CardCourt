@@ -54,6 +54,18 @@ enum Rules {
         }
     }
 
+    /// Cards a Clamp is holding down: the ones it picked at random, plus everything a
+    /// Trap forbids. Read by the hand so a held card looks held, and by nothing else —
+    /// `legalMoves` refuses them on its own.
+    static func lockedCards(_ state: GameState, for seat: Seat) -> Set<Card.ID> {
+        var held = Set(state[seat].clamps.flatMap(\.locked))
+        if state[seat].clamps.contains(where: { $0.card.clamp?.passOnly == true }) {
+            held.formUnion(state[seat].bag.filter { $0.descriptor.passTarget == nil }
+                .map(\.id))
+        }
+        return held
+    }
+
     /// A seat may bid anywhere from nothing up to its whole bag.
     static func legalReboundBid(_ state: GameState, for seat: Seat) -> ClosedRange<Int> {
         0...state[seat].bag.count
