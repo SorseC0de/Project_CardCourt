@@ -54,23 +54,16 @@ struct InboundTuningBench: View {
                 slider("line 2 x", text(\.bottomX), reach)
                 slider("line 2 y", text(\.bottomY), reach)
                 slider("ball y", text(\.ballY), 0...32)
-                ForEach(Seat.allCases, id: \.self) { seat in
-                    slider("\(seat.playerName) x", seatX(seat), reach)
-                }
+                slider("thrower x", text(\.throwerX), reach)
             }
         }
     }
 
     private func reset() {
-        tune.topX = 0; tune.topY = -22
-        tune.bottomX = 0; tune.bottomY = 22
-        tune.ballX = 19; tune.ballY = 10
-        tune.seatX = [:]
-    }
-
-    private func seatX(_ seat: Seat) -> Binding<Double> {
-        Binding(get: { Double(tune.seatX[seat] ?? 0) },
-                set: { tune.seatX[seat] = CGFloat($0) })
+        tune.topX = 0; tune.topY = 260
+        tune.bottomX = 0; tune.bottomY = 310
+        tune.ballX = 14; tune.ballY = 14
+        tune.throwerX = 0
     }
 
     private func text(_ path: ReferenceWritableKeyPath<InboundTextTuning, CGFloat>) -> Binding<Double> {

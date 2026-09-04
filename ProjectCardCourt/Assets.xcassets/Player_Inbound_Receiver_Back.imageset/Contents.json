@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "player_inbound_receiver_back.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

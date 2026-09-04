@@ -30,6 +30,13 @@ enum Perspective {
     /// that the near player reads as near and the far one as far.
     static let farScale: CGFloat = 0.40
 
+    /// The depth everybody stands at during an inbound.
+    ///
+    /// The flanks' own, so the three of them make a line across the floor rather than a
+    /// triangle — the upcourt player is a good deal smaller where he usually stands, and
+    /// three people at three sizes does not read as a set play.
+    static var inboundLine: CGFloat { depth(of: .east) }
+
     /// Where each seat stands. North is upcourt, South is nearest the camera.
     static func depth(of seat: Seat) -> CGFloat {
         switch seat {
@@ -154,9 +161,11 @@ struct CourtGeometry {
     }
 
     /// The point on the floor a seat stands on — its feet, not its centre.
-    func footing(of seat: Seat) -> CGPoint {
+    /// During an inbound everybody stands on one line, so the upcourt player comes down
+    /// to the flanks' depth instead of being half their size behind them.
+    func footing(of seat: Seat, inbounding: Bool = false) -> CGPoint {
         let slot = seat.slot(viewedFrom: viewer)
-        let depth = Perspective.depth(of: slot)
+        let depth = self.depth(of: slot, inbounding: inbounding)
         let half = halfWidth(at: depth) * Perspective.flankSpread
         switch slot {
         case .north, .south: return CGPoint(x: centreX, y: y(at: depth))
@@ -165,8 +174,13 @@ struct CourtGeometry {
         }
     }
 
-    func scale(of seat: Seat) -> CGFloat {
-        scale(at: Perspective.depth(of: seat.slot(viewedFrom: viewer)))
+    func scale(of seat: Seat, inbounding: Bool = false) -> CGFloat {
+        scale(at: depth(of: seat.slot(viewedFrom: viewer), inbounding: inbounding))
+    }
+
+    private func depth(of slot: Seat, inbounding: Bool) -> CGFloat {
+        inbounding && slot == .north
+            ? Perspective.inboundLine : Perspective.depth(of: slot)
     }
 
     /// How much smaller everything at the horizon is than the same thing at the near

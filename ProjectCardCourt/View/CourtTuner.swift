@@ -74,12 +74,12 @@ final class InboundTextTuning {
 
     /// Where the ball sits in the thrower's hands, in art pixels from his frame's top
     /// left — art pixels rather than points, so it stays put at any scale.
-    var ballX: CGFloat = 12
-    var ballY: CGFloat = 12
+    var ballX: CGFloat = 14
+    var ballY: CGFloat = 14
 
-    /// How far each seat steps aside while an inbound is being chosen. The thrower's own
-    /// entry moves him on the sideline, since his figure on the floor is not drawn.
-    var seatX: [Seat: CGFloat] = [.west: 100, .east: -350]
+    /// How far the thrower stands from the middle of the floor. The other seats do not
+    /// move — they line up by depth instead, which is `Perspective.inboundLine`.
+    var throwerX: CGFloat = 0
 }
 
 #if DEBUG

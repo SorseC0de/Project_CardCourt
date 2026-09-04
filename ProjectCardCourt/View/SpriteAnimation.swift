@@ -13,6 +13,9 @@ enum Sprite: String, CaseIterable {
     case inbounder = "Player_Inbounder"
     /// Waiting for it. One frame — nobody is moving during an inbound.
     case inboundReceiver = "Player_Inbound_Receiver"
+    /// The same, seen from behind: what three of the four are during an inbound, since
+    /// they are turned upcourt toward the thrower.
+    case inboundReceiverBack = "Player_Inbound_Receiver_Back"
     /// Guarding, and the swipe he makes on a Clamp that does its work at once.
     case defender = "Defender"
     case defenderSwipe = "Defender_Swipe"
@@ -33,7 +36,7 @@ enum Sprite: String, CaseIterable {
         case .front:        return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
-        case .inboundReceiver: return 1
+        case .inboundReceiver, .inboundReceiverBack: return 1
         case .defender:     return 2
         case .defenderSwipe: return 1
         default:            return 16

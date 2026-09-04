@@ -174,17 +174,13 @@ struct CourtView: View {
                 }
 
                 if case .awaitingInbound(let thrower) = gate {
-                    let post = RefereePost.inbounding(thrower.slot(viewedFrom: viewer))
-                    InbounderFigure(seat: thrower, holdsBall: true,
-                                    mirrored: !post.isLeft)
-                        .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
-                        // His own nudge moves *him*, not the figure on the floor — that
-                        // one is not drawn while he is throwing it in.
-                        .position(x: court.centreX
-                                  + court.halfWidth(at: post.depth) * post.lateral
-                                  + (prompt.seatX[thrower] ?? 0)
-                                    * court.scale(at: post.depth),
-                                  y: court.y(at: post.depth) - nodeHeight / 2
+                    // Dead centre, facing the line of three. He is not on the floor,
+                    // so there is no side for him to be on.
+                    let depth = RefereePost.farLeft.depth
+                    InbounderFigure(seat: thrower, holdsBall: true)
+                        .scaleEffect(court.scale(at: depth), anchor: .bottom)
+                        .position(x: court.centreX + prompt.throwerX * court.scale(at: depth),
+                                  y: court.y(at: depth) - nodeHeight / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
                         .zIndex(200)
 
@@ -487,11 +483,9 @@ struct CourtView: View {
                 .onTapGesture(perform: onOpenDiscard)
                 .position(discardPoint(on: court))
         case .player(let seat):
-            let footing = court.footing(of: seat)
-            let scale = court.scale(of: seat)
+            let footing = court.footing(of: seat, inbounding: isStill)
+            let scale = court.scale(of: seat, inbounding: isStill)
             node(seat)
-                // Nudged aside for the inbound, per seat, while that is being eyeballed.
-                .offset(x: isStill ? (prompt.seatX[seat] ?? 0) * scale : 0)
                 // Whoever is inbounding is drawn on the sideline instead, further up this
                 // same stack. Hidden rather than skipped so nothing below them moves.
                 .opacity(isInbounding(seat) ? 0 : 1)
@@ -538,7 +532,7 @@ struct CourtView: View {
                 // Set and waiting for it, like everybody else during an inbound — and
                 // turned to watch whoever is throwing it, rather than facing whichever
                 // way the run of play had left them.
-                sprite: isStill ? .inboundReceiver : nil,
+                sprite: isStill ? .inboundReceiverBack : nil,
                 facing: passer,
                 mirrored: isStill ? facesThrower : nil,
                 caughtAt: holder == seat ? landedAt : nil,
