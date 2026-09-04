@@ -17,6 +17,8 @@ struct CourtView: View {
     var deckRoutine: DeckStage.Routine = .rest
     /// A card the stage should throw, and to whom.
     var deal: (seat: Seat, id: UUID)?
+    /// A one-off Clamp taking its cards from this seat, right now.
+    var swipe: (seat: Seat, id: UUID)?
     var opening: OpeningDeal?
     var flightDuration: Double = 0.30
     var onOpenDiscard: () -> Void = {}
@@ -138,6 +140,19 @@ struct CourtView: View {
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
                            value: refereePosts)
+
+                // Over the player he is taking from, and gone again in under a second.
+                if let swipe {
+                    let footing = court.footing(of: swipe.seat)
+                    DefenderSwipe(seat: swipe.seat,
+                                  mirrored: swipe.seat.slot(viewedFrom: viewer) == .west)
+                        .id(swipe.id)
+                        .scaleEffect(court.scale(of: swipe.seat), anchor: .bottom)
+                        .position(x: footing.x,
+                                  y: footing.y - Theme.Figure.height / 2
+                                     + Theme.Figure.height * Perspective.playerDrop)
+                        .zIndex(250)
+                }
 
                 if let flight {
                     let deck = CGPoint(

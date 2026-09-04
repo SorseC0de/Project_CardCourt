@@ -19,6 +19,8 @@ enum Pacing {
     /// twenty of them go by at once.
     static let drawFlight = 0.30
     static let dealFlight = 0.15
+    /// The whole of a defender's swipe: arrive, take, drift off.
+    static let clampSwipe = 0.8
     /// How long a phase call holds before it takes itself off.
     static let actionCall = 1.4
     /// The beat between one revealed card leaving and the next arriving.
@@ -309,6 +311,9 @@ final class GameController {
     /// A made three, celebrating. The points are withheld from the scoreboard until the
     /// number reaches it.
     private(set) var celebratingThree: Seat?
+    /// A one-off Clamp taking its cards: who from, and a stamp so a second one replays
+    /// rather than being mistaken for the first.
+    private(set) var clampSwipe: (seat: Seat, id: UUID)?
     /// The phase or event currently announcing itself. See `ActionCall`.
     private(set) var actionCall: ActionCall?
     private(set) var withheldPoints: (seat: Seat, amount: Int)?
@@ -1015,6 +1020,19 @@ final class GameController {
         }
     }
 
+    /// A Clamp that takes cards and goes.
+    ///
+    /// Standing Clamps are drawn on the player for as long as they last — see `BindLines`.
+    /// This is the other sort: he arrives, swipes, and drifts off, which is the only time
+    /// anybody sees him.
+    private func showClampBite(in events: [GameEvent]) async {
+        for case .clampBit(let seat, _, _) in events {
+            clampSwipe = (seat: seat, id: UUID())
+            try? await Task.sleep(for: .seconds(Pacing.clampSwipe))
+            clampSwipe = nil
+        }
+    }
+
     /// A Whistle turning face up.
     private func showWhistle(in events: [GameEvent]) async {
         guard let scene = WhistleReveal.first(in: events, seen: SeenCards.shared) else { return }
@@ -1124,6 +1142,7 @@ final class GameController {
         await playDrawsAndReveals(in: events)
         release(.draw, from: &ledger)
         release(.reveal, from: &ledger)
+        await showClampBite(in: events)
 
         if let scene = ShotCutscene(events: events, defenders: defenders) {
             cutscene = scene

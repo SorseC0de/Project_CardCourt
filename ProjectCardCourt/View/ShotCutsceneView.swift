@@ -79,7 +79,9 @@ struct ShotCutsceneView: View {
                 ForEach(0..<scene.defenders, id: \.self) { index in
                     let side: CGFloat = index.isMultiple(of: 2) ? 1 : -1
                     let rank = CGFloat(index / 2 + 1)
-                    DefenderFigure()
+                    // Turned to face the shooter, so a pair of them close from both
+                    // sides rather than both looking the same way.
+                    DefenderFigure(seat: scene.shooter, mirrored: side < 0)
                         .scaleEffect(1.7, anchor: .bottom)
                         .position(x: geo.size.width / 2 + side * 62 * rank,
                                   y: geo.size.height - 150 - 14 * rank)

@@ -264,6 +264,7 @@ struct GameView: View {
                   flight: controller.flight,
                   deckRoutine: controller.deckRoutine,
                   deal: controller.stageDeal,
+                  swipe: controller.clampSwipe,
                   opening: controller.opening,
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },

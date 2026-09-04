@@ -26,13 +26,16 @@ struct DefenderSwipe: View {
     private var side: CGFloat { Sprite.defenderSwipe.frameSize * scale }
 
     var body: some View {
-        Image(Sprite.defenderSwipe.rawValue)
-            .interpolation(.none)
-            .resizable()
-            .frame(width: side, height: side)
-            // Red jersey, and skin of his own — a defender is a person, not a marker.
-            .paletteSwap(PixelPalette.defenderUniform
-                         + PixelPalette.skin(tone: look.defenderTone(for: seat)))
+        ZStack(alignment: .bottom) {
+            SpriteShadow(scale: scale)
+            Image(Sprite.defenderSwipe.rawValue)
+                .interpolation(.none)
+                .resizable()
+                .frame(width: side, height: side)
+                // Red jersey, and skin of his own — a defender is a person, not a marker.
+                .paletteSwap(PixelPalette.defenderUniform
+                             + PixelPalette.skin(tone: look.defenderTone(for: seat)))
+        }
             .scaleEffect(x: mirrored ? -1 : 1)
             .offset(x: gone ? (mirrored ? side : -side) * Drift.away : 0,
                     y: gone ? side * Drift.away : 0)
