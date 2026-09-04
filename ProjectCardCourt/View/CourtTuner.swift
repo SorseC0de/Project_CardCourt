@@ -97,6 +97,7 @@ struct DebugActionsView: View {
     var controller: GameController
 
     @State private var deck = DeckTuning.shared
+    @State private var cardFont = CardFont.shared
     /// Observed, or the switch's own label never changes and it reads as dead.
     @State private var render = RenderDebug.shared
     /// Who a practice pass goes to. Always from the player, so this is the whole choice.
@@ -144,6 +145,9 @@ struct DebugActionsView: View {
                     deckReadout = deckReadout.next
                 }
                 action("unsee") { SeenCards.shared.forgetAll() }
+                action("Aa \(cardFont.weight.label)") {
+                    cardFont.weight = cardFont.weight.next
+                }
                 // Not a real screen yet, and it cannot be until the app has a Game Center
                 // record to authenticate against.
                 action("match") { lobby = true }

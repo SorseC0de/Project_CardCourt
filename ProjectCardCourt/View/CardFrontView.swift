@@ -6,6 +6,9 @@ import SwiftUI
 /// Layered back to front exactly as specified: body, text overlay, border stroke, name
 /// plate, name, then the SHOT badge.
 struct CardFrontView: View {
+    /// Observed, not just read — otherwise the bench's weight button changes nothing.
+    @State private var cardFont = CardFont.shared
+
     let descriptor: CardDescriptor
     /// Width in points. Everything else is a fraction of it, so the card holds together
     /// at any size — a 76pt hand card and a 600pt calibration card are the same drawing.
@@ -185,7 +188,7 @@ struct CardFrontView: View {
         let size = width * CardLayout.effectSizeFraction
         let inset = width * 0.05
         return TightText(text: expanded ? descriptor.detailedEffect : descriptor.printedEffect,
-                         font: "AvenirNextCondensed-Bold",
+                         font: cardFont.name,
                          size: size,
                          width: width - inset * 2,
                          lineHeight: CardLayout.effectLineHeight,
