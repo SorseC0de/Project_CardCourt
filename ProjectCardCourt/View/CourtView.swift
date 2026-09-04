@@ -132,18 +132,19 @@ struct CourtView: View {
                     .position(x: court.centreX,
                               y: court.horizonY - 18 - geo.size.height * 0.05)
 
-                // **Bigger than this cell on purpose.** The court is one row of a stack
-                // and the hand is another below it, so a scrim that stops at the court's
-                // edge leaves the cards lit. `GameView` raises this whole row above the
-                // hand while an inbound is being asked for.
-                //
                 // Drawn here, before the figures, which is the entire point: the players
                 // stand above it without anything being duplicated or measured against a
-                // frame in another coordinate space.
+                // frame in another coordinate space. The cards below the court are dimmed
+                // by a second scrim in `GameView` — see there for why it is not one.
+                //
+                // **Bounded to the court.** A view far larger than the screen in this
+                // stack is not free: `CourtStage` is a RealityView in here, and an
+                // oversized layer asks Metal for a drawable past its maximum texture size,
+                // which fails validation and takes the render thread down with it.
                 if isStill {
                     Rectangle()
-                        .fill(.black.opacity(0.66))
-                        .frame(width: 4000, height: 4000)
+                        .fill(.black.opacity(Court.dim))
+                        .frame(width: geo.size.width, height: geo.size.height)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                 }
@@ -351,6 +352,12 @@ struct CourtView: View {
             free.remove(post)
             return post
         }
+    }
+
+    enum Court {
+        /// How dark everything but the players goes. Shared with `GameView`, which dims
+        /// the cards to the same depth.
+        static let dim: Double = 0.66
     }
 
     private enum Prompt {
