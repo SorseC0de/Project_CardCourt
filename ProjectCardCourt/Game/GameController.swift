@@ -115,6 +115,14 @@ struct ShotCutscene: Identifiable, Equatable {
     }
 }
 
+/// A throw-in on its way. Identified, so each one is a fresh flight rather than the last
+/// one's view handed a new pair of points — which leaves it already arrived.
+struct ThrowIn: Identifiable, Equatable {
+    let id = UUID()
+    let from: Seat
+    let to: Seat
+}
+
 /// A turnover, played as a beat rather than processed instantly.
 struct TurnoverCutscene: Identifiable, Equatable {
     enum Kind: Equatable {
@@ -298,7 +306,7 @@ final class GameController {
     /// A throw-in that has left his hands and not yet arrived. The court keeps its set
     /// while this is on: the dim stays, everybody stays where they were, and the thrower
     /// stands frozen on the pose he threw in.
-    private(set) var throwing: (from: Seat, to: Seat)?
+    private(set) var throwing: ThrowIn?
     private(set) var log: [LogLine] = []
     private(set) var gate: Gate = .thinking
     private(set) var cutscene: ShotCutscene?
@@ -1133,7 +1141,7 @@ final class GameController {
         // and the man who threw it watches it go. Cutting to the next possession the
         // instant the card is chosen is what made him warp off the sideline.
         if case .inbound(let target) = move {
-            throwing = (from: seat, to: target)
+            throwing = ThrowIn(from: seat, to: target)
             try? await Task.sleep(for: .seconds(Pacing.inboundThrow + Pacing.inboundHold))
             throwing = nil
         }

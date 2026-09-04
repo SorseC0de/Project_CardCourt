@@ -134,6 +134,9 @@ struct CourtStage: View {
             // Runs for as long as the court is on screen. Cancelled with the view, and
             // it stands aside on its own whenever a routine takes the deck over.
             .task { await deck.idle(across: Stage.courtWidth) }
+            // The spent pile breathes with the live one. A deck that floats beside a pile
+            // that does not reads as one of them being broken.
+            .task { await discard.idle(across: Stage.courtWidth) }
             .task(id: flight?.id) {
                 guard let flight else { return }
                 let to = floorPoint(flight.to, in: geo.size)

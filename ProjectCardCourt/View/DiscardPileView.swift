@@ -41,8 +41,9 @@ struct DiscardPileView: View {
         VStack(spacing: showsPile ? -width * DeckBody.labelGap : 4) {
             if showsPile { pile }
             Text("\(count)")
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
-                .foregroundStyle(Theme.inkDim)
+                .font(.custom("AvenirNextCondensed-Heavy", size: 18))
+                .foregroundStyle(CardPalette.gray)
+                .shadow(color: CardPalette.blue, radius: 0, x: 2, y: 2)
                 .contentTransition(.numericText())
         }
         .opacity(count == 0 ? 0.35 : 1)

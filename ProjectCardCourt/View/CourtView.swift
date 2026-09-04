@@ -10,7 +10,7 @@ struct CourtView: View {
     /// `GameController.shownBall`.
     var shownBall: Seat?
     /// A throw-in in the air — see `GameController.throwing`.
-    var throwing: (from: Seat, to: Seat)?
+    var throwing: ThrowIn?
     /// Who threw it, so the ball has somewhere to travel from.
     var passer: Seat?
     /// Stands in for the ball's holder while a practice pass is in the air, so the flight
@@ -114,6 +114,11 @@ struct CourtView: View {
                                   * deckTuning.size,
                            across: geo.size.width)
                     .position(deckPoint(on: court))
+
+                PileShadow(width: geo.size.width * Perspective.pileCardShare
+                                  * deckTuning.size,
+                           across: geo.size.width)
+                    .position(discardPoint(on: court))
 
                 // One scene for the whole floor. Everything on it is placed from the same
                 // court points the sprites use, so the two cannot disagree.
@@ -219,6 +224,10 @@ struct CourtView: View {
                                  to: ballPoint(of: throwing.to, on: court, catching: false),
                                  seconds: Pacing.inboundThrow,
                                  scale: court.scale(of: throwing.to, inbounding: true))
+                        // Its own view each time. Without this the second throw-in reuses
+                        // the first one's, whose `travelled` is already at one — so the
+                        // ball starts where it should finish.
+                        .id(throwing.id)
                         .zIndex(Layer.prompt)
                 }
 

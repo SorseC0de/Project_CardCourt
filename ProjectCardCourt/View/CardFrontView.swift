@@ -127,7 +127,10 @@ struct CardFrontView: View {
     /// Bottom-centre, the way the shoot mark is: some dribbles no longer have the word in
     /// their name, so the family needs a face rather than a spelling.
     private var dribbleMark: some View {
-        let side = width * CardLayout.shootIconFraction * CardLayout.shootIconCrowding
+        // A symbol's font size is its whole height, where the shoot icon's frame is a box
+        // the drawing fits inside — so the same number came out a good deal bigger here.
+        let side = width * CardLayout.shootIconFraction
+            * CardLayout.shootIconCrowding * CardLayout.dribbleSymbolShare
         let drop = width * CardLayout.iconShadowFraction
         return VStack {
             Spacer()

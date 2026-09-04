@@ -16,7 +16,9 @@ enum DeckDrift {
     /// How high it floats, and how much of that it gives back at the bottom of a breath.
     static let lift: CGFloat = 0.05
     static let bob: CGFloat = 0.02
-    static let seconds: TimeInterval = 4
+    /// One lap of the drift. Brisk enough that a chunk of slabs shifting mid-lap reads as
+    /// a deck being handled rather than as something settling.
+    static let seconds: TimeInterval = 2.5
 
     /// Where the deck is, as an offset from where the court put it.
     static func offset(at date: Date) -> SIMD3<Float> {

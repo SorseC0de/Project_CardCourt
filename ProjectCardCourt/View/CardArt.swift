@@ -181,6 +181,9 @@ enum CardLayout {
     /// The mark a Dribble card wears at its foot, and the one that goes before the word
     /// wherever another card names it.
     static let dribbleSymbol = "figure.basketball"
+    /// How much of the shoot mark's size the dribble symbol takes. Smaller, because a
+    /// symbol is measured by its height and an image by the box it fits inside.
+    static let dribbleSymbolShare: CGFloat = 0.62
 
     static let shootIconFraction: CGFloat = 0.30
     static let shootIconBottomFraction: CGFloat = 0.04
