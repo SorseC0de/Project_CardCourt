@@ -250,8 +250,7 @@ struct SwisshWordmark: View {
     }
 
     private func swingArrow(_ side: CGFloat, ink: Color) -> some View {
-        Image("SwingArrowRight")
-            .renderingMode(.template)
+        Image("WordmarkArrow")
             .resizable()
             .scaledToFit()
             .frame(width: side)

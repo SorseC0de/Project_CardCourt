@@ -199,7 +199,6 @@ struct PlayerFigure: View {
                         // no ring doing it.
                         HStack(spacing: Bag.gap) {
                             Image("BagIcon")
-                                .renderingMode(.template)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: Bag.side, height: Bag.side)

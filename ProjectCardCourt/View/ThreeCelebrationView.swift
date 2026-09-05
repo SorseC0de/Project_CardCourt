@@ -39,7 +39,6 @@ struct ThreeCelebrationView: View {
                             // is silently ignored, all four layers draw as identical black
                             // silhouettes over one another, and the whole sequence is
                             // invisible — which is exactly how it looked.
-                            .renderingMode(.template)
                             .resizable()
                             .scaledToFit()
                             .frame(width: side, height: side)

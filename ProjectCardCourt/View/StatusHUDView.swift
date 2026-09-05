@@ -151,7 +151,6 @@ struct StatusHUDView: View {
     private var silenced: some View {
         SlashedMark(side: whistleSide, slash: CardPalette.red) {
             Image("WhistleIcon")
-                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 // Mirrored to match the referee, as everywhere else the icon appears.
@@ -170,7 +169,6 @@ struct StatusHUDView: View {
     private var pending: some View {
         ZStack {
             Image("PendingDrawIcon")
-                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .frame(width: refereeSide, height: refereeSide)

@@ -39,7 +39,6 @@ struct HandshakeView: View {
     private func half(mine: Bool) -> some View {
         let filled = mine || clasped
         return Image(mine ? "HandshakeL" : "HandshakeR")
-            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: side, height: side)

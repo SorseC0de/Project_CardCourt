@@ -12,7 +12,6 @@ struct ThreeHandMark: View {
 
     var body: some View {
         Image("ThreeHandWhole")
-            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: width)

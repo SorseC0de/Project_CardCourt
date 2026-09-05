@@ -187,11 +187,11 @@ private struct Footprints: View {
 
 // MARK: - Two: the road trip
 
-/// White line art, sized by width — `renderingMode` and `resizable` have to come before
-/// `foregroundStyle`, which stops returning an `Image`.
+/// White line art, sized by width. `resizable` has to come before `foregroundStyle`,
+/// which stops returning an `Image`; the template rendering is the asset's own, set in
+/// the catalogue rather than asked for at every call.
 private func whiteArt(_ name: String, width: CGFloat) -> some View {
     Image(name)
-        .renderingMode(.template)
         .resizable()
         .scaledToFit()
         .frame(width: width)

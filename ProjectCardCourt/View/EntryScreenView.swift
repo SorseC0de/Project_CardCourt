@@ -62,7 +62,6 @@ struct EntryScreenView: View {
                         // On a square of its own, like every other control that has an
                         // edge. A bare glyph on the ground read as decoration.
                         Image("SettingsIcon")
-                            .renderingMode(.template)
                             .resizable()
                             .scaledToFit()
                             .frame(width: Front.gear * 0.96,
@@ -121,7 +120,7 @@ struct EntryScreenView: View {
                         Group {
                             switch art {
                             case .image(let name):
-                                Image(name).renderingMode(.template)
+                                Image(name)
                                     .resizable().scaledToFit()
                             case .symbol(let name):
                                 Image(systemName: name).resizable().scaledToFit()

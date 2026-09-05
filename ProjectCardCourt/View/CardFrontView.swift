@@ -89,7 +89,6 @@ struct CardFrontView: View {
             } else if let art = descriptor.artwork {
                 ZStack {
                     Image(art.name)
-                        .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
                         .frame(width: side * art.scale, height: side * art.scale)
@@ -216,7 +215,6 @@ struct CardFrontView: View {
         VStack {
             Spacer()
             Image("CardTextOverlay")
-                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .frame(width: width * CardLayout.textOverlayWidthFraction)
@@ -334,7 +332,6 @@ struct CardFrontView: View {
 
     private func arrowImage(_ side: CGFloat) -> some View {
         Image("SwingArrowRight")
-            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: side)
