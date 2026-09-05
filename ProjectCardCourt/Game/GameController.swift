@@ -363,6 +363,14 @@ final class GameController {
     /// something. The watchdog reads it — see `watchTheLoop`.
     private var wentQuiet: Date?
     private var watchdog: Task<Void, Never>?
+    /// How many `present` calls are in flight.
+    ///
+    /// **A chain playing out is not a stopped game.** The gate reads `.thinking` for the
+    /// whole of a presentation, and a long one — a shot, a drama, a draw that turns up two
+    /// Game Breaks — can pass eight seconds with nothing on screen in the gaps between its
+    /// scenes. The watchdog was cutting those in half and starting a second chain over the
+    /// top, which is a game playing itself behind whatever is on screen.
+    private var presenting = 0
     private(set) var cutscene: ShotCutscene?
     private(set) var turnover: TurnoverCutscene?
     private(set) var reveal: RevealCutscene?
@@ -687,7 +695,7 @@ final class GameController {
     }
 
     private func restartIfStalled() {
-        guard !isGuest, !isPaused, !state.isOver else { return }
+        guard !isGuest, !isPaused, !state.isOver, presenting == 0 else { return }
         guard case .thinking = gate, let since = wentQuiet else { return }
         guard Date().timeIntervalSince(since) > 8 else { return }
         // Anything on screen is the game still speaking.
@@ -1597,6 +1605,8 @@ final class GameController {
     /// then presents; a guest is handed the resolution and presents.
     private func present(_ events: [GameEvent], defenders: Int = 0,
                          playedCard: Bool = false) async {
+        presenting += 1
+        defer { presenting -= 1 }
         // The gate is what the stage draws from, and it still holds whatever the player
         // was last asked for. Left alone, the rebound board sits behind every cutscene
         // that follows a bid and flashes back the moment one clears.
@@ -1620,15 +1630,21 @@ final class GameController {
             // before the ball moves rather than over the top of it.
             await showPlayedCard(in: events)
         }
+        // **A cancelled chain stops here rather than playing itself out.** Whatever
+        // cancelled it has taken the floor, and two chains on one floor is the game
+        // carrying on behind whatever is on screen.
+        if Task.isCancelled { return }
         release(.play, from: &ledger)
         shownShot = state.shot + state.holderShot
         if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
             await announce(.whistle)
         }
         await showWhistle(in: events)
+        if Task.isCancelled { return }
         release(.whistle, from: &ledger)
         stampSettled(events)
         await playDrawsAndReveals(in: events)
+        if Task.isCancelled { return }
         release(.draw, from: &ledger)
         release(.reveal, from: &ledger)
         // Named before anybody swipes: the call is what the possession opens with, and a
@@ -1640,6 +1656,7 @@ final class GameController {
             break
         }
         await showClampBite(in: events)
+        if Task.isCancelled { return }
 
         if let scene = ShotCutscene(events: events, defenders: defenders) {
             cutscene = scene

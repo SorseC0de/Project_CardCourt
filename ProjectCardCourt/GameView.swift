@@ -258,6 +258,13 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
         .onChange(of: controller.gate) { detail = nil }
+        // **Anything that takes the screen holds the game.** A sheet already did; a card
+        // raised out of a slot and the discard browser did not, and the floor carried on
+        // playing behind them. Not the hand's own card detail — that one is a card you
+        // are about to play, and freezing the game would refuse the play.
+        .onChange(of: holdsTheFloor) { _, holding in
+            holding ? controller.pause() : controller.resume()
+        }
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: inspecting?.card)
         .background(keyboardCommands)
         .task { controller.begin() }
@@ -306,17 +313,19 @@ struct GameView: View {
     /// same card being looked at.
     private var beingRead: CardDescriptor? { detail?.descriptor ?? inspecting?.card }
 
-    /// Opens a floor sheet, and holds the game behind it where that is allowed.
+    /// Everything that takes the screen away from the floor — see the `onChange` that
+    /// holds the game while any of it is up.
+    private var holdsTheFloor: Bool {
+        onFloor != nil || inspecting != nil || browsingDiscard
+    }
+
+    /// Opens a floor sheet, where that is allowed. The hold is the `onChange`'s job.
     private func open(_ inspection: Inspection) {
         guard controller.canInspect else { return }
-        controller.pause()
         onFloor = inspection
     }
 
-    private func closeFloor() {
-        onFloor = nil
-        controller.resume()
-    }
+    private func closeFloor() { onFloor = nil }
 
     private var dim: Double {
         if browsingDiscard { return Theme.dimBrowser }
