@@ -1553,6 +1553,27 @@ enum Rules {
             adjustShot(by: effect.shotThisPossession, state: &state)
         }
         if effect.skipsNextDraw { state.skipsNextDraw = true }
+        if effect.healsAllInjuries {
+            for other in Seat.allCases where !state[other].injuries.isEmpty {
+                state.discard.append(contentsOf: state[other].injuries.map { Card($0) })
+                state[other].injuries.removeAll()
+                state[other].injuryUnlocked = []
+            }
+        }
+        if effect.everyoneRedraws {
+            // Sizes first, then the shuffle, then the deal — or the man dealt to first
+            // would be drawing out of a deck the others had not gone into yet.
+            let sizes = Seat.allCases.map { ($0, state[$0].bag.count) }
+            for (other, _) in sizes {
+                state.deck.append(contentsOf: state[other].bag)
+                state[other].bag.removeAll()
+            }
+            state.deck = state.shuffled(state.deck)
+            for (other, count) in sizes {
+                drawBatch(other, count: count, state: &state, events: &events,
+                          depth: depth + 1)
+            }
+        }
         if effect.rotatesHands {
             // Which way is the drawer's call, and the two seats either side are the two
             // answers — the same question the floor already knows how to ask.

@@ -397,6 +397,17 @@ enum CardLibrary {
         effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 4,
         gameBreak: GameBreakEffect(blocksShotAtOrAbove: 50))
 
+    static let floorCleanup = CardDescriptor(
+        id: "floor-cleanup", name: "Floor Cleanup", type: .gameBreak,
+        effect: "Every hand is shuffled back in. Everyone draws what they had",
+        numberInDeck: 3,
+        gameBreak: GameBreakEffect(everyoneRedraws: true))
+
+    static let officialTimeout = CardDescriptor(
+        id: "official-timeout", name: "Official Timeout", type: .gameBreak,
+        effect: "Every Injury on every player comes off", numberInDeck: 2,
+        gameBreak: GameBreakEffect(healsAllInjuries: true))
+
     static let tradeDeadline = CardDescriptor(
         id: "trade-deadline", name: "Trade Deadline", type: .gameBreak,
         effect: "Left or right: every bag moves one seat, and the ball with it",
@@ -599,7 +610,7 @@ enum CardLibrary {
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
-        tradeDeadline, freshBall, wetSpot,
+        tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules

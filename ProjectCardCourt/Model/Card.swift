@@ -142,6 +142,11 @@ struct GameBreakEffect: Hashable, Codable {
     /// Fresh Ball: the next possession opens without its draw. A bad thing — a fresh ball
     /// is a ball nobody has broken in.
     var skipsNextDraw = false
+    /// Floor Cleanup: every hand goes back into the deck and comes out again, the same
+    /// size it went in.
+    var everyoneRedraws = false
+    /// Official Timeout: every Injury on every player, gone.
+    var healsAllInjuries = false
     /// Wet Spot: every Injury in the pile and the deck is laid out, the deck's face down,
     /// and one of them is yours.
     var offersInjuries = false
@@ -601,6 +606,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "trade-deadline":              return "arrow.trianglehead.2.clockwise.rotate.90"
         case "fresh-ball":                  return "basketball"
         case "wet-spot":                    return "drop.triangle.fill"
+        case "floor-cleanup":               return "wind"
+        case "official-timeout":            return "cross.circle.fill"
         case "free-agent":                  return "figure.wave"
         case "villainous-reputation":       return "theatermask.and.paintbrush.fill"
         case "dirty-player":                return "hand.raised.fingers.spread.fill"
