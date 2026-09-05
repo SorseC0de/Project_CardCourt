@@ -77,7 +77,7 @@ struct IntangibleEffect: Hashable, Codable {
     /// Ball Pounder: every Dribble is a card richer and a look worse.
     var dribbleBonusDraw: Int = 0
     var dribbleShotPenalty: Int = 0
-    /// Like That, Unguardable: nothing may take SHOT down.
+    /// Like That, Competitive: nothing may take SHOT down.
     var shotCannotBeReduced = false
     var ignoresClampDebuffs = false
     /// Gravity: every Clamp lands here whoever it was aimed at, and every other player's
@@ -677,7 +677,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "sixth-man":                   return "6.circle.fill"
         case "sniper":                      return "scope"
         case "splash-cousin":               return "drop.fill"
-        case "unguardable":                 return "figure.walk.motion.trianglebadge.exclamationmark"
+        case "competitive":                 return "figure.walk.motion.trianglebadge.exclamationmark"
         case "lethal-shooter":              return "target"
         case "ball-pounder":                return "arrow.down.circle.fill"
         case "unselfish":                   return "heart.circle.fill"

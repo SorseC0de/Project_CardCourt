@@ -385,8 +385,8 @@ enum CardLibrary {
         effect: "From three: SHOT = 100%", numberInDeck: 1,
         intangible: IntangibleEffect(requiresThree: true, shotOverride: 100))
 
-    static let unguardable = CardDescriptor(
-        id: "unguardable", name: "Unguardable", type: .intangible,
+    static let competitive = CardDescriptor(
+        id: "competitive", name: "Competitive", type: .intangible,
         effect: "Clamps do nothing to your SHOT", numberInDeck: 1,
         intangible: IntangibleEffect(ignoresClampDebuffs: true))
 
@@ -541,7 +541,7 @@ enum CardLibrary {
         shotCreator, hotHand, freethrowMerchant, generationalWhistle, unselfish,
         boardCrasher, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
         gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
-        sixthMan, sniper, splashCousin, unguardable, lethalShooter, ballPounder,
+        sixthMan, sniper, splashCousin, competitive, lethalShooter, ballPounder,
         fundamentalist, freeAgent, villainousReputation, dirtyPlayer, franchisePlayer,
     ]
 

@@ -16,16 +16,20 @@ final class NameCallTuning {
     @MainActor static let shared = NameCallTuning()
 
     /// How long the plate is, against how far it flies.
-    var cardWidth: CGFloat = 1.0
-    /// Where its leading edge comes to rest, from the screen's own leading edge.
-    var cardX: CGFloat = 0
+    var cardWidth: CGFloat = NameCallStyle.length
+    /// Where its leading edge comes to rest, from the screen's own leading edge. Negative,
+    /// so the tail runs off the side and the taper is seen against the screen's edge.
+    var cardX: CGFloat = NameCallStyle.cardX
     /// How big the name is drawn, in points.
     var nameSize: CGFloat = NameCallStyle.labelSize
     /// Squeezed horizontally only — a name is a word, and squashing it both ways to make
     /// it fit makes it smaller where what is wanted is narrower.
-    var nameWidth: CGFloat = 0.85
+    var nameWidth: CGFloat = NameCallStyle.labelStretch
     /// How far in from the plate's leading edge the name starts.
-    var nameX: CGFloat = 0.12
+    var nameX: CGFloat = NameCallStyle.labelX
+    /// The taper, while it is still being looked at.
+    var fadeFrom: CGFloat = NameCallStyle.fadeFrom
+    var fadeTo: CGFloat = NameCallStyle.fadeTo
 }
 
 /// One name, waiting its turn or taking it.
@@ -196,44 +200,45 @@ enum NameCallStyle {
     /// How tall it is and how long, against how far it flies. Exactly the trip: the plate
     /// spans the screen and no more.
     static let height: CGFloat = 0.16
-    static let length: CGFloat = 1.0
+    static let length: CGFloat = 0.750
 
     /// Where the tail dissolves, as shares of the plate's own length.
     ///
-    /// **Its own numbers, not the mother shape's.** Hers are shares of a bar 2.22× as long
-    /// as its reach, so the ramp lands off the side of the screen; measured against a plate
-    /// exactly as long as the trip, the same shares put a third of the screen in clear air
-    /// with the name standing on it. A short dissolve at the tail is what she looks like
-    /// from here.
+    /// The mother shape's own ramp. It was cut to almost nothing while the plate was being
+    /// placed, which took the taper off the left of the card altogether — with the plate
+    /// three quarters of the trip and hung a quarter off the leading edge, this puts the
+    /// dissolve across the first eighth of the screen, which is where it belongs.
 
     static func size(reaching reach: CGFloat) -> CGSize {
         CGSize(width: reach * NameCallTuning.shared.cardWidth, height: reach * height)
     }
 
-    static let fadeFrom: CGFloat = 0
-    static let fadeTo: CGFloat = 0.06
+    static let fadeFrom: CGFloat = ModeCardStyle.fadeFrom
+    static let fadeTo: CGFloat = ModeCardStyle.fadeTo
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
     /// trails as it flies out.
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
+        let tuning = NameCallTuning.shared
         return LinearGradient(
             gradient: Gradient(stops: [
                 .init(color: .clear, location: 0),
-                .init(color: .clear, location: fadeFrom),
-                .init(color: face, location: fadeTo),
+                .init(color: .clear, location: min(tuning.fadeFrom, tuning.fadeTo)),
+                .init(color: face, location: max(tuning.fadeFrom, tuning.fadeTo)),
                 .init(color: face, location: 1),
             ]),
             startPoint: .leading, endPoint: .trailing)
     }
 
-    static let labelSize: CGFloat = 22
+    static let labelSize: CGFloat = 32
     static let noteSize: CGFloat = 13
     static let gap: CGFloat = 8
-    static let labelStretch: CGFloat = 0.85
-    /// How much of the plate's lean the name clears by default — see `NameCallTuning`,
-    /// which is what actually places it while the four numbers are being eyeballed.
-    static let labelClearance: CGFloat = 0.8
+    static let labelStretch: CGFloat = 0.750
+    /// Where the plate comes to rest and where the name sits on it, as shares of the trip.
+    /// Read off the bench.
+    static let cardX: CGFloat = -0.250
+    static let labelX: CGFloat = 0.300
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having
@@ -282,13 +287,19 @@ struct NameCallBench: View {
                 dial("name size", $tuning.nameSize, 8...48)
                 dial("name width", $tuning.nameWidth, 0.4...1.6)
                 dial("name x", $tuning.nameX, -0.2...0.8)
+                dial("fade from", $tuning.fadeFrom, 0...1)
+                dial("fade to", $tuning.fadeTo, 0...1)
                 HStack(spacing: 12) {
                     Button("seat") { seat = seat.clockwise }
                     Button(leaving ? "return" : "leave") { leaving.toggle() }
                     Button("reset") {
-                        tuning.cardWidth = 1.0; tuning.cardX = 0
+                        tuning.cardWidth = NameCallStyle.length
+                        tuning.cardX = NameCallStyle.cardX
                         tuning.nameSize = NameCallStyle.labelSize
-                        tuning.nameWidth = 0.85; tuning.nameX = 0.12
+                        tuning.nameWidth = NameCallStyle.labelStretch
+                        tuning.nameX = NameCallStyle.labelX
+                        tuning.fadeFrom = NameCallStyle.fadeFrom
+                        tuning.fadeTo = NameCallStyle.fadeTo
                     }
                 }
                 .font(.custom(Chrome.display, size: 15))

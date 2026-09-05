@@ -129,7 +129,7 @@ extension GameState {
 
         // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
         // Nothing is cancelled, though that makes no odds — Clamps come off at the end of
-        // the possession anyway, and a shot ends one. Unguardable does the same thing for
+        // the possession anyway, and a shot ends one. Competitive does the same thing for
         // a whole game, and Like That refuses every reduction there is.
         let shrugs = self[seat].intangibles.contains {
             $0.intangible?.ignoresClampDebuffs == true || $0.intangible?.shotCannotBeReduced == true
