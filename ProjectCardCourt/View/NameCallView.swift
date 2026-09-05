@@ -290,6 +290,12 @@ struct NameCallBench: View {
     @State private var tuning = NameCallTuning.shared
     @State private var leaving = false
     @State private var seat: Seat = .east
+    /// Bumped to build a fresh plate.
+    ///
+    /// `NameCallView` keeps the moment it began leaving and burns its opacity off from
+    /// there, which is what makes the exit a rate rather than an animation — so lowering
+    /// `isLeaving` again does not bring it back. Nothing does but a new one.
+    @State private var run = UUID()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -299,6 +305,7 @@ struct NameCallBench: View {
                     NameCallView(call: NameCall(seat: seat), reach: geo.size.width,
                                  isLeaving: leaving)
                         .padding(.top, 40)
+                        .id(run)
                 }
                 // The screen's own leading edge, to measure the name against.
                 Rectangle().fill(CardPalette.red.opacity(0.6)).frame(width: 1)
@@ -312,17 +319,27 @@ struct NameCallBench: View {
                 dial("name size", $tuning.nameSize, 8...48)
                 dial("name width", $tuning.nameWidth, 0.4...1.6)
                 dial("name x", $tuning.nameX, -0.2...0.8)
-                dial("fade from", $tuning.fadeFrom, 0...1)
-                dial("fade to", $tuning.fadeTo, 0...1)
                 Toggle("one slope end to end", isOn: $tuning.softTaper)
                     .font(.custom(Chrome.display, size: 15))
                     .foregroundStyle(.white)
                     .tint(CardPalette.gold)
+                // Only the banded taper has anywhere to put a stop; one slope end to end
+                // is the two ends and nothing to say about them.
+                if !tuning.softTaper {
+                    dial("fade from", $tuning.fadeFrom, 0...1)
+                    dial("fade to", $tuning.fadeTo, 0...1)
+                }
 
                 HStack(spacing: 12) {
                     Button("seat") { seat = seat.clockwise }
-                    Button(leaving ? "return" : "leave") { leaving.toggle() }
+                    Button(leaving ? "return" : "leave") {
+                        leaving.toggle()
+                        // Coming back is a new plate: see `run`.
+                        if !leaving { run = UUID() }
+                    }
                     Button("reset") {
+                        leaving = false
+                        run = UUID()
                         tuning.cardWidth = NameCallStyle.length
                         tuning.cardX = NameCallStyle.cardX
                         tuning.nameSize = NameCallStyle.labelSize
