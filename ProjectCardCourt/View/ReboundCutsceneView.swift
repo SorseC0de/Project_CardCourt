@@ -24,7 +24,10 @@ struct ReboundCutsceneView: View {
     private static let lift: CGFloat = 44
     /// Where the bids sit, measured from centre rather than from the ball — which is the
     /// whole point of them being a separate layer.
-    private static let bidsY: CGFloat = 96
+    ///
+    /// **Above the title.** Below it they landed in the band the hand occupies, and the
+    /// one thing on this screen you have to read was the one thing covered up.
+    private static let bidsY: CGFloat = -180
 
     var body: some View {
         // Centred. The board used to share this alignment, which pinned the ball and the
