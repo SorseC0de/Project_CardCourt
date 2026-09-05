@@ -24,6 +24,12 @@ final class CardDealer {
         static let spin: ClosedRange<Float> = 0.75...1.6
         /// And how far it tips out of flat while it travels.
         static let tumble: ClosedRange<Float> = 0.15...0.45
+        /// How big it is leaving the deck and how big it is arriving, against its own
+        /// size. **It grows on the way over**: a card coming to you is a card coming
+        /// *towards* you, and a slab that crosses the floor at one size reads as a chip
+        /// sliding along it.
+        static let leaves: Float = 0.70
+        static let arrives: Float = 1.45
         /// Steps the arc is walked in. Enough to read as a curve, few enough to be free.
         static let steps = 36
     }
@@ -56,7 +62,9 @@ final class CardDealer {
         let across = normalize(cross(normalize(end - start), SIMD3<Float>(0, 1, 0)))
 
         card.isEnabled = true
-        card.transform = Transform(translation: start)
+        card.transform = Transform(scale: SIMD3(repeating: Throw.leaves),
+                                   rotation: .init(angle: 0, axis: [0, 1, 0]),
+                                   translation: start)
 
         // Walked rather than tweened: `move(to:)` interpolates between two transforms in
         // a straight line, which is the one shape a thrown card never travels in.
@@ -71,6 +79,10 @@ final class CardDealer {
                 + across * (bow * arc)
             next.rotation = simd_quatf(angle: spin * t, axis: [0, 1, 0])
                 * simd_quatf(angle: tumble * arc, axis: [1, 0, 0])
+            // Eased rather than linear, so most of the growth happens over the second
+            // half — which is where the eye reads it as approaching rather than inflating.
+            let grown = Throw.leaves + (Throw.arrives - Throw.leaves) * (t * t)
+            next.scale = SIMD3(repeating: grown)
 
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
             try? await Task.sleep(for: .seconds(step))

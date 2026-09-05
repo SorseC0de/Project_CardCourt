@@ -61,6 +61,13 @@ struct CourtStage: View {
         static var cardDepth: Float { cardWidth / Float(CardMetrics.aspect) }
         /// How far above the floor the deck rides while it is working.
         static let hover: Float = 0.030
+        /// How much bigger a card in the air is than one in the pile. A dealt card is the
+        /// thing being watched; a slab the size of the ones it came off is a chip.
+        static let dealtCard: Float = 1.8
+        /// How far out of its place the deck leans to hand one over, as a share of the
+        /// way to whoever is drawing. Not the whole trip — that is a lot of deck for one
+        /// card — but far enough that it is plainly reaching out to them.
+        static let lean: Float = 0.22
         /// Where it comes in from: high, and beyond the far edge.
         static let entryHeight: Float = 0.090
         static let entryDepth: Float = 1.6
@@ -118,7 +125,7 @@ struct CourtStage: View {
                     discard.adopt(spent, face: ModelEntity(mesh: faceMesh, materials: [facing]),
                                   at: index, thickness: Stage.slab)
                 }
-                dealer.build(mesh: mesh, material: gold)
+                dealer.build(mesh: dealtMesh(), material: gold)
 
                 DevLog.say(.deck, "stage: built")
                 deck.ground = floorPoint(deckAt, in: geo.size)
@@ -161,14 +168,18 @@ struct CourtStage: View {
             }
             .task(id: flight?.id) {
                 guard let flight else { return }
+                let home = floorPoint(flight.from, in: geo.size)
                 let to = floorPoint(flight.to, in: geo.size)
-                // It stays home for a single card and just turns to face whoever is
-                // drawing. Flying the whole deck across on every draw would be a lot of
-                // deck for one card.
+                // **It leans out to hand the card over, and goes back.** Not the whole
+                // trip — that is a lot of deck for one card — but far enough that it is
+                // plainly reaching towards whoever is drawing, and `travel` banks into
+                // the move rather than sliding square-on.
+                let out = home + (to - home) * Stage.lean + SIMD3(0, Stage.hover, 0)
+                await deck.travel(to: out, seconds: 0.18, curve: .easeOut)
                 await deck.bow(toward: to)
-                await dealer.fly(from: floorPoint(flight.from, in: geo.size),
-                                 to: to, seconds: flight.seconds)
+                await dealer.fly(from: out, to: to, seconds: flight.seconds)
                 await deck.straighten()
+                await deck.travel(to: home, seconds: 0.24)
                 deck.settle()
             }
             .task(id: opening?.id) {
@@ -177,6 +188,14 @@ struct CourtStage: View {
             }
         }
         .allowsHitTesting(false)
+    }
+
+    /// The card in the air, bigger than the ones in the pile it came off.
+    private func dealtMesh() -> MeshResource {
+        RoundedSlab.mesh(width: Stage.cardWidth * Stage.dealtCard,
+                         depth: Stage.cardDepth * Stage.dealtCard,
+                         thickness: Stage.slab * Stage.dealtCard,
+                         radius: Stage.cardWidth * Stage.dealtCard * 0.08)
     }
 
     private func slabMesh() -> MeshResource {
