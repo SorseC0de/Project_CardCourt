@@ -78,6 +78,9 @@ struct CourtStage: View {
     @State private var deck = DeckStage()
     @State private var discard = DeckStage()
     @State private var dealer = CardDealer()
+    /// A second thrower for cards going the other way. One entity cannot be flying to a
+    /// hand and to the pile at the same time, and a draw that pays for itself does both.
+    @State private var spender = CardDealer()
     @State private var tuning = DeckTuning.shared
 
     var body: some View {
@@ -94,6 +97,7 @@ struct CourtStage: View {
                 content.add(deck.pile)
                 content.add(discard.pile)
                 content.add(dealer.root)
+                content.add(spender.root)
 
                 let gold = UnlitMaterial(color: UIColor(CardPalette.gold))
                 let navy = UnlitMaterial(color: UIColor(CardPalette.navy))
@@ -128,6 +132,7 @@ struct CourtStage: View {
                                   at: index, thickness: Stage.slab)
                 }
                 dealer.build(mesh: dealtMesh(), material: gold)
+                spender.build(mesh: dealtMesh(), material: navy)
 
                 DevLog.say(.deck, "stage: built")
                 deck.ground = floorPoint(deckAt, in: geo.size)
@@ -193,7 +198,7 @@ struct CourtStage: View {
                 let to = floorPoint(spend.to, in: geo.size)
                 let from = floorPoint(spend.from, in: geo.size)
                 await discard.bow(toward: from, seconds: 0.14)
-                await dealer.fly(from: from, to: to, seconds: spend.seconds)
+                await spender.fly(from: from, to: to, seconds: spend.seconds)
                 await discard.straighten()
                 discard.settle()
             }
@@ -287,6 +292,9 @@ struct CourtStage: View {
         let aspect = Float(size.width / max(size.height, 1))
         let across = 2 * away * tan(Stage.fieldOfView * .pi / 360) * aspect
         let scale = Stage.cardShare * Float(tuning.size) * across / Stage.cardWidth
+        // A view with no size yet gives an eye at the origin and a distance of nothing,
+        // and the pile comes out infinitely large. Nothing is drawn until there is a size.
+        guard scale.isFinite, scale > 0 else { return }
         pile.scale = .one * scale
 
         // Reported once per change, not per frame: the arithmetic says this lands at the

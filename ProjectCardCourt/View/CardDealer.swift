@@ -2,6 +2,12 @@ import RealityKit
 import SwiftUI
 import Foundation
 
+extension SIMD3 where Scalar == Float {
+    /// Every component a real number. A point built from a view that has not been laid
+    /// out yet is not, and it poisons whatever it is written into.
+    var isFinite: Bool { x.isFinite && y.isFinite && z.isFinite }
+}
+
 /// One card at a time, thrown across the court.
 ///
 /// A dealt card is not a straight line and not the same line twice: it lifts, banks, and
@@ -52,6 +58,12 @@ final class CardDealer {
     func fly(from start: SIMD3<Float>, to end: SIMD3<Float>,
              seconds: TimeInterval) async {
         guard let card else { return }
+
+        // **Nothing here may be normalised through zero.** `normalize` of a zero vector is
+        // NaN, and one NaN in a transform is `RETransformComponentSetLocalSRT contains
+        // NaN` — after which the entity's scale and rotation are rubbish and the pile
+        // stretches and shudders rather than simply not moving.
+        guard start.isFinite, end.isFinite, distance(start, end) > .ulpOfOne else { return }
 
         let span = distance(start, end)
         let lift = span * Float.random(in: Throw.lift)
