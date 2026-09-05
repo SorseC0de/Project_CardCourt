@@ -24,50 +24,81 @@ struct ColumnWarp: ViewModifier, Animatable {
     var progress: Double
     /// Points per art pixel — the width of one column.
     var pixel: CGFloat
-    /// How far the two combs travel at full progress, in art pixels. Enough to clear the
-    /// figure and no more — at this speed the eye reads the shear, not the trip, and a
-    /// comb still travelling half a court later is a comb somebody has time to look at.
+    /// How far the columns travel at full progress, in art pixels. Enough to clear the
+    /// figure and no more — at this speed the eye reads the shear, not the trip.
     var reach: CGFloat = 40
+    /// How far apart the combs start, as a share of the whole. Zero is every column
+    /// leaving in step, which reads as one thing sliding rather than a body coming apart.
+    var stagger: Double = 0.06
+
+    /// How many combs the columns are dealt into.
+    ///
+    /// Each comb is every twelfth column, so only the even ones are ever drawn — the odd
+    /// ones are the gaps the effect is made of — and six of them is enough variation that
+    /// no two neighbours leave together.
+    static let combs = 6
+
+    /// Which combs take a one-pixel step sideways on the way out, and which way.
+    ///
+    /// **One pixel, and not all of them.** Any more reads as the sprite being torn up
+    /// rather than a body flickering out, and every comb doing it reads as a lean.
+    private static let nudge: [CGFloat] = [0, 1, 0, -1, 0, 1]
 
     /// So a change of `progress` is a movement rather than a jump — the whole point is
-    /// that SwiftUI walks it from nought to one and the combs travel while it does.
+    /// that SwiftUI walks it from nought to one and the columns travel while it does.
     var animatableData: Double {
         get { progress }
         set { progress = newValue }
     }
 
     func body(content: Content) -> some View {
-        let travel = reach * pixel * CGFloat(progress)
         // One stack either way, so the view's own type never changes under an animation.
         ZStack {
             if progress <= 0 {
-                // Whole is whole: a figure standing about pays neither mask nor a second
-                // copy of itself.
+                // Whole is whole: a figure standing about pays neither mask nor a copy
+                // of itself.
                 content
             } else {
-                content
-                    .mask { Comb(pixel: pixel, odd: false) }
-                    .offset(y: -travel)
-                content
-                    .mask { Comb(pixel: pixel, odd: true) }
-                    .offset(y: travel)
+                ForEach(0..<Self.combs, id: \.self) { comb in
+                    let along = share(for: comb)
+                    content
+                        .mask { Comb(pixel: pixel, index: comb, of: Self.combs) }
+                        // **Up, and only up.** Out is the columns leaving overhead; in is
+                        // this run backwards, which is them coming down into place. Two
+                        // directions at once is a thing splitting, not a thing going.
+                        .offset(x: Self.nudge[comb % Self.nudge.count] * pixel * along,
+                                y: -reach * pixel * along)
+                }
             }
         }
     }
+
+    /// How far along this comb is, given the whole warp's progress. The last one starts
+    /// when the first is already `stagger × combs` of the way gone.
+    private func share(for comb: Int) -> CGFloat {
+        let spread = stagger * Double(Self.combs - 1)
+        let start = stagger * Double(comb)
+        guard spread < 1 else { return CGFloat(progress) }
+        return CGFloat(min(1, max(0, (progress - start) / (1 - spread))))
+    }
 }
 
-/// Every other column, in art pixels.
+/// One comb: every `stride`-th column, in art pixels, starting at `index`.
 private struct Comb: View {
     let pixel: CGFloat
-    let odd: Bool
+    let index: Int
+    let of: Int
 
     var body: some View {
         Canvas { context, size in
-            var x = odd ? pixel : 0
+            // Twice the comb count, so the columns between them are never drawn at all —
+            // the gaps are half the effect.
+            let stride = CGFloat(of * 2) * pixel
+            var x = CGFloat(index * 2) * pixel
             while x < size.width {
                 context.fill(Path(CGRect(x: x, y: 0, width: pixel, height: size.height)),
                              with: .color(.black))
-                x += pixel * 2
+                x += stride
             }
         }
     }
@@ -99,6 +130,7 @@ struct ColumnWarpBench: View {
     @State private var pixel: CGFloat = 7
     @State private var reach: CGFloat = 40
     @State private var seconds: Double = 0.14
+    @State private var stagger: Double = 0.06
 
     var body: some View {
         VStack(spacing: 0) {
@@ -106,7 +138,8 @@ struct ColumnWarpBench: View {
                 Theme.courtFloor
                 SpriteAnimation(sprite: .front, scale: pixel, isPlaying: false, restFrame: 0)
                     .paletteSwap(PlayerLook.shared.kit(for: .east))
-                    .columnWarp(progress, pixel: pixel, reach: reach)
+                    .modifier(ColumnWarp(progress: progress, pixel: pixel,
+                                         reach: reach, stagger: stagger))
             }
             .frame(height: 320)
             .clipped()
@@ -118,6 +151,7 @@ struct ColumnWarpBench: View {
                 dial("reach", Binding(get: { Double(reach) },
                                       set: { reach = CGFloat($0.rounded()) }), 8...160)
                 dial("seconds", $seconds, 0.1...2)
+                dial("stagger", $stagger, 0...0.16)
                 HStack(spacing: 12) {
                     Button("warp out") {
                         progress = 0
