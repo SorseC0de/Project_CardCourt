@@ -4,6 +4,30 @@ import SwiftUI
 // whole for the same reason `ModeCardView` was: the movement is the part worth having.
 // Only what it says is ours — there it names an effect, here it names a person.
 
+/// Where the plate sits and where the name sits on it, while that is being eyeballed.
+///
+/// Five numbers, and every one of them has been wrong at least once: the plate's length
+/// and where it comes to rest, and the name's size, width and inset. They are shares of
+/// the trip rather than points, so a value read off the bench holds on any screen.
+///
+/// Freeze into `NameCallStyle` once they land.
+@Observable
+final class NameCallTuning {
+    @MainActor static let shared = NameCallTuning()
+
+    /// How long the plate is, against how far it flies.
+    var cardWidth: CGFloat = 1.0
+    /// Where its leading edge comes to rest, from the screen's own leading edge.
+    var cardX: CGFloat = 0
+    /// How big the name is drawn, in points.
+    var nameSize: CGFloat = NameCallStyle.labelSize
+    /// Squeezed horizontally only — a name is a word, and squashing it both ways to make
+    /// it fit makes it smaller where what is wanted is narrower.
+    var nameWidth: CGFloat = 0.85
+    /// How far in from the plate's leading edge the name starts.
+    var nameX: CGFloat = 0.12
+}
+
 /// One name, waiting its turn or taking it.
 struct NameCall: Identifiable, Equatable {
     let id = UUID()
@@ -45,6 +69,7 @@ struct NameCallView: View {
     var onFinished: () -> Void = {}
 
     @State private var stage: Stage = .offstage
+    @State private var tuning = NameCallTuning.shared
 
     /// Where it is, and what it is doing.
     private enum Stage {
@@ -119,7 +144,7 @@ struct NameCallView: View {
     /// it both ways to make it fit makes it *smaller* where what is wanted is *narrower*.
     private func word(burning left: Double) -> some View {
         HStack(spacing: NameCallStyle.gap) {
-            PlayerNameText(seat: call.seat, size: NameCallStyle.labelSize)
+            PlayerNameText(seat: call.seat, size: tuning.nameSize)
             if let note = call.note {
                 SmallCapsText(text: note, font: Chrome.display,
                               size: NameCallStyle.noteSize,
@@ -129,7 +154,7 @@ struct NameCallView: View {
         }
         .lineLimit(1)
         .fixedSize()
-        .scaleEffect(x: NameCallStyle.labelStretch, y: 1, anchor: .leading)
+        .scaleEffect(x: tuning.nameWidth, y: 1, anchor: .leading)
         .offset(x: nameX)
         .opacity(left)
     }
@@ -142,14 +167,11 @@ struct NameCallView: View {
     /// bottom-left one, so at the height the word is drawn at, the shape's own edge is
     /// most of the way through that shift. A word placed at a flat inset from the frame
     /// hangs over the slanted edge on to nothing, which is exactly what it was doing.
-    private var nameX: CGFloat {
-        NameCallStyle.size(reaching: reach).height
-            * ModeCardStyle.lean * NameCallStyle.labelClearance
-    }
+    private var nameX: CGFloat { reach * tuning.nameX }
 
     private func offset(_ size: CGSize) -> CGFloat {
         switch stage {
-        case .held:     reach - size.width
+        case .held:     reach * tuning.cardX
         case .offstage: -size.width
         // Far enough that the shape itself is gone, though the fade finishes long before.
         case .leaving:  reach + size.width
@@ -185,7 +207,7 @@ enum NameCallStyle {
     /// from here.
 
     static func size(reaching reach: CGFloat) -> CGSize {
-        CGSize(width: reach * length, height: reach * height)
+        CGSize(width: reach * NameCallTuning.shared.cardWidth, height: reach * height)
     }
 
     static let fadeFrom: CGFloat = 0
@@ -209,9 +231,8 @@ enum NameCallStyle {
     static let noteSize: CGFloat = 13
     static let gap: CGFloat = 8
     static let labelStretch: CGFloat = 0.85
-    /// How much of the plate's lean the name clears — see `NameCallView.nameX`. Under one,
-    /// because the word only has to clear the edge beside its own letters rather than the
-    /// corner above them.
+    /// How much of the plate's lean the name clears by default — see `NameCallTuning`,
+    /// which is what actually places it while the four numbers are being eyeballed.
     static let labelClearance: CGFloat = 0.8
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
@@ -232,10 +253,63 @@ enum NameCallStyle {
 
 #if DEBUG
 #Preview("Name call") {
-    ZStack(alignment: .top) {
-        Theme.courtFloor.ignoresSafeArea()
-        NameCallView(call: NameCall(seat: .east, note: "at the line"), reach: 390)
-            .padding(.top, 60)
+    struct Bench: View {
+        @State private var tuning = NameCallTuning.shared
+        @State private var leaving = false
+        @State private var seat: Seat = .east
+
+        var body: some View {
+            VStack(spacing: 0) {
+                ZStack(alignment: .top) {
+                    Theme.courtFloor
+                    GeometryReader { geo in
+                        NameCallView(call: NameCall(seat: seat), reach: geo.size.width,
+                                     isLeaving: leaving)
+                            .padding(.top, 40)
+                    }
+                    // The screen's own leading edge, to measure the name against.
+                    Rectangle().fill(CardPalette.red.opacity(0.6)).frame(width: 1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 170)
+
+                VStack(spacing: 6) {
+                    dial("card width", $tuning.cardWidth, 0.2...2.5)
+                    dial("card x", $tuning.cardX, -1...1)
+                    dial("name size", $tuning.nameSize, 8...48)
+                    dial("name width", $tuning.nameWidth, 0.4...1.6)
+                    dial("name x", $tuning.nameX, -0.2...0.8)
+                    HStack(spacing: 12) {
+                        Button("seat") { seat = seat.clockwise }
+                        Button(leaving ? "return" : "leave") { leaving.toggle() }
+                        Button("reset") {
+                            tuning.cardWidth = 1.0; tuning.cardX = 0
+                            tuning.nameSize = NameCallStyle.labelSize
+                            tuning.nameWidth = 0.85; tuning.nameX = 0.12
+                        }
+                    }
+                    .font(.custom(Chrome.display, size: 15))
+                    .buttonStyle(.bordered)
+                    .padding(.top, 4)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(CardPalette.black)
+            }
+            .ignoresSafeArea()
+        }
+
+        private func dial(_ name: String, _ value: Binding<CGFloat>,
+                          _ range: ClosedRange<CGFloat>) -> some View {
+            HStack(spacing: 10) {
+                Text(String(format: "%@ %.3f", name, value.wrappedValue))
+                    .font(.custom(Chrome.display, size: 15))
+                    .foregroundStyle(.white)
+                    .frame(width: 150, alignment: .leading)
+                Slider(value: value, in: range)
+            }
+        }
     }
+    return Bench()
 }
 #endif
