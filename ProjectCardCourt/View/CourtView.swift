@@ -34,6 +34,9 @@ struct CourtView: View {
     /// Cards dealt but not yet landed — see `GameController.undelivered`. A bag count
     /// that ticks up before the card arrives is the same instant draw in miniature.
     var undelivered: Set<UUID> = []
+    /// Who the floor may show coils on — see `GameController.boundSeats`. Not
+    /// `state[seat].clamps`, which is a possession ahead of the scene.
+    var bound: Set<Seat> = []
     /// True while a Clamp is being read, which is when who is already clamped matters.
     var showingClamps = false
     /// A tap on somebody who is not a legal target: read them instead of passing to them.
@@ -75,6 +78,8 @@ struct CourtView: View {
     private var nodeHeight: CGFloat { Theme.Figure.height + 26 }
 
     @State private var sweep: CGFloat = 0
+    /// Whether the swipe has landed and stepped in front. Reset with the swipe itself.
+    @State private var swipeInFront = false
     /// Stamped when the ball changes hands, which starts the catch animation.
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var render = RenderDebug.shared
@@ -191,7 +196,7 @@ struct CourtView: View {
                         // People come up over the dim; the piles stay under it. Equal
                         // numbers keep their declaration order, so the far-to-near sort
                         // still decides who overlaps whom.
-                        .zIndex(isStill && item.isPerson ? Layer.people : 0)
+                        .zIndex(isStill && item.isPerson ? Layer.people : Layer.stage)
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
                            value: refereePosts)
@@ -200,13 +205,15 @@ struct CourtView: View {
                 if let swipe {
                     let footing = court.footing(of: swipe.seat)
                     DefenderSwipe(seat: swipe.seat,
-                                  mirrored: swipe.seat.slot(viewedFrom: viewer) == .west)
+                                  mirrored: swipe.seat.slot(viewedFrom: viewer) == .west,
+                                  onFront: { swipeInFront = true })
                         .id(swipe.id)
+                        .task(id: swipe.id) { swipeInFront = false }
                         .scaleEffect(court.scale(of: swipe.seat), anchor: .bottom)
                         .position(x: footing.x,
                                   y: footing.y - Theme.Figure.height / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
-                        .zIndex(250)
+                        .zIndex(swipeInFront ? 250 : Layer.behind)
                 }
 
                 if let thrower {
@@ -238,7 +245,7 @@ struct CourtView: View {
                     InboundThrow(from: throwOrigin(on: court),
                                  to: ballPoint(of: throwing.to, on: court, catching: false),
                                  seconds: Pacing.inboundThrow,
-                                 scale: court.scale(of: throwing.to, inbounding: true))
+                                 scale: court.scale(of: throwing.to, inbounding: throwing.from))
                         // Its own view each time. Without this the second throw-in reuses
                         // the first one's, whose `travelled` is already at one — so the
                         // ball starts where it should finish.
@@ -401,8 +408,11 @@ struct CourtView: View {
     /// spot on all four, however near or far they stand.
     private func ballPoint(of seat: Seat, on court: CourtGeometry,
                            catching: Bool) -> CGPoint {
-        let footing = court.footing(of: seat)
-        let scale = court.scale(of: seat)
+        // Where he is *now*, which during a throw-in is not where he usually stands —
+        // the viewer steps into the thrower's vacated place, and the ball has to land in
+        // the hands that are actually there.
+        let footing = court.footing(of: seat, inbounding: thrower)
+        let scale = court.scale(of: seat, inbounding: thrower)
         let side = Theme.Figure.height * scale
         // The offset is measured on the unflipped sprite. A player who turns to meet the
         // pass catches with the other hand, so the offset turns with them. Only the
@@ -448,6 +458,11 @@ struct CourtView: View {
     private enum Layer {
         /// The floor, the streaks, the piles. Everything that is scenery keeps the zero
         /// it already had.
+        /// Everything standing on the floor. Above zero on purpose: the swipe needs a
+        /// rung between the boards and the men, and there was none while they shared it.
+        static let stage: Double = 0.5
+        /// The swipe on its way in, under the man he is taking from.
+        static let behind: Double = 0.25
         static let dim: Double = 1
         static let thrower: Double = 2
         static let people: Double = 3
@@ -605,8 +620,8 @@ struct CourtView: View {
                 .onTapGesture(perform: onOpenDiscard)
                 .position(discardPoint(on: court))
         case .player(let seat):
-            let footing = court.footing(of: seat, inbounding: isStill)
-            let scale = court.scale(of: seat, inbounding: isStill)
+            let footing = court.footing(of: seat, inbounding: thrower)
+            let scale = court.scale(of: seat, inbounding: thrower)
             node(seat, on: court)
                 // Whoever is inbounding is drawn on the sideline instead, further up this
                 // same stack. Hidden rather than skipped so nothing below them moves.
@@ -621,9 +636,8 @@ struct CourtView: View {
             // red bodies on the floor read as two more players; the coils read as
             // something being done to this one. The defender himself shows up when they
             // actually shoot — that is when he matters.
-            let bodies = defenders(on: seat)
-            if bodies > 0 {
-                BindLines(defenders: bodies, height: Theme.Figure.height)
+            if bound.contains(seat), defenders(on: seat) > 0 {
+                BindLines(height: Theme.Figure.height)
                     .scaleEffect(scale, anchor: .bottom)
                     .position(x: footing.x,
                               y: footing.y - Theme.Figure.height / 2
@@ -640,7 +654,7 @@ struct CourtView: View {
 
     /// Undoes the row's own scaling and puts the flanks' back on.
     private func nameScale(_ seat: Seat, on court: CourtGeometry) -> CGFloat {
-        court.scale(at: Perspective.inboundLine) / court.scale(of: seat, inbounding: isStill)
+        court.scale(at: Perspective.inboundLine) / court.scale(of: seat, inbounding: thrower)
     }
 
     private func node(_ seat: Seat, on court: CourtGeometry) -> some View {

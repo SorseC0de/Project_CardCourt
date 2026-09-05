@@ -316,6 +316,7 @@ struct GameView: View {
                   onOpenDiscard: { browsingDiscard = true },
                   onSelect: { controller.inbound(to: $0) },
                   undelivered: controller.undelivered,
+                  bound: controller.boundSeats,
                   showingClamps: beingRead?.clamp != nil,
                   onInspectPlayer: { open(.player($0)) },
                   onInspectReferees: { open(.referees) })

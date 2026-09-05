@@ -203,9 +203,16 @@ struct CourtGeometry {
     /// The point on the floor a seat stands on — its feet, not its centre.
     /// During an inbound everybody stands on one line, so the upcourt player comes down
     /// to the flanks' depth instead of being half their size behind them.
-    func footing(of seat: Seat, inbounding: Bool = false) -> CGPoint {
-        let slot = seat.slot(viewedFrom: viewer)
-        let depth = self.depth(of: slot, inbounding: inbounding)
+    /// Where a seat stands, and where the *viewer* stands instead while a throw-in is
+    /// being set up.
+    ///
+    /// The man taking it is drawn on the sideline, so his place in the line is empty —
+    /// and the viewer's own place is the one nearest the camera, at the bottom of the
+    /// screen behind everybody. So the viewer steps into the vacated place. Everyone else
+    /// keeps theirs, which leaves three receivers in three slots and nobody doubled up.
+    func footing(of seat: Seat, inbounding thrower: Seat? = nil) -> CGPoint {
+        let slot = standing(seat, inbounding: thrower)
+        let depth = self.depth(of: slot, inbounding: thrower != nil)
         let half = halfWidth(at: depth) * Perspective.flankSpread
         switch slot {
         case .north, .south: return CGPoint(x: centreX, y: y(at: depth))
@@ -214,8 +221,15 @@ struct CourtGeometry {
         }
     }
 
-    func scale(of seat: Seat, inbounding: Bool = false) -> CGFloat {
-        scale(at: depth(of: seat.slot(viewedFrom: viewer), inbounding: inbounding))
+    func scale(of seat: Seat, inbounding thrower: Seat? = nil) -> CGFloat {
+        scale(at: depth(of: standing(seat, inbounding: thrower), inbounding: thrower != nil))
+    }
+
+    /// Which slot a seat is actually standing in right now.
+    private func standing(_ seat: Seat, inbounding thrower: Seat?) -> Seat {
+        let own = seat.slot(viewedFrom: viewer)
+        guard let thrower, seat == viewer, thrower != viewer else { return own }
+        return thrower.slot(viewedFrom: viewer)
     }
 
     private func depth(of slot: Seat, inbounding: Bool) -> CGFloat {

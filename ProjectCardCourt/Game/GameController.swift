@@ -294,6 +294,9 @@ final class GameController {
         case awaitingMove(Seat)
         case awaitingBid(shooter: Seat)
         case awaitingDiscard(card: CardDescriptor, bonusEach: Int)
+        /// Bone Bruise's toll at the top of the turn. Its own case, because the shot
+        /// discard resolves into a shot and this one resolves into a turn.
+        case awaitingInjuryDiscard(card: CardDescriptor, count: Int)
         case awaitingFreeThrow(FreeThrowTrip)
         case gameOver
     }
@@ -362,6 +365,13 @@ final class GameController {
     /// Game Break played out over four players stood in a line waiting for a throw that
     /// had not been called yet. This is raised when the presentation gets there.
     private(set) var inbounding: Seat?
+    /// Who the **floor** shows as clamped.
+    ///
+    /// The rules put the coils on a man the instant his possession opens, which is a
+    /// beat or two before the call that explains them — so he was already bound while
+    /// the card that bound him was still being held up. Raised when the presentation
+    /// gets there, and dropped when the Clamps do.
+    private(set) var boundSeats: Set<Seat> = []
     /// Raised when the played card's beat is nearly up, so the name over it can leave
     /// before the card does.
     private(set) var playedCardLeaving = false
@@ -507,6 +517,9 @@ final class GameController {
             return trip.shooter.isLocal ? .awaitingFreeThrow(trip) : .thinking
         case .awaitingDiscard(let seat, let card, let bonus):
             return seat.isLocal ? .awaitingDiscard(card: card, bonusEach: bonus) : .thinking
+        case .awaitingInjuryDiscard(let seat, let count):
+            guard seat.isLocal, let injury = injury(on: seat) else { return .thinking }
+            return .awaitingInjuryDiscard(card: injury, count: count)
         case .inbound(let seat):
             return seat.isLocal ? .awaitingInbound(seat) : .thinking
         case .possession(let seat):
@@ -730,6 +743,22 @@ final class GameController {
         guard case .awaitingMove = gate else { return }
         DevLog.say(.input, "shoot (the free action, no card)")
         choose(.shoot)
+    }
+
+    /// The toll, paid by hand. Picked with the same selection the bid and the shot
+    /// discard use — one way of choosing cards, whatever is being asked for.
+    func submitInjuryDiscard() {
+        guard !isPaused else { return }
+        guard case .awaitingInjuryDiscard = gate else { return }
+        loop?.cancel()
+        let chosen = Array(bidSelection)
+        bidSelection.removeAll()
+        if isGuest {
+            gate = .thinking
+            try? match?.send(.discardForShot(chosen))
+            return
+        }
+        Task { await present(Rules.resolveInjuryDiscard(chosen, state: &state)) }
     }
 
     func submitDiscard() {
@@ -1015,6 +1044,26 @@ final class GameController {
                 await present(Rules.resolveFreeThrow(made: made, state: &state))
                 continue
             }
+            if case .awaitingInjuryDiscard(let seat, let count) = state.phase {
+                if seat.isLocal {
+                    gate = localGate
+                    return
+                }
+                gate = .thinking
+                if Table.shared.isRemote(seat) {
+                    let chosen = await waitOn(seat, for: \.discardsFromWire) ?? []
+                    if Task.isCancelled { return }
+                    await present(Rules.resolveInjuryDiscard(chosen, state: &state))
+                    continue
+                }
+                try? await Task.sleep(for: .seconds(Pacing.think()))
+                if Task.isCancelled { return }
+                // Nothing clever to decide yet: the cheapest card is a judgement the AI
+                // does not make anywhere else either.
+                let chosen = Array(ai.discardForShot(state, for: seat).prefix(count))
+                await present(Rules.resolveInjuryDiscard(chosen, state: &state))
+                continue
+            }
             if case .awaitingDiscard(let seat, let card, let bonusEach) = state.phase {
                 if seat == GameRules.localSeat {
                     gate = .awaitingDiscard(card: card, bonusEach: bonusEach)
@@ -1232,6 +1281,11 @@ final class GameController {
         clampCall = []
     }
 
+    /// The Injury asking for the card, so the prompt can name it.
+    private func injury(on seat: Seat) -> CardDescriptor? {
+        state[seat].injuries.first { ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }
+    }
+
     /// Counted before the move, because resolving a shot clears the Clamps that caused it.
     private func defenderCount(on seat: Seat) -> Int { state.defenders(on: seat) }
 
@@ -1296,8 +1350,9 @@ final class GameController {
         // Named before anybody swipes: the call is what the possession opens with, and a
         // Clamp taking cards out of the bag first leaves the announcement explaining
         // something that has already happened.
-        for case .clampedPossession(_, let clamps) in events {
+        for case .clampedPossession(let seat, let clamps) in events {
             await announce(.clamped, clamps: clamps)
+            boundSeats.insert(seat)
             break
         }
         await showClampBite(in: events)
@@ -1333,6 +1388,8 @@ final class GameController {
         // a presentation cut short. A passive stranded here is a slot missing from the
         // board for the rest of the game.
         unrevealed.removeAll()
+        // A man stays bound until the rules let him go.
+        boundSeats = boundSeats.filter { !state[$0].clamps.isEmpty }
         shownShot = state.shot
         shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.

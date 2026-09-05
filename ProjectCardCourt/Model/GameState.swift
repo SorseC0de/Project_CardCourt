@@ -43,6 +43,16 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// Passives in play, oldest first. Capped by MatchRules.intangibleSlots.
     var intangibles: [CardDescriptor] = []
     /// Drives Hot Hand. Rolled over when a round ends.
+    /// Injuries carried right now.
+    ///
+    /// **Not in the discard.** An Injury is on the man, which is what keeps a Devastating
+    /// one out of the halftime shuffle — that gathers the deck, the pile and every bag,
+    /// and a card sitting here is in none of them. A round Injury is shed into the pile
+    /// when the round ends, so the shuffle does pick it up.
+    var injuries: [CardDescriptor] = []
+    /// Torn Achilles: the cards that survived this turn's lock, rolled once per
+    /// possession and then left alone.
+    var injuryUnlocked: [UUID] = []
     var lastMake: Make?
     var scoredThisRound = false
     var scoredLastRound = false
@@ -61,6 +71,10 @@ enum Phase: Hashable, Codable {
     case awaitingRebound(shooter: Seat)
     /// Turnaround Three: pick any number to discard, then the shot goes up.
     case awaitingDiscard(seat: Seat, card: CardDescriptor, bonusEach: Int)
+    /// Bone Bruise: the turn opens by giving one up, and the sheet says whose choice it
+    /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
+    /// and resolves into one.
+    case awaitingInjuryDiscard(seat: Seat, count: Int)
     /// At the line. One attempt at a time until the trip runs out.
     case freeThrows(trip: FreeThrowTrip)
     case gameOver
@@ -71,6 +85,7 @@ enum Phase: Hashable, Codable {
         case .inbound(let seat):    return seat
         case .possession(let seat): return seat
         case .awaitingDiscard(let seat, _, _): return seat
+        case .awaitingInjuryDiscard(let seat, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }

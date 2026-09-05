@@ -44,7 +44,7 @@ struct ActionBarView: View {
     /// Bids and Turnaround Three pick cards; a possession plays one.
     private var isSelecting: Bool {
         switch controller.gate {
-        case .awaitingBid, .awaitingDiscard: return true
+        case .awaitingBid, .awaitingDiscard, .awaitingInjuryDiscard: return true
         default: return false
         }
     }
@@ -66,6 +66,9 @@ struct ActionBarView: View {
                           onCommit: commit)
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
             if case .awaitingDiscard = controller.gate { confirmDiscard }
+            if case .awaitingInjuryDiscard(let card, let count) = controller.gate {
+                confirmInjuryDiscard(card, count: count)
+            }
             if case .awaitingMove = controller.gate, canShoot { shootButton }
             prompt
         }
@@ -80,7 +83,7 @@ struct ActionBarView: View {
         case .awaitingMove:
             guard playableCards.contains(card.id) else { return }
             controller.play(card)
-        case .awaitingBid, .awaitingDiscard:
+        case .awaitingBid, .awaitingDiscard, .awaitingInjuryDiscard:
             if controller.bidSelection.contains(card.id) {
                 controller.bidSelection.remove(card.id)
             } else {
@@ -113,6 +116,11 @@ struct ActionBarView: View {
         var notes: [String] = []
         for clamp in controller.human.clamps {
             notes.append(clamp.card.name.uppercased() + " ON YOU")
+        }
+        // An Injury is carried rather than played, so nothing else on screen says it is
+        // there — and a hand that keeps losing cards needs a reason printed somewhere.
+        for injury in controller.human.injuries {
+            notes.append(injury.name.uppercased())
         }
         return notes
     }
@@ -148,6 +156,25 @@ struct ActionBarView: View {
                 .background(Capsule().fill(count == 0 ? Theme.ink : Theme.ball))
         }
         .frame(width: 220)
+    }
+
+    /// The Injury's toll. Named, because a hand losing a card for no visible reason is
+    /// the game taking something rather than a card doing something.
+    private func confirmInjuryDiscard(_ card: CardDescriptor, count: Int) -> some View {
+        let chosen = controller.bidSelection.count
+        let ready = chosen == count
+        return Button { controller.submitInjuryDiscard() } label: {
+            Text(ready ? "\(card.name.uppercased()): GIVE UP \(chosen)"
+                       : "\(card.name.uppercased()): PICK \(count - chosen)")
+                .font(.system(size: 14, weight: .black)).tracking(1.1)
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Capsule().fill(ready ? Theme.danger : Theme.ink))
+        }
+        .frame(width: 240)
+        .disabled(!ready)
+        .opacity(ready ? 1 : 0.6)
     }
 
     private var confirmBid: some View {

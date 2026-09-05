@@ -163,17 +163,20 @@ enum PixelPalette {
         swap(to: pair.main, shade: pair.shade)
     }
 
-    /// The belt — **and the shoes.**
+    /// The belt and the shoes: **three** greys, not two.
     ///
-    /// Measured off `Player_front`: `slate` and `stone` appear on row 20, which is the
-    /// waist, and again on rows 26–27, which are the feet. One pair paints both, so
-    /// choosing a belt colour chooses a trim colour. Splitting them needs a third pair in
-    /// the art, not another swap here.
-    static let trim = slate
-    static let trimShade = stone
-
+    /// Measured across the sheets rather than assumed from one. `Player_front` draws both
+    /// the waist and the feet in `slate` over `stone`, but every sheet the game actually
+    /// plays — run, dribble, catch — draws the belt in `steel` on rows 18–19 and only the
+    /// shoes in `stone`. Swapping the first pair alone recoloured the belt on the My
+    /// Hooper stage and nothing at all on the floor.
+    ///
+    /// `steel` takes the shade, so the belt is the darker half of whatever was chosen. A
+    /// belt with a colour of its own needs its own pair in the art.
     static func trim(_ pair: Kit.Pair) -> [PaletteSwap] {
-        [PaletteSwap(trim, pair.main), PaletteSwap(trimShade, pair.shade)]
+        [PaletteSwap(slate, pair.main),
+         PaletteSwap(stone, pair.shade),
+         PaletteSwap(steel, pair.shade)]
     }
 }
 

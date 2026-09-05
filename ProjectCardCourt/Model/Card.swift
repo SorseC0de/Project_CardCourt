@@ -63,8 +63,29 @@ struct GameBreakEffect: Hashable, Codable {
     var silencesWhistles = false
     /// The sheet gives Injuries their own type column, and they wear their own colour.
     var isInjury = false
+    /// **How long an Injury sits on you, and whether it ever comes back.**
+    ///
+    /// An ordinary Injury lasts the round and is shuffled back in at halftime with
+    /// everything else. A Devastating one lasts the whole game and is never shuffled back
+    /// — one copy exists and once it has been drawn it is gone, unless a card says
+    /// otherwise. See `Injury`.
+    var injury: Injury?
+    /// Bone Bruise: one card off the top of your hand at the start of every turn, after
+    /// you have drawn — so the turn always begins with a choice rather than a tax.
+    var discardsEachTurn = 0
+    /// Torn Achilles: everything in the bag is held down but this many, rolled fresh each
+    /// turn. Zero is no lock at all.
+    var playableEachTurn: Int?
     /// Free throws for whoever drew it. Nobody fouled them, so nobody hands the ball back.
     var freeThrows = 0
+}
+
+/// How long an Injury stays on the man who drew it.
+enum Injury: String, Hashable, Codable {
+    /// Off at the end of the round, and back in the deck at halftime.
+    case round
+    /// On for the rest of the game, and never shuffled back in.
+    case game
 }
 
 /// A Special Move: the redesign of the old Shot cards. Most of them take the shot
@@ -91,6 +112,14 @@ struct SpecialMoveEffect: Hashable, Codable {
     var discardForShotBonus = 0
     var coinRunShot = 0
     var coinRunDraw = 0
+    /// Dagger Three: worth more the later it is taken.
+    ///
+    /// Paid on top of the card's own `shotDelta`, once for every tick of the Shot Clock
+    /// already spent. So a −60% base and +10% a tick is −60% taken at the top of the
+    /// clock, level at 04 and +30% at 01 — which is the card's printed text, arithmetic
+    /// and all. Measured against `shotClockStart` rather than a fixed pivot, so it is the
+    /// *clock* that decides, not a number that happens to suit a ten-tick one.
+    var shotPerClockSpent = 0
 }
 
 enum CardType: String, Hashable, Codable {

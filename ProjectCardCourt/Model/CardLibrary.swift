@@ -93,9 +93,9 @@ enum CardLibrary {
 
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
-        effect: "Cancel Next Shot. TOV +1. Shooter inbounds", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true,
-                               offenderInbounds: true))
+        effect: "Shot Clock changes: TOV +1. Ball out of bounds", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotClockLowered, turnoverOnOffender: true,
+                               cancelsCard: false, offenderInbounds: true))
 
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
@@ -117,9 +117,9 @@ enum CardLibrary {
 
     static let inadvertentWhistle = CardDescriptor(
         id: "inadvertent-whistle", name: "Inadvertent Whistle", type: .whistle,
-        effect: "Cancel Next Non-Whistle. Player draws 1",
+        effect: "Any other Whistle fires: cancel it. Turn player draws 1",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed, offenderDraws: 1))
+        whistle: WhistleEffect(trigger: .whistleFired, offenderDraws: 1))
 
     static let coachsChallenge = CardDescriptor(
         id: "coachs-challenge", name: "Coach's Challenge", type: .whistle,
@@ -170,8 +170,8 @@ enum CardLibrary {
 
     static let technicalFoul = CardDescriptor(
         id: "technical-foul", name: "Technical Foul", type: .whistle,
-        effect: "Cancel Next Non-Whistle", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed))
+        effect: "Cancel Next Non-Whistle. Take 1 FT", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed, freeThrowsToVictim: 1))
 
     static let delayOfGameWarning = CardDescriptor(
         id: "delay-of-game-warning", name: "Delay-of-Game Warning", type: .whistle,
@@ -182,8 +182,26 @@ enum CardLibrary {
 
     static let timeout = CardDescriptor(
         id: "timeout", name: "Timeout", type: .whistle,
-        effect: "Reset Shot Clock. All draw 1", numberInDeck: 1,
-        whistle: WhistleEffect(resetsShotClock: true, everyoneDraws: 1))
+        effect: "Reset Shot Clock. You inbound. All draw 1", numberInDeck: 1,
+        whistle: WhistleEffect(ownerInbounds: true, resetsShotClock: true,
+                               everyoneDraws: 1))
+
+    // ── Injuries ──────────────────────────────────────────────────────
+    //
+    // Their own column on the sheet and their own rules. An ordinary Injury lasts the
+    // round and comes back in the halftime shuffle, so there can be several copies and
+    // each is kept scarce. A Devastating one lasts the game, exists once, and never
+    // returns to the deck.
+
+    static let boneBruise = CardDescriptor(
+        id: "bone-bruise", name: "Bone Bruise", type: .gameBreak,
+        effect: "Discard 1 each turn, after drawing", numberInDeck: 3,
+        gameBreak: GameBreakEffect(isInjury: true, injury: .round, discardsEachTurn: 1))
+
+    static let tornAchilles = CardDescriptor(
+        id: "torn-achilles", name: "Torn Achilles", type: .gameBreak,
+        effect: "Every turn: all but 1 random card is held", numberInDeck: 1,
+        gameBreak: GameBreakEffect(isInjury: true, injury: .game, playableEachTurn: 1))
 
     // ── Intangibles ───────────────────────────────────────────────────
 
@@ -270,14 +288,14 @@ enum CardLibrary {
 
     static let fromTheHash = CardDescriptor(
         id: "from-the-hash", name: "From the Hash", type: .specialMove,
-        effect: "SHOT -30%. Shoot the ball. +1 PT on make", numberInDeck: 3,
-        shotDelta: -30,
+        effect: "SHOT -20%. Shoot the ball. +1 PT on make", numberInDeck: 3,
+        shotDelta: -20,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fromTheLogo = CardDescriptor(
         id: "from-the-logo", name: "From the Logo", type: .specialMove,
-        effect: "SHOT -50%. Shoot the ball. +1 PT on make", numberInDeck: 3,
-        shotDelta: -50,
+        effect: "SHOT -30%. Shoot the ball. +1 PT on make", numberInDeck: 3,
+        shotDelta: -30,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fullCourtHeave = CardDescriptor(
@@ -304,9 +322,11 @@ enum CardLibrary {
 
     static let daggerThree = CardDescriptor(
         id: "dagger-three", name: "Dagger Three", type: .specialMove,
-        effect: "SHOT -20%. Shoot the ball. +1 PT on make", numberInDeck: 4,
-        shotDelta: -20,
-        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
+        effect: "SHOT -60%. +10% per tick spent. Shoot the ball. +1 PT on make",
+        numberInDeck: 4,
+        shotDelta: -60,
+        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
+                                   shotPerClockSpent: 10))
 
     static let skyhook = CardDescriptor(
         id: "skyhook", name: "Skyhook", type: .specialMove,
@@ -342,7 +362,11 @@ enum CardLibrary {
     static let gameBreaks: [CardDescriptor] = [
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
-    ]
+    ] + injuries
+
+    /// Their own list, because they are their own column on the sheet and their own rules
+    /// — see `Injury`.
+    static let injuries: [CardDescriptor] = [boneBruise, tornAchilles]
 
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,

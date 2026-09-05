@@ -5,6 +5,39 @@ struct ShotCutsceneView: View {
 
     @State private var flight: CGFloat = 0
     @State private var showResult = false
+    /// Where the men contesting the shot stand.
+    ///
+    /// Three used to be a row of three at one depth, elbow to elbow and nearly as tall as
+    /// the shooter. They stand off him now, and the middle one stands **behind** the
+    /// other two rather than beside them — which is what a double or triple team actually
+    /// looks like, and what lets three read as three rather than as a smear.
+    private enum Wall {
+        static let scale: CGFloat = 1.25
+        /// How far apart, and how far up the court a man standing back is.
+        static let spread: CGFloat = 96
+        static let lift: CGFloat = 46
+        static let base: CGFloat = 196
+        /// How much smaller the man at the back is.
+        static let shrink: CGFloat = 0.16
+
+        /// `x` in multiples of the spread, `back` in multiples of the lift.
+        static func spots(for count: Int) -> [(x: CGFloat, back: CGFloat)] {
+            switch count {
+            case 0:  return []
+            case 1:  return [(0, 0)]
+            case 2:  return [(-0.6, 0), (0.6, 0)]
+            case 3:  return [(-0.9, 0), (0, 1), (0.9, 0)]
+            // Four or more is not a thing the rules can produce, but a Clamp stack that
+            // grows one day should spread rather than pile up on the same three marks.
+            default:
+                return (0..<count).map { index in
+                    let along = CGFloat(index) / CGFloat(count - 1) * 2 - 1
+                    return (along * 1.1, index.isMultiple(of: 2) ? 0 : 1)
+                }
+            }
+        }
+    }
+
     private enum Name {
         static let drop: CGFloat = 26
         /// How long before the scene ends the plate starts its trip out. Long enough that
@@ -95,15 +128,17 @@ struct ShotCutsceneView: View {
                 .position(x: geo.size.width / 2, y: geo.size.height * 0.42)
 
                 // Whoever was contesting is still contesting.
-                ForEach(0..<scene.defenders, id: \.self) { index in
-                    let side: CGFloat = index.isMultiple(of: 2) ? 1 : -1
-                    let rank = CGFloat(index / 2 + 1)
+                ForEach(Array(Wall.spots(for: scene.defenders).enumerated()),
+                        id: \.offset) { _, spot in
                     // Turned to face the shooter, so a pair of them close from both
                     // sides rather than both looking the same way.
-                    DefenderFigure(seat: scene.shooter, mirrored: side < 0)
-                        .scaleEffect(1.7, anchor: .bottom)
-                        .position(x: geo.size.width / 2 + side * 62 * rank,
-                                  y: geo.size.height - 150 - 14 * rank)
+                    DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
+                        // Further back stands smaller, which is what stops the middle man
+                        // of three reading as a giant behind the other two.
+                        .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back),
+                                     anchor: .bottom)
+                        .position(x: geo.size.width / 2 + Wall.spread * spot.x,
+                                  y: geo.size.height - Wall.base - Wall.lift * spot.back)
                 }
 
                 VStack(spacing: 8) {

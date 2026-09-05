@@ -17,8 +17,14 @@ enum WhistleTrigger: String, Hashable, Codable {
     case shotAttempt
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
     case shotClockLowered
+    case whistleFired
+    /// Any *other* Whistle actually firing — not one being set down. Inadvertent Whistle
+    /// is the referee blowing over the top of another call, so it cannot be matched
+    /// against a `PendingAction` the way the rest are; see `Rules.blow`.
 
     func matches(_ action: PendingAction) -> Bool {
+        // Never intercepts a play. It waits for another Whistle instead.
+        if self == .whistleFired { return false }
         switch (self, action) {
         case (.shotAttempt, .shoot):
             return true
@@ -71,8 +77,16 @@ struct WhistleEffect: Hashable, Codable {
     var freeThrowsToClampVictim = 0
     /// They keep what they were about to lose instead of the offender handing it back in.
     var victimKeepsBall = false
+    /// Whether the card that tripped it is cancelled.
+    ///
+    /// Nearly always. Shot Clock Violation is the exception: lowering the clock past the
+    /// buzzer is not a card being disallowed, it is a violation — the card does what it
+    /// said and the ball goes out.
+    var cancelsCard = true
     /// Charge: the ball goes back in by the player who was called, with no turnover.
     var offenderInbounds = false
+    /// Timeout: the Whistle's owner takes the ball and puts it back in play.
+    var ownerInbounds = false
     var setterChoosesInbound = false
     var endsRound = false
     var pointsToVictim = 0

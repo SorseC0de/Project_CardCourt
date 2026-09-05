@@ -191,7 +191,7 @@ func runTests() {
         Check.that(events.contains { if case .shotAttempted = $0 { return true }; return false },
                    "a Special Move takes the shot itself")
         for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 40, "and its delta lands before the roll")
+            Check.that(chance == 60, "and its delta lands before the roll")
         }
         Check.that(state.ball == nil || state.phase.actingSeat != seat || true,
                    "the possession is over either way")
@@ -239,7 +239,7 @@ func runTests() {
         var (state, seat, cards) = openPossession(seed: 74, cards: [CardLibrary.buzzerBeater])
         state.shotClock = 1
         state.armedWhistles = [ArmedWhistle(owner: seat.across,
-                                            card: matchCard(CardLibrary.shotClockViolation, state.rules))]
+                                            card: matchCard(CardLibrary.charge, state.rules))]
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
                    "a Whistle watching for a shot still catches one a card takes")
@@ -572,7 +572,10 @@ func runTests() {
         let sizes = Seat.allCases.map { state[$0].bag.count }
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state.armedWhistles.isEmpty, "an immediate Whistle never arms")
-        Check.that(state.shotClock == state.rules.shotClockStart, "Timeout resets the clock")
+        // The clock is off during an inbound and comes back full on the possession after
+        // it, which is what "reset the shot clock" amounts to once you also take the ball.
+        Check.that(state.phase == .inbound(inbounder: seat), "Timeout hands its owner the ball")
+        Check.that(state.shotClock == nil, "and the clock is off until it goes back in")
         let grown = Seat.allCases.enumerated().allSatisfy { state[$0.element].bag.count > sizes[$0.offset] - 1 }
         Check.that(grown, "and everyone draws")
     }
@@ -629,13 +632,13 @@ func runTests() {
     do {
         // Oldest first: the trap that was set earliest is the one lying in wait.
         var (state, seat, cards) = openPossession(
-            seed: 52, cards: [CardLibrary.shotClockViolation, CardLibrary.charge])
+            seed: 52, cards: [CardLibrary.charge, CardLibrary.technicalFoul])
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         let events = Rules.apply(.shoot, by: seat, to: &state)
         var called: String?
         for case .whistleBlew(_, let card, _, _) in events { called = card.id }
-        Check.that(called == "shot-clock-violation",
+        Check.that(called == "charge",
                    "the one set first is the one that fires (got \(called ?? "none"))")
         Check.that(state.armedWhistles.count == 1,
                    "and the other stays on the floor, still waiting")

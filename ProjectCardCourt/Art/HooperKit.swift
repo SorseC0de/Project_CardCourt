@@ -151,8 +151,9 @@ enum Kit {
             }
         }
 
-        /// The still poses hold on a frame; the rest run.
+        /// The still poses hold on a frame; the rest run — the shot included. It is a
+        /// one-shot on the court because a shot happens once; here it is a thing being
+        /// looked at, and a pose that plays through and stops is a pose you miss.
         var plays: Bool { self != .front && self != .receiving }
-        var playsOnce: Bool { self == .shooting }
     }
 }

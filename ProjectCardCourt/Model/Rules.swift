@@ -26,15 +26,34 @@ enum Rules {
 
     // MARK: - Legality
 
+    /// What a card has earned back off the clock it has watched run down.
+    ///
+    /// Only Dagger Three uses it. A dagger is a shot taken late: it starts as a bad look
+    /// and pays for every tick already spent, so at the top of the clock it is the
+    /// penalty on the card and at 01 it is the best shot on the table.
+    static func clockBonus(_ special: SpecialMoveEffect?, in state: GameState) -> Int {
+        guard let special, special.shotPerClockSpent != 0,
+              let clock = state.shotClock else { return 0 }
+        let spent = max(0, state.rules.shotClockStart - clock)
+        return spent * special.shotPerClockSpent
+    }
+
     static func legalMoves(_ state: GameState, for seat: Seat) -> [Move] {
         switch state.phase {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
+        case .awaitingInjuryDiscard: return []
         case .possession(let holder) where holder == seat:
             // A Clamp can hold cards down or allow nothing but passes. Both last the
             // possession, and both are read here rather than refused on play — a card you
             // cannot use should look like one.
-            let held = Set(state[seat].clamps.flatMap(\.locked))
+            var held = Set(state[seat].clamps.flatMap(\.locked))
+            // Torn Achilles is the other way round: everything is held *except* what the
+            // roll left, so a card added mid-turn is held too.
+            if handIsLocked(state, for: seat) {
+                let free = Set(state[seat].injuryUnlocked)
+                held.formUnion(state[seat].bag.map(\.id).filter { !free.contains($0) })
+            }
             let passOnly = state[seat].clamps.contains { $0.card.clamp?.passOnly == true }
             let playable = state[seat].bag.filter { card in
                 if held.contains(card.id) { return false }
@@ -58,6 +77,26 @@ enum Rules {
         default:
             return []
         }
+    }
+
+    /// The cards a Torn Achilles leaves you, rolled fresh for the turn.
+    ///
+    /// Picked once and kept, for the same reason a Clamp's lock is: a hand that reshuffles
+    /// which cards are dead every time it is looked at cannot be played around.
+    private static func rollInjuryLock(_ seat: Seat, state: inout GameState) {
+        let allowed = state[seat].injuries.compactMap { $0.gameBreak?.playableEachTurn }.min()
+        guard let allowed else { state[seat].injuryUnlocked = []; return }
+        var pool = state[seat].bag.map(\.id)
+        var kept: [UUID] = []
+        for _ in 0..<min(allowed, pool.count) {
+            kept.append(pool.remove(at: state.roll(0...(pool.count - 1))))
+        }
+        state[seat].injuryUnlocked = kept
+    }
+
+    /// Whether anything this player is carrying locks their hand down.
+    private static func handIsLocked(_ state: GameState, for seat: Seat) -> Bool {
+        state[seat].injuries.contains { $0.gameBreak?.playableEachTurn != nil }
     }
 
     /// Cards a Clamp is holding down: the ones it picked at random, plus everything a
@@ -123,7 +162,10 @@ enum Rules {
                 state.discard.append(card)
             }
 
+            // Read before the card is played, because playing it may spend the tick it
+            // is being priced against.
             var delta = descriptor.baseShotDelta
+                + clockBonus(descriptor.special, in: state)
             let comboArmed = (descriptor.comboAfter != nil
                               && descriptor.comboAfter == state.lastPlayThisPossession)
                 || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
@@ -383,6 +425,29 @@ enum Rules {
         0...state[seat].bag.count
     }
 
+    /// The Injury's toll, paid. Whatever was chosen goes, and the turn starts properly.
+    @discardableResult
+    static func resolveInjuryDiscard(_ ids: [Card.ID], state: inout GameState) -> [GameEvent] {
+        guard case .awaitingInjuryDiscard(let seat, let count) = state.phase else { return [] }
+        var events: [GameEvent] = []
+
+        let chosen = Set(ids.prefix(count))
+        let spent = state[seat].bag.filter { chosen.contains($0.id) }
+        state[seat].bag.removeAll { chosen.contains($0.id) }
+        state.discard.append(contentsOf: spent)
+
+        // Short of the toll — an absent player, or a hand that emptied — is made up at
+        // random. The card is owed either way.
+        for _ in spent.count..<count where !state[seat].bag.isEmpty {
+            discardAtRandom(from: seat, state: &state)
+        }
+        if let injury = state[seat].injuries.first(where: { ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }) {
+            events.append(.clampBit(seat: seat, card: injury, discarded: count))
+        }
+        state.phase = .possession(holder: seat)
+        return events
+    }
+
     /// Spends the chosen cards, then takes the shot the card was always going to take.
     @discardableResult
     static func resolveDiscardForShot(_ ids: [Card.ID], state: inout GameState) -> [GameEvent] {
@@ -496,6 +561,28 @@ enum Rules {
     /// Spends the Whistle, cancels what tripped it, and applies its effects.
     private static func blow(_ whistle: ArmedWhistle, on action: PendingAction,
                              state: inout GameState, events: inout [GameEvent]) {
+        // **Blown over the top.** Inadvertent Whistle does not wait for a play, it waits
+        // for a *call* — so it is checked here rather than in `interceptor`, which only
+        // ever sees actions. The call it cancels never happens: the card that tripped the
+        // first Whistle stands, and the Whistle that was about to fire is spent for
+        // nothing.
+        if whistle.trigger != .whistleFired,
+           let over = state.armedWhistles.first(where: {
+               $0.id != whistle.id && $0.trigger == .whistleFired
+           }) {
+            state.armedWhistles.removeAll { $0.id == over.id || $0.id == whistle.id }
+            state.discard.append(over.card)
+            state.discard.append(whistle.card)
+            events.append(.whistleBlew(owner: over.owner, card: over.card.descriptor,
+                                       cancelled: whistle.card.name,
+                                       cancelledCard: whistle.card.descriptor))
+            let effect = over.card.descriptor.whistle ?? WhistleEffect()
+            for _ in 0..<effect.offenderDraws {
+                draw(action.actor, state: &state, events: &events)
+            }
+            return
+        }
+
         let effect = whistle.card.descriptor.whistle ?? WhistleEffect()
         let offender = action.actor
 
@@ -514,8 +601,13 @@ enum Rules {
         var cancelled = "the play"
         var cancelledCard: CardDescriptor?
         if case .playCard(let seat, let card) = action {
-            state[seat].bag.removeAll { $0.id == card.id }
-            state.discard.append(card)
+            // Nearly always taken back. A Shot Clock Violation is the exception: the card
+            // did what it said and the *clock* is the offence, so the play stands and the
+            // ball goes out.
+            if effect.cancelsCard {
+                state[seat].bag.removeAll { $0.id == card.id }
+                state.discard.append(card)
+            }
             cancelled = card.name
             cancelledCard = card.descriptor
         } else if case .shoot = action {
@@ -582,6 +674,11 @@ enum Rules {
         if effect.recoversTimeout,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
             state[seat].bag.append(state.discard.remove(at: index))
+        }
+        // Last, so the fresh clock and the fresh cards are already there when the ball
+        // goes back in. A timeout is called and then play restarts, in that order.
+        if effect.ownerInbounds {
+            reinbound(by: seat, state: &state, events: &events)
         }
     }
 
@@ -730,6 +827,18 @@ enum Rules {
         state[seat].clamps.removeAll { $0.card.clamp?.isStanding == false }
 
         if shouldTick, tickClock(by: -1, holder: seat, state: &state, events: &events) { return }
+
+        // Rolled after the draw, so a card that just arrived can be the one you are left
+        // with rather than being dead the moment it lands.
+        rollInjuryLock(seat, state: &state)
+
+        // Bone Bruise takes its card at the top of the turn, after the draw — so the turn
+        // opens with a choice rather than with a hand already one short.
+        let toll = state[seat].injuries.reduce(0) { $0 + ($1.gameBreak?.discardsEachTurn ?? 0) }
+        if toll > 0, !state[seat].bag.isEmpty {
+            state.phase = .awaitingInjuryDiscard(seat: seat, count: min(toll, state[seat].bag.count))
+            return
+        }
         state.phase = .possession(holder: seat)
         takeTheLine(state: &state, events: &events)
         handOverBall(state: &state, events: &events)
@@ -780,6 +889,12 @@ enum Rules {
         for seat in Seat.allCases {
             state[seat].scoredLastRound = state[seat].scoredThisRound
             state[seat].scoredThisRound = false
+            // Off at the whistle and back into the pile, so halftime shuffles it in with
+            // everything else. A Devastating one is not shed and so never returns.
+            let healed = state[seat].injuries.filter { $0.gameBreak?.injury == .round }
+            state[seat].injuries.removeAll { $0.gameBreak?.injury == .round }
+            state.discard.append(contentsOf: healed.map { Card($0) })
+            state[seat].injuryUnlocked = []
         }
 
         if state.round >= state.rules.roundsPerGame {
@@ -876,7 +991,13 @@ enum Rules {
                  allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
         } else if let effect = card.descriptor.gameBreak {
             events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
-            state.discard.append(card)
+            // An Injury is carried, not spent. See `PlayerState.injuries`.
+            if effect.injury != nil {
+                state[seat].injuries.append(card.descriptor)
+                rollInjuryLock(seat, state: &state)
+            } else {
+                state.discard.append(card)
+            }
             resolveGameBreak(effect, named: card.name, drawnBy: seat,
                              state: &state, events: &events, depth: depth)
         } else {
