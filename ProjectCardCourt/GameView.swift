@@ -49,6 +49,9 @@ struct GameView: View {
                 stage
             }
             .ignoresSafeArea(edges: .bottom)
+            // Lifted over the wash while the floor is what is being asked for, the way
+            // the hand's own band is when the question is about cards.
+            .zIndex(floorIsTheQuestion ? 9.5 : 0)
 
             // Anywhere off the raised card puts it back down. Only present while one is
             // up, so it never swallows a tap on the court.
@@ -93,7 +96,7 @@ struct GameView: View {
                 .animation(.easeOut(duration: 0.3), value: isChoosingInbound)
             }
             // Above the dim while the hand is the question, under it the rest of the time.
-            .zIndex(standingAside ? 9.5 : 0)
+            .zIndex(handIsTheQuestion ? 9.5 : 0)
 
             // One dim for the whole screen, always in the hierarchy and turned up when
             // something takes the screen over. Never inserted, so it can only ever fade.
@@ -405,9 +408,30 @@ struct GameView: View {
 
     /// Whether the floor's own readings should get out of the way: something is being
     /// asked for out of the hand, and the hand is what the eye needs.
+    /// The panels either side of the hand get out of the way for any question — they are
+    /// never the answer to one.
     private var standingAside: Bool {
         switch controller.gate {
+        case .awaitingDiscard, .awaitingInjuryDiscard, .awaitingBid,
+             .awaitingTarget, .awaitingNaming:
+            return true
+        default: return false
+        }
+    }
+
+    /// **Which band the question is about**, and so which one is lifted over the wash
+    /// rather than washed out with everything else. The cards in front of you when the
+    /// game wants a card; the floor when it wants a player off it.
+    private var handIsTheQuestion: Bool {
+        switch controller.gate {
         case .awaitingDiscard, .awaitingInjuryDiscard, .awaitingBid: return true
+        default: return false
+        }
+    }
+
+    private var floorIsTheQuestion: Bool {
+        switch controller.gate {
+        case .awaitingTarget, .awaitingNaming: return true
         default: return false
         }
     }
@@ -418,6 +442,10 @@ struct GameView: View {
         // gets a dimmed floor for.
         switch controller.gate {
         case .awaitingDiscard, .awaitingInjuryDiscard: return Theme.dimBrowser
+        // Picking a player off the floor is the same kind of question, and it was the one
+        // asked with the screen left exactly as it was — nothing to say the game had
+        // stopped and was waiting on you.
+        case .awaitingTarget, .awaitingNaming: return Theme.dimBrowser
         default: break
         }
         // The sheets carry their own, so the screen's stays out of it — two scrims over

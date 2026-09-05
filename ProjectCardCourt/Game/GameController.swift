@@ -1805,7 +1805,10 @@ final class GameController {
                 await spendCard(from: seat)
             }
         }
-        shownShot = state.shot + state.holderShot
+        // **Not while the card is still asking.** See `Phase.isMidPlay`: a play that has
+        // put a question up has not finished, and what it did to SHOT is not the board's
+        // until it has been answered.
+        if !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
         if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
             await announce(.whistle)
         }
@@ -1866,7 +1869,7 @@ final class GameController {
         unrevealed.removeAll()
         // A man stays bound until the rules let him go.
         boundSeats = boundSeats.filter { !state[$0].clamps.isEmpty }
-        shownShot = state.shot + state.holderShot
+        if !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
         shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.
         shownDeck = state.deck.count

@@ -873,6 +873,11 @@ struct CourtView: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
+        // **A man who is not on the floor is not there to be tapped.** He warps out for
+        // his own inbound and his node stays in the hierarchy, invisible — and its content
+        // shape went on taking taps meant for whoever is standing behind it, answering
+        // them with an inspection of the man who had left.
+        .allowsHitTesting(!isAway(seat))
         .onTapGesture { selectable ? onSelect(seat) : onInspectPlayer(seat) }
         .animation(.easeOut(duration: 0.2), value: revealedBids?[seat])
     }

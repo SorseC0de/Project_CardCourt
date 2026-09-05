@@ -18,11 +18,10 @@ struct ThreeCelebrationView: View {
     @State private var numberFlying = false
     @State private var fading = false
 
-    private let side: CGFloat = 260
-    /// Room for a finger to overshoot into. The layers are rasterised, and a raster is
-    /// clipped to its own bounds — a spring that springs past 1 has to have somewhere to
-    /// go or it is cut off at the moment it is most visible.
-    private var room: CGFloat { side * 1.35 }
+    private let side: CGFloat = 200
+    /// Room for a finger to overshoot into: the springs settle from past 1, and a hand
+    /// cut off at the moment it is largest is the moment it is most visible.
+    private var room: CGFloat { side * 1.6 }
     /// The burst, in whole art pixels. Its sheet is 64 square, so this is 192 points —
     /// inside the hand rather than swallowing it.
     private let sparkleScale: CGFloat = 3
@@ -34,16 +33,19 @@ struct ThreeCelebrationView: View {
             ZStack {
                 ZStack {
                     ForEach(0..<4, id: \.self) { layer in
+                        // The art is filled black in the file, so each layer is a
+                        // template in the catalogue — without that the tint is silently
+                        // ignored, all four draw as identical black silhouettes over one
+                        // another, and the sequence is invisible. Which is how it looked.
                         Image("ThreeHand_\(layer)")
-                            // The art is filled black in the file. Without this the tint
-                            // is silently ignored, all four layers draw as identical black
-                            // silhouettes over one another, and the whole sequence is
-                            // invisible — which is exactly how it looked.
                             .resizable()
                             .scaledToFit()
                             .frame(width: side, height: side)
                             .foregroundStyle(handGradient)
-                            .drawingGroup()
+                            // **No `drawingGroup` here.** It rasterises at the layer's own
+                            // bounds, and the spring that lands each finger settles from
+                            // past 1 — so the overshoot was drawn against the edge of its
+                            // own raster and cut off square.
                             .scaleEffect(arrived[layer] ? 1 : 0.1)
                             .opacity(arrived[layer] ? 1 : 0)
                     }

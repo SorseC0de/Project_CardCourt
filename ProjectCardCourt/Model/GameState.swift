@@ -109,6 +109,22 @@ enum Phase: Hashable, Codable {
     case freeThrows(trip: FreeThrowTrip)
     case gameOver
 
+    /// **A card that is still being played.**
+    ///
+    /// It has been laid down and has asked its own question, and nothing it does is
+    /// settled until that question is answered — so the board holds what it showed
+    /// before. Dime's ten per cent was landing while the prompt naming who to pass it to
+    /// was still open, which read as the card paying out before it had been played.
+    var isMidPlay: Bool {
+        switch self {
+        case .awaitingTarget, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
+             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop:
+            return true
+        default:
+            return false
+        }
+    }
+
     /// The seat that owes a decision, if any.
     /// A short name for the phase, for logs.
     var label: String {
