@@ -39,8 +39,18 @@ struct ReboundCutsceneView: View {
             // Their own layer, at their own offset, and nothing below can reach them.
             VStack(spacing: 10) {
                 // The same lettering a made shot gets. This is a moment, not a caption.
-                SwisshTitle(text: revealedBids == nil ? "Loose Ball!" : "Crashing the Glass!",
+                SwisshTitle(text: revealedBids == nil ? "Rebound!" : "Crashing the Glass!",
                             size: 34)
+
+                // Under the line it belongs to. Down at the bids' offset it was in the
+                // band the hand occupies, which is where it was being read from.
+                //
+                // Always drawn, and only faded: the stack is centred on its own height, so
+                // a line that comes and goes moves the title and the ball with it.
+                Text("\(shooter.isLocal ? "your" : shooter.playerName + "'s") miss · SHOT stays live")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.inkDim)
+                    .opacity(revealedBids == nil ? 1 : 0)
 
                 BallView(diameter: 150)
                     .rotationEffect(.degrees(spin ? 360 : 0))
@@ -69,10 +79,6 @@ struct ReboundCutsceneView: View {
                         }
                     }
                     .transition(.scale.combined(with: .opacity))
-                } else {
-                    Text("\(shooter.isLocal ? "your" : shooter.playerName + "'s") miss · SHOT stays live")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.inkDim)
                 }
             }
             .offset(y: Self.bidsY)

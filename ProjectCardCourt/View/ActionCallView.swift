@@ -6,14 +6,13 @@ import SwiftUI
 /// different here is that nothing is being chosen: a mode card in Stars waits for a Start
 /// button, and this one is telling you what just happened, so it leaves on its own.
 enum ActionCall: String, Identifiable, Equatable, CaseIterable {
-    case inbound, rebound, gameBreak, whistle, clamped
+    case inbound, gameBreak, whistle, clamped
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .inbound:   return "Inbound"
-        case .rebound:   return "Rebound"
         case .gameBreak: return "Game Break!"
         case .whistle:   return "Whistle"
         case .clamped:   return "Clamped!"
@@ -24,7 +23,6 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
     var blurb: String {
         switch self {
         case .inbound:   return "Put the ball back in play"
-        case .rebound:   return "The board is live"
         case .gameBreak: return ""//"Nobody played this"
         // The whistle says it with the whistle. See `emblem`.
         case .whistle:   return ""
@@ -38,7 +36,6 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
     var drop: Color {
         switch self {
         case .inbound:   return CardPalette.blue
-        case .rebound:   return CardPalette.orange
         case .gameBreak: return CardPalette.purple
         case .whistle:   return CardPalette.red
         case .clamped:   return CardPalette.purple
@@ -52,7 +49,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         case .gameBreak: return CardPalette.purple
         case .whistle:   return .white
         case .clamped:   return CardPalette.red
-        case .inbound, .rebound: return nil
+        case .inbound: return nil
         }
     }
 

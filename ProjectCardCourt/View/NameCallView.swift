@@ -77,7 +77,14 @@ struct NameCallView: View {
             .opacity(burn(at: timeline.date, rate: NameCallStyle.fadeRate))
             .offset(x: offset(size))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // **Pinned to the trip and cut at its edges.**
+        //
+        // The plate travels off both sides, so its own width is nothing anybody should be
+        // laid out against — and every scene that uses it stacks it over the top of
+        // something. A ZStack takes the width of its widest child, so an over-wide plate
+        // re-centred the shot's backboard from a layer that is meant to be scenery.
+        .frame(width: reach, height: size.height, alignment: .leading)
+        .clipped()
         .allowsHitTesting(false)
         .task {
             withAnimation(.easeOut(duration: NameCallStyle.arrival)) { stage = .held }
@@ -121,16 +128,10 @@ struct NameCallView: View {
         .lineLimit(1)
         .fixedSize()
         .scaleEffect(x: NameCallStyle.labelStretch, y: 1, anchor: .leading)
-        .offset(x: nameX)
+        .offset(x: NameCallStyle.labelX)
         .opacity(left)
     }
 
-    /// The name's place along the plate: far enough in that it lands at the screen's
-    /// leading edge once the plate has come to rest. It rides the plate in and out from
-    /// there — a word pinned to the screen while the shape moves under it is two things.
-    private var nameX: CGFloat {
-        NameCallStyle.size(reaching: reach).width - reach + NameCallStyle.labelX
-    }
 
     private func offset(_ size: CGSize) -> CGFloat {
         switch stage {
@@ -156,19 +157,25 @@ struct NameCallView: View {
 /// The plate's proportions and pacing.
 @MainActor
 enum NameCallStyle {
-    /// How tall it is and how long, against how far it flies.
-    ///
-    /// **Longer than the trip, the way the port has it.** The plate is held with its
-    /// trailing edge at `reach`, so one exactly as long as the screen puts its clear head
-    /// at the leading edge — which is where the name goes, and why the name was sitting on
-    /// nothing. At the mother shape's own length the tail runs off the leading edge
-    /// instead, and everything on screen is solid colour.
+    /// How tall it is and how long, against how far it flies. Exactly the trip: the plate
+    /// spans the screen and no more.
     static let height: CGFloat = 0.16
-    static let length: CGFloat = 2.22
+    static let length: CGFloat = 1.0
+
+    /// Where the tail dissolves, as shares of the plate's own length.
+    ///
+    /// **Its own numbers, not the mother shape's.** Hers are shares of a bar 2.22× as long
+    /// as its reach, so the ramp lands off the side of the screen; measured against a plate
+    /// exactly as long as the trip, the same shares put a third of the screen in clear air
+    /// with the name standing on it. A short dissolve at the tail is what she looks like
+    /// from here.
 
     static func size(reaching reach: CGFloat) -> CGSize {
         CGSize(width: reach * length, height: reach * height)
     }
+
+    static let fadeFrom: CGFloat = 0
+    static let fadeTo: CGFloat = 0.06
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
     /// trails as it flies out.
@@ -177,8 +184,8 @@ enum NameCallStyle {
         return LinearGradient(
             gradient: Gradient(stops: [
                 .init(color: .clear, location: 0),
-                .init(color: .clear, location: ModeCardStyle.fadeFrom),
-                .init(color: face, location: ModeCardStyle.fadeTo),
+                .init(color: .clear, location: fadeFrom),
+                .init(color: face, location: fadeTo),
                 .init(color: face, location: 1),
             ]),
             startPoint: .leading, endPoint: .trailing)

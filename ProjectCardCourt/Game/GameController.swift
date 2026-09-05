@@ -1213,8 +1213,9 @@ final class GameController {
             if state.isOver { gate = .gameOver; return }
 
             if case .awaitingRebound(let shooter) = state.phase {
-                await announce(.rebound)
-                if Task.isCancelled { return }
+                // No call in front of it. The board's own scene is black with the same
+                // streaks across it and the word "Rebound!" already on it — a card saying
+                // that first is the same picture twice.
                 gate = .awaitingBid(shooter: shooter)
                 return
             }
