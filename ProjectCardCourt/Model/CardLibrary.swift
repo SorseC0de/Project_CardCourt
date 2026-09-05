@@ -405,8 +405,10 @@ enum CardLibrary {
 
     static let officialTimeout = CardDescriptor(
         id: "official-timeout", name: "Official Timeout", type: .gameBreak,
-        effect: "Every Injury on every player comes off", numberInDeck: 2,
-        gameBreak: GameBreakEffect(healsAllInjuries: true))
+        effect: "With a referee out: every Injury comes off and the crew leaves. Otherwise all draw 1",
+        numberInDeck: 2,
+        gameBreak: GameBreakEffect(healsAllInjuries: true, requiresReferee: true,
+                                   clearsReferees: true, everyoneDrawsInstead: 1))
 
     static let tradeDeadline = CardDescriptor(
         id: "trade-deadline", name: "Trade Deadline", type: .gameBreak,

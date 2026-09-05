@@ -86,6 +86,8 @@ enum Phase: Hashable, Codable {
     case awaitingCardFrom(seat: Seat, card: CardDescriptor, victim: Seat)
     /// Wet Spot: one Injury off the table, some of them face down.
     case awaitingInjuryPick(seat: Seat, card: CardDescriptor)
+    /// A fourth passive arriving on a full board: which of the four goes.
+    case awaitingIntangibleDrop(seat: Seat, offered: [CardDescriptor])
     /// Bone Bruise: the turn opens by giving one up, and the sheet says whose choice it
     /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
     /// and resolves into one.
@@ -105,6 +107,7 @@ enum Phase: Hashable, Codable {
         case .awaitingMode(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat
         case .awaitingInjuryPick(let seat, _): return seat
+        case .awaitingIntangibleDrop(let seat, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }
@@ -151,6 +154,10 @@ struct GameState: Codable {
     /// Queued rather than dumped where it lands. Turning it up on the second card of an
     /// opening deal should cost the hand you end up with, not the one card you had.
     var handsOwed: Set<Seat> = []
+    /// Boards holding more passives than the rules allow, waiting to be asked which goes.
+    /// Queued for the same reason a hand is: the phase set where the overflow happens is
+    /// overwritten by whatever the draw chain does next.
+    var overflowing: Set<Seat> = []
     /// Wet Spot: what is on offer, and which of them the picker cannot see.
     var injuriesOffered: [CardDescriptor] = []
     var injuriesHidden: Set<String> = []

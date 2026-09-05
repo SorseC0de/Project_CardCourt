@@ -43,7 +43,7 @@ enum Rules {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
         case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom,
-             .awaitingInjuryPick:
+             .awaitingInjuryPick, .awaitingIntangibleDrop:
             return []
         case .awaitingTarget(let asked, _, let choices) where asked == seat:
             return choices.map { Move.inbound(to: $0) }
@@ -1403,13 +1403,22 @@ enum Rules {
     /// Called at the outermost edge of a deal or a draw rather than where the card landed,
     /// because "discard your hand" has to mean the hand you end up with.
     static func settleHands(state: inout GameState, events: inout [GameEvent]) {
-        guard !state.handsOwed.isEmpty else { return }
-        for seat in state.handsOwed {
-            guard !state[seat].bag.isEmpty else { continue }
+        for seat in state.handsOwed where !state[seat].bag.isEmpty {
             state.discard.append(contentsOf: state[seat].bag)
             state[seat].bag.removeAll()
         }
         state.handsOwed.removeAll()
+
+        // And the question a full board owes. One at a time: answering it can rehome a
+        // passive onto another full board, which asks again.
+        state.overflowing = state.overflowing.filter {
+            state[$0].intangibles.count > state.rules.intangibleSlots
+        }
+        if let seat = state.overflowing.sorted(by: { $0.rawValue < $1.rawValue }).first {
+            state.overflowing.remove(seat)
+            state.phase = .awaitingIntangibleDrop(seat: seat,
+                                                  offered: state[seat].intangibles)
+        }
     }
 
     /// Draws several as **one batch**.
@@ -1553,11 +1562,25 @@ enum Rules {
             adjustShot(by: effect.shotThisPossession, state: &state)
         }
         if effect.skipsNextDraw { state.skipsNextDraw = true }
-        if effect.healsAllInjuries {
-            for other in Seat.allCases where !state[other].injuries.isEmpty {
-                state.discard.append(contentsOf: state[other].injuries.map { Card($0) })
-                state[other].injuries.removeAll()
-                state[other].injuryUnlocked = []
+        // Somebody has to call a timeout. With no referee on the floor there is nobody
+        // to call it, and the card is a card for everybody instead.
+        if effect.requiresReferee, state.armedWhistles.isEmpty {
+            for other in Seat.allCases {
+                drawBatch(other, count: effect.everyoneDrawsInstead, state: &state,
+                          events: &events, depth: depth + 1)
+            }
+        } else {
+            if effect.healsAllInjuries {
+                for other in Seat.allCases where !state[other].injuries.isEmpty {
+                    state.discard.append(contentsOf: state[other].injuries.map { Card($0) })
+                    state[other].injuries.removeAll()
+                    state[other].injuryUnlocked = []
+                }
+            }
+            if effect.clearsReferees, !state.armedWhistles.isEmpty {
+                state.discard.append(contentsOf: state.armedWhistles.map(\.card))
+                state.armedWhistles.removeAll()
+                events.append(.whistlesDismissed)
             }
         }
         if effect.everyoneRedraws {
@@ -1631,14 +1654,31 @@ enum Rules {
         shedIntangibles(for: seat, state: &state, events: &events)
     }
 
-    /// Pushes the oldest out when the slots overflow, and rehomes whatever refuses to go.
+    /// Notes a board that is over its slots. **Whose goes is the player's call**, so this
+    /// only queues the question — `settleHands` asks it once the chain is done.
     private static func shedIntangibles(for seat: Seat, state: inout GameState,
                                         events: inout [GameEvent]) {
-        while state[seat].intangibles.count > state.rules.intangibleSlots {
-            let displaced = state[seat].intangibles.removeFirst()
-            events.append(.intangibleDisplaced(seat: seat, card: displaced))
-            rehome(displaced, from: seat, state: &state, events: &events)
+        if state[seat].intangibles.count > state.rules.intangibleSlots {
+            state.overflowing.insert(seat)
         }
+    }
+
+    /// One passive off a full board, chosen. Taking the one that just arrived is a
+    /// legitimate answer — sometimes the fourth is the one you do not want.
+    @discardableResult
+    static func resolveIntangibleDrop(_ id: String, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingIntangibleDrop(let seat, _) = state.phase,
+              let index = state[seat].intangibles.firstIndex(where: { $0.id == id })
+        else { return [] }
+        var events: [GameEvent] = []
+        let displaced = state[seat].intangibles.remove(at: index)
+        events.append(.intangibleDisplaced(seat: seat, card: displaced))
+        state.phase = .possession(holder: state.ball ?? seat)
+        rehome(displaced, from: seat, state: &state, events: &events)
+        // Rehoming can overflow the board it lands on, and a board can be more than one
+        // over if several arrived at once.
+        settleHands(state: &state, events: &events)
+        return events
     }
 
     /// A reputation does not go in the bin. It goes to somebody.

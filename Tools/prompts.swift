@@ -29,6 +29,13 @@ enum Prompts {
             guard let pick = hand.first else { return false }
             Rules.resolveCardFrom(hand.randomElement()?.id ?? pick.id, state: &state)
             return true
+        case .awaitingIntangibleDrop(_, let offered):
+            // A passive that only hurts is the one to give up; failing that, the oldest,
+            // which is what the rule used to do on its own.
+            let worst = offered.first { ($0.intangible?.shotBonus ?? 0) < 0
+                                        || $0.intangible?.blocksMoves == true }
+            Rules.resolveIntangibleDrop(worst?.id ?? offered[0].id, state: &state)
+            return true
         case .awaitingInjuryPick:
             // Whatever is face up and mildest; failing that, whatever is on offer.
             let offered = state.injuriesOffered

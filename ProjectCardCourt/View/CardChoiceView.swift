@@ -1,14 +1,17 @@
 import SwiftUI
 
-/// The Injuries on the floor, and the one you are taking.
+/// A row of cards, and one of them taken.
 ///
-/// Wet Spot lays out everything hurt in the pile and everything still in the deck. What
-/// is in the pile you can read; what is in the deck you cannot — knowing an Injury is in
-/// there is not the same as knowing which — so those come up face down.
-struct InjuryPickerView: View {
-    let card: CardDescriptor
+/// The shape every "pick one of these" in the game uses: laid on the mode card, tapped to
+/// raise, confirmed underneath. `hidden` names the ones the picker may not read — Wet
+/// Spot shows what is still in the deck face down, because knowing an Injury is in there
+/// is not the same as knowing which.
+struct CardChoiceView: View {
+    let title: String
+    let note: String
     let offered: [CardDescriptor]
-    let hidden: Set<String>
+    var hidden: Set<String> = []
+    var tint: Color = CardPalette.red
     var onPick: (String) -> Void
 
     @State private var chosen: String?
@@ -23,14 +26,9 @@ struct InjuryPickerView: View {
             DimLayer(on: true, amount: Theme.dimBrowser)
             Color.clear.contentShape(Rectangle()).ignoresSafeArea()
 
-            ModeCardView(title: card.name,
-                         subtitle: "Take one",
-                         ink: .white,
-                         subtitleInk: CardPalette.red,
-                         accessory: AnyView(table),
-                         isLeaving: false,
-                         onLanded: {},
-                         onFinished: {})
+            ModeCardView(title: title, subtitle: note, ink: .white, subtitleInk: tint,
+                         accessory: AnyView(table), isLeaving: false,
+                         onLanded: {}, onFinished: {})
         }
         .transition(.opacity)
     }
@@ -39,10 +37,10 @@ struct InjuryPickerView: View {
         VStack(spacing: 14) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(offered, id: \.id) { injury in
-                        face(injury)
-                            .offset(y: chosen == injury.id ? -Table.lift : 0)
-                            .onTapGesture { chosen = injury.id }
+                    ForEach(offered, id: \.id) { card in
+                        face(card)
+                            .offset(y: chosen == card.id ? -Table.lift : 0)
+                            .onTapGesture { chosen = card.id }
                     }
                 }
                 .padding(.vertical, Table.lift)
@@ -52,7 +50,7 @@ struct InjuryPickerView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.72), value: chosen)
 
             ChunkyButton(title: chosen == nil ? "Pick one" : "Take it",
-                         fill: chosen == nil ? CardPalette.gray : CardPalette.red,
+                         fill: chosen == nil ? CardPalette.gray : tint,
                          stroke: CardPalette.gold, shade: CardPalette.orange,
                          size: 18, isEnabled: chosen != nil) {
                 if let chosen { onPick(chosen) }
@@ -62,16 +60,13 @@ struct InjuryPickerView: View {
         .fixedSize()
     }
 
-    @ViewBuilder private func face(_ injury: CardDescriptor) -> some View {
-        let on = chosen == injury.id
+    @ViewBuilder private func face(_ card: CardDescriptor) -> some View {
+        let on = chosen == card.id
         Group {
-            if hidden.contains(injury.id) {
-                Image("CardBackFull")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: Table.card)
+            if hidden.contains(card.id) {
+                Image("CardBackFull").resizable().scaledToFit().frame(width: Table.card)
             } else {
-                CardFrontView(descriptor: injury, displayWidth: Table.card)
+                CardFrontView(descriptor: card, displayWidth: Table.card)
             }
         }
         .overlay {

@@ -145,8 +145,13 @@ struct GameBreakEffect: Hashable, Codable {
     /// Floor Cleanup: every hand goes back into the deck and comes out again, the same
     /// size it went in.
     var everyoneRedraws = false
-    /// Official Timeout: every Injury on every player, gone.
+    /// Official Timeout: every Injury on every player, gone — but only if there is a
+    /// referee on the floor to call it. With none, it is a card for everybody instead.
     var healsAllInjuries = false
+    var requiresReferee = false
+    var clearsReferees = false
+    /// What it does instead, when its condition is not met.
+    var everyoneDrawsInstead = 0
     /// Wet Spot: every Injury in the pile and the deck is laid out, the deck's face down,
     /// and one of them is yours.
     var offersInjuries = false

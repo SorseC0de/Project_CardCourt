@@ -78,10 +78,17 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+            if case .awaitingIntangibleDrop(let offered) = controller.gate {
+                // The one that just arrived is in the row, so "just discard it" is a
+                // pick rather than a second button.
+                CardChoiceView(title: "Too Many", note: "One has to go", offered: offered,
+                               tint: CardPalette.gold) { controller.choose(dropping: $0) }
+                    .zIndex(12)
+            }
             if case .awaitingInjuryPick(let card) = controller.gate {
-                InjuryPickerView(card: card,
-                                 offered: controller.state.injuriesOffered,
-                                 hidden: controller.state.injuriesHidden) {
+                CardChoiceView(title: card.name, note: "Take one",
+                               offered: controller.state.injuriesOffered,
+                               hidden: controller.state.injuriesHidden) {
                     controller.choose(injury: $0)
                 }
                 .zIndex(12)

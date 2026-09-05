@@ -304,6 +304,8 @@ final class GameController {
         case awaitingCardFrom(card: CardDescriptor, victim: Seat)
         /// Wet Spot: one Injury off the table, some of them face down.
         case awaitingInjuryPick(card: CardDescriptor)
+        /// A fourth passive on a full board: which of the four goes.
+        case awaitingIntangibleDrop(offered: [CardDescriptor])
         case awaitingFreeThrow(FreeThrowTrip)
         case gameOver
     }
@@ -532,6 +534,8 @@ final class GameController {
             return seat.isLocal ? .awaitingCardFrom(card: card, victim: victim) : .thinking
         case .awaitingInjuryPick(let seat, let card):
             return seat.isLocal ? .awaitingInjuryPick(card: card) : .thinking
+        case .awaitingIntangibleDrop(let seat, let offered):
+            return seat.isLocal ? .awaitingIntangibleDrop(offered: offered) : .thinking
         case .awaitingInjuryDiscard(let seat, let count):
             guard seat.isLocal, let injury = injury(on: seat) else { return .thinking }
             return .awaitingInjuryDiscard(card: injury, count: count)
@@ -766,6 +770,14 @@ final class GameController {
         guard case .awaitingTarget = gate else { return }
         loop?.cancel()
         Task { await present(Rules.resolveTarget(target, state: &state)) }
+    }
+
+    /// The passive given up when a fourth arrives.
+    func choose(dropping id: String) {
+        guard !isPaused else { return }
+        guard case .awaitingIntangibleDrop = gate else { return }
+        loop?.cancel()
+        Task { await present(Rules.resolveIntangibleDrop(id, state: &state)) }
     }
 
     /// An Injury taken off the table.
@@ -1100,6 +1112,19 @@ final class GameController {
                 // taking from. One rule, because the AI has no reason to prefer another.
                 let pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
                 await present(Rules.resolveTarget(pick, state: &state))
+                continue
+            }
+            if case .awaitingIntangibleDrop(let seat, let offered) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                gate = .thinking
+                try? await Task.sleep(for: .seconds(Pacing.think()))
+                if Task.isCancelled { return }
+                // A passive that only hurts is the one to give up; failing that, the
+                // oldest, which is what the rule used to do on its own.
+                let worst = offered.first { ($0.intangible?.shotBonus ?? 0) < 0
+                                            || $0.intangible?.blocksMoves == true }
+                await present(Rules.resolveIntangibleDrop(worst?.id ?? offered[0].id,
+                                                          state: &state))
                 continue
             }
             if case .awaitingInjuryPick(let seat, _) = state.phase {
