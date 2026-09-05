@@ -53,6 +53,13 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         }
     }
 
+    /// Whether the bars cross without stopping.
+    ///
+    /// A Game Break is the game telling you something happened, not asking anything, and
+    /// it fires often enough that a card holding its position is a card in the way. The
+    /// rest have something to read on them — a whistle, a roster of Clamps — and are held.
+    var passesThrough: Bool { self == .gameBreak }
+
     /// A call that shows a picture rather than a word. The gold whistle is the same art
     /// the reveal opens with, moved up onto the call so the two are one moment instead of
     /// the whistle being announced and then shown.
@@ -103,6 +110,7 @@ struct ActionCallView: View {
                      emblem: call.emblem,
                      accessory: clamps.isEmpty ? nil
                                 : AnyView(ClampRosterView(clamps: clamps)),
+                     passesThrough: call.passesThrough,
                      isLeaving: leaving,
                      onLanded: {},
                      onFinished: onFinished)
@@ -113,6 +121,8 @@ struct ActionCallView: View {
             // never raise `leaving` — and `announce` waits on that, forever.
             .task(id: call) {
                 leaving = false
+                // A card that does not stop times its own exit — see `passesThrough`.
+                guard !call.passesThrough else { return }
                 try? await Task.sleep(for: .seconds(Pacing.actionCall))
                 leaving = true
             }

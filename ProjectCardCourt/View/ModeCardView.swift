@@ -82,6 +82,14 @@ struct ModeCardView: View {
     /// and a generic parameter they all have to spell out buys nothing back.
     var accessory: AnyView? = nil
 
+    /// **One pass instead of arrive, hold, leave.**
+    ///
+    /// The bars never stop: they cross the screen at a constant speed and keep going, and
+    /// the words are timed so they reach full size at the instant the bars pass through
+    /// the middle and form the Z. A call that is only telling you something does not need
+    /// to be held — holding it is what made a Game Break take as long as a decision.
+    var passesThrough = false
+
     /// Raised when the player presses Start. The bars leave on it.
     let isLeaving: Bool
 
@@ -138,7 +146,7 @@ struct ModeCardView: View {
                         // them in.
                         .opacity(said)
                         .animation(
-                            stage == .gathered
+                            said > 0
                                 ? .easeIn(duration: ModeCardStyle.warpFade)
                                     .delay(ModeCardStyle.warpDawn)
                                 : .easeOut(duration: ModeCardStyle.departure),
@@ -170,7 +178,7 @@ struct ModeCardView: View {
                         .alignmentGuide(VerticalAlignment.center) { $0[.top] }
                         .scaleEffect(said)
                         .opacity(said)
-                        .animation(ModeCardStyle.pop, value: said)
+                        .animation(wordPop, value: said)
                         .offset(y: bar.height / 2
                                    + ModeCardStyle.accessoryDrop * bar.height)
                 }
@@ -307,7 +315,7 @@ struct ModeCardView: View {
             // Its own spring, not the bars' easing. The words do not travel
             // with the card — they arrive on it — so they get a curve that
             // overshoots and settles rather than one built for a slide.
-            .animation(ModeCardStyle.pop, value: said)
+            .animation(wordPop, value: said)
     }
 
     /// The one-line description, under the name on the lower bar.
@@ -323,7 +331,7 @@ struct ModeCardView: View {
             // Its own spring, not the bars' easing. The words do not travel
             // with the card — they arrive on it — so they get a curve that
             // overshoots and settles rather than one built for a slide.
-            .animation(ModeCardStyle.pop, value: said)
+            .animation(wordPop, value: said)
     }
 
     /// Whether the words are showing.
@@ -331,7 +339,13 @@ struct ModeCardView: View {
     /// They belong to the gathered moment alone. Carried in on a bar they would
     /// arrive skewed and leave skewed, and the point of the card is the instant
     /// the two bars are one thing.
-    private var said: Double { stage == .gathered ? 1 : 0 }
+    @State private var said: Double = 0
+
+    /// The curve the words arrive on. The pass-through has already spent its wait getting
+    /// them started early, so it takes the spring without the delay baked into it.
+    private var wordPop: Animation {
+        passesThrough ? ModeCardStyle.popNow : ModeCardStyle.pop
+    }
 
     // MARK: - The sequence
 
@@ -341,13 +355,35 @@ struct ModeCardView: View {
     /// a run opens with, and a run opens when the player says so — see
     /// `isLeaving`, which the Start button raises.
     private func arrive() async {
+        guard !passesThrough else { return await passThrough() }
         withAnimation(.easeOut(duration: ModeCardStyle.arrival)) { stage = .gathered }
+        said = 1
         await sleep(ModeCardStyle.arrival)
         onLanded()
     }
 
+    /// Straight through, without stopping.
+    ///
+    /// The bars run offstage to parted in one linear move, so they are dead centre at
+    /// half the pass — and the words start their spring a spring's-length before that, so
+    /// they are at full size exactly as the two bars line up. Nothing waits for anything;
+    /// the two clocks are simply set to meet.
+    private func passThrough() async {
+        withAnimation(.linear(duration: ModeCardStyle.pass)) { stage = .parted }
+        let middle = ModeCardStyle.pass / 2
+        let lead = max(0, middle - ModeCardStyle.textResponse)
+        await sleep(lead)
+        said = 1
+        await sleep(middle - lead)
+        onLanded()
+        said = 0
+        await sleep(middle)
+        onFinished()
+    }
+
     /// Leaves, and reports that it has gone.
     private func leave() async {
+        said = 0
         withAnimation(.easeIn(duration: ModeCardStyle.departure)) { stage = .parted }
         await sleep(ModeCardStyle.departure)
         onFinished()
@@ -551,6 +587,12 @@ enum ModeCardStyle {
         .delay(textDelay)
     }
 
+    /// The same spring with nothing in front of it, for a card whose words are started by
+    /// the clock rather than by the bars landing — see `ModeCardView.passThrough`.
+    static var popNow: Animation {
+        .spring(response: textResponse, dampingFraction: textBounce)
+    }
+
     /// The words on them.
     static let ink = Theme.ink
 
@@ -668,6 +710,10 @@ enum ModeCardStyle {
 
     static let defaultArrival: Double = 0.30
     static let defaultDeparture: Double = 0.30
+
+    /// How long a card that does not stop takes to cross, end to end. The Z is formed at
+    /// half of it and the card is gone at all of it, so this is the whole interruption.
+    static let pass: Double = 1.0
 
     // ── The words' timing ─────────────────────────────────────────────
     //
