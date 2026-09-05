@@ -34,7 +34,11 @@ struct CourtStage: View {
         static let pitch: Float = 34
         static let fieldOfView: Float = 28
         static let slab: Float = 0.0016
-        static let maxLayers = 40
+        /// How many slabs each pile is built with — the ceiling the bench's own slider
+        /// stops at. Every one of them is two entities that exist from the first frame
+        /// whether the pile is that tall or not, and at forty that was a hundred and sixty
+        /// of them standing on the floor for a pile that never shows more than eight.
+        static let maxLayers = 20
 
         /// How wide a pile should read, as a share of the view.
         ///

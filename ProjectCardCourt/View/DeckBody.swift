@@ -64,7 +64,7 @@ struct DeckBody: View {
         /// High because a layer is nearly free — every slab shares one mesh, and the
         /// entities exist whether or not they are shown. Sized for a 400-card pool at one
         /// layer per ten, so the rule never runs into the ceiling.
-        static let maxLayers = 40
+        static let maxLayers = 20
     }
 
     var body: some View {
