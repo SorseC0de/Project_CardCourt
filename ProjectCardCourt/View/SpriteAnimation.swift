@@ -6,6 +6,9 @@ enum Sprite: String, CaseIterable {
     case dribble = "Player_Dribble"
     case run = "Player_Run"
     case runLook = "Player_Run_Look"
+    /// The same glance over the other shoulder. North gets both and tosses for it — see
+    /// `SpriteAnimation.current(at:)`.
+    case runLook2 = "Player_Run_Look2"
     /// The referee's own sheet. He jogs and looks about like everyone else — a referee
     /// standing dead still would read as a prop rather than a man watching you.
     case refereeRunLook = "Referee_Run_Look"
@@ -84,6 +87,9 @@ struct SpriteAnimation: View {
     /// the rest of the time — an idle player never stops moving, they just glance about
     /// now and then.
     var alternate: Sprite?
+    /// A second cut-away, when there is a choice of them. Tossed for each time one is due
+    /// — off the cycle's own number, so it is settled rather than re-rolled every frame.
+    var alternateOr: Sprite?
     var alternateEvery: TimeInterval = 5
     /// This sprite's own offset into the clock, so four players do not run — or glance —
     /// in unison.
@@ -114,10 +120,15 @@ struct SpriteAnimation: View {
     /// Which sheet is on screen right now.
     private func current(at date: Date) -> Sprite {
         guard let alternate else { return sprite }
+        let clock = date.timeIntervalSinceReferenceDate + phase
         let run = Double(alternate.frames) / fps
-        let cycle = (date.timeIntervalSinceReferenceDate + phase)
-            .truncatingRemainder(dividingBy: alternateEvery)
-        return cycle < run ? alternate : sprite
+        let cycle = clock.truncatingRemainder(dividingBy: alternateEvery)
+        guard cycle < run else { return sprite }
+        guard let alternateOr else { return alternate }
+        // Which shoulder, this time round. Read off the number of the cycle rather than
+        // rolled: a random draw would land differently on every frame of the same glance.
+        let turn = Int(clock / alternateEvery)
+        return turn.isMultiple(of: 2) ? alternate : alternateOr
     }
 
     private func frame(of showing: Sprite, at date: Date) -> Int {
