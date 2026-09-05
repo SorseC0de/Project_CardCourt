@@ -84,7 +84,7 @@ enum CardLibrary {
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
-        effect: "Pass to a player of choice. SHOT +5%. They #[discard] 1 at random",
+        effect: "Pass to a player of choice. SHOT +5%. They #[Discard] 1 at random",
         numberInDeck: 12,
         passTarget: .choice, shotDelta: 5, receiverDiscards: 1)
 
@@ -100,7 +100,7 @@ enum CardLibrary {
 
     static let poundDribble = CardDescriptor(
         id: "pound-dribble", name: "Pound Dribble", type: .move,
-        effect: "#[Draw] 2 then #[discard] 1. SHOT +10%. #[Shot Clock] -1", numberInDeck: 5,
+        effect: "#[Draw] 2 then #[Discard] 1. SHOT +10%. #[Shot Clock] -1", numberInDeck: 5,
         shotDelta: 10, drawCount: 2, clockDelta: -1, isDribble: true, selfDiscard: 1)
 
     static let spinMove = CardDescriptor(
@@ -110,7 +110,7 @@ enum CardLibrary {
 
     static let crossover = CardDescriptor(
         id: "crossover", name: "Crossover", type: .move,
-        effect: "#[Draw] 1. SHOT +10%. #[Clear] every #[Clamp]: #[draw] 1 and they #[discard] 1 each",
+        effect: "#[Draw] 1. SHOT +10%. #[Clear] every #[Clamp]: #[Draw] 1 and they #[Discard] 1 each",
         numberInDeck: 5,
         shotDelta: 10, drawCount: 1, isDribble: true,
         drawPerClamp: 1, clamperDiscardsPerClamp: 1, clearsClamps: true)
@@ -124,7 +124,7 @@ enum CardLibrary {
     /// the written half says and nothing more. It greys out on an empty floor.
     static let ankleBreaker = CardDescriptor(
         id: "ankle-breaker", name: "Ankle Breaker", type: .move,
-        effect: "A player of choice #[discards] 1. SHOT +10%", numberInDeck: 10,
+        effect: "A player of choice #[Discards] 1. SHOT +10%", numberInDeck: 10,
         shotDelta: 10, targetDiscards: 1)
 
     static let hesi = CardDescriptor(
@@ -139,12 +139,12 @@ enum CardLibrary {
 
     static let stepback = CardDescriptor(
         id: "stepback", name: "Stepback", type: .move,
-        effect: "SHOT +10%. You may #[discard] 1 for another +10%", numberInDeck: 12,
+        effect: "SHOT +10%. You may #[Discard] 1 for another +10%", numberInDeck: 12,
         shotDelta: 10, optionalDiscardForShot: 10)
 
     static let tripleThreat = CardDescriptor(
         id: "triple-threat", name: "Triple Threat", type: .move,
-        effect: "Choose: #[draw] 1, pass for +5%, or SHOT +10%. No more Moves after it",
+        effect: "Choose: #[Draw] 1, pass for +5%, or SHOT +10%. No more Moves after it",
         numberInDeck: 15,
         modes: [CardMode(label: "Draw 1", draws: 1),
                 CardMode(label: "Pass +5%", shotDelta: 5, passes: .choice),
@@ -185,7 +185,7 @@ enum CardLibrary {
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
-        effect: "Next player #[discard] 2", numberInDeck: 3,
+        effect: "Next player #[Discard] 2", numberInDeck: 3,
         clamp: ClampEffect(discardAtStart: 2))
 
     // ── Whistles ──────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ enum CardLibrary {
 
     static let playOn = CardDescriptor(
         id: "play-on", name: "Play-On", type: .whistle,
-        effect: "#[Discard] each #[Game Break] drawn and #[draw] again, until a card is not one",
+        effect: "#[Discard] each #[Game Break] drawn and #[Draw] again, until a card is not one",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .gameBreakDrawn))
 
@@ -229,7 +229,7 @@ enum CardLibrary {
 
     static let inadvertentWhistle = CardDescriptor(
         id: "inadvertent-whistle", name: "Inadvertent Whistle", type: .whistle,
-        effect: "Any other #[Whistle] fires: cancel it. Turn player #[draws] 1",
+        effect: "Any other #[Whistle] fires: cancel it. Turn player #[Draws] 1",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .whistleFired, offenderDraws: 1))
 
@@ -241,7 +241,7 @@ enum CardLibrary {
 
     static let officialReview = CardDescriptor(
         id: "official-review", name: "Official Review", type: .whistle,
-        effect: "Next #[Intangible]: #[discard] all theirs", numberInDeck: 1,
+        effect: "Next #[Intangible]: #[Discard] all theirs", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .intangiblePlayed, stripsIntangibles: true))
 
     static let goaltending = CardDescriptor(
@@ -261,7 +261,7 @@ enum CardLibrary {
 
     static let flagrantFoul = CardDescriptor(
         id: "flagrant-foul", name: "Flagrant Foul", type: .whistle,
-        effect: "Next #[Clamp]: no effect. Clamper #[discards] 1. Clamped player +1 #[FT] and keeps the ball",
+        effect: "Next #[Clamp]: no effect. Clamper #[Discards] 1. Clamped player +1 #[FT] and keeps the ball",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 1,
                                voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
@@ -269,7 +269,7 @@ enum CardLibrary {
 
     static let flagrantFoulII = CardDescriptor(
         id: "flagrant-foul-ii", name: "Flagrant Foul II", type: .whistle,
-        effect: "Next #[Clamp]: no effect. Clamper #[discards] their bag. Clamped player +1 #[FT] and keeps the ball",
+        effect: "Next #[Clamp]: no effect. Clamper #[Discards] their bag. Clamped player +1 #[FT] and keeps the ball",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscardsBag: true,
                                voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
@@ -294,7 +294,7 @@ enum CardLibrary {
 
     static let timeout = CardDescriptor(
         id: "timeout", name: "Timeout", type: .whistle,
-        effect: "Reset #[Shot Clock]. You inbound. All #[draw] 1", numberInDeck: 1,
+        effect: "Reset #[Shot Clock]. You inbound. All #[Draw] 1", numberInDeck: 1,
         whistle: WhistleEffect(ownerInbounds: true, resetsShotClock: true,
                                everyoneDraws: 1))
 
@@ -305,7 +305,7 @@ enum CardLibrary {
 
     static let clearPathFoul = CardDescriptor(
         id: "clear-path-foul", name: "Clear Path Foul", type: .whistle,
-        effect: "Shooting under a SHOT #[Clamp]: #[clear] them, take the points and 1 #[FT]",
+        effect: "Shooting under a SHOT #[Clamp]: #[Clear] them, take the points and 1 #[FT]",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotAttempt, cancelsCard: false,
                                endsRound: true, freeThrowsToOffender: 1,
@@ -397,7 +397,7 @@ enum CardLibrary {
 
     static let ballPounder = CardDescriptor(
         id: "ball-pounder", name: "Ball Pounder", type: .intangible,
-        effect: "Every @[Dribble] #[draws] 1 more and costs 10% more", numberInDeck: 1,
+        effect: "Every @[Dribble] #[Draws] 1 more and costs 10% more", numberInDeck: 1,
         intangible: IntangibleEffect(dribbleBonusDraw: 1, dribbleShotPenalty: -10))
 
     static let franchisePlayer = CardDescriptor(
@@ -461,13 +461,13 @@ enum CardLibrary {
 
     static let floorCleanup = CardDescriptor(
         id: "floor-cleanup", name: "Floor Cleanup", type: .gameBreak,
-        effect: "Every hand is shuffled back in. Everyone #[draws] what they had",
+        effect: "Every hand is shuffled back in. Everyone #[Draws] what they had",
         numberInDeck: 3,
         gameBreak: GameBreakEffect(everyoneRedraws: true))
 
     static let officialTimeout = CardDescriptor(
         id: "official-timeout", name: "Official Timeout", type: .gameBreak,
-        effect: "With a referee out: every #[Injury] comes off and the crew leaves. Otherwise all #[draw] 1",
+        effect: "With a referee out: every #[Injury] comes off and the crew leaves. Otherwise all #[Draw] 1",
         numberInDeck: 2,
         gameBreak: GameBreakEffect(healsAllInjuries: true, requiresReferee: true,
                                    clearsReferees: true, everyoneDrawsInstead: 1))
@@ -485,7 +485,7 @@ enum CardLibrary {
 
     static let freshBall = CardDescriptor(
         id: "fresh-ball", name: "Fresh Ball", type: .gameBreak,
-        effect: "The next possession opens without its #[draw]", numberInDeck: 3,
+        effect: "The next possession opens without its #[Draw]", numberInDeck: 3,
         gameBreak: GameBreakEffect(skipsNextDraw: true))
 
     static let wetSpot = CardDescriptor(
@@ -495,7 +495,7 @@ enum CardLibrary {
 
     static let iceWrap = CardDescriptor(
         id: "ice-wrap", name: "Ice Wrap", type: .gameBreak,
-        effect: "#[Draw] 1. #[Clear] all #[Injuries] — or #[draw] 1 more if there were none",
+        effect: "#[Draw] 1. #[Clear] all #[Injuries] — or #[Draw] 1 more if there were none",
         numberInDeck: 5,
         gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, drawIfUninjured: 1))
 
@@ -554,7 +554,7 @@ enum CardLibrary {
 
     static let twoMinuteWarning = CardDescriptor(
         id: "two-minute-warning", name: "2-Minute Warning", type: .gameBreak,
-        effect: "All #[discard] down to 2", numberInDeck: 2,
+        effect: "All #[Discard] down to 2", numberInDeck: 2,
         gameBreak: GameBreakEffect(everyoneDiscardsTo: 2))
 
     static let designedPlay = CardDescriptor(
@@ -579,7 +579,7 @@ enum CardLibrary {
 
     static let salaryCapIncrease = CardDescriptor(
         id: "salary-cap-increase", name: "Salary Cap Increase", type: .gameBreak,
-        effect: "All players #[draw] 2", numberInDeck: 4,
+        effect: "All players #[Draw] 2", numberInDeck: 4,
         gameBreak: GameBreakEffect(everyoneDraws: 2))
 
     static let swallowedWhistle = CardDescriptor(
@@ -685,13 +685,13 @@ enum CardLibrary {
 
     static let altercation = CardDescriptor(
         id: "altercation", name: "Altercation", type: .gameBreak,
-        effect: "Select another player: you and they each #[discard] 1 at random. Inbound to anybody else",
+        effect: "Select another player: you and they each #[Discard] 1 at random. Inbound to anybody else",
         numberInDeck: 2,
         gameBreak: GameBreakEffect(fightsChosenPlayer: true))
 
     static let hugeAltercation = CardDescriptor(
         id: "huge-altercation", name: "Huge Altercation", type: .gameBreak,
-        effect: "All players #[discard] their hands. With a referee out, all take 1 #[TOV]. Inbound the ball",
+        effect: "All players #[Discard] their hands. With a referee out, all take 1 #[TOV]. Inbound the ball",
         numberInDeck: 1,
         gameBreak: GameBreakEffect(everyoneDiscardsHands: true, turnoversIfReferee: 1,
                                    givesBallAway: true))
@@ -720,12 +720,12 @@ enum CardLibrary {
 
     static let rolePlayer = CardDescriptor(
         id: "role-player", name: "Role Player", type: .gameBreak,
-        effect: "All other players #[draw] 1 card", numberInDeck: 4,
+        effect: "All other players #[Draw] 1 card", numberInDeck: 4,
         gameBreak: GameBreakEffect(othersDraw: 1))
 
     static let backAndForthGame = CardDescriptor(
         id: "back-and-forth-game", name: "Back-and-Forth Game", type: .gameBreak,
-        effect: "#[Discard] the next 3 #[Game Breaks]. Whoever #[draws] one #[draws] again",
+        effect: "#[Discard] the next 3 #[Game Breaks]. Whoever #[Draws] one #[Draws] again",
         numberInDeck: 3,
         gameBreak: GameBreakEffect(waivesBreaks: 3))
 

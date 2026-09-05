@@ -24,7 +24,13 @@ struct TightText: View {
     /// The hard drop under a marked run, as points. See `Marked`, which decides what is
     /// marked and in what colour — this only says how far the shadow falls.
     var markShadowOffset: CGFloat = 0
-    var glyphBefore: (word: String, symbol: String)?
+    /// Keywords the game draws rather than spells: `["Draw": "DrawIcon"]`.
+    ///
+    /// On a card in the hand the picture stands in for the word — the number beside it is
+    /// the whole message. Raised to be read, the word comes back and the picture leads it.
+    var glyphs: [String: String] = [:]
+    /// Whether a drawn keyword keeps its word. A card being read has room for both.
+    var spellsGlyphs = false
 
     /// The size actually used, after the fit search.
     private var chosenSize: CGFloat {
@@ -48,9 +54,10 @@ struct TightText: View {
                 // span can only carry its own by being its own view.
                 HStack(spacing: 0) {
                     ForEach(Array(line.enumerated()), id: \.offset) { _, run in
-                        (glyph(for: run).map { Text(Image(systemName: $0)) + Text(" ") }
-                            ?? Text(verbatim: "")
-                            + Text(run.text))
+                        let drawn = glyph(for: run)
+                        (drawn.map { Text(Image($0)) + Text(" ") } ?? Text(verbatim: "")
+                            + Text(drawn == nil || spellsGlyphs ? run.text
+                                   : String(run.text.drop(while: { $0 != " " }))))
                             .font(.custom(font, size: points))
                             .tracking(tracking)
                             .foregroundStyle(run.ink.map { AnyShapeStyle($0.colour) }
@@ -64,11 +71,15 @@ struct TightText: View {
         .multilineTextAlignment(.center)
     }
 
-    /// The symbol this run leads with, if any.
+    /// The picture this run leads with, if it is a keyword the game draws.
+    ///
+    /// Matched on the run's first word, since the run is the marked span and the marker is
+    /// around the keyword itself — anything after it inside the same span is the sentence
+    /// carrying on and keeps its words.
     private func glyph(for run: Marked.Run) -> String? {
-        guard run.ink != nil, let glyphBefore,
-              run.text.localizedCaseInsensitiveContains(glyphBefore.word) else { return nil }
-        return glyphBefore.symbol
+        guard run.ink == .keyword else { return nil }
+        let word = run.text.prefix(while: { $0 != " " })
+        return glyphs[String(word)]
     }
 
     /// Sentences break first, then each is balanced across the lines it needs.

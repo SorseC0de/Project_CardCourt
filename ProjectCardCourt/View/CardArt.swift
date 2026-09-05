@@ -118,6 +118,13 @@ enum CardMetrics {
 /// Values are written over the card's own dimensions, so `21 / across` is the 21 that was
 /// dialled in rather than 0.0355. The calibrator is archived in Tools/calibration.
 enum CardLayout {
+    /// The keywords the card draws instead of spelling, and what it draws them as. The
+    /// word comes back when the card is raised to be read — see `TightText.spellsGlyphs`.
+    static let keywordGlyphs: [String: String] = [
+        "Draw": "DrawIcon", "Draws": "DrawIcon",
+        "Discard": "DiscardIcon", "Discards": "DiscardIcon",
+    ]
+
     private static let across = CardMetrics.shape.width
     private static let down = CardMetrics.shape.height
 

@@ -193,7 +193,8 @@ struct CardFrontView: View {
                          lineHeight: CardLayout.effectLineHeight,
                          tracking: size * CardLayout.badgeTracking,
                          markShadowOffset: width * 0.014,
-                         glyphBefore: (word: "Dribble", symbol: CardLayout.dribbleSymbol))
+                         glyphs: CardLayout.keywordGlyphs,
+                         spellsGlyphs: expanded)
             .foregroundStyle(effectColour)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
