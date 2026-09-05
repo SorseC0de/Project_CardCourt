@@ -434,8 +434,14 @@ struct GameView: View {
     }
 
     /// In every style but .panel the court claims the log's real estate.
-    private var court: some View {
-        CourtView(state: controller.state,
+    ///
+    /// **Type-erased, and it has to be.** `CourtView` is a stack of a dozen layers, and
+    /// every modifier hung on it wraps that whole type in another generic — the court
+    /// with its frame, its overlay, its sheet came out as a type deep enough that
+    /// instantiating it recursed off the end of the stack. `EXC_BAD_ACCESS` in
+    /// `court.getter`, attached; a crash on the first frame, not.
+    private var court: AnyView {
+        AnyView(CourtView(state: controller.state,
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
                   settledAt: controller.ballSettledAt,
@@ -483,7 +489,7 @@ struct GameView: View {
             .sheet(isPresented: $showingLobby) {
                 MatchLobbyView(controller: controller)
             }
-            .task { if opensLobby { showingLobby = true } }
+            .task { if opensLobby { showingLobby = true } })
     }
 
     /// Sits under the scoreboard. Overlay drops the solid panel for a scrim so the top
