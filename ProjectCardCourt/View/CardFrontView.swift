@@ -46,6 +46,7 @@ struct CardFrontView: View {
             } else {
                 icon
                 effectText
+                keywordBadge
                 if descriptor.takesShot { shootMark }
                 if descriptor.isDribble { dribbleMark }
             }
@@ -183,10 +184,49 @@ struct CardFrontView: View {
         }
     }
 
+    /// The card's keyword badge and whatever words are left beside it.
+    private var badge: (run: Marked.Run, rest: String)? {
+        Marked.badge(of: expanded ? descriptor.detailedEffect : descriptor.printedEffect)
+    }
+
+    /// **A badge with nothing beside it takes the middle of the card.** Crowd Noise says
+    /// one thing and says it large; Salary Cap Increase keeps "All Players" in the effect
+    /// field and drops its badge to the foot.
+    @ViewBuilder private var keywordBadge: some View {
+        if let badge, let art = CardLayout.keywordGlyphs[badge.run.text] {
+            let alone = badge.rest.isEmpty
+            let side = width * (alone ? CardLayout.badgeAloneFraction
+                                      : CardLayout.badgeFraction)
+            let drop = width * CardLayout.iconShadowFraction
+            VStack {
+                if !alone { Spacer() }
+                Image(art)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: side, height: side)
+                    .foregroundStyle(.white)
+                    .overlay {
+                        // On its face, where the art leaves a place for it.
+                        Text(badge.run.value ?? "")
+                            .font(.custom(cardFont.name, size: side * CardLayout.badgeValueShare))
+                            .foregroundStyle(.white)
+                            .shadow(color: CardLayout.iconShadow(for: descriptor.type),
+                                    radius: 0, x: drop * 0.6, y: drop * 0.6)
+                    }
+                    .shadow(color: CardLayout.iconShadow(for: descriptor.type),
+                            radius: 0, x: drop, y: drop)
+                    .padding(.bottom, alone ? 0 : height * CardLayout.shootIconBottomFraction)
+                if alone { Spacer().frame(height: height * CardLayout.shootIconBottomFraction) }
+            }
+            .frame(maxHeight: .infinity, alignment: alone ? .center : .bottom)
+        }
+    }
+
     private var effectText: some View {
         let size = width * CardLayout.effectSizeFraction
         let inset = width * 0.05
-        return TightText(text: expanded ? descriptor.detailedEffect : descriptor.printedEffect,
+        return TightText(text: badge?.rest
+                            ?? (expanded ? descriptor.detailedEffect : descriptor.printedEffect),
                          font: cardFont.name,
                          size: size,
                          width: width - inset * 2,

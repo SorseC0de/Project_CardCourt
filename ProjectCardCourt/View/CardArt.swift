@@ -120,9 +120,18 @@ enum CardMetrics {
 enum CardLayout {
     /// The keywords the card draws instead of spelling, and what it draws them as. The
     /// word comes back when the card is raised to be read — see `TightText.spellsGlyphs`.
+    /// The keyword badge at the foot of the card: bigger than the shoot mark, because it
+    /// carries a value on its face rather than only saying what happens.
+    static let badgeFraction: CGFloat = 0.40
+    /// And the whole middle of the card, when the badge is all the card says.
+    static let badgeAloneFraction: CGFloat = 0.62
+    /// How big the value on its face is, against the badge itself.
+    static let badgeValueShare: CGFloat = 0.42
+
     static let keywordGlyphs: [String: String] = [
         "Draw": "DrawIcon", "Draws": "DrawIcon",
         "Discard": "DiscardIcon", "Discards": "DiscardIcon",
+        "Lock": "LockIcon", "Locks": "LockIcon",
     ]
 
     private static let across = CardMetrics.shape.width

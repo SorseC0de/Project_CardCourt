@@ -170,12 +170,12 @@ enum CardLibrary {
 
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
-        effect: "Next player cannot play 2 random cards", numberInDeck: 4,
+        effect: "Next player #[Lock|2]", numberInDeck: 4,
         clamp: ClampEffect(defenders: 2, locksRandomCards: 2))
 
     static let tripleTeam = CardDescriptor(
         id: "triple-team", name: "Triple-Team", type: .clamp,
-        effect: "Next player cannot play 3 random cards", numberInDeck: 2,
+        effect: "Next player #[Lock|3]", numberInDeck: 2,
         clamp: ClampEffect(defenders: 3, locksRandomCards: 3))
 
     static let trap = CardDescriptor(
@@ -185,7 +185,7 @@ enum CardLibrary {
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
-        effect: "Next player #[Discard] 2", numberInDeck: 3,
+        effect: "Next player #[Discard|2]", numberInDeck: 3,
         clamp: ClampEffect(discardAtStart: 2))
 
     // ── Whistles ──────────────────────────────────────────────────────
@@ -507,7 +507,7 @@ enum CardLibrary {
 
     static let allStarSelection = CardDescriptor(
         id: "all-star-selection", name: "All Star Selection", type: .gameBreak,
-        effect: "#[Draw] 2", numberInDeck: 5,
+        effect: "#[Draw|2]", numberInDeck: 5,
         gameBreak: GameBreakEffect(draws: 2))
 
     static let allSwisshSelection = CardDescriptor(
@@ -549,22 +549,22 @@ enum CardLibrary {
 
     static let crowdNoise = CardDescriptor(
         id: "crowd-noise", name: "Crowd Noise", type: .gameBreak,
-        effect: "#[Discard] 1", numberInDeck: 14,
+        effect: "#[Discard|1]", numberInDeck: 14,
         gameBreak: GameBreakEffect(discard: 1))
 
     static let twoMinuteWarning = CardDescriptor(
         id: "two-minute-warning", name: "2-Minute Warning", type: .gameBreak,
-        effect: "All #[Discard] down to 2", numberInDeck: 2,
+        effect: "All, down to 2 #[Discard|?]", numberInDeck: 2,
         gameBreak: GameBreakEffect(everyoneDiscardsTo: 2))
 
     static let designedPlay = CardDescriptor(
         id: "designed-play", name: "Designed Play", type: .gameBreak,
-        effect: "#[Draw] up to 5", numberInDeck: 10,
+        effect: "Up to 5 #[Draw|?]", numberInDeck: 10,
         gameBreak: GameBreakEffect(drawUpTo: 5))
 
     static let mvpVote = CardDescriptor(
         id: "mvp-vote", name: "MVP Vote", type: .gameBreak,
-        effect: "#[Draw] up to 7", numberInDeck: 1,
+        effect: "Up to 7 #[Draw|?]", numberInDeck: 1,
         gameBreak: GameBreakEffect(drawUpTo: 7))
 
     static let offNight = CardDescriptor(
@@ -579,7 +579,7 @@ enum CardLibrary {
 
     static let salaryCapIncrease = CardDescriptor(
         id: "salary-cap-increase", name: "Salary Cap Increase", type: .gameBreak,
-        effect: "All players #[Draw] 2", numberInDeck: 4,
+        effect: "All Players #[Draw|2]", numberInDeck: 4,
         gameBreak: GameBreakEffect(everyoneDraws: 2))
 
     static let swallowedWhistle = CardDescriptor(
@@ -720,7 +720,7 @@ enum CardLibrary {
 
     static let rolePlayer = CardDescriptor(
         id: "role-player", name: "Role Player", type: .gameBreak,
-        effect: "All other players #[Draw] 1 card", numberInDeck: 4,
+        effect: "All Others #[Draw|1]", numberInDeck: 4,
         gameBreak: GameBreakEffect(othersDraw: 1))
 
     static let backAndForthGame = CardDescriptor(

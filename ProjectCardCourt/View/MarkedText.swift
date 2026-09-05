@@ -42,6 +42,25 @@ enum Marked {
     struct Run: Hashable {
         var text: String
         var ink: Ink?
+        /// What the keyword is worth, when it is written as one: `#[Draw|2]` is a Draw of
+        /// two, `#[Draw|?]` is a Draw of however many. A run carrying a value is drawn as
+        /// a picture with the value on it rather than as words — see `Marked.badge(of:)`.
+        var value: String?
+    }
+
+    /// The keyword badge a card leads with, if it has one, and what is left to say.
+    ///
+    /// **A card whose whole effect is the badge says it large in the middle**; one with
+    /// anything else left says it small at the foot and keeps its words. That is the only
+    /// difference between Crowd Noise and Salary Cap Increase.
+    static func badge(of text: String) -> (run: Run, rest: String)? {
+        let all = runs(of: text)
+        guard let index = all.firstIndex(where: { $0.value != nil }) else { return nil }
+        var rest = all
+        rest.remove(at: index)
+        return (all[index], rest.map(\.text).joined()
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespaces))
     }
 
     /// Splits a written effect into its runs, markers removed.
@@ -65,7 +84,12 @@ enum Marked {
                let close = text[after...].firstIndex(of: "]") {
                 flush()
                 let start = text.index(after: after)
-                runs.append(Run(text: String(text[start..<close]), ink: ink))
+                // `#[Draw|2]`: the word, and what it is worth.
+                let inside = String(text[start..<close]).split(separator: "|",
+                                                               maxSplits: 1,
+                                                               omittingEmptySubsequences: false)
+                runs.append(Run(text: String(inside[0]), ink: ink,
+                                value: inside.count > 1 ? String(inside[1]) : nil))
                 index = text.index(after: close)
                 continue
             }
