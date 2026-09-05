@@ -21,9 +21,6 @@ struct GameView: View {
 
     var body: some View {
         ZStack {
-            // Breadcrumb: the body being evaluated at all, which is the thing in doubt
-            // when the screen never arrives. Debug only — `say` compiles to nothing else.
-            let _ = DevLog.say(.input, "GameView body")
             Theme.panel.ignoresSafeArea()
 
             // The court runs to the bottom of the screen; the bag sits straight on it.

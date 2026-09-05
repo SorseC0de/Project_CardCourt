@@ -716,7 +716,11 @@ final class GameController {
     /// two dozen of them would say something about lifetime that is not true.
     private func drive(@_implicitSelfCapture _ body: @escaping () async -> Void) {
         loop?.cancel()
-        drive {
+        // `Task`, not `drive` — this **is** `drive`. A find-and-replace across every
+        // `loop = Task {` in the file rewrote this one too, and a function whose whole
+        // body is a call to itself wedges the main thread the first time the floor is
+        // driven, which is the opening deal.
+        loop = Task {
             self.working += 1
             defer { self.working -= 1 }
             await body()
@@ -1209,7 +1213,6 @@ final class GameController {
 
     private func run() async {
         while !Task.isCancelled {
-            DevLog.say(.phase, "loop · \(state.phase.label) · gate \(gate)")
             // Held between decisions rather than mid-scene: a cutscene stopped halfway is
             // a broken animation, not a paused game.
             while isPaused, !Task.isCancelled {
