@@ -6,7 +6,7 @@ struct ActionBarView: View {
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
 
-    private var state: GameState { controller.state }
+    private var state: GameState { controller.shown }
     /// What the table has seen arrive, not what the rules have dealt — see
     /// `GameController.undelivered`.
     private var bag: [Card] { controller.shownBag(of: GameRules.localSeat) }
@@ -23,6 +23,11 @@ struct ActionBarView: View {
     }
 
     private var canShoot: Bool { legal.contains(.shoot) }
+
+    /// Whether anybody's hand is on offer — Free Agent, and nothing else so far.
+    private var canBorrow: Bool {
+        legal.contains { if case .borrow = $0 { return true }; return false }
+    }
 
     /// What the rules will not take right now, while they are being asked for a move at
     /// all. Empty at every other gate, or a hand nobody is being asked about would black
@@ -70,7 +75,7 @@ struct ActionBarView: View {
                           locked: lockedCards,
                           barred: barredCards,
                           wash: isChoosingInbound ? CourtView.Court.cardWash : nil,
-                          activeReferees: controller.state.armedWhistles.count,
+                          activeReferees: controller.shown.armedWhistles.count,
                           onInspectReferees: onInspectReferees,
                           detail: $detail,
                           onCommit: commit)
@@ -80,7 +85,12 @@ struct ActionBarView: View {
             if case .awaitingInjuryDiscard(let card, let count) = controller.gate {
                 confirmInjuryDiscard(card, count: count)
             }
-            if case .awaitingMove = controller.gate, canShoot { shootButton }
+            if case .awaitingMove = controller.gate, canShoot {
+                HStack(spacing: 8) {
+                    shootButton
+                    if canBorrow { borrowButton }
+                }
+            }
             prompt
         }
         .padding(.horizontal, 10)
@@ -169,18 +179,52 @@ struct ActionBarView: View {
 
     // MARK: - Buttons
 
+    private enum Act {
+        static let width: CGFloat = 190
+        static let height: CGFloat = 42
+        /// The word, in the game's own lettering. The figure beside it is not — a
+        /// percentage squeezed through `minimumScaleFactor` comes out unreadable, and it
+        /// is a reading rather than a call.
+        static let word: CGFloat = 19
+        static let figure: CGFloat = 14
+        static let ball: CGFloat = 22
+        static let drop: CGFloat = 2
+        /// The second button is three quarters of the first, at the same height.
+        static let secondShare: CGFloat = 0.75
+    }
+
     private var shootButton: some View {
         Button { controller.shoot() } label: {
-            HStack(spacing: 5) {
-                Text("SHOOT").font(.system(size: 19, weight: .black)).tracking(1.2)
-                Text("(\(controller.shownShot)%)").font(.system(size: 14, weight: .heavy, design: .rounded))
+            HStack(spacing: 6) {
+                Image("BallVector")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: Act.ball, height: Act.ball)
+                ActionText("SHOOT", size: Act.word, ink: .white,
+                           drop: CardPalette.red, taper: 0, tracking: 1.2)
+                Text("(\(controller.shownShot)%)")
+                    .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop)
             }
-            .foregroundStyle(.black)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Capsule().fill(Theme.ball))
+            .frame(height: Act.height)
+            .background(Capsule().fill(CardPalette.blue))
         }
-        .frame(width: 190)
+        .frame(width: Act.width)
+    }
+
+    /// Free Agent plays out of somebody else's hand, so it needs a way in that is not a
+    /// card of your own — the hand in front of you is not where the play is.
+    private var borrowButton: some View {
+        Button { controller.beginBorrow() } label: {
+            ActionText("CHOOSE CARD", size: Act.word * 0.8, ink: CardPalette.blue,
+                       drop: CardPalette.blue.opacity(0.35), taper: 0, tracking: 0.8)
+                .frame(maxWidth: .infinity)
+                .frame(height: Act.height)
+                .background(Capsule().fill(.white))
+        }
+        .frame(width: Act.width * Act.secondShare)
     }
 
     private var confirmDiscard: some View {

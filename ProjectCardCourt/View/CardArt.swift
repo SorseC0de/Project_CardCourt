@@ -122,9 +122,9 @@ enum CardLayout {
     /// word comes back when the card is raised to be read — see `TightText.spellsGlyphs`.
     /// The keyword badge at the foot of the card: bigger than the shoot mark, because it
     /// carries a value on its face rather than only saying what happens.
-    static let badgeFraction: CGFloat = 0.40
+    static let badgeFraction: CGFloat = 0.26
     /// And the whole middle of the card, when the badge is all the card says.
-    static let badgeAloneFraction: CGFloat = 0.62
+    static let badgeAloneFraction: CGFloat = 0.42
     /// How big the value on its face is, against the badge itself.
     static let badgeValueShare: CGFloat = 0.42
 

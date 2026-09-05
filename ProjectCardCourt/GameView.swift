@@ -28,7 +28,7 @@ struct GameView: View {
             // stays inside the safe area.
             VStack(spacing: 0) {
                 statusBar
-                ScoreboardView(state: controller.state, withheld: controller.withheldPoints)
+                ScoreboardView(state: controller.shown, withheld: controller.withheldPoints)
                 logStrip
                 stage
             }
@@ -54,7 +54,7 @@ struct GameView: View {
                         // is a thing you are still looking at.
                         IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
                                             dormant: controller.dormantIntangibles,
-                                            slots: controller.state.rules.intangibleSlots,
+                                            slots: controller.shown.rules.intangibleSlots,
                                             onSelect: { inspecting = (card: $0, from: $1) })
                             .offset(x: standingAside ? -Panels.aside : 0)
                         Spacer()
@@ -111,8 +111,8 @@ struct GameView: View {
                 // only one of them can be read.
                 CardChoiceView(title: "\(victim.playerName) Pays",
                                note: "A passive, or a card",
-                               offered: controller.state[victim].intangibles,
-                               backs: controller.state[victim].bag.count,
+                               offered: controller.shown[victim].intangibles,
+                               backs: controller.shown[victim].bag.count,
                                declining: "Leave it",
                                onDecline: { controller.choose(toll: nil) }) {
                     controller.choose(toll: $0)
@@ -130,16 +130,16 @@ struct GameView: View {
             }
             if case .awaitingInjuryPick(let card) = controller.gate {
                 CardChoiceView(title: card.name, note: "Take one",
-                               offered: controller.state.injuriesOffered,
-                               hidden: controller.state.injuriesHidden) { pick in
+                               offered: controller.shown.injuriesOffered,
+                               hidden: controller.shown.injuriesHidden) { pick in
                     if case .named(let id) = pick { controller.choose(injury: id) }
                 }
                 .zIndex(12)
             }
             if case .awaitingCardFrom(let card, let victim) = controller.gate {
                 HandPickerView(card: card, victim: victim,
-                               hand: controller.state[victim].bag.count) { index in
-                    let hand = controller.state[victim].bag
+                               hand: controller.shown[victim].bag.count) { index in
+                    let hand = controller.shown[victim].bag
                     guard hand.indices.contains(index) else { return }
                     controller.choose(card: hand[index].id)
                 }
@@ -195,8 +195,10 @@ struct GameView: View {
                     .frame(height: NameCallStyle.size(reaching: 393).height)
                     // Under the log rather than beside the scoreboard: the log is the
                     // other thing that talks, and the two were talking over each other.
+                    // The overlay style floats the log over the court and still occupies
+                    // that band, so only a log turned off gives the space back.
                     .padding(.top, Chrome.statusBar
-                             + (logStyle == .panel ? logHeight : 0) + 6)
+                             + (logStyle == .hidden ? 0 : logHeight) + 6)
                     Spacer()
                 }
                 .id(played.id)
@@ -207,10 +209,10 @@ struct GameView: View {
                 Group {
                     switch onFloor {
                     case .player(let seat):
-                        PlayerInspectView(state: controller.state, seat: seat,
+                        PlayerInspectView(state: controller.shown, seat: seat,
                                           onDismiss: closeFloor)
                     case .referees:
-                        RefereeInspectView(state: controller.state, onDismiss: closeFloor)
+                        RefereeInspectView(state: controller.shown, onDismiss: closeFloor)
                     }
                 }
                 .id(onFloor.id)
@@ -230,7 +232,7 @@ struct GameView: View {
                     .zIndex(11)
             }
             if browsingDiscard {
-                DiscardBrowserView(cards: controller.state.discard,
+                DiscardBrowserView(cards: controller.shown.discard,
                                    onDismiss: { browsingDiscard = false })
                     .transition(.opacity)
                     .zIndex(11)
@@ -409,7 +411,7 @@ struct GameView: View {
         Group {
             if case .awaitingBid(let shooter) = controller.gate {
                 ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids,
-                                    state: controller.state, shot: controller.shownShot,
+                                    state: controller.shown, shot: controller.shownShot,
                                     deck: controller.shownDeck, chance: controller.lastChance)
                     .frame(maxHeight: .infinity)
                     .transition(.opacity)
@@ -425,7 +427,7 @@ struct GameView: View {
         #if DEBUG
         if let practice = controller.practicePass { return practice.from }
         #endif
-        return controller.state.lastPasser
+        return controller.shown.lastPasser
     }
 
     private var receiverOnCourt: Seat? {
@@ -444,7 +446,7 @@ struct GameView: View {
     /// instantiating it recursed off the end of the stack. `EXC_BAD_ACCESS` in
     /// `court.getter`, attached; a crash on the first frame, not.
     private var court: AnyView {
-        AnyView(CourtView(state: controller.state,
+        AnyView(CourtView(state: controller.shown,
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
                   settledAt: controller.ballSettledAt,
@@ -482,7 +484,7 @@ struct GameView: View {
             // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
             .overlay(alignment: .topTrailing) {
-                StatusHUDView(state: controller.state, shot: controller.shownShot,
+                StatusHUDView(state: controller.shown, shot: controller.shownShot,
                               deck: controller.shownDeck,
                               onInspectReferees: { open(.referees) })
                     .padding(.trailing, 18)
@@ -523,14 +525,14 @@ struct GameView: View {
 
     /// Where that seat sits on the scoreboard, which orders by score.
     private func scoreRow(of seat: Seat) -> Int {
-        let ranked = controller.state.players
+        let ranked = controller.shown.players
             .sorted { ($0.score, $0.points) > ($1.score, $1.points) }
         return ranked.firstIndex { $0.seat == seat } ?? 0
     }
 
     private var statusBar: some View {
         HStack {
-            Text("ROUND \(controller.state.round)/\(controller.state.rules.roundsPerGame)")
+            Text("ROUND \(controller.shown.round)/\(controller.shown.rules.roundsPerGame)")
                 .font(.system(size: 11, weight: .heavy)).tracking(1)
                 .foregroundStyle(Theme.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -538,7 +540,7 @@ struct GameView: View {
             shotClock
 
             HStack(spacing: 8) {
-                Text("HALF \(controller.state.half)")
+                Text("HALF \(controller.shown.half)")
                     .font(.system(size: 11, weight: .bold)).tracking(1)
                     .foregroundStyle(Theme.inkDim)
                 Button {
@@ -569,7 +571,7 @@ struct GameView: View {
     @State private var lastClock: Int?
 
     private var shotClock: some View {
-        let clock = controller.state.shotClock ?? lastClock
+        let clock = controller.shown.shotClock ?? lastClock
         return VStack(spacing: 3) {
             SevenSegmentClock(value: clock)
             Text("SHOT CLOCK")
@@ -577,15 +579,15 @@ struct GameView: View {
                 .foregroundStyle(Theme.inkDim)
         }
         .animation(.easeOut(duration: 0.25), value: clock)
-        .onChange(of: controller.state.shotClock) { _, now in
+        .onChange(of: controller.shown.shotClock) { _, now in
             if let now { lastClock = now }
         }
         // A new round starts the clock over, so the memory goes with it.
-        .onChange(of: controller.state.round) { _, _ in lastClock = nil }
+        .onChange(of: controller.shown.round) { _, _ in lastClock = nil }
     }
 
     private var finalCard: some View {
-        let winners = Rules.winners(of: controller.state)
+        let winners = Rules.winners(of: controller.shown)
         return ZStack {
             Color.black.opacity(0.88).ignoresSafeArea()
 
@@ -607,7 +609,7 @@ struct GameView: View {
                     .lineLimit(2)
                     .padding(.horizontal, 20)
 
-                ScoreboardView(state: controller.state, highlighted: Set(winners))
+                ScoreboardView(state: controller.shown, highlighted: Set(winners))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .padding(.horizontal, 26)
                     .padding(.top, 4)

@@ -344,6 +344,21 @@ final class GameController {
     /// moves SHOT had already moved it before the card itself was held up — the number
     /// changed and then the reason for it appeared. This catches up on the play's own
     /// beat, like every line in the log.
+    /// **The state the table is looking at**, which lags the state the rules are in.
+    ///
+    /// The rules run a whole chain in one go — a card is played, a Break turns up, a
+    /// referee takes the floor, a hand empties — and the presentation walks that chain a
+    /// beat at a time. Views bound to `state` show every consequence the instant the rules
+    /// reach it, which is how a referee arrived before the Whistle that called him had
+    /// finished being shown, and a pending-draw icon lit before its card had left the
+    /// screen. Every one of those was fixed on its own, per card, forever.
+    ///
+    /// So the floor reads this instead. It is advanced by `catchUp()` at each beat of
+    /// `present`, and it is **always equal to `state` by the time anybody is asked for
+    /// anything** — see the call in `run`, which is what keeps a decision from being made
+    /// against a stale board.
+    private(set) var shown: GameState
+
     private(set) var shownShot = 0
     /// What the pile is showing. A card leaves the deck when it lands in a hand, not when
     /// the rules decide it has — the same lag `shownShot` carries, for the same reason.
@@ -465,13 +480,13 @@ final class GameController {
 
     /// The slots as the table has seen them.
     func shownIntangibles(of seat: Seat) -> [CardDescriptor] {
-        Array(state[seat].intangibles.dropLast(unrevealed[seat] ?? 0))
+        Array(shown[seat].intangibles.dropLast(unrevealed[seat] ?? 0))
     }
 
     /// A bag as the table has seen it.
     func shownBag(of seat: Seat) -> [Card] {
-        guard !undelivered.isEmpty else { return state[seat].bag }
-        return state[seat].bag.filter { !undelivered.contains($0.id) }
+        guard !undelivered.isEmpty else { return shown[seat].bag }
+        return shown[seat].bag.filter { !undelivered.contains($0.id) }
     }
 
     /// Whether this table can be paused at all.
@@ -509,17 +524,20 @@ final class GameController {
         self.ai = AITable(seed: seed)
         let (state, events) = Rules.newGame(seed: seed, rules: mode)
         self.state = state
+        shown = state
         self.openingDraws = events
         record(events)
     }
 
-    var human: PlayerState { state[GameRules.localSeat] }
+    /// What the table can see of your chair — the staged board, like everything else
+    /// the floor draws. See `shown`.
+    var human: PlayerState { shown[GameRules.localSeat] }
 
     /// Passives sitting in a slot that currently pay nothing — Hot Hand without a make
     /// behind it, and anything like it.
     var dormantIntangibles: Set<String> {
         Set(shownIntangibles(of: GameRules.localSeat)
-            .filter { Rules.isDormant($0, for: GameRules.localSeat, in: state) }
+            .filter { Rules.isDormant($0, for: GameRules.localSeat, in: shown) }
             .map(\.id))
     }
 
@@ -890,6 +908,21 @@ final class GameController {
     }
 
     /// A player named.
+    /// True while the floor is being asked whose hand to play out of, rather than which
+    /// player a card is naming — the same question, a different thing done with the answer.
+    private var borrowing = false
+
+    /// Free Agent: the hand to play out of is chosen on the floor, the way every other
+    /// "which of them" in the game is asked.
+    func beginBorrow() {
+        guard !isPaused else { return }
+        guard case .awaitingMove(let seat) = gate else { return }
+        let hands = Seat.allCases.filter { $0 != seat && !state[$0].bag.isEmpty }
+        guard !hands.isEmpty else { return }
+        borrowing = true
+        gate = .awaitingTarget(card: CardLibrary.freeAgent, choices: hands)
+    }
+
     func choose(target: Seat) {
         guard !isPaused else { return }
         guard case .awaitingTarget = gate else { return }
@@ -1265,6 +1298,9 @@ final class GameController {
 
     private func run() async {
         while !Task.isCancelled {
+            // The chain has played out by the time the loop comes round, so the floor and
+            // the rules agree before anybody is asked for anything.
+            catchUp()
             // Held between decisions rather than mid-scene: a cutscene stopped halfway is
             // a broken animation, not a paused game.
             while isPaused, !Task.isCancelled {
@@ -1696,6 +1732,12 @@ final class GameController {
     /// Takes only events, never a move — which is what lets a guest play exactly the same
     /// scenes off the wire that the host plays off its own rules. The host resolves and
     /// then presents; a guest is handed the resolution and presents.
+    /// Hands the floor everything the rules have done since it last looked.
+    ///
+    /// One line, called at each beat rather than at the end, so the table is shown the
+    /// chain in the order it happened instead of all of it at once.
+    private func catchUp() { shown = state }
+
     private func present(_ events: [GameEvent], defenders: Int = 0,
                          playedCard: Bool = false) async {
         // The gate is what the stage draws from, and it still holds whatever the player
@@ -1726,6 +1768,9 @@ final class GameController {
         // cancelled it has taken the floor, and two chains on one floor is the game
         // carrying on behind whatever is on screen.
         if Task.isCancelled { return }
+        // **Here, and not before.** Whatever the card did — a referee taking the floor, a
+        // count lighting up, a hand emptying — is shown once the card itself has gone.
+        catchUp()
         release(.play, from: &ledger)
         shownShot = state.shot + state.holderShot
         if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
@@ -1733,10 +1778,12 @@ final class GameController {
         }
         await showWhistle(in: events)
         if Task.isCancelled { return }
+        catchUp()
         release(.whistle, from: &ledger)
         stampSettled(events)
         await playDrawsAndReveals(in: events)
         if Task.isCancelled { return }
+        catchUp()
         release(.draw, from: &ledger)
         release(.reveal, from: &ledger)
         // Named before anybody swipes: the call is what the possession opens with, and a
@@ -1749,6 +1796,7 @@ final class GameController {
         }
         await showClampBite(in: events)
         if Task.isCancelled { return }
+        catchUp()
 
         if let scene = ShotCutscene(events: events, defenders: defenders) {
             cutscene = scene
@@ -1771,6 +1819,7 @@ final class GameController {
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil
         }
+        catchUp()
         record(ledger)
     }
 
