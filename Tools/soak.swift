@@ -102,3 +102,32 @@ func probeClearOut() {
           "| last passer \(String(describing: state.lastPasser))",
           "| card spent:", !state[catcher].bag.contains { $0.descriptor.clearsOut })
 }
+
+/// After a Hesi and after a Stepback: is the shot still on offer?
+func probeShootButton() {
+    for card in [CardLibrary.hesi, CardLibrary.stepback] {
+        var state = Rules.newGame(seed: 5, rules: .standard).0
+        guard case .inbound(let inbounder) = state.phase else { return }
+        Rules.apply(.inbound(to: inbounder.left), by: inbounder, to: &state)
+        guard case .possession(let holder) = state.phase else { continue }
+        let played = Card(card)
+        state[holder].bag.append(played)
+        print("--", card.name, "| shoot before:",
+              Rules.legalMoves(state, for: holder).contains(.shoot))
+        Rules.apply(.play(played.id), by: holder, to: &state)
+        print("   phase:", state.phase.label, "| clock", String(describing: state.shotClock))
+        if case .awaitingDiscard(let seat, _, _) = state.phase {
+            print("   asked to discard, range", Rules.legalDiscardForShot(state, for: seat))
+            Rules.resolveDiscardForShot([], state: &state)
+            print("   after declining:", state.phase.label)
+        }
+        if case .possession(let now) = state.phase {
+            let legal = Rules.legalMoves(state, for: now)
+            print("   shoot after:", legal.contains(.shoot), "| moves", legal.count,
+                  "| ceiling", String(describing: state.shotCeilingThisRound),
+                  "| mustShootFirst", String(describing: state.mustShootFirst))
+        } else {
+            print("   not a possession any more")
+        }
+    }
+}

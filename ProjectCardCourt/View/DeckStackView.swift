@@ -15,9 +15,8 @@ struct DeckStackView: View {
     enum Pile {
         /// Raises the whole thing in its slot.
         static let lift: CGFloat = 0.12
-        /// How much of the deck one slab stands for. Read off the ceiling rather than
-        /// fixed: a full Standard deck fills the pile, and it shortens as that empties.
-        static let full = 400
+        /// How much of the deck one slab stands for.
+        static let cardsPerSlab = 30
     }
 
     /// The pile gets shorter as the deck empties.
@@ -30,8 +29,8 @@ struct DeckStackView: View {
     /// in each, the slider moved one of them and the game showed the other.
     static func layers(for remaining: Int) -> Int {
         let most = min(DeckBody.maxLayers, max(1, Int(DeckTuning.shared.slabs)))
-        return max(1, min(most, Int((Double(remaining) / Double(Pile.full)
-                                     * Double(most)).rounded(.up))))
+        let asked = (remaining + Pile.cardsPerSlab - 1) / Pile.cardsPerSlab
+        return max(1, min(most, asked))
     }
 
     private var layers: Int { Self.layers(for: remaining) }

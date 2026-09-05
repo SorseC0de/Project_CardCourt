@@ -163,6 +163,8 @@ if args.contains("--text") {
     listNames()
 } else if args.contains("--clearout") {
     probeClearOut()
+} else if args.contains("--shoot") {
+    probeShootButton()
 } else if args.contains("--soak") {
     soak()
 } else if args.contains("--test") {

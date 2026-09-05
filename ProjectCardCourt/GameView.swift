@@ -340,6 +340,12 @@ struct GameView: View {
 
     private var dim: Double {
         if browsingDiscard { return Theme.dimBrowser }
+        // Your own hand being asked for cards is the same question somebody else's hand
+        // gets a dimmed floor for.
+        switch controller.gate {
+        case .awaitingDiscard, .awaitingInjuryDiscard: return Theme.dimBrowser
+        default: break
+        }
         // The sheets carry their own, so the screen's stays out of it — two scrims over
         // one another multiply into black.
         if onFloor != nil { return 0 }

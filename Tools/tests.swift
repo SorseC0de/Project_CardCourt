@@ -585,10 +585,12 @@ func runTests() {
         let sizes = Seat.allCases.map { state[$0].bag.count }
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state.armedWhistles.isEmpty, "an immediate Whistle never arms")
-        // The clock is off during an inbound and comes back full on the possession after
-        // it, which is what "reset the shot clock" amounts to once you also take the ball.
+        // The card resets it and it stays reset. A throw-in inside a round no longer
+        // clears the clock on its way past — see `Rules.reinbound` — so what "reset the
+        // shot clock" leaves behind is a full one rather than none at all.
         Check.that(state.phase == .inbound(inbounder: seat), "Timeout hands its owner the ball")
-        Check.that(state.shotClock == nil, "and the clock is off until it goes back in")
+        Check.that(state.shotClock == state.rules.shotClockStart,
+                   "and the clock it reset is the one that comes back in")
         let grown = Seat.allCases.enumerated().allSatisfy { state[$0.element].bag.count > sizes[$0.offset] - 1 }
         Check.that(grown, "and everyone draws")
     }

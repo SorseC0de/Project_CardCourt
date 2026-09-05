@@ -340,9 +340,13 @@ enum Rules {
             state.inboundBarred = nil
             state.ball = target
             credit(seat, helping: target, state: &state, events: &events)
-            state.shotClock = state.rules.shotClockStart
             events.append(.inbounded(from: seat, to: target))
-            events.append(.shotClockSet(state.rules.shotClockStart))
+            // A fresh round comes in with no clock and gets one. A throw-in inside a round
+            // — a Whistle's, a turnover's — is handed a clock that is already running.
+            if state.shotClock == nil {
+                state.shotClock = state.rules.shotClockStart
+                events.append(.shotClockSet(state.rules.shotClockStart))
+            }
             // An inbound is not a pass: it grants no SHOT and no assist credit.
             beginPossession(target, tickClock: false, state: &state, events: &events)
 
@@ -1499,8 +1503,9 @@ enum Rules {
     /// Hands the ball back in without advancing the round. Shot Clock Violation and
     /// Double Dribble both work this way, and so does any turnover a Whistle causes.
     private static func reinbound(by seat: Seat, state: inout GameState, events: inout [GameEvent]) {
-        state.shot = state.rules.startingShot
-        state.shotClock = nil
+        // **SHOT and the clock are the round's, not the throw-in's.** A Whistle that sends
+        // the ball back in has not ended anything — the round holds, and so does what the
+        // ball is worth and how long is left on it. Only `beginRound` starts either over.
         state.ball = nil
         state.lastPasser = nil
         state.lastPlayThisPossession = nil
