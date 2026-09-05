@@ -51,29 +51,44 @@ enum OpeningHands {
 
         // What the target is actually worth chasing.
         //
-        // A five-card hand drawn from a deck that is `p` passes is a binomial, and a
-        // binomial on five trials cannot put ninety per cent into two adjacent counts —
-        // the most it will ever put into 2-and-3 together is at p = 0.5. Worth printing
-        // rather than tuning towards, because no ratio reaches the target asked for.
-        func binomial(_ hits: Int, _ n: Int, _ p: Double) -> Double {
-            var c = 1.0
-            for i in 0..<hits { c *= Double(n - i) / Double(i + 1) }
-            return c * pow(p, Double(hits)) * pow(1 - p, Double(n - hits))
+        // **Hypergeometric, not binomial.** Five cards are drawn without replacement, and
+        // the deck that matters is only the bag-able part — Breaks and Intangibles fire or
+        // slot on the way past and the deal keeps drawing. A finite deck is tighter than
+        // an infinite one, so the band holds a little more than the binomial says.
+        //
+        // Swept over every pass share rather than reasoned about, because the answer
+        // depends on the deck's actual size and that changes every time a count does.
+        let bagable = pool.filter { $0.gameBreak == nil && $0.intangible == nil }
+        let deck = bagable.reduce(0) { $0 + $1.numberInDeck }
+        func logChoose(_ n: Int, _ k: Int) -> Double {
+            guard k >= 0, k <= n else { return -.infinity }
+            var total = 0.0
+            for i in 0..<k { total += log(Double(n - i)) - log(Double(i + 1)) }
+            return total
         }
-        var bestBand = 0.0, bestP = 0.0, needTwo = 0.0
-        for step in 1..<1000 {
-            let p = Double(step) / 1000
-            let band = binomial(2, size, p) + binomial(3, size, p)
-            if band > bestBand { bestBand = band; bestP = p }
-            if needTwo == 0, 1 - binomial(0, size, p) - binomial(1, size, p) >= 0.9 {
-                needTwo = p
+        func band(passes: Int) -> Double {
+            (2...3).reduce(0.0) { running, hits in
+                let p = exp(logChoose(passes, hits) + logChoose(deck - passes, size - hits)
+                            - logChoose(deck, size))
+                return running + (p.isFinite ? p : 0)
             }
         }
-        print(String(format: "\nceilings for a %d-card hand:", size))
-        print(String(format: "  best possible 2-3:  %.1f%% at a %.0f%% pass deck",
-                     bestBand * 100, bestP * 100))
-        print(String(format: "  90%% of hands with 2 or more needs a %.0f%% pass deck",
-                     needTwo * 100))
+        var best = (share: 0.0, value: 0.0, count: 0)
+        for passes in 0...deck {
+            let value = band(passes: passes)
+            if value > best.value {
+                best = (Double(passes) / Double(deck), value, passes)
+            }
+        }
+        let passesNow = bagable.filter(\.isPass).reduce(0) { $0 + $1.numberInDeck }
+        print(String(format: "\nthe band, over a %d-card bag-able deck:", deck))
+        print(String(format: "  now:  %d passes (%.0f%%) -> %.1f%%",
+                     passesNow, Double(passesNow) / Double(deck) * 100,
+                     band(passes: passesNow) * 100))
+        print(String(format: "  best: %d passes (%.0f%%) -> %.1f%%   <- the ceiling",
+                     best.count, best.share * 100, best.value * 100))
+        print("  the band is two of six outcomes, so it cannot hold much more than this")
+        print("  at a hand of \(size). Widening it to \"2 or more\" is a different sum.")
 
         print("\ndeck by type:")
         var deckByType: [CardType: Int] = [:]
