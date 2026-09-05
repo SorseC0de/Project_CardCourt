@@ -27,10 +27,14 @@ final class NameCallTuning {
     var nameWidth: CGFloat = NameCallStyle.labelStretch
     /// How far in from the plate's leading edge the name starts.
     var nameX: CGFloat = NameCallStyle.labelX
-    /// The taper, while it is still being looked at.
-    var fadeFrom: CGFloat = NameCallStyle.fadeFrom
-    var fadeTo: CGFloat = NameCallStyle.fadeTo
-    /// One slope end to end instead of a ramp between two flats — see `NameCallStyle.taper`.
+    /// Every stop in the taper, in order, as shares of the plate's length.
+    ///
+    /// Four of them when the fade is banded — clear, clear, face, face — and the middle
+    /// two when it is one slope, since those are the only two a two-stop gradient has.
+    /// All of them are dials: see `NameCallStyle.taper` for what the two shapes do
+    /// differently.
+    var stops: [CGFloat] = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
+    /// One slope end to end instead of a ramp between two flats.
     var softTaper = false
 }
 
@@ -243,15 +247,16 @@ enum NameCallStyle {
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
         let tuning = NameCallTuning.shared
-        let from = min(tuning.fadeFrom, tuning.fadeTo)
-        let to = max(tuning.fadeFrom, tuning.fadeTo)
+        // Sorted, because a gradient whose stops run backwards does not warn — it draws
+        // something else.
+        let at = tuning.stops.sorted()
         let stops: [Gradient.Stop] = tuning.softTaper
-            ? [.init(color: face.opacity(0), location: 0),
-               .init(color: face, location: 1)]
-            : [.init(color: face.opacity(0), location: 0),
-               .init(color: face.opacity(0), location: from),
-               .init(color: face, location: to),
-               .init(color: face, location: 1)]
+            ? [.init(color: face.opacity(0), location: at[1]),
+               .init(color: face, location: at[2])]
+            : [.init(color: face.opacity(0), location: at[0]),
+               .init(color: face.opacity(0), location: at[1]),
+               .init(color: face, location: at[2]),
+               .init(color: face, location: at[3])]
         return LinearGradient(gradient: Gradient(stops: stops),
                               startPoint: .leading, endPoint: .trailing)
     }
@@ -323,11 +328,11 @@ struct NameCallBench: View {
                     .font(.custom(Chrome.display, size: 15))
                     .foregroundStyle(.white)
                     .tint(CardPalette.gold)
-                // Only the banded taper has anywhere to put a stop; one slope end to end
-                // is the two ends and nothing to say about them.
-                if !tuning.softTaper {
-                    dial("fade from", $tuning.fadeFrom, 0...1)
-                    dial("fade to", $tuning.fadeTo, 0...1)
+                // Two stops or four, and a dial for every one of them. The two-stop shape
+                // uses the middle pair, which are the only two it has.
+                ForEach(tuning.softTaper ? [1, 2] : [0, 1, 2, 3], id: \.self) { index in
+                    dial("stop \(tuning.softTaper ? index : index + 1)",
+                         $tuning.stops[index], 0...1)
                 }
 
                 HStack(spacing: 12) {
@@ -345,8 +350,7 @@ struct NameCallBench: View {
                         tuning.nameSize = NameCallStyle.labelSize
                         tuning.nameWidth = NameCallStyle.labelStretch
                         tuning.nameX = NameCallStyle.labelX
-                        tuning.fadeFrom = NameCallStyle.fadeFrom
-                        tuning.fadeTo = NameCallStyle.fadeTo
+                        tuning.stops = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
                         tuning.softTaper = false
                     }
                 }
