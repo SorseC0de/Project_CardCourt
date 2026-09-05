@@ -378,8 +378,9 @@ enum CardLibrary {
 
     static let unselfish = CardDescriptor(
         id: "unselfish", name: "Unselfish", type: .intangible,
-        effect: "Draw 1 on every pass made at SHOT 50% or better", numberInDeck: 1,
-        intangible: IntangibleEffect(drawOnPassAtShot: 1, passDrawThreshold: 50))
+        effect: "Draw 1 and SHOT +5% next time, whenever you positively affect another player",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(drawOnHelping: 1, shotOnHelping: 5))
 
     // ── Injuries ──────────────────────────────────────────────────────
     //
@@ -415,6 +416,11 @@ enum CardLibrary {
         numberInDeck: 2,
         gameBreak: GameBreakEffect(healsAllInjuries: true, requiresReferee: true,
                                    clearsReferees: true, everyoneDrawsInstead: 1))
+
+    static let teamDoctor = CardDescriptor(
+        id: "team-doctor", name: "Team Doctor", type: .gameBreak,
+        effect: "An Injury off a player of choice. Draw 2 if it was not you", numberInDeck: 3,
+        gameBreak: GameBreakEffect(healsChosenInjury: true, drawsForHealingAnother: 2))
 
     static let tradeDeadline = CardDescriptor(
         id: "trade-deadline", name: "Trade Deadline", type: .gameBreak,
@@ -618,7 +624,7 @@ enum CardLibrary {
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
-        tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout,
+        tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout, teamDoctor,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules

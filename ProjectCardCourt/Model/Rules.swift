@@ -156,6 +156,7 @@ enum Rules {
         case .inbound(let target):
             guard case .inbound(let inbounder) = state.phase, inbounder == seat, target != seat else { return [] }
             state.ball = target
+            credit(seat, helping: target, state: &state, events: &events)
             state.shotClock = state.rules.shotClockStart
             events.append(.inbounded(from: seat, to: target))
             events.append(.shotClockSet(state.rules.shotClockStart))
@@ -392,17 +393,12 @@ enum Rules {
                     endRound(state: &state, events: &events)
                     return events
                 }
-                // **The draw resolves before the ball moves.** Unselfish queues the pass
+                // **The draw resolves before the ball moves.** Point God queues the pass
                 // and pays first, so a Game Break turned up by that card plays out in
                 // full — and lands on the man who passed, which is who earned it — before
-                // anybody else has the ball. Point God pays the same way, on every pass.
-                let earned = state[seat].intangibles.reduce(0) { total, passive in
-                    guard let effect = passive.intangible else { return total }
-                    var cards = effect.drawAfterPass
-                    if effect.drawOnPassAtShot > 0, state.shot >= effect.passDrawThreshold {
-                        cards += effect.drawOnPassAtShot
-                    }
-                    return total + cards
+                // anybody else has the ball.
+                let earned = state[seat].intangibles.reduce(0) {
+                    $0 + ($1.intangible?.drawAfterPass ?? 0)
                 }
                 if earned > 0 {
                     drawBatch(seat, count: earned, state: &state, events: &events)
@@ -566,6 +562,7 @@ enum Rules {
                                      to receiver: Seat,
                                      state: inout GameState, events: inout [GameEvent]) {
         state.lastPasser = seat
+        credit(seat, helping: receiver, state: &state, events: &events)
         events.append(.passed(card: descriptor, from: seat, to: receiver, shot: state.shot))
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
@@ -607,6 +604,22 @@ enum Rules {
         state.pendingActor = nil
         state.phase = .possession(holder: actor)
 
+        if let effect = descriptor.gameBreak, effect.healsChosenInjury {
+            if let injury = state[target].injuries.first {
+                state[target].injuries.removeFirst()
+                state[target].injuryUnlocked = []
+                state.discard.append(Card(injury))
+                credit(actor, helping: target, state: &state, events: &events)
+            }
+            // Looking after somebody else is the half of it that pays.
+            if target != actor {
+                drawBatch(actor, count: effect.drawsForHealingAnother,
+                          state: &state, events: &events)
+            }
+            state.phase = .possession(holder: state.ball ?? actor)
+            settleHands(state: &state, events: &events)
+            return events
+        }
         if descriptor.gameBreak?.rotatesHands == true {
             rotate(towards: target, from: actor, state: &state, events: &events)
             return events
@@ -703,12 +716,17 @@ enum Rules {
     /// and his hand is not, and picking a position out of a hand you cannot read is the
     /// same guess Nutmeg asks for.
     @discardableResult
-    static func resolveToll(_ pick: CardPick, state: inout GameState) -> [GameEvent] {
+    static func resolveToll(_ pick: CardPick?, state: inout GameState) -> [GameEvent] {
         guard case .awaitingToll(_, let victim) = state.phase else { return [] }
         var events: [GameEvent] = []
         state.pendingActor = nil
         state.phase = .possession(holder: state.ball ?? victim)
 
+        // Waving it off is an answer. "You *can* choose" — so sometimes you do not.
+        guard let pick else {
+            settleHands(state: &state, events: &events)
+            return events
+        }
         switch pick {
         case .named(let id):
             guard let index = state[victim].intangibles.firstIndex(where: { $0.id == id })
@@ -764,6 +782,7 @@ enum Rules {
 
         if let onward = state.stealTravelsTo {
             state[onward].bag.append(taken)
+            credit(actor, helping: onward, state: &state, events: &events)
             state.stealTravelsTo = nil
             state.phase = .possession(holder: state.ball ?? actor)
             return events
@@ -879,6 +898,10 @@ enum Rules {
         state.pendingShotBonus = 0
         state.shotsThisRound += 1
         state.mustShootFirst = nil
+        // Unselfish, cashed in. Owed to the attempt rather than to the board, so passing
+        // the ball away does not hand the bonus to whoever ends up shooting.
+        let owed = state[seat].nextShotBonus
+        state[seat].nextShotBonus = 0
         // Gravity: a man who draws every defender is doing something on every attempt,
         // whoever takes it.
         for other in Seat.allCases where other != seat {
@@ -887,7 +910,7 @@ enum Rules {
                 events.append(.assisted(other))
             }
         }
-        let resolution = ShotMath.resolve(base: state.shot + priced,
+        let resolution = ShotMath.resolve(base: state.shot + priced + owed,
                                           modifiers: state.shotModifiers(
                                             for: seat, ignoringClamps: overClamps),
                                           rules: state.rules)
@@ -1023,7 +1046,10 @@ enum Rules {
             }
         }
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
-        for _ in 0..<effect.offenderDraws { draw(offender, state: &state, events: &events) }
+        if effect.offenderDraws > 0 {
+            drawBatch(offender, count: effect.offenderDraws, state: &state, events: &events)
+            credit(whistle.owner, helping: offender, state: &state, events: &events)
+        }
         if effect.offenderDiscardsBag, !state[offender].bag.isEmpty {
             state.discard.append(contentsOf: state[offender].bag)
             state[offender].bag.removeAll()
@@ -1056,6 +1082,7 @@ enum Rules {
             let points = state.rules.madeShotPoints + pendingShotBonus(for: offender, in: state)
             state[offender].points += points
             state[offender].scoredThisRound = true
+            credit(whistle.owner, helping: offender, state: &state, events: &events)
             events.append(.shotMade(seat: offender, points: points, roll: 0))
         }
 
@@ -1093,6 +1120,12 @@ enum Rules {
     /// Whistles that fire on being played rather than lying in wait.
     private static func resolveImmediate(_ effect: WhistleEffect, playedBy seat: Seat,
                                          state: inout GameState, events: inout [GameEvent]) {
+        // A Timeout deals the whole table in, which is three people helped.
+        if effect.everyoneDraws > 0 {
+            for other in Seat.allCases {
+                credit(seat, helping: other, state: &state, events: &events)
+            }
+        }
         if effect.resetsShotClock {
             state.shotClock = state.rules.shotClockStart
             events.append(.shotClockSet(state.rules.shotClockStart))
@@ -1339,6 +1372,32 @@ enum Rules {
         switch target {
         case .leftOrRight: return [seat.left, seat.right]
         default: return Seat.allCases.filter { $0 != seat }
+        }
+    }
+
+    /// Paid whenever one player does something for another.
+    ///
+    /// **The one place that decides what "positively affects another player" means.** The
+    /// card is worded loosely on purpose, so this is the list rather than the text: the
+    /// ball, a card, a point, a trip to the line, or something bad taken away. Every route
+    /// that does one of those for somebody else calls this, and a new one that forgets is
+    /// a card that quietly stops paying.
+    ///
+    /// Never for helping yourself, and never for a Game Break — a Break is an event that
+    /// happened to the table, not a thing anybody did.
+    private static func credit(_ helper: Seat, helping other: Seat,
+                               state: inout GameState, events: inout [GameEvent]) {
+        guard helper != other else { return }
+        var cards = 0
+        var shot = 0
+        for passive in state[helper].intangibles {
+            guard let effect = passive.intangible else { continue }
+            cards += effect.drawOnHelping
+            shot += effect.shotOnHelping
+        }
+        state[helper].nextShotBonus += shot
+        if cards > 0 {
+            drawBatch(helper, count: cards, state: &state, events: &events)
         }
     }
 
@@ -1652,6 +1711,16 @@ enum Rules {
             state.pendingActor = seat
             state.phase = .awaitingTarget(seat: seat, card: rotatingCard,
                                           choices: [seat.left, seat.right])
+            return
+        }
+        if effect.healsChosenInjury {
+            // Only the hurt are worth choosing between. With a clean floor there is
+            // nothing for a doctor to do.
+            let hurt = Seat.allCases.filter { !state[$0].injuries.isEmpty }
+            guard !hurt.isEmpty else { return }
+            state.pendingActor = seat
+            state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                          card: rotatingCard, choices: hurt)
             return
         }
         if effect.offersInjuries {

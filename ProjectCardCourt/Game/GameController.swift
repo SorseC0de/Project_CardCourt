@@ -777,7 +777,7 @@ final class GameController {
     }
 
     /// What a pass cost the man who took it.
-    func choose(toll pick: CardPick) {
+    func choose(toll pick: CardPick?) {
         guard !isPaused else { return }
         guard case .awaitingToll = gate else { return }
         loop?.cancel()

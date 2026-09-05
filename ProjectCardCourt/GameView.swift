@@ -84,7 +84,9 @@ struct GameView: View {
                 CardChoiceView(title: "\(victim.playerName) Pays",
                                note: "A passive, or a card",
                                offered: controller.state[victim].intangibles,
-                               backs: controller.state[victim].bag.count) {
+                               backs: controller.state[victim].bag.count,
+                               declining: "Leave it",
+                               onDecline: { controller.choose(toll: nil) }) {
                     controller.choose(toll: $0)
                 }
                 .zIndex(12)

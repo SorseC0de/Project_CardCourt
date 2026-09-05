@@ -121,10 +121,14 @@ struct IntangibleEffect: Hashable, Codable {
     /// is a bad hand for a round rather than a permanent handicap. Floor General and
     /// Point God both read as round-long from their wording and neither was meant to.
     var lastsRound = false
-    /// Unselfish: a card for every pass made from a look worth having. The threshold is
-    /// the SHOT the pass goes out at, read before the pass moves the ball.
-    var drawOnPassAtShot: Int = 0
-    var passDrawThreshold: Int = 0
+    /// Unselfish: paid whenever you do something for somebody else.
+    ///
+    /// **Deliberately broad.** The card says "whenever you positively affect another
+    /// player" and means it — see `Rules.credit`, which is the one place that decides
+    /// what counts. Every route that hands somebody the ball, a card, a point, a trip to
+    /// the line, or takes something off them goes through it.
+    var drawOnHelping: Int = 0
+    var shotOnHelping: Int = 0
 }
 
 /// A one-off that fires the moment it is drawn.
@@ -158,6 +162,10 @@ struct GameBreakEffect: Hashable, Codable {
     var clearsReferees = false
     /// What it does instead, when its condition is not met.
     var everyoneDrawsInstead = 0
+    /// Team Doctor: an Injury off a player of your choosing, and cards for looking after
+    /// somebody other than yourself.
+    var healsChosenInjury = false
+    var drawsForHealingAnother = 0
     /// Wet Spot: every Injury in the pile and the deck is laid out, the deck's face down,
     /// and one of them is yours.
     var offersInjuries = false
@@ -623,6 +631,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "villainous-reputation":       return "theatermask.and.paintbrush.fill"
         case "dirty-player":                return "hand.raised.fingers.spread.fill"
         case "franchise-player":            return "person.crop.rectangle.badge.plus"
+        case "team-doctor":                 return "stethoscope"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

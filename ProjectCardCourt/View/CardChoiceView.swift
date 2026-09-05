@@ -33,6 +33,9 @@ struct CardChoiceView: View {
     /// the named ones, and answered by position.
     var backs: Int = 0
     var tint: Color = CardPalette.red
+    /// What declining is called, when declining is allowed at all.
+    var declining: String?
+    var onDecline: () -> Void = {}
     var onPick: (CardPick) -> Void
 
     @State private var chosen: CardPick?
@@ -75,11 +78,18 @@ struct CardChoiceView: View {
             .frame(maxWidth: 320)
             .animation(.spring(response: 0.3, dampingFraction: 0.72), value: chosen)
 
-            ChunkyButton(title: chosen == nil ? "Pick one" : "Take it",
-                         fill: chosen == nil ? CardPalette.gray : tint,
-                         stroke: CardPalette.gold, shade: CardPalette.orange,
-                         size: 18, isEnabled: chosen != nil) {
-                if let chosen { onPick(chosen) }
+            VStack(spacing: 8) {
+                ChunkyButton(title: chosen == nil ? "Pick one" : "Take it",
+                             fill: chosen == nil ? CardPalette.gray : tint,
+                             stroke: CardPalette.gold, shade: CardPalette.orange,
+                             size: 18, isEnabled: chosen != nil) {
+                    if let chosen { onPick(chosen) }
+                }
+                if let declining {
+                    ChunkyButton(title: declining, fill: CardPalette.navy,
+                                 stroke: CardPalette.gray, shade: CardPalette.black,
+                                 size: 16, run: onDecline)
+                }
             }
             .frame(width: 200)
         }
