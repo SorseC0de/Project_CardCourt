@@ -138,7 +138,6 @@ struct SwisshLine: Equatable {
         SwisshLine(before: "As you", emoji: ["🧞‍♂️"]),
         SwisshLine(after: "a ninja would!", emoji: ["🥷"]),
         SwisshLine(before: "Going", after: "-ing!", emoji: ["🎣"]),
-        SwisshLine(before: "Hit \'em with the", after: "up!", emoji: ["🆙"]),
 
         // Seasonal, and disarmed until the calendar is wired up. Written now so the
         // catalogue is complete rather than remembered later.

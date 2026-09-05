@@ -129,6 +129,85 @@ enum Rules {
         endRound(state: &state, events: &events)
     }
 
+    // MARK: - Swissh-Ups
+
+    /// Whether a seat could pop one right now. One at a time, and only on your own turn.
+    ///
+    /// `Downloaded` is the one with a table condition: it swaps the hand for the same
+    /// number off the discard pile, so the pile has to be able to pay.
+    static func canPop(_ up: SwisshUp, by seat: Seat, in state: GameState) -> Bool {
+        guard state[seat].swisshUp == nil else { return false }
+        guard case .possession(let holder) = state.phase, holder == seat else { return false }
+        guard up.takesFromDiscard else { return true }
+        return downloadable(from: state).count >= state[seat].bag.count
+    }
+
+    /// What `Downloaded` may take: the discard pile from the top down, passing over the
+    /// two types nobody may hold — a Break is an event and a Whistle is set, not held.
+    static func downloadable(from state: GameState) -> [Card] {
+        state.discard.reversed().filter {
+            $0.descriptor.gameBreak == nil && $0.descriptor.type != .whistle
+        }
+    }
+
+    /// Pops one. The single acts happen here and are gone; the rest start their clock.
+    @discardableResult
+    static func popSwisshUp(_ up: SwisshUp, by seat: Seat,
+                            state: inout GameState) -> [GameEvent] {
+        var events: [GameEvent] = []
+        guard canPop(up, by: seat, in: state) else { return events }
+
+        if let target = up.drawsUpTo {
+            while state[seat].bag.count < target {
+                let before = state[seat].bag.count
+                draw(seat, state: &state, events: &events)
+                if state[seat].bag.count == before { break }
+            }
+        } else if up.takesFromDiscard {
+            // The hand goes down first, so what it is replaced with can include what it
+            // just put there — a table would deal off the pile it is looking at.
+            let wanted = state[seat].bag.count
+            state.discard.append(contentsOf: state[seat].bag)
+            state[seat].bag.removeAll()
+            var taken = 0
+            for card in downloadable(from: state) where taken < wanted {
+                state.discard.removeAll { $0.id == card.id }
+                state[seat].bag.append(card)
+                taken += 1
+            }
+        } else {
+            // Three possessions, and the one it is popped on is the first — except for the
+            // one that pays at the top of a turn, whose turn has already been paid.
+            state[seat].swisshUp = ActiveSwisshUp(
+                kind: up,
+                left: up.startsNextPossession ? up.possessions : up.possessions - 1,
+                waiting: up.startsNextPossession)
+        }
+        settleHands(state: &state, events: &events)
+        return events
+    }
+
+    /// Runs a seat's Swissh-Up down by one, at the top of their own possession.
+    ///
+    /// Called from `beginPossession` once this is wired in. The one that was waiting for a
+    /// possession of its own starts here instead of counting down.
+    static func tickSwisshUp(_ seat: Seat, state: inout GameState) {
+        guard var live = state[seat].swisshUp else { return }
+        if live.waiting {
+            live.waiting = false
+            state[seat].swisshUp = live
+            return
+        }
+        live.left -= 1
+        state[seat].swisshUp = live.left > 0 ? live : nil
+    }
+
+    /// The Zone a seat is in, if it is doing anything yet.
+    static func swisshUp(on seat: Seat, in state: GameState) -> SwisshUp? {
+        guard let live = state[seat].swisshUp, !live.waiting else { return nil }
+        return live.kind
+    }
+
     /// Nothing has happened yet this possession — no Move played, no card at all.
     static func isFirstAction(_ state: GameState) -> Bool {
         state.movesThisPossession == 0 && state.lastPlayThisPossession == nil
@@ -1275,6 +1354,11 @@ enum Rules {
         if effect.pointsToVictim > 0 {
             state[whistle.owner].points += effect.pointsToVictim
             events.append(.shotMade(seat: whistle.owner, points: effect.pointsToVictim, roll: 0))
+        }
+        // The ball changes hands on the call rather than going back in: a review does not
+        // stop the game, it decides where the ball was going.
+        if effect.takesBall, whistle.owner != offender {
+            beginPossession(whistle.owner, tickClock: false, state: &state, events: &events)
         }
         if effect.turnoverOnOffender {
             state[offender].turnovers += 1

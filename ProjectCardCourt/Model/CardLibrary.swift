@@ -209,6 +209,11 @@ enum CardLibrary {
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .gameBreakDrawn))
 
+    static let crewChiefReview = CardDescriptor(
+        id: "crew-chief-review", name: "Crew Chief Review", type: .whistle,
+        effect: "Cancel a pass. The ball comes to you", numberInDeck: 1,
+        whistle: WhistleEffect(takesBall: true, trigger: .passPlayed))
+
     static let doubleDribble = CardDescriptor(
         id: "double-dribble", name: "Double Dribble", type: .whistle,
         effect: "Cancel a Dribble. Discard 1. TOV +1", numberInDeck: 1,
@@ -741,7 +746,7 @@ enum CardLibrary {
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
-        clearedToPlay, playOn,
+        clearedToPlay, playOn, crewChiefReview,
     ]
 
     /// A card somebody else is holding, or one still in the deck.

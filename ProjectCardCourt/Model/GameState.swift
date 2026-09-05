@@ -53,6 +53,8 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// Torn Achilles: the cards that survived this turn's lock, rolled once per
     /// possession and then left alone.
     var injuryUnlocked: [UUID] = []
+    /// The Zone, if this player has popped one — see `SwisshUp`. One at a time.
+    var swisshUp: ActiveSwisshUp?
     /// All-Swissh Selection: cards owed on the next make, and shown in the HUD until they
     /// are paid. Survives the round — it is a selection, not a hot streak.
     var drawsOwedOnMake = 0

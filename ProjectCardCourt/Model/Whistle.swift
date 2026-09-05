@@ -64,6 +64,10 @@ enum WhistleTrigger: String, Hashable, Codable {
 /// What a Whistle does when it blows. A nil `trigger` means the card resolves the moment
 /// it is played instead of lying in wait — Timeout works that way.
 struct WhistleEffect: Hashable, Codable {
+    /// Crew Chief Review: the pass is waved off and the ball is handed to whoever called
+    /// it. Not a steal and not an inbound — the review simply gives them the ball.
+    var takesBall = false
+
     var trigger: WhistleTrigger?
 
     // On the player who tripped it.
