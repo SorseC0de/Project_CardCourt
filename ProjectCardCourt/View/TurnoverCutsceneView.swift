@@ -119,9 +119,11 @@ struct TurnoverCutsceneView: View {
             Circle()
                 .fill(RadialGradient(
                     stops: [
+                        // White all the way out. `.clear` is transparent black, and a glow
+                        // that walks towards it dirties its own edge.
                         .init(color: .white.opacity(0.30), location: 0),
                         .init(color: .white.opacity(0.10), location: 0.45),
-                        .init(color: .clear, location: 1),
+                        .init(color: .white.opacity(0), location: 1),
                     ],
                     center: .center, startRadius: 0, endRadius: side / 2))
                 .frame(width: side, height: side)

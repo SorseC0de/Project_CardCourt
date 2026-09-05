@@ -362,7 +362,10 @@ struct CourtView: View {
                 Rectangle().fill(
                     LinearGradient(
                         stops: [
-                            .init(color: .clear, location: Perspective.horizon),
+                            // The floor's own colour at zero, not `.clear`: a ramp out of
+                            // transparent black takes the brown towards grey on the way.
+                            .init(color: Theme.courtFloor.opacity(0),
+                                  location: Perspective.horizon),
                             .init(color: Theme.courtFloor, location: Perspective.floorFadeEnd),
                         ],
                         startPoint: .top, endPoint: .bottom))

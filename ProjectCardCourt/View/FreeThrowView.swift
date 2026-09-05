@@ -112,7 +112,10 @@ struct FreeThrowView: View {
                 // Everything above it is untouched, and none of it takes a touch.
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: Self.restY - 0.1),
+                        // Black at zero rather than `.clear` — the same thing here, since
+                        // `.clear` *is* transparent black, but written so it stays true if
+                        // the scrim ever stops being black.
+                        .init(color: .black.opacity(0), location: Self.restY - 0.1),
                         // Not solid: the court is painted along this edge, and an opaque
                         // stop buried it. Dark enough to lift the ball off the floor,
                         // sheer enough to leave the floor there.

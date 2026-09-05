@@ -405,9 +405,13 @@ enum ModeCardStyle {
         let from = min(fadeFrom, fadeTo)
         let to = max(fadeFrom, fadeTo)
 
+        // The clear end is **the face at zero alpha**, not `.clear` — which is transparent
+        // black, and a gradient walks the colour as well as the alpha. Fading a purple bar
+        // out through `.clear` darkens it on the way, so the tip reads as a shadow under
+        // the card rather than the card running out.
         let stops = [
-            Gradient.Stop(color: .clear, location: 0),
-            Gradient.Stop(color: .clear, location: from),
+            Gradient.Stop(color: face.opacity(0), location: 0),
+            Gradient.Stop(color: face.opacity(0), location: from),
             Gradient.Stop(color: face, location: to),
             Gradient.Stop(color: face, location: 1),
         ]

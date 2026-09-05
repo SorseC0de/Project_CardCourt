@@ -218,13 +218,19 @@ enum NameCallStyle {
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
     /// trails as it flies out.
+    /// **The transparent end is the face at zero, not `.clear`.**
+    ///
+    /// `.clear` is transparent *black*, and a gradient interpolates the colour as well as
+    /// the alpha — so a ramp from `.clear` walks the hue down towards black on its way out
+    /// and the tail reads as a dirty shadow rather than the plate thinning. The same colour
+    /// at zero alpha only ever spends alpha, which is the fade that was wanted.
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
         let tuning = NameCallTuning.shared
         return LinearGradient(
             gradient: Gradient(stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .clear, location: min(tuning.fadeFrom, tuning.fadeTo)),
+                .init(color: face.opacity(0), location: 0),
+                .init(color: face.opacity(0), location: min(tuning.fadeFrom, tuning.fadeTo)),
                 .init(color: face, location: max(tuning.fadeFrom, tuning.fadeTo)),
                 .init(color: face, location: 1),
             ]),
