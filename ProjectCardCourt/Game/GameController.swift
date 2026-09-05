@@ -301,6 +301,10 @@ final class GameController {
 
     enum Gate: Equatable {
         case thinking
+
+        /// Whether the floor is waiting on the game rather than on a player.
+        var isThinking: Bool { if case .thinking = self { return true }; return false }
+
         case awaitingInbound(Seat)
         case awaitingMove(Seat)
         case awaitingBid(shooter: Seat)
@@ -347,7 +351,18 @@ final class GameController {
     /// stands frozen on the pose he threw in.
     private(set) var throwing: ThrowIn?
     private(set) var log: [LogLine] = []
-    private(set) var gate: Gate = .thinking
+    private(set) var gate: Gate = .thinking {
+        didSet {
+            guard gate.isThinking else { wentQuiet = nil; return }
+            // Only the moment it *went* quiet, so a run of thinking gates does not keep
+            // resetting the clock the watchdog is reading.
+            if !oldValue.isThinking { wentQuiet = .now }
+        }
+    }
+    /// When the gate last went to `.thinking`, or nil while somebody is being asked for
+    /// something. The watchdog reads it — see `watchTheLoop`.
+    private var wentQuiet: Date?
+    private var watchdog: Task<Void, Never>?
     private(set) var cutscene: ShotCutscene?
     private(set) var turnover: TurnoverCutscene?
     private(set) var reveal: RevealCutscene?
@@ -646,12 +661,49 @@ final class GameController {
         }
     }
 
+    /// **The game must never stop.**
+    ///
+    /// Every path that answers a question is supposed to hand the floor back to `run`, and
+    /// one that forgets leaves the match frozen: the gate stays `.thinking`, so every card
+    /// greys out and the shot button goes, and there is nothing the player can do about it.
+    /// That has happened twice, from two different causes, and both times it made the game
+    /// unplayable rather than merely wrong.
+    ///
+    /// So the loop is watched rather than trusted. A gate that has been thinking for eight
+    /// seconds with nothing on screen — no scene, no card in the air, no call — is a game
+    /// that has stopped, and it is started again. Nothing legitimate sits there that long:
+    /// the longest honest wait is a shot cutscene, and a cutscene is something on screen.
+    private func watchTheLoop() {
+        watchdog?.cancel()
+        watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard let self else { return }
+                self.restartIfStalled()
+            }
+        }
+    }
+
+    private func restartIfStalled() {
+        guard !isGuest, !isPaused, !state.isOver else { return }
+        guard case .thinking = gate, let since = wentQuiet else { return }
+        guard Date().timeIntervalSince(since) > 8 else { return }
+        // Anything on screen is the game still speaking.
+        guard cutscene == nil, turnover == nil, actionCall == nil,
+              playedCard == nil, flight == nil, celebratingThree == nil else { return }
+        DevLog.say(.input, "the loop had stopped — restarting it")
+        wentQuiet = .now
+        loop?.cancel()
+        loop = Task { await run() }
+    }
+
     func begin() {
         // Rolled here rather than in `init`. SwiftUI re-creates a View struct on every
         // state change, so `@State private var controller = GameController()` runs that
         // initialiser every time and throws all but the first result away — but any side
         // effect in it has already happened. Faces were being re-rolled on every inbound.
         PlayerLook.shared.randomiseOpponents(except: GameRules.localSeat)
+        watchTheLoop()
         loop?.cancel()
         // A guest has no game of its own to open. It says it is on screen and waits to be
         // dealt to, which is what a player does at a table.
@@ -1233,8 +1285,9 @@ final class GameController {
                 try? await Task.sleep(for: .seconds(Pacing.think()))
                 if Task.isCancelled { return }
                 // Face down to everybody, so there is nothing to be clever about.
-                let hand = state[victim].bag
-                let pick = hand[Int.random(in: 0..<max(1, hand.count))].id
+                // An empty hand is answerable: nothing is taken, and the question closes.
+                // Reading `hand[0]` off one was a crash waiting for a Free Agent.
+                let pick = state[victim].bag.randomElement()?.id ?? UUID()
                 await present(Rules.resolveCardFrom(pick, state: &state), playedCard: true)
                 continue
             }

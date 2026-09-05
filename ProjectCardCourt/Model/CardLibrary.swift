@@ -139,7 +139,7 @@ enum CardLibrary {
 
     static let stepback = CardDescriptor(
         id: "stepback", name: "Stepback", type: .move,
-        effect: "SHOT +10%. Discard 1 for another +10%", numberInDeck: 12,
+        effect: "SHOT +10%. You may discard 1 for another +10%", numberInDeck: 12,
         shotDelta: 10, optionalDiscardForShot: 10)
 
     static let tripleThreat = CardDescriptor(

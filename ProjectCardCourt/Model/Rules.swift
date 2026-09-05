@@ -492,6 +492,14 @@ enum Rules {
                 if descriptor.clockDelta != 0 {
                     _ = tickClock(by: descriptor.clockDelta, holder: seat, state: &state, events: &events)
                 }
+                // Stepback: the extra look is bought, and buying it is optional. Asked
+                // with the same question Turnaround Three asks, capped at one card.
+                if descriptor.optionalDiscardForShot > 0, !state[seat].bag.isEmpty,
+                   case .possession = state.phase {
+                    state.phase = .awaitingDiscard(seat: seat, card: descriptor,
+                                                   bonusEach: descriptor.optionalDiscardForShot)
+                    return events
+                }
             }
 
         case .shoot:
@@ -610,7 +618,12 @@ enum Rules {
 
     /// How many a seat may feed a Turnaround Three.
     static func legalDiscardForShot(_ state: GameState, for seat: Seat) -> ClosedRange<Int> {
-        0...state[seat].bag.count
+        var most = state[seat].bag.count
+        // Stepback buys one extra look, not as many as the hand will pay for.
+        if case .awaitingDiscard(_, let card, _) = state.phase, card.optionalDiscardForShot > 0 {
+            most = min(most, 1)
+        }
+        return 0...most
     }
 
     /// Everything a pass does once its man is known.
@@ -696,10 +709,16 @@ enum Rules {
             state.pendingActor = seat
             state.phase = .awaitingCardFrom(seat: asker(instead: seat, in: state),
                                             card: descriptor, victim: receiver)
-        } else if descriptor.receiverDiscards > 0, !state[receiver].bag.isEmpty {
-            state.pendingActor = seat
-            state.phase = .awaitingCardFrom(seat: asker(instead: seat, in: state),
-                                            card: descriptor, victim: receiver)
+        } else if descriptor.receiverDiscards > 0 {
+            // Bullet Pass: it goes in hard and something drops. **At random**, which the
+            // sheet says and which asking somebody to pick blind out of a face-down hand
+            // only dressed up — and a question about a hand another card may have emptied
+            // in the meantime is a question with no answer.
+            for _ in 0..<descriptor.receiverDiscards {
+                discardAtRandom(from: receiver, state: &state)
+            }
+            events.append(.clampBit(seat: receiver, card: descriptor,
+                                    discarded: descriptor.receiverDiscards))
         }
     }
 
@@ -929,10 +948,19 @@ enum Rules {
     @discardableResult
     static func resolveCardFrom(_ id: Card.ID, state: inout GameState) -> [GameEvent] {
         guard case .awaitingCardFrom(_, let descriptor, let victim) = state.phase,
-              let actor = state.pendingActor,
-              let index = state[victim].bag.firstIndex(where: { $0.id == id })
-        else { return [] }
+              let actor = state.pendingActor else { return [] }
         var events: [GameEvent] = []
+        // A hand can empty between the question and the answer — a Free Agent settling,
+        // an Altercation clearing the floor. Nothing there is a legal answer, and the
+        // question closes rather than standing forever.
+        guard let index = state[victim].bag.firstIndex(where: { $0.id == id })
+                ?? (state[victim].bag.isEmpty ? nil : Optional(0)) else {
+            state.pendingPlay = nil
+            state.pendingActor = nil
+            state.stealTravelsTo = nil
+            state.phase = .possession(holder: state.ball ?? actor)
+            return events
+        }
         let taken = state[victim].bag.remove(at: index)
         state.pendingPlay = nil
         state.pendingActor = nil
@@ -983,7 +1011,7 @@ enum Rules {
         guard case .awaitingDiscard(let seat, let card, let bonusEach) = state.phase else { return [] }
         var events: [GameEvent] = []
 
-        let chosen = Set(ids)
+        let chosen = Set(ids.prefix(legalDiscardForShot(state, for: seat).upperBound))
         let spent = state[seat].bag.filter { chosen.contains($0.id) }
         state[seat].bag.removeAll { chosen.contains($0.id) }
         state.discard.append(contentsOf: spent)
@@ -996,6 +1024,11 @@ enum Rules {
         events.append(.discardedForShot(seat: seat, card: card, count: spent.count))
 
         state.phase = .possession(holder: seat)
+        // Stepback is a Move: what it bought stays on the ball, and the seat plays on.
+        guard card.special?.shootsImmediately == true else {
+            settleHands(state: &state, events: &events)
+            return events
+        }
         if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
             adjustShot(by: -bought, state: &state)
@@ -1501,6 +1534,13 @@ enum Rules {
         state.phase = .possession(holder: seat)
         takeTheLine(state: &state, events: &events)
         handOverBall(state: &state, events: &events)
+        // Huge Altercation can empty a hand between the question and the answer. Nothing
+        // to take means nothing is taken, rather than a question nobody can answer.
+        if case .awaitingCardFrom(_, _, let victim) = state.phase, state[victim].bag.isEmpty {
+            state.phase = .possession(holder: state.ball ?? victim)
+            state.pendingPlay = nil
+            state.pendingActor = nil
+        }
         strandOut(state: &state, events: &events)
     }
 

@@ -107,49 +107,54 @@ struct ModeCardView: View {
             let bar = ModeCardStyle.bar(across: width)
 
             ZStack {
-                bars(bar: bar, width: width)
+                Group {
+                    bars(bar: bar, width: width)
 
-                // **The view through the card, not a pattern on it.**
-                //
-                // Drawn once across the whole assembly and masked by it, rather
-                // than once per bar: the wormhole has a single vanishing point,
-                // and a vanishing point per bar is two tunnels seen at once.
-                // The mask is the bars' own tapered fill, so the tunnel thins
-                // out at their tips exactly as they do.
-                // Side streaks, not the tunnel. A tunnel looks out of the front of a
-                // thing that is coming towards you; these bars are *passing*, and what
-                // belongs in a shape that passes is the world going by in the direction
-                // it is headed.
-                SideStreaks(ink: streakInk ?? (seat == nil ? nil : .white))
-                    .frame(width: width, height: bar.height * 2)
-                    // **Last, not first.**
+                    // **The view through the card, not a pattern on it.**
                     //
-                    // The card arrives, the name lands, and only then does the
-                    // tunnel come up behind it. All three at once is three
-                    // things starting in the same instant and no order to read
-                    // them in.
-                    .opacity(said)
-                    .animation(
-                        stage == .gathered
-                            ? .easeIn(duration: ModeCardStyle.warpFade)
-                                .delay(ModeCardStyle.warpDawn)
-                            : .easeOut(duration: ModeCardStyle.departure),
-                        value: said
-                    )
-                    .mask { bars(bar: bar, width: width) }
+                    // Drawn once across the whole assembly and masked by it, rather
+                    // than once per bar: the wormhole has a single vanishing point,
+                    // and a vanishing point per bar is two tunnels seen at once.
+                    // The mask is the bars' own tapered fill, so the tunnel thins
+                    // out at their tips exactly as they do.
+                    // Side streaks, not the tunnel. A tunnel looks out of the front of a
+                    // thing that is coming towards you; these bars are *passing*, and what
+                    // belongs in a shape that passes is the world going by in the direction
+                    // it is headed.
+                    SideStreaks(ink: streakInk ?? (seat == nil ? nil : .white))
+                        .frame(width: width, height: bar.height * 2)
+                        // **Last, not first.**
+                        //
+                        // The card arrives, the name lands, and only then does the
+                        // tunnel come up behind it. All three at once is three
+                        // things starting in the same instant and no order to read
+                        // them in.
+                        .opacity(said)
+                        .animation(
+                            stage == .gathered
+                                ? .easeIn(duration: ModeCardStyle.warpFade)
+                                    .delay(ModeCardStyle.warpDawn)
+                                : .easeOut(duration: ModeCardStyle.departure),
+                            value: said
+                        )
+                        .mask { bars(bar: bar, width: width) }
 
-                // **Both words over both bars.**
-                //
-                // Carried by the bar each sits on, the name went under the lower
-                // bar the moment that bar arrived — the card is two overlapping
-                // shapes, and anything belonging to the one behind is behind
-                // them both. The words are the message; nothing in the card
-                // should ever be in front of them.
-                title(on: bar)
-                    .offset(y: -bar.height / 2 + titleDrop * bar.height)
+                    // **Both words over both bars.**
+                    //
+                    // Carried by the bar each sits on, the name went under the lower
+                    // bar the moment that bar arrived — the card is two overlapping
+                    // shapes, and anything belonging to the one behind is behind
+                    // them both. The words are the message; nothing in the card
+                    // should ever be in front of them.
+                    title(on: bar)
+                        .offset(y: -bar.height / 2 + titleDrop * bar.height)
 
-                blurb(on: bar)
-                    .offset(y: bar.height / 2 + blurbDrop * bar.height)
+                    blurb(on: bar)
+                        .offset(y: bar.height / 2 + blurbDrop * bar.height)
+                }
+                // The card is scenery; what is hung on it may not be. An accessory that
+                // asks a question has to be able to hear the answer.
+                .allowsHitTesting(false)
 
                 if let accessory {
                     accessory
@@ -165,7 +170,6 @@ struct ModeCardView: View {
             }
             .frame(width: width, height: geometry.size.height)
         }
-        .allowsHitTesting(false)
         .task { await arrive() }
         .task(id: isLeaving) {
             guard isLeaving else { return }

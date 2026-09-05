@@ -66,10 +66,12 @@ struct CardChoiceView: View {
                             .offset(y: chosen == .named(card.id) ? -Table.lift : 0)
                             .onTapGesture { chosen = .named(card.id) }
                     }
-                    ForEach(0..<backs, id: \.self) { slot in
-                        back(pick: .position(slot))
-                            .offset(y: chosen == .position(slot) ? -Table.lift : 0)
-                            .onTapGesture { chosen = .position(slot) }
+                    // A hand is held, not laid out: what is face down fans.
+                    if backs > 0 {
+                        CardBackFan(count: backs, width: Table.card, lift: Table.lift,
+                                    tint: tint,
+                                    isChosen: { chosen == .position($0) },
+                                    onPick: { chosen = .position($0) })
                     }
                 }
                 .padding(.vertical, Table.lift)

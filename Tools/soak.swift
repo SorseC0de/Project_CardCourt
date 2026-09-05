@@ -33,15 +33,11 @@ func soak() {
                 for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }
                 Rules.resolveRebound(bids: bids, state: &state); continue
             }
-            if case .awaitingDiscard(let seat, _, _) = state.phase {
-                Rules.resolveDiscardForShot(ai.discardForShot(state, for: seat), state: &state)
-                continue
-            }
             if Prompts.step(&state, &ai) { continue }
             guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else {
                 let who = state.phase.actingSeat ?? .north
                 let held = Set(state[who].clamps.flatMap(\.locked))
-                print("NO MOVE seed \(seed): \(state.phase.label) hand=\(state[who].bag.count) held=\(held.count) shot=\(state.shot) ceiling=\(String(describing: state.shotCeilingThisRound)) clamps=\(state[who].clamps.count) victim=\(victimHand(state))ᐧ injuries=\(state[who].injuries.map(\.name)) intangibles=\(state[who].intangibles.map(\.name)) mustShoot=\(String(describing: state.mustShootFirst)) last=\(last.suffix(6))")
+                print("NO MOVE \(String(describing: ai.move(state, for: state.phase.actingSeat ?? .north))) seed \(seed): \(state.phase.label) hand=\(state[who].bag.count) held=\(held.count) shot=\(state.shot) ceiling=\(String(describing: state.shotCeilingThisRound)) clamps=\(state[who].clamps.count) victim=\(victimHand(state))ᐧ injuries=\(state[who].injuries.map(\.name)) intangibles=\(state[who].intangibles.map(\.name)) mustShoot=\(String(describing: state.mustShootFirst)) last=\(last.suffix(6))")
                 stalls += 1
                 break
             }

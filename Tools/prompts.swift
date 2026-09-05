@@ -20,14 +20,18 @@ enum Prompts {
             _ = seat
             Rules.resolveTarget(pick, state: &state)
             return true
+        case .awaitingDiscard(let seat, _, _):
+            // Stepback and Turnaround Three ask the same question. Nothing fed in is
+            // always a legal answer, which is what an absent player gives.
+            Rules.resolveDiscardForShot(ai.discardForShot(state, for: seat), state: &state)
+            return true
         case .awaitingMode(let seat, let card):
             Rules.resolveMode(ai.mode(of: card, state, for: seat), state: &state)
             return true
         case .awaitingCardFrom(_, _, let victim):
-            // Face down to everybody, so there is nothing to be clever about.
-            let hand = state[victim].bag
-            guard let pick = hand.first else { return false }
-            Rules.resolveCardFrom(hand.randomElement()?.id ?? pick.id, state: &state)
+            // Face down to everybody, so there is nothing to be clever about — and an
+            // empty hand is answered too, by taking nothing.
+            Rules.resolveCardFrom(state[victim].bag.randomElement()?.id ?? UUID(), state: &state)
             return true
         case .awaitingNaming(_, _, let named):
             // Everyone but the leader. The SHOT is worth having; handing the man in front
