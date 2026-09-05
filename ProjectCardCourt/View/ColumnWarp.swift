@@ -53,7 +53,12 @@ struct ColumnWarp: ViewModifier, Animatable {
 
     func body(content: Content) -> some View {
         ZStack {
-            if progress <= 0 {
+            if progress >= 1 {
+                // **Gone, not merely elsewhere.** The columns travel rather than fade, so
+                // at the end of the run they are still drawn — a body's worth of stripes
+                // parked above whatever it left.
+                content.hidden()
+            } else if progress <= 0 {
                 content
             } else {
                 ForEach(0..<Self.combs, id: \.self) { comb in

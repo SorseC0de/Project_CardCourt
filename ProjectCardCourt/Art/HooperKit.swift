@@ -146,10 +146,16 @@ enum Kit {
             case .front:     return .front
             case .running:   return .run
             case .dribbling: return .dribble
-            case .receiving: return .inboundReceiver
+            // The receiver sheet the court actually uses. `inboundReceiver` is the old
+            // single-cell one, kept only so the numbering behind it still lines up.
+            case .receiving: return .inboundReceiverBack
             case .shooting:  return .shoot
             }
         }
+
+        /// Which cell a still pose holds on. Cell nought of the receiver sheet is the
+        /// deprecated stance — see `PlayerLook.waiting(for:)`, which passes over it too.
+        var frame: Int { self == .receiving ? 1 : 0 }
 
         /// The still poses hold on a frame; the rest run — the shot included. It is a
         /// one-shot on the court because a shot happens once; here it is a thing being

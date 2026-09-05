@@ -95,7 +95,7 @@ struct HooperView: View {
         VStack(spacing: 4) {
             ZStack {
                 SpriteAnimation(sprite: pose.sprite, scale: Sheet.scale,
-                                isPlaying: pose.plays)
+                                isPlaying: pose.plays, restFrame: pose.frame)
                     .paletteSwap(kit.swaps)
                 // The head rides on the body's shoulders — see `SpriteMetrics`. Only the
                 // front pose is drawn face-on, so it is the only one wearing it.

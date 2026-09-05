@@ -52,6 +52,11 @@ struct PlayerFigure: View {
     /// dribbling it — they are running to meet it.
     var awaitingBall = false
     var scale: CGFloat = Theme.Figure.playerScale
+    /// Warping off the floor, or back on to it — see `ColumnWarp`. **The sprite only.**
+    /// What is hung on him is a reading rather than a body: a bag count cut into columns
+    /// is a number coming apart, which says nothing about a player going anywhere.
+    var warp: Double = 0
+    var warpSeed: UInt64 = 0
 
     @State private var look = PlayerLook.shared
     @State private var catching = false
@@ -142,6 +147,8 @@ struct PlayerFigure: View {
         // that is larger has its extra rows above the character rather than below.
         ZStack(alignment: .bottom) {
             SpriteShadow(scale: scale)
+                // Nothing to cast one while he is between places.
+                .opacity(warp > 0 ? 0 : 1)
             SpriteAnimation(sprite: action, scale: scale,
                             fps: frameRate,
                             // A pose rather than a loop: held on one cell, not played.
@@ -166,7 +173,15 @@ struct PlayerFigure: View {
                 .onAppear { if playsOnce { startedAt = Date() } }
                 .paletteSwap(PlayerLook.shared.kit(for: seat))
                 .opacity(isDimmed ? 0.4 : 1)
+                // Here rather than around the whole figure, so the badges below keep their
+                // own edges — and the overlay is placed against a frame the offsets do not
+                // change, so nothing moves with the columns.
+                .columnWarp(warp, pixel: scale, seed: warpSeed)
                 .overlay(alignment: .top) {
+                    // What is hung on him goes with him, but whole: a count cut into
+                    // columns is a number coming apart, which says nothing about a player
+                    // going anywhere.
+                    Group {
                     if let clampCount {
                         // Red over purple: the coils' own colours, so the number reads as
                         // the same fact the bind lines are already drawing.
@@ -206,6 +221,8 @@ struct PlayerFigure: View {
                             .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
                             .offset(y: -35 + hop)
                     }
+                    }
+                    .opacity(warp > 0 ? 0 : 1)
                 }
                 .onChange(of: marker == nil) { hop = 0 }
                 .task(id: marker == nil) {

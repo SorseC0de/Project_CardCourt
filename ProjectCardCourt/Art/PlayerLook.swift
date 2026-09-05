@@ -37,15 +37,19 @@ final class PlayerLook {
         return HooperKit.shared.swaps
     }
 
-    /// How this seat stands while waiting for a throw-in: one of the sheet's three poses,
-    /// with the third also offered mirrored — four ways of standing between four players.
+    /// How this seat stands while waiting for a throw-in: one of the sheet's poses, with
+    /// the last also offered mirrored.
+    ///
+    /// **Cell nought is not among them.** It is the deprecated pose the sheet keeps for
+    /// the sake of its own numbering, and a player standing in it looks like a player the
+    /// artist has moved on from.
     ///
     /// Rolled once per seat and kept, so nobody changes stance while the thrower is
     /// deciding.
     func waiting(for seat: Seat) -> (cell: Int, mirrored: Bool) {
         if let known = waits[seat] { return known }
-        let rolled = Int.random(in: 0..<4)
-        let look = (cell: min(rolled, 2), mirrored: rolled == 3)
+        let rolled = Int.random(in: 0..<3)
+        let look = (cell: rolled == 0 ? 1 : 2, mirrored: rolled == 2)
         waits[seat] = look
         return look
     }

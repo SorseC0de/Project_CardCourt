@@ -669,12 +669,6 @@ struct CourtView: View {
             let footing = court.footing(of: seat, inbounding: thrower)
             let scale = court.scale(of: seat, inbounding: thrower)
             node(seat, on: court)
-                // Whoever is inbounding is drawn on the sideline instead, further up this
-                // same stack. Warped out rather than hidden — he is in two places for the
-                // length of a throw-in, and a hard cut is what made that read as a bug.
-                // Still drawn rather than skipped, so nothing below him moves.
-                .columnWarp(isInbounding(seat) ? 1 : 0, seed: warpSeed)
-                .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
                 .scaleEffect(scale, anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .bottom)
                 .position(x: footing.x,
@@ -735,7 +729,14 @@ struct CourtView: View {
                 caughtAt: (holder == seat || throwing?.to == seat) ? landedAt : nil,
                 // Nobody dribbles a ball that is still in the air. The thrower has let go
                 // and the receiver has not caught it yet, so both are simply running.
-                awaitingBall: ballInFlight && holder == seat)
+                awaitingBall: ballInFlight && holder == seat,
+                // Whoever is inbounding is drawn on the sideline instead, further up this
+                // same stack. He warps off the floor rather than being cut from it — and
+                // the sprite alone comes apart, since a bag count in columns is a number
+                // falling to bits rather than a player leaving.
+                warp: isInbounding(seat) ? 1 : 0,
+                warpSeed: warpSeed)
+                .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
             HStack(spacing: NamePlate.size * 0.18) {
                 PlayerNameText(seat: seat, size: NamePlate.size,
                                tracking: NamePlate.tracking)
@@ -748,6 +749,9 @@ struct CourtView: View {
                 }
             }
                 .animation(.easeOut(duration: 0.2), value: holder == seat)
+                // The name goes with him, whole — it is a label, not a body.
+                .opacity(isInbounding(seat) ? 0 : 1)
+                .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
                 .fixedSize()
                 // The node is scaled by its row, which sized Raheem's name to the horizon
                 // and blew the human's up. A name is a label rather than a thing standing
