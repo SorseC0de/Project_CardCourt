@@ -37,6 +37,9 @@ struct CourtView: View {
     /// Who the floor may show coils on — see `GameController.boundSeats`. Not
     /// `state[seat].clamps`, which is a possession ahead of the scene.
     var bound: Set<Seat> = []
+    /// A card being given up, from a hand to the pile — see `GameController.spend`.
+    var spend: (seat: Seat, id: UUID)?
+
     /// Held: the floor stops moving because something else has the screen.
     var frozen = false
 
@@ -63,6 +66,8 @@ struct CourtView: View {
         /// is nearest the camera — so his goes out beside him instead.
         static let farX: CGFloat = 0.42
         static let farLift: CGFloat = 0.55
+        /// How far over his own head the left flank's name rides — see `wearsNameHigh`.
+        static let highLift: CGFloat = 0.72
         /// The other three sit closer under their own feet.
         static let drop: CGFloat = 0.02
     }
@@ -205,6 +210,13 @@ struct CourtView: View {
                                    ($0, share(court.footing(of: $0), in: geo.size))
                                }),
                                opening: opening,
+                               spend: spend.map { spent in
+                                   CardFlight(id: spent.id,
+                                              from: share(court.footing(of: spent.seat),
+                                                          in: geo.size),
+                                              to: share(discardPoint(on: court), in: geo.size),
+                                              seconds: Pacing.spendFlight)
+                               },
                                frozen: frozen)
                 }
 
@@ -648,6 +660,14 @@ struct CourtView: View {
         seat.slot(viewedFrom: viewer) == .north
     }
 
+    /// Whether this seat's name is worn over the head rather than under the feet.
+    ///
+    /// The left flank stands where the Intangible plates are, and a plate under his feet
+    /// lands on top of them. Over the head is the only clear air he has.
+    private func wearsNameHigh(_ seat: Seat) -> Bool {
+        seat.slot(viewedFrom: viewer) == .west
+    }
+
     /// The wedge means "you can pick this one". During an inbound the inbounder is the
     /// single seat you cannot pass to, so they wear nothing at all — marking them would
     /// point at the one illegal target on the floor.
@@ -837,7 +857,9 @@ struct CourtView: View {
                 .offset(x: isFarSeat(seat) ? Theme.Figure.height * NamePlate.farX : 0,
                         y: -Theme.Figure.height
                             * (Theme.Figure.spriteFootPadding
-                               + (isFarSeat(seat) ? NamePlate.farLift : -NamePlate.drop)))
+                               + (isFarSeat(seat) ? NamePlate.farLift
+                                  : wearsNameHigh(seat) ? NamePlate.highLift
+                                  : -NamePlate.drop)))
         }
         .contentShape(Rectangle())
         .overlay(alignment: .top) {

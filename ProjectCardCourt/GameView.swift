@@ -63,6 +63,8 @@ struct GameView: View {
                             .offset(x: standingAside ? Panels.aside : 0)
                     }
                     .padding(.bottom, 4)
+                    // Down a little: the flanks stand right above them.
+                    .offset(y: Panels.drop)
                     .animation(.easeInOut(duration: 0.28), value: standingAside)
                     ActionBarView(controller: controller, detail: $detail,
                                   onInspectReferees: { open(.referees) })
@@ -380,6 +382,8 @@ struct GameView: View {
         /// How far a slot panel goes to be gone. Wider than the panel itself, so the last
         /// slot clears the screen rather than sitting on its edge.
         static let aside: CGFloat = 320
+        /// And how far down they sit, out from under the flanks' feet.
+        static let drop: CGFloat = 8
     }
 
     /// Whether the floor's own readings should get out of the way: something is being
@@ -475,6 +479,7 @@ struct GameView: View {
                   },
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
+                  spend: controller.spend,
                   // Nothing on the floor moves while something else has the screen.
                   frozen: dim > 0 || onFloor != nil || beingRead != nil,
                   showingClamps: beingRead?.clamp != nil,

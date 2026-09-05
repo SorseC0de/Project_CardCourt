@@ -31,6 +31,12 @@ enum Pacing {
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
     static let drawFlight = 0.30
+    /// What the deck spends leaning out and bowing before it throws — see `CourtStage`,
+    /// which plays that ahead of the card. The beat has to cover it, or the card lands in
+    /// a hand before the pile has finished reaching for it.
+    static let deckLean = 0.30
+    /// How long a card takes to reach the pile from a hand.
+    static let spendFlight = 0.34
     static let dealFlight = 0.15
     /// The whole of a defender's swipe: arrive, take, drift off.
     /// The whole of a defender's swipe: arrive, hold, drift off, fade. Must outlast
@@ -408,6 +414,9 @@ final class GameController {
     /// Who the stage is dealing a card to, and a token so the same seat twice still counts
     /// as a second throw.
     private(set) var stageDeal: (seat: Seat, id: UUID)?
+    /// A card on its way from a hand to the pile. Cards were simply vanishing out of
+    /// hands, which reads as the game deleting them rather than somebody giving one up.
+    private(set) var spend: (seat: Seat, id: UUID)?
     /// The opening performance. Set once, at the top of a match.
     private(set) var opening: OpeningDeal?
 #if DEBUG
@@ -844,12 +853,28 @@ final class GameController {
         flight = nil
     }
 
+    /// One card from a hand to the pile, and the beat it takes to get there.
+    private func spendCard(from seat: Seat) async {
+        spend = (seat, UUID())
+        try? await Task.sleep(for: .seconds(Pacing.spendFlight))
+        spend = nil
+    }
+
     private func fly(to seat: Seat, over duration: Double, delivering card: UUID? = nil) async {
         // Counted off as it leaves, not when the rules dealt it.
         if shownDeck > 0 { shownDeck -= 1 }
         flightDuration = duration
-        flight = DrawFlight(seat: seat)
-        try? await Task.sleep(for: .seconds(duration))
+        // **The pile throws it when there is a pile.** `stageDeal` was only ever set by
+        // the bench, so every real draw took the flat path and the deck stood still
+        // through all of it — the lean, the bow and the card growing on its way over
+        // were written for a throw nothing was asking for.
+        if RenderDebug.shared.courtStage {
+            stageDeal = (seat, UUID())
+        } else {
+            flight = DrawFlight(seat: seat)
+        }
+        try? await Task.sleep(for: .seconds(duration + (RenderDebug.shared.courtStage
+                                                        ? Pacing.deckLean : 0)))
         // It is in the bag now, and not a moment before.
         if let card { undelivered.remove(card) }
     }
@@ -1772,6 +1797,14 @@ final class GameController {
         // count lighting up, a hand emptying — is shown once the card itself has gone.
         catchUp()
         release(.play, from: &ledger)
+        // What the card cost, thrown rather than deleted. Before the draws, because a card
+        // that pays for a draw pays for it first.
+        for case .discarded(let seat, let count) in events {
+            for _ in 0..<count {
+                if Task.isCancelled { return }
+                await spendCard(from: seat)
+            }
+        }
         shownShot = state.shot + state.holderShot
         if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
             await announce(.whistle)

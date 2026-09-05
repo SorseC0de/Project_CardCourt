@@ -304,7 +304,9 @@ struct PileShadow: View {
         static let opacity: CGFloat = 0.66
         /// How much smaller and fainter it gets at the top of the breath.
         static let shrink: CGFloat = 0.20
-        static let fade: CGFloat = 0.25
+        /// Half of it at the top of the breath: 0.66 down to 0.33, where the pile is
+        /// furthest off the floor and the shadow is smallest.
+        static let fade: CGFloat = 0.50
     }
 }
 

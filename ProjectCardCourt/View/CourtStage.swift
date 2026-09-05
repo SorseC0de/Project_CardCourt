@@ -26,6 +26,8 @@ struct CourtStage: View {
     var seatsAt: [Seat: CGPoint] = [:]
     /// The opening deal. Setting one starts the whole performance.
     var opening: OpeningDeal?
+    /// A card on its way to the pile, out of somebody's hand.
+    var spend: CardFlight?
     /// **Held.** Something has the screen — a sheet, a browser, a question — and a deck
     /// drifting about behind it is the floor carrying on without the player.
     var frozen = false
@@ -175,12 +177,25 @@ struct CourtStage: View {
                 // plainly reaching towards whoever is drawing, and `travel` banks into
                 // the move rather than sliding square-on.
                 let out = home + (to - home) * Stage.lean + SIMD3(0, Stage.hover, 0)
-                await deck.travel(to: out, seconds: 0.18, curve: .easeOut)
-                await deck.bow(toward: to)
+                // The two together are `Pacing.deckLean`, which is what the loop waits out
+                // before it counts the card as landed.
+                await deck.travel(to: out, seconds: 0.14, curve: .easeOut)
+                await deck.bow(toward: to, seconds: 0.16)
                 await dealer.fly(from: out, to: to, seconds: flight.seconds)
                 await deck.straighten()
                 await deck.travel(to: home, seconds: 0.24)
                 deck.settle()
+            }
+            .task(id: spend?.id) {
+                guard let spend else { return }
+                // The pile takes it: the discard bows towards whoever is giving it up,
+                // rather than the card being posted into a stack that never looks round.
+                let to = floorPoint(spend.to, in: geo.size)
+                let from = floorPoint(spend.from, in: geo.size)
+                await discard.bow(toward: from, seconds: 0.14)
+                await dealer.fly(from: from, to: to, seconds: spend.seconds)
+                await discard.straighten()
+                discard.settle()
             }
             .task(id: opening?.id) {
                 guard let opening else { return }

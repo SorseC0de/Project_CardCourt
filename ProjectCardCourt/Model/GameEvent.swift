@@ -14,6 +14,10 @@ enum GameEvent: Hashable, Codable {
     case comboLanded(seat: Seat, card: CardDescriptor, bonus: Int)
     case coinRun(seat: Seat, card: CardDescriptor, heads: Int)
     case discardedForShot(seat: Seat, card: CardDescriptor, count: Int)
+    /// A card leaving a hand for the pile, whatever took it. Said once per card, so the
+    /// floor can throw one for each rather than watching them vanish — see
+    /// `GameController.spend`.
+    case discarded(seat: Seat, count: Int)
     case failedReturn(seat: Seat)
     /// `against` is the seat the call was made on — whose card, whose shot, whose Clamp.
     /// Without it the log says a Travel cancelled an Ankle Breaker and leaves you to guess
@@ -167,6 +171,8 @@ enum GameEvent: Hashable, Codable {
             return "\(card.name): the Clamp lands on nothing — \(count) defender\(count == 1 ? "" : "s") waved off \(seat.playerName)."
         case .clampsShaken(let seat, let card, let count):
             return "\(card.name): \(seat.playerName) \(seat.verb("clears", "clear")) \(count) Clamp\(count == 1 ? "" : "s")."
+        case .discarded(let seat, let count):
+            return "\(seat.playerName) \(seat.verb("gives", "give")) up \(count) card\(count == 1 ? "" : "s")."
         case .roundEnded(let round):
             return "End of round \(round)."
         case .deckReshuffled:

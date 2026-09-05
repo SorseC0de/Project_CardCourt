@@ -1495,9 +1495,17 @@ enum Rules {
     }
 
     private static func discardAtRandom(from seat: Seat, state: inout GameState) {
+        var ignored: [GameEvent] = []
+        discardAtRandom(from: seat, state: &state, events: &ignored)
+    }
+
+    /// The one place a card is taken off a hand at random — and the one place that says so.
+    private static func discardAtRandom(from seat: Seat, state: inout GameState,
+                                        events: inout [GameEvent]) {
         guard !state[seat].bag.isEmpty else { return }
         let index = state.roll(0...(state[seat].bag.count - 1))
         state.discard.append(state[seat].bag.remove(at: index))
+        events.append(.discarded(seat: seat, count: 1))
     }
 
     /// Hands the ball back in without advancing the round. Shot Clock Violation and
