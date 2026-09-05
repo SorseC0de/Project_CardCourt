@@ -166,19 +166,6 @@ struct GameView: View {
                 PlayedCardView(played: played, width: 210)
                     .transition(.opacity)
                     .zIndex(7)
-                VStack {
-                    GeometryReader { geo in
-                        NameCallView(call: NameCall(seat: played.seat),
-                                     reach: geo.size.width,
-                                     isLeaving: controller.playedCardLeaving)
-                    }
-                    .frame(height: 80)
-                    .padding(.top, 26)
-                    Spacer()
-                }
-                .id(played.id)
-                .allowsHitTesting(false)
-                .zIndex(8)
             }
             if let onFloor {
                 Group {
@@ -254,6 +241,16 @@ struct GameView: View {
                 finalCard.zIndex(20)
             }
         }
+        #if DEBUG
+        // Under the round count, where it is out of the name plate's line — that runs
+        // across the top of the court now, which is where the bench used to sit.
+        .overlay(alignment: .topLeading) {
+            DebugActionsView(controller: controller)
+                .padding(.leading, 14)
+                .padding(.top, 22)
+                .zIndex(20)
+        }
+        #endif
         .animation(.easeInOut(duration: 0.2), value: controller.cutscene)
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
@@ -415,14 +412,20 @@ struct GameView: View {
                     .padding(.trailing, 18)
                     .padding(.top, 6)
             }
+            // **The same line the SHOT badge is on**, by taking the same inset off the
+            // same edge rather than counting the status bar's height and hoping.
             .overlay(alignment: .topLeading) {
-                #if DEBUG
-                // The lobby has moved to the front screen — see `EntryScreenView`, which
-                // is where it always belonged.
-                DebugActionsView(controller: controller)
-                    .padding(.leading, 14)
+                if let played = controller.playedCard {
+                    GeometryReader { geo in
+                        NameCallView(call: NameCall(seat: played.seat),
+                                     reach: geo.size.width,
+                                     isLeaving: controller.playedCardLeaving)
+                    }
+                    .frame(height: NameCallStyle.size(reaching: 393).height)
                     .padding(.top, 6)
-                #endif
+                    .id(played.id)
+                    .allowsHitTesting(false)
+                }
             }
             .sheet(isPresented: $showingLobby) {
                 MatchLobbyView(controller: controller)
