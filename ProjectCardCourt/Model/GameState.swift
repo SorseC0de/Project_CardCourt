@@ -167,6 +167,10 @@ struct GameState: Codable {
     /// the same reason a hand dump is — a shot resolved mid-draw is a shot taken before
     /// the cards that were still arriving.
     var shootsAtOnce: Seat?
+    /// Right Back: the ball owes a trip home, and which card is paying for it. Queued to
+    /// the chain's edge so whatever the outward leg cost him lands first.
+    var returnsTo: Seat?
+    var returnLeg: CardDescriptor?
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
     /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.

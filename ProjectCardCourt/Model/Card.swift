@@ -313,6 +313,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var forcesReceiverShot = false
     /// Alley-Oop: he does not get to choose at all. It goes up the moment he has drawn.
     var forcesImmediateShot = false
+    /// Right Back: he takes it and gives it straight back. Both legs pay, so the card is
+    /// worth twice its own SHOT and a card to each of them — and whatever the trip cost
+    /// him on the way happens in between.
+    var returnsImmediately = false
     /// Nutmeg: a card travels the way the pass did, from the receiver to the next along.
     var stealsAlongPass = 0
     /// Ankle Breaker: a player of your choosing gives one up.
@@ -354,6 +358,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
          forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
+         returnsImmediately: Bool = false,
          stealsAlongPass: Int = 0,
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
          modes: [CardMode] = [], blocksFurtherMoves: Bool = false) {
@@ -361,6 +366,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.bonusAssistOnScore = bonusAssistOnScore
         self.forcesReceiverShot = forcesReceiverShot
         self.forcesImmediateShot = forcesImmediateShot
+        self.returnsImmediately = returnsImmediately
         self.stealsAlongPass = stealsAlongPass
         self.targetDiscards = targetDiscards
         self.optionalDiscardForShot = optionalDiscardForShot
@@ -662,6 +668,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "outlet-pass":                 return "arrow.up.right.circle.fill"
         case "kick-out":                    return "arrow.turn.up.right"
         case "alley-oop":                   return "arrow.up.forward.circle.fill"
+        case "right-back":                  return "arrow.left.arrow.right"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

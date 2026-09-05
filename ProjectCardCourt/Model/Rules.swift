@@ -596,6 +596,12 @@ enum Rules {
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
         if descriptor.forcesImmediateShot { state.shootsAtOnce = receiver }
+        // Only on the way out. The return leg must not ask for another one, or the ball
+        // never stops.
+        if descriptor.returnsImmediately, state.returnLeg == nil {
+            state.returnsTo = seat
+            state.returnLeg = descriptor
+        }
         beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
                         state: &state, events: &events)
 
@@ -1594,6 +1600,17 @@ enum Rules {
             state[seat].bag.removeAll()
         }
         state.handsOwed.removeAll()
+
+        // Right Back: home again, and paying its SHOT a second time. After the toll and
+        // whatever else the trip cost him — that is the point of the card.
+        if let home = state.returnsTo, let leg = state.returnLeg {
+            state.returnsTo = nil
+            if case .possession(let holder) = state.phase, holder != home {
+                adjustShot(by: leg.baseShotDelta, state: &state)
+                completePass(leg, from: holder, to: home, state: &state, events: &events)
+            }
+            state.returnLeg = nil
+        }
 
         // Alley-Oop: it goes up now, with whatever he drew still in his hands. Before the
         // board's question, because the shot is the possession and a passive changing
