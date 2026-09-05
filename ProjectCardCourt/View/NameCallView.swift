@@ -252,64 +252,67 @@ enum NameCallStyle {
 }
 
 #if DEBUG
-#Preview("Name call") {
-    struct Bench: View {
-        @State private var tuning = NameCallTuning.shared
-        @State private var leaving = false
-        @State private var seat: Seat = .east
+/// The name plate with its five numbers on sliders — see `NameCallTuning`.
+///
+/// Its own struct rather than a bare `#Preview`, so `GameView.swift` can carry a preview
+/// of it too. That file's canvas is the one that actually gets looked at.
+struct NameCallBench: View {
+    @State private var tuning = NameCallTuning.shared
+    @State private var leaving = false
+    @State private var seat: Seat = .east
 
-        var body: some View {
-            VStack(spacing: 0) {
-                ZStack(alignment: .top) {
-                    Theme.courtFloor
-                    GeometryReader { geo in
-                        NameCallView(call: NameCall(seat: seat), reach: geo.size.width,
-                                     isLeaving: leaving)
-                            .padding(.top, 40)
-                    }
-                    // The screen's own leading edge, to measure the name against.
-                    Rectangle().fill(CardPalette.red.opacity(0.6)).frame(width: 1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack(alignment: .top) {
+                Theme.courtFloor
+                GeometryReader { geo in
+                    NameCallView(call: NameCall(seat: seat), reach: geo.size.width,
+                                 isLeaving: leaving)
+                        .padding(.top, 40)
                 }
-                .frame(height: 170)
-
-                VStack(spacing: 6) {
-                    dial("card width", $tuning.cardWidth, 0.2...2.5)
-                    dial("card x", $tuning.cardX, -1...1)
-                    dial("name size", $tuning.nameSize, 8...48)
-                    dial("name width", $tuning.nameWidth, 0.4...1.6)
-                    dial("name x", $tuning.nameX, -0.2...0.8)
-                    HStack(spacing: 12) {
-                        Button("seat") { seat = seat.clockwise }
-                        Button(leaving ? "return" : "leave") { leaving.toggle() }
-                        Button("reset") {
-                            tuning.cardWidth = 1.0; tuning.cardX = 0
-                            tuning.nameSize = NameCallStyle.labelSize
-                            tuning.nameWidth = 0.85; tuning.nameX = 0.12
-                        }
-                    }
-                    .font(.custom(Chrome.display, size: 15))
-                    .buttonStyle(.bordered)
-                    .padding(.top, 4)
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(CardPalette.black)
+                // The screen's own leading edge, to measure the name against.
+                Rectangle().fill(CardPalette.red.opacity(0.6)).frame(width: 1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .ignoresSafeArea()
+            .frame(height: 170)
+
+            VStack(spacing: 6) {
+                dial("card width", $tuning.cardWidth, 0.2...2.5)
+                dial("card x", $tuning.cardX, -1...1)
+                dial("name size", $tuning.nameSize, 8...48)
+                dial("name width", $tuning.nameWidth, 0.4...1.6)
+                dial("name x", $tuning.nameX, -0.2...0.8)
+                HStack(spacing: 12) {
+                    Button("seat") { seat = seat.clockwise }
+                    Button(leaving ? "return" : "leave") { leaving.toggle() }
+                    Button("reset") {
+                        tuning.cardWidth = 1.0; tuning.cardX = 0
+                        tuning.nameSize = NameCallStyle.labelSize
+                        tuning.nameWidth = 0.85; tuning.nameX = 0.12
+                    }
+                }
+                .font(.custom(Chrome.display, size: 15))
+                .buttonStyle(.bordered)
+                .padding(.top, 4)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(CardPalette.black)
         }
+        .ignoresSafeArea()
+    }
 
-        private func dial(_ name: String, _ value: Binding<CGFloat>,
-                          _ range: ClosedRange<CGFloat>) -> some View {
-            HStack(spacing: 10) {
-                Text(String(format: "%@ %.3f", name, value.wrappedValue))
-                    .font(.custom(Chrome.display, size: 15))
-                    .foregroundStyle(.white)
-                    .frame(width: 150, alignment: .leading)
-                Slider(value: value, in: range)
-            }
+    private func dial(_ name: String, _ value: Binding<CGFloat>,
+                      _ range: ClosedRange<CGFloat>) -> some View {
+        HStack(spacing: 10) {
+            Text(String(format: "%@ %.3f", name, value.wrappedValue))
+                .font(.custom(Chrome.display, size: 15))
+                .foregroundStyle(.white)
+                .frame(width: 150, alignment: .leading)
+            Slider(value: value, in: range)
         }
     }
-    return Bench()
 }
+
+#Preview("Name call") { NameCallBench() }
 #endif

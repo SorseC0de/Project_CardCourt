@@ -577,4 +577,6 @@ struct GameView: View {
 // show what the app actually opens on. Pick this one to start where the player starts.
 #Preview("App") { RootView() }
 
+#Preview("Name call") { NameCallBench() }
+
 #Preview("Straight to the table") { GameView() }

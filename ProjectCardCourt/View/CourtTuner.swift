@@ -163,6 +163,7 @@ struct DebugActionsView: View {
                     action("clock") { controller.debugTurnover(.shotClock) }
                     action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
                     action("shot") { controller.debugShot() }
+                    action("name") { controller.debugNameCall() }
                     action("miss") { controller.debugMiss() }
                     action("FTs") { controller.debugFreeThrows() }
                 }

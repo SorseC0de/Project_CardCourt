@@ -1209,6 +1209,24 @@ final class GameController {
         }
     }
 
+    /// Puts a name call on screen on its own, for looking at the plate in a live game
+    /// rather than waiting for a cutscene to bring one.
+    ///
+    /// A plain `Task`, not `drive`: this is scenery, and the game should carry on behind
+    /// it exactly as it does when the plate rides a played card.
+    func debugNameCall() {
+        Task {
+            playedCardLeaving = false
+            playedCard = PlayedCard(seat: GameRules.localSeat,
+                                    descriptor: CardLibrary.dime, faceDown: false)
+            let lead = min(GameRules.playedCardSeconds * 0.4, 0.9)
+            try? await Task.sleep(for: .seconds(GameRules.playedCardSeconds - lead))
+            playedCardLeaving = true
+            try? await Task.sleep(for: .seconds(lead))
+            playedCard = nil
+        }
+    }
+
     /// Dump and redraw, for getting to a hand worth testing quickly.
     func debugReshuffleHand() {
         Rules.reshuffleHand(GameRules.localSeat, state: &state)

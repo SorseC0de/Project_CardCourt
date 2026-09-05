@@ -1377,7 +1377,11 @@ enum Rules {
         state.lastPasser = nil
         state.lastPlayThisPossession = nil
         state.pendingClamps = []
-        for other in Seat.allCases { state[other].clamps = [] }
+        // **Clamps are not cleared here.** `beginPossession` is the one place that ends
+        // them, because ending a possession is the only thing that does — and a dead ball
+        // clearing them early handed a cancelled card its effect for free: a Whistle that
+        // stops a Spin Move charges a turnover, the turnover re-inbounds, and the man
+        // walked away from the defenders the Spin Move had just been forbidden to shake.
         state.phase = .inbound(inbounder: seat)
         events.append(.reinbound(seat: seat))
     }
