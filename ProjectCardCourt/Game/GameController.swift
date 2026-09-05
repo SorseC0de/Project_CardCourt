@@ -739,10 +739,13 @@ final class GameController {
             return
         }
         drive {
+            DevLog.say(.input, "begin: dealing \(openingDraws.count) cards out")
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
             openingDraws = []
+            DevLog.say(.input, "begin: dealt, entering the loop")
             await run()
+            DevLog.say(.input, "begin: the loop handed back at \(state.phase.label)")
         }
     }
 
@@ -1204,6 +1207,7 @@ final class GameController {
 
     private func run() async {
         while !Task.isCancelled {
+            DevLog.say(.phase, "loop · \(state.phase.label) · gate \(gate)")
             // Held between decisions rather than mid-scene: a cutscene stopped halfway is
             // a broken animation, not a paused game.
             while isPaused, !Task.isCancelled {
