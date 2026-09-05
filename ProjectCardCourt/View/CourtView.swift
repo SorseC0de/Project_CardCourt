@@ -92,7 +92,7 @@ struct CourtView: View {
     /// player leaving twice does not leave the same way — see `ColumnWarp.seed`.
     @State private var warpSeed: UInt64 = .random(in: .min ... .max)
 
-    /// `inbounding`, a warp late.
+    /// `thrower`, a warp late.
     ///
     /// **The two halves take a turn each.** Going out he comes apart on the floor and only
     /// then assembles on the line; coming back he leaves the line first and only then
@@ -101,12 +101,16 @@ struct CourtView: View {
     @State private var arrived: Seat?
 
     /// He is off the floor: gone, going, or not yet back.
+    ///
+    /// Read off `thrower` rather than `inbounding`, because the throw itself is part of
+    /// being away — the ball leaves his hands from the line, and he cannot be putting
+    /// himself back together on the floor while it is still in the air.
     private func isAway(_ seat: Seat) -> Bool {
-        inbounding == seat || arrived == seat
+        thrower == seat || arrived == seat
     }
 
     /// And he is standing on the line, which is only true once he has finished arriving.
-    private var atLine: Seat? { inbounding == arrived ? arrived : nil }
+    private var atLine: Seat? { thrower == arrived ? arrived : nil }
 
     /// True while the ball is crossing between players.
     @State private var ballInFlight = false
@@ -253,7 +257,7 @@ struct CourtView: View {
                         .zIndex(Layer.prompt)
                 }
 
-                if let thrower, atLine != nil || throwing != nil {
+                if let thrower, atLine != nil {
                     // Dead centre, facing the line of three. He is not on the floor,
                     // so there is no side for him to be on.
                     let depth = RefereePost.farLeft.depth
@@ -366,8 +370,8 @@ struct CourtView: View {
         // A body does not come apart the same way twice.
         .onChange(of: inbounding) { warpSeed = .random(in: .min ... .max) }
         // And it is in one place at a time: the far half waits a warp for the near one.
-        .task(id: inbounding) {
-            let going = inbounding
+        .task(id: thrower) {
+            let going = thrower
             try? await Task.sleep(for: .seconds(Pacing.warp))
             arrived = going
         }

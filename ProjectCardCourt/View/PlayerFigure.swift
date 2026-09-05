@@ -172,7 +172,7 @@ struct PlayerFigure: View {
                 .animation(nil, value: isMirrored)
                 .onAppear { if playsOnce { startedAt = Date() } }
                 .paletteSwap(PlayerLook.shared.kit(for: seat))
-                .opacity(isDimmed ? 0.4 : 1)
+                .opacity(isDimmed ? Theme.Figure.dimmed : 1)
                 // Here rather than around the whole figure, so the badges below keep their
                 // own edges — and the overlay is placed against a frame the offsets do not
                 // change, so nothing moves with the columns.

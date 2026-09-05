@@ -115,6 +115,10 @@ enum Theme {
         /// The sprite fills only about 40% of its frame's width, so a good deal of what
         /// this multiplies is padding — the visible player is far smaller than the number.
         static let playerScale: CGFloat = 8
+        /// What a player nobody may choose is worth, while somebody is being chosen.
+        /// Low: at four tenths a man who is not an option still reads as a man standing
+        /// there, and the whole point is that he is not one of the answers.
+        static let dimmed: Double = 0.15
         /// The sheets were exported at 10 (0.1s per frame in the GIFs); they read
         /// sluggish at that, so the game runs them faster than they were authored.
         static let playerFPS: Double = 15

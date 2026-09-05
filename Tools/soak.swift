@@ -65,3 +65,38 @@ func probeDime() {
         print("RESOLVE:", second.map { "\($0)".prefix(while: { $0 != "(" }) })
     }
 }
+
+/// Clear Out, end to end: played, then a pass thrown at the man who played it.
+func probeClearOut() {
+    var state = Rules.newGame(seed: 11, rules: .standard).0
+    guard case .inbound(let inbounder) = state.phase else { return }
+    Rules.apply(.inbound(to: inbounder.left), by: inbounder, to: &state)
+    guard case .possession(let holder) = state.phase else { print("no possession"); return }
+
+    let clear = Card(CardLibrary.clearOut)
+    state[holder].bag.append(clear)
+    let legal = Rules.legalMoves(state, for: holder)
+    print("first action:", Rules.isFirstAction(state),
+          "| clear out legal:", legal.contains(.play(clear.id)))
+    print("APPLY:", Rules.apply(.play(clear.id), by: holder, to: &state)
+        .map { "\($0)".prefix(while: { $0 != "(" }) })
+    print("clearedOut:", state.clearedOut, "| phase", state.phase.label)
+
+    // Hand it on, then throw one straight back at him.
+    let swing = Card(CardLibrary.swingLeft.resolved(passShotBonus: 5))
+    state[holder].bag.append(swing)
+    Rules.apply(.play(swing.id), by: holder, to: &state)
+    guard case .possession(let next) = state.phase else {
+        print("no next possession:", state.phase.label); return }
+    print("ball now with", next, "| clearedOut still", state.clearedOut)
+
+    let named = Card(CardLibrary.bulletPass.resolved(passShotBonus: 5))
+    state[next].bag.append(named)
+    let events = Rules.apply(.play(named.id), by: next, to: &state)
+    print("BULLET:", events.map { "\($0)".prefix(while: { $0 != "(" }) }, "| phase", state.phase.label)
+    if case .awaitingTarget(_, _, let choices) = state.phase, choices.contains(holder) {
+        let after = Rules.resolveTarget(holder, state: &state)
+        print("AT THE CLEARED MAN:", after.map { "\($0)".prefix(while: { $0 != "(" }) })
+        print("phase now", state.phase.label, "| turnovers", state[next].turnovers)
+    }
+}

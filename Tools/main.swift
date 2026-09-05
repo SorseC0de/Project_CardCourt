@@ -161,6 +161,8 @@ if args.contains("--text") {
     probeDime()
 } else if args.contains("--names") {
     listNames()
+} else if args.contains("--clearout") {
+    probeClearOut()
 } else if args.contains("--soak") {
     soak()
 } else if args.contains("--test") {
