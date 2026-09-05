@@ -182,8 +182,6 @@ struct GameState: Codable {
     /// the chain's edge so whatever the outward leg cost him lands first.
     var returnsTo: Seat?
     var returnLeg: CardDescriptor?
-    /// Clear Out: who has stepped out of the way, and is not there for the next pass.
-    var clearedOut: Set<Seat> = []
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
     /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.

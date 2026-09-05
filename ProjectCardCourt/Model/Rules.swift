@@ -80,8 +80,10 @@ enum Rules {
                 if card.descriptor.isMove, state.movesClosed { return false }
                 // Lob: the man it found has to put it up first.
                 if state.mustShootFirst == seat { return false }
-                // Clear Out: you step aside before the play starts, or not at all.
+                // Clear Out: you step aside before the play starts, or not at all — and
+                // only out of a ball that was going somewhere.
                 if card.descriptor.firstActionOnly, !isFirstAction(state) { return false }
+                if card.descriptor.clearsOut, clearsTo(seat, in: state) == nil { return false }
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
@@ -206,6 +208,43 @@ enum Rules {
     static func swisshUp(on seat: Seat, in state: GameState) -> SwisshUp? {
         guard let live = state[seat].swisshUp, !live.waiting else { return nil }
         return live.kind
+    }
+
+    /// Clear Out: he steps out of the play and the ball carries on the way it was going.
+    ///
+    /// **A pass nobody threw.** He does not pass it — he is simply not there, so the ball
+    /// runs past him to the next man along, and everything the pass was carrying goes with
+    /// it: the defenders that landed on him, and the credit for the pass, which still
+    /// belongs to whoever actually threw it. The man who cleared out has done nothing but
+    /// get out of the way, and a card that let him hand out an assist for that would be a
+    /// pass with the risk taken off it.
+    private static func clearOut(from seat: Seat, state: inout GameState,
+                                 events: inout [GameEvent]) {
+        guard let onward = clearsTo(seat, in: state) else { return }
+        // Taken before the board is cleared: `beginPossession` wipes every Clamp on the
+        // floor, and these are the ones that have to survive the trip.
+        let carried = state[seat].clamps
+        let passer = state.lastPasser
+        events.append(.clearedOut(seat: seat, to: onward))
+        beginPossession(onward, tickClock: true, state: &state, events: &events)
+        // After, for the same reason: what `beginPossession` lands is the pending pile,
+        // and these are already on the floor.
+        state[onward].clamps += carried
+        // Untouched. The man who threw it is still the man who threw it.
+        state.lastPasser = passer
+    }
+
+    /// Where the ball goes when he is not there: on past him, the way it was travelling.
+    ///
+    /// Nil when there is nothing to carry on from — a ball that arrived from the sideline
+    /// or off the glass was not going anywhere in particular, and a Clear Out with no
+    /// through-line is a man stepping out of a play that was not happening. `legalMoves`
+    /// reads this too, so the card greys out rather than being played into nothing.
+    static func clearsTo(_ seat: Seat, in state: GameState) -> Seat? {
+        guard let passer = state.lastPasser, passer != seat else { return nil }
+        if passer.left == seat { return seat.left }
+        if passer.right == seat { return seat.right }
+        return nil
     }
 
     /// Nothing has happened yet this possession — no Move played, no card at all.
@@ -541,11 +580,11 @@ enum Rules {
                 completePass(descriptor, from: seat, to: receiver,
                              state: &state, events: &events)
             } else if descriptor.clearsOut {
-                state.clearedOut.insert(seat)
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
                 state.lastPlayThisPossession = descriptor.id
                 state.lastPlayWasCombo = false
                 state.movesThisPossession += 1
+                clearOut(from: seat, state: &state, events: &events)
             } else if descriptor.targetDiscards > 0 {
                 state.pendingPlay = descriptor
                 state.pendingActor = seat
@@ -708,40 +747,10 @@ enum Rules {
     /// Everything a pass does once its man is known.
     ///
     /// Shared, because a pass that names its target geometrically and one that had to be
-    /// asked about are the same pass — only the question differs. Two copies of this
-    /// drifted the moment a card was added to one of them.
-    /// Where a pass carries on to when the man it was aimed at has stepped aside.
-    ///
-    /// **Only the neighbours.** A pass thrown left or right has a direction to keep going
-    /// in; one thrown across the floor or at a named man was thrown *at* him, and with him
-    /// not there it is thrown away. See `Rules.clearOut`.
-    private static func onward(_ target: PassTarget?, from seat: Seat, to receiver: Seat) -> Seat? {
-        switch target {
-        case .left:  return receiver.left
-        case .right: return receiver.right
-        // Nutmeg and Hand-Off pick a side and then it is a side like any other.
-        case .leftOrRight: return seat.left == receiver ? receiver.left : receiver.right
-        default: return nil
-        }
-    }
-
+    /// asked about are the same pass — only the question in front of them differs.
     private static func completePass(_ descriptor: CardDescriptor, from seat: Seat,
                                      to receiver: Seat,
                                      state: inout GameState, events: inout [GameEvent]) {
-        // Clear Out: he is not there. A pass thrown to a side carries on to the next man
-        // along; one thrown *at* him goes to ground, and the round with it.
-        if state.clearedOut.contains(receiver) {
-            state.clearedOut.remove(receiver)
-            guard let past = onward(descriptor.passTarget, from: seat, to: receiver) else {
-                state[seat].turnovers += 1
-                events.append(.turnover(seat, cause: descriptor.name))
-                endRound(state: &state, events: &events)
-                return
-            }
-            completePass(descriptor, from: seat, to: past, state: &state, events: &events)
-            return
-        }
-
         // Outlet Pass runs the clock the other way: it hands a tick back instead of
         // costing one, so the possession must not take its own.
         if descriptor.replacesClockTick {
@@ -1737,7 +1746,6 @@ enum Rules {
         events.append(.roundEnded(state.round))
         state.shotsThisRound = 0
         state.shotCeilingThisRound = nil
-        state.clearedOut.removeAll()
         state.dimeFrom = nil
         state.mustShootFirst = nil
         state.inboundBarred = nil

@@ -66,37 +66,37 @@ func probeDime() {
     }
 }
 
-/// Clear Out, end to end: played, then a pass thrown at the man who played it.
+/// Clear Out: the pass nobody threw.
+///
+/// Tanaka clamps and swings left; the man who catches it steps aside; the ball, the Clamp
+/// and the credit all carry on to the next man along.
 func probeClearOut() {
     var state = Rules.newGame(seed: 11, rules: .standard).0
     guard case .inbound(let inbounder) = state.phase else { return }
     Rules.apply(.inbound(to: inbounder.left), by: inbounder, to: &state)
-    guard case .possession(let holder) = state.phase else { print("no possession"); return }
+    guard case .possession(let passer) = state.phase else { print("no possession"); return }
+
+    // A Clamp out of the passer, then a swing to the man it lands on.
+    let clamp = Card(CardLibrary.doubleTeam)
+    state[passer].bag.append(clamp)
+    Rules.apply(.play(clamp.id), by: passer, to: &state)
+    let swing = Card(CardLibrary.swingLeft.resolved(passShotBonus: 5))
+    state[passer].bag.append(swing)
+    Rules.apply(.play(swing.id), by: passer, to: &state)
+    guard case .possession(let caught) = state.phase else {
+        print("no catch:", state.phase.label); return }
+    print("passer \(passer) → \(caught) | clamps on him \(state[caught].clamps.count)",
+          "| last passer \(String(describing: state.lastPasser))")
 
     let clear = Card(CardLibrary.clearOut)
-    state[holder].bag.append(clear)
-    let legal = Rules.legalMoves(state, for: holder)
-    print("first action:", Rules.isFirstAction(state),
-          "| clear out legal:", legal.contains(.play(clear.id)))
-    print("APPLY:", Rules.apply(.play(clear.id), by: holder, to: &state)
-        .map { "\($0)".prefix(while: { $0 != "(" }) })
-    print("clearedOut:", state.clearedOut, "| phase", state.phase.label)
-
-    // Hand it on, then throw one straight back at him.
-    let swing = Card(CardLibrary.swingLeft.resolved(passShotBonus: 5))
-    state[holder].bag.append(swing)
-    Rules.apply(.play(swing.id), by: holder, to: &state)
-    guard case .possession(let next) = state.phase else {
-        print("no next possession:", state.phase.label); return }
-    print("ball now with", next, "| clearedOut still", state.clearedOut)
-
-    let named = Card(CardLibrary.bulletPass.resolved(passShotBonus: 5))
-    state[next].bag.append(named)
-    let events = Rules.apply(.play(named.id), by: next, to: &state)
-    print("BULLET:", events.map { "\($0)".prefix(while: { $0 != "(" }) }, "| phase", state.phase.label)
-    if case .awaitingTarget(_, _, let choices) = state.phase, choices.contains(holder) {
-        let after = Rules.resolveTarget(holder, state: &state)
-        print("AT THE CLEARED MAN:", after.map { "\($0)".prefix(while: { $0 != "(" }) })
-        print("phase now", state.phase.label, "| turnovers", state[next].turnovers)
-    }
+    state[caught].bag.append(clear)
+    print("legal:", Rules.legalMoves(state, for: caught).contains(.play(clear.id)),
+          "| clears to", String(describing: Rules.clearsTo(caught, in: state)))
+    let events = Rules.apply(.play(clear.id), by: caught, to: &state)
+    print("APPLY:", events.map { "\($0)".prefix(while: { $0 != "(" }) })
+    guard case .possession(let onward) = state.phase else {
+        print("no onward:", state.phase.label); return }
+    print("ball now \(onward) | clamps on him \(state[onward].clamps.count)",
+          "| clamps left behind \(state[caught].clamps.count)",
+          "| last passer \(String(describing: state.lastPasser))")
 }

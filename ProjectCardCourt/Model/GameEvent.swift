@@ -20,6 +20,8 @@ enum GameEvent: Hashable, Codable {
     /// whose Ankle Breaker it was.
     case whistleBlew(owner: Seat, card: CardDescriptor, cancelled: String,
                      cancelledCard: CardDescriptor?, against: Seat?)
+    /// Clear Out: he was not there, and the ball went on to the next man.
+    case clearedOut(seat: Seat, to: Seat)
     case whistleArmed(seat: Seat)
     /// A Whistle with no trigger — Timeout — which resolves the moment it is played
     /// rather than lying in wait. It appended nothing at all before, so playing one was
@@ -85,6 +87,9 @@ enum GameEvent: Hashable, Codable {
             return "Shot clock set to \(value)."
         case .shotClockTicked(let value):
             return "Shot clock \(value)."
+        case .clearedOut(let seat, let to):
+            return "\(seat.playerName) \(seat.verb("clears", "clear")) out. "
+                + "The ball carries on to \(to.playerName)."
         case .passed(let card, let from, let to, let shot):
             return "\(from.playerName) \(from.verb("plays", "play")) \(card.name) → \(to.playerName). SHOT \(shot)%."
         case .movePlayed(let seat, let card, let shot):

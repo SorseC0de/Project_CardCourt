@@ -153,7 +153,7 @@ enum CardLibrary {
 
     static let clearOut = CardDescriptor(
         id: "clear-out", name: "Clear Out", type: .move,
-        effect: "First action only. A pass to a side goes past you. One that named you is a TOV",
+        effect: "First action only. Step aside: the ball, and any Clamps on you, carry on to the next player",
         numberInDeck: 8,
         clearsOut: true, firstActionOnly: true)
 
