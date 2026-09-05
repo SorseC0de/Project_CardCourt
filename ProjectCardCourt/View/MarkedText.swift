@@ -29,11 +29,11 @@ enum Marked {
         }
 
         /// The hard drop under it. A colour needs the one under it as much as itself —
-        /// gold on navy and orange on red are two different signals, not one twice.
+        /// gold on orange and orange on navy are two different signals, not one twice.
         var shade: Color {
             switch self {
             case .name:    return CardPalette.orange
-            case .keyword: return CardPalette.red
+            case .keyword: return CardPalette.navy
             }
         }
     }

@@ -193,7 +193,10 @@ struct GameView: View {
                                      isLeaving: controller.playedCardLeaving)
                     }
                     .frame(height: NameCallStyle.size(reaching: 393).height)
-                    .padding(.top, Chrome.statusBar + 6)
+                    // Under the log rather than beside the scoreboard: the log is the
+                    // other thing that talks, and the two were talking over each other.
+                    .padding(.top, Chrome.statusBar
+                             + (logStyle == .panel ? logHeight : 0) + 6)
                     Spacer()
                 }
                 .id(played.id)

@@ -164,6 +164,7 @@ struct DebugActionsView: View {
                     action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
                     action("shot") { controller.debugShot() }
                     action("name") { controller.debugNameCall() }
+                    action("three") { controller.debugThree() }
                     action("miss") { controller.debugMiss() }
                     action("FTs") { controller.debugFreeThrows() }
                 }

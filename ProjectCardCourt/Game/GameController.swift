@@ -1247,6 +1247,14 @@ final class GameController {
         }
     }
 
+    /// Plays the three's celebration on the local seat, for looking at it on demand.
+    func debugThree() {
+        Task {
+            celebratingThree = GameRules.localSeat
+            withheldPoints = (seat: GameRules.localSeat, amount: 3)
+        }
+    }
+
     /// Dump and redraw, for getting to a hand worth testing quickly.
     func debugReshuffleHand() {
         Rules.reshuffleHand(GameRules.localSeat, state: &state)

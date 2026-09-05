@@ -29,6 +29,9 @@ struct TightText: View {
     /// On a card in the hand the picture stands in for the word — the number beside it is
     /// the whole message. Raised to be read, the word comes back and the picture leads it.
     var glyphs: [String: String] = [:]
+    /// How tall a drawn keyword is against the line it sits on. Over one, because a
+    /// picture reads smaller than a capital of the same height.
+    var glyphShare: CGFloat = 1.25
     /// Whether a drawn keyword keeps its word. A card being read has room for both.
     var spellsGlyphs = false
 
@@ -55,15 +58,27 @@ struct TightText: View {
                 HStack(spacing: 0) {
                     ForEach(Array(line.enumerated()), id: \.offset) { _, run in
                         let drawn = glyph(for: run)
-                        (drawn.map { Text(Image($0)) + Text(" ") } ?? Text(verbatim: "")
-                            + Text(drawn == nil || spellsGlyphs ? run.text
-                                   : String(run.text.drop(while: { $0 != " " }))))
-                            .font(.custom(font, size: points))
-                            .tracking(tracking)
-                            .foregroundStyle(run.ink.map { AnyShapeStyle($0.colour) }
-                                             ?? AnyShapeStyle(.foreground))
-                            .shadow(color: run.ink?.shade ?? .clear, radius: 0,
-                                    x: markShadowOffset, y: markShadowOffset)
+                        // **The picture is its own view, not one put inside a `Text`.**
+                        // A `Text(Image:)` draws at the image's own size, and these are
+                        // vectors five hundred points across — one of them came out
+                        // bigger than the card it was printed on.
+                        HStack(spacing: 0) {
+                            if let drawn {
+                                Image(drawn)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(height: points * glyphShare)
+                                Text(" ").font(.custom(font, size: points))
+                            }
+                            Text(drawn == nil || spellsGlyphs ? run.text
+                                 : String(run.text.drop(while: { $0 != " " })))
+                                .font(.custom(font, size: points))
+                                .tracking(tracking)
+                        }
+                        .foregroundStyle(run.ink.map { AnyShapeStyle($0.colour) }
+                                         ?? AnyShapeStyle(.foreground))
+                        .shadow(color: run.ink?.shade ?? .clear, radius: 0,
+                                x: markShadowOffset, y: markShadowOffset)
                     }
                 }
             }
