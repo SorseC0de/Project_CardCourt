@@ -61,6 +61,13 @@ struct ModeCardView: View {
     /// and black is what a card with nobody's name on it wears.
     var seat: Seat?
 
+    /// What the title is dropped in. A card that belongs to a seat drops its words in that
+    /// seat's own shade, the way `PlayerNameText` does everywhere else — a white drop under
+    /// white letters is no drop at all.
+    private var titleShade: Color {
+        seat.map { PixelPalette.shade(for: $0) } ?? subtitleInk
+    }
+
     /// One colour for the streaks, when the call has a colour of its own — a Game Break's
     /// purple, a Clamp's red. Nil leaves them white on a card that belongs to a seat, and
     /// the table's kit colours on one that belongs to nobody.
@@ -287,7 +294,7 @@ struct ModeCardView: View {
                 // quiet across the word, which is what makes a phase read as called out
                 // rather than labelled. See `ActionText`.
                 ActionText(title, size: ModeCardStyle.titleSize * bar.height,
-                           ink: ink, drop: subtitleInk,
+                           ink: ink, drop: titleShade,
                            taper: ModeCardStyle.titleTaper,
                            tracking: ModeCardStyle.titleTracking)
                     .lineLimit(1)

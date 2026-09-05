@@ -47,3 +47,21 @@ func soak() {
     }
     print(stalls == 0 ? "SOAK CLEAN" : "SOAK: \(stalls) problems")
 }
+
+/// What one card's play actually emits, in order.
+func probeDime() {
+    var state = Rules.newGame(seed: 7, rules: .standard).0
+    guard case .inbound(let inbounder) = state.phase else { return }
+    Rules.apply(.inbound(to: inbounder.left), by: inbounder, to: &state)
+    guard case .possession(let holder) = state.phase else { print("no possession"); return }
+    let dime = Card(CardLibrary.dime.resolved(passShotBonus: 5))
+    state[holder].bag.append(dime)
+    print("shot before:", state.shot)
+    let first = Rules.apply(.play(dime.id), by: holder, to: &state)
+    print("APPLY:", first.map { "\($0)".prefix(while: { $0 != "(" }) })
+    print("phase:", state.phase.label, "shot:", state.shot)
+    if case .awaitingTarget(_, _, let choices) = state.phase {
+        let second = Rules.resolveTarget(choices[0], state: &state)
+        print("RESOLVE:", second.map { "\($0)".prefix(while: { $0 != "(" }) })
+    }
+}

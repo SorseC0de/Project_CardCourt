@@ -15,18 +15,19 @@ struct DeckStackView: View {
     private enum Pile {
         /// Raises the whole thing in its slot.
         static let lift: CGFloat = 0.12
-        /// One layer per fifty cards, and never more than eight of them.
-        ///
-        /// The pile is a reading, not a stack you count. Standard deals from close to four
-        /// hundred cards, and a slab for every ten of them stood a tower on the floor half
-        /// as tall as the players around it.
-        static let cardsPerSlice = 50
-        static let most = 8
+        /// How much of the deck one slab stands for. Read off the ceiling rather than
+        /// fixed: a full Standard deck fills the pile, and it shortens as that empties.
+        static let full = 400
     }
 
     /// The pile gets shorter as the deck empties.
+    ///
+    /// A reading, not a stack you count — see `DeckTuning.slabs`, which is the ceiling and
+    /// is on the bench because how tall a deck *looks* right is an eye question.
     private var layers: Int {
-        max(1, min(min(DeckBody.maxLayers, Pile.most), remaining / Pile.cardsPerSlice))
+        let most = min(DeckBody.maxLayers, max(1, Int(DeckTuning.shared.slabs)))
+        return max(1, min(most, Int((Double(remaining) / Double(Pile.full)
+                                     * Double(most)).rounded(.up))))
     }
 
     var body: some View {

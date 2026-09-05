@@ -158,16 +158,19 @@ enum NameCallStyle {
         CGSize(width: reach * length, height: reach * height)
     }
 
-    /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
-    /// trails as it flies out.
+    /// **Solid where the name is, gone at the other end.**
+    ///
+    /// The plate lands against the leading edge of the screen and the name is read there,
+    /// so that end is the one that has to be a colour. What dissolves is the length of it
+    /// running off the far side — the tail, which is behind the word rather than under it.
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
         return LinearGradient(
             gradient: Gradient(stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .clear, location: ModeCardStyle.fadeFrom),
-                .init(color: face, location: ModeCardStyle.fadeTo),
-                .init(color: face, location: 1),
+                .init(color: face, location: 0),
+                .init(color: face, location: 1 - ModeCardStyle.fadeTo),
+                .init(color: .clear, location: 1 - ModeCardStyle.fadeFrom),
+                .init(color: .clear, location: 1),
             ]),
             startPoint: .leading, endPoint: .trailing)
     }
@@ -176,12 +179,9 @@ enum NameCallStyle {
     static let noteSize: CGFloat = 13
     static let gap: CGFloat = 8
     static let labelStretch: CGFloat = 0.85
-    /// Where the name sits, as a share of the plate's length.
-    ///
-    /// **Measured against the taper, not typed in points.** The plate is clear for its
-    /// first third and only reaches full colour at `fadeTo`, so a fixed inset put the name
-    /// out past the leading edge on empty air — which is what it was doing.
-    static let labelX: CGFloat = ModeCardStyle.fadeTo + 0.04
+    /// Where the name sits, as a share of the plate's length: in from the leading edge by
+    /// enough to clear the parallelogram's own lean, and no further.
+    static let labelX: CGFloat = 0.06
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having

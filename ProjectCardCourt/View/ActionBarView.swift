@@ -131,7 +131,7 @@ struct ActionBarView: View {
         Button { controller.shoot() } label: {
             HStack(spacing: 5) {
                 Text("SHOOT").font(.system(size: 19, weight: .black)).tracking(1.2)
-                Text("(\(state.shot)%)").font(.system(size: 14, weight: .heavy, design: .rounded))
+                Text("(\(controller.shownShot)%)").font(.system(size: 14, weight: .heavy, design: .rounded))
             }
             .foregroundStyle(.black)
             .frame(maxWidth: .infinity)

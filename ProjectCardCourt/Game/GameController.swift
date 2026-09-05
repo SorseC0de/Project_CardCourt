@@ -382,6 +382,8 @@ final class GameController {
     private(set) var practicePass: (from: Seat, to: Seat)?
 #endif
     private(set) var playedCard: PlayedCard?
+    /// The play the last card-flash was for — see `showPlayedCard`.
+    private var flashed: PlayedCard?
     /// Stamped once the cutscenes clear, which is when the catch should play.
     private(set) var ballSettledAt: Date?
     /// A made three, celebrating. The points are withheld from the scoreboard until the
@@ -1476,6 +1478,13 @@ final class GameController {
     /// Holds up whatever was just played, so everyone can read it.
     private func showPlayedCard(in events: [GameEvent]) async {
         guard let card = PlayedCard.first(in: events) else { return }
+        // **One flash per play.** A card that asks a question resolves in two halves — the
+        // card is chosen, then the target is named — and both halves come through here
+        // carrying the same play. Cleared by the next move, so two Dimes in a row are two
+        // cards held up and one Dime is one.
+        guard flashed?.descriptor.id != card.descriptor.id || flashed?.seat != card.seat
+        else { return }
+        flashed = card
         playedCardLeaving = false
         playedCard = card
         // The name plate rides the same beat and starts its trip out before the card
@@ -1564,6 +1573,7 @@ final class GameController {
     private func defenderCount(on seat: Seat) -> Int { state.defenders(on: seat) }
 
     private func apply(_ move: Move, by seat: Seat) async {
+        flashed = nil
         let defenders = defenderCount(on: seat)
         let events = Rules.apply(move, by: seat, to: &state)
         // The throw-in gets its own beat before anything else happens: the ball crosses,

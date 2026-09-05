@@ -59,6 +59,11 @@ final class DeckTuning {
     /// so this spreads the pair apart rather than sliding both sideways.
     var x: CGFloat = 0.030
     var y: CGFloat = 0.02
+    /// The tallest the draw pile is ever drawn, in slabs.
+    ///
+    /// A reading rather than a count: Standard deals from close to four hundred cards, and
+    /// drawing them honestly stands a tower on the floor taller than the players around it.
+    var slabs: CGFloat = 5
 }
 
 /// Where the two lines of the inbound prompt sit, while that is being eyeballed. Freeze
@@ -169,7 +174,9 @@ struct DebugActionsView: View {
                     action(render.courtStage ? "stage ✓" : "stage ✗") {
                         render.courtStage.toggle()
                     }
-                    action("reset") { deck.size = 0.555; deck.x = 0.030; deck.y = 0.02 }
+                    action("reset") {
+                        deck.size = 0.555; deck.x = 0.030; deck.y = 0.02; deck.slabs = 5
+                    }
                 }
                 deckSliders
             }
@@ -181,6 +188,7 @@ struct DebugActionsView: View {
     private var deckSliders: some View {
         VStack(alignment: .leading, spacing: 0) {
             slider("size", bind(\.size), 0.3...2.5)
+            slider("slabs", bind(\.slabs), 1...20)
             slider("x", bind(\.x), -0.25...0.25)
             slider("y", bind(\.y), -0.25...0.25)
         }
