@@ -19,6 +19,7 @@ final class PlayerLook {
     private var defenderTones: [Seat: Int] = [:]
     private var faces: [Seat: Int] = [:]
     private var waits: [Seat: (cell: Int, mirrored: Bool)] = [:]
+    private var refereeTones: [UUID: Int] = [:]
 
     func tone(for seat: Seat) -> Int {
         if seat.isLocal { return HooperKit.shared.tone }
@@ -63,6 +64,18 @@ final class PlayerLook {
         if let known = defenderTones[seat] { return known }
         let rolled = Int.random(in: 0..<PixelPalette.skinTones.count)
         defenderTones[seat] = rolled
+        return rolled
+    }
+
+    /// The skin of the referee a Whistle called out.
+    ///
+    /// Keyed on the Whistle rather than on where he is standing: the crew shuffles as
+    /// Whistles come and go, and a referee who changes colour because somebody else's
+    /// call ended is two men rather than one.
+    func refereeTone(for whistle: UUID) -> Int {
+        if let known = refereeTones[whistle] { return known }
+        let rolled = Int.random(in: 0..<PixelPalette.skinTones.count)
+        refereeTones[whistle] = rolled
         return rolled
     }
 

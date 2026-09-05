@@ -10,6 +10,9 @@ struct RefereeFigure: View {
     /// His own offset into the sprite clock, so two referees do not jog in step.
     var phase: TimeInterval = 0
     var scale: CGFloat = Theme.Figure.playerScale
+    /// Which of the ramp's skins he wears — see `PlayerLook.refereeTone(for:)`. A crew of
+    /// four identical men is one man printed four times.
+    var tone: Int = PixelPalette.drawnSkinTone
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -17,6 +20,7 @@ struct RefereeFigure: View {
             SpriteAnimation(sprite: .refereeRunLook, scale: scale,
                             fps: Theme.Figure.playerFPS, phase: phase)
                 .scaleEffect(x: mirrored ? -1 : 1)
+                .paletteSwap(PixelPalette.skin(tone: tone))
         }
     }
 }
@@ -46,8 +50,8 @@ struct SpriteShadow: View {
 #if DEBUG
 #Preview("Referee") {
     HStack(spacing: 0) {
-        RefereeFigure(scale: 4)
-        RefereeFigure(mirrored: true, scale: 4)
+        RefereeFigure(scale: 4, tone: 0)
+        RefereeFigure(mirrored: true, scale: 4, tone: 3)
     }
     .background(Theme.courtFloor)
 }

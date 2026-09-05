@@ -495,6 +495,18 @@ struct CourtView: View {
     /// referee mid-round — the skin tones re-rolling on every inbound taught that. The
     /// first byte is the coin flip for the side, the second picks between that side's two
     /// posts, and anyone finding both taken takes whatever is left.
+    private enum Referee {
+        /// The caller's name over his head. Small — it is an aside, not a plate.
+        static let name: CGFloat = 11
+    }
+
+    /// The armed Whistle this post is standing for. The crew is built from the armed list
+    /// in order, so a post's place in it is the Whistle it belongs to.
+    private func whistle(at post: RefereePost) -> ArmedWhistle? {
+        guard let index = refereePosts.firstIndex(of: post) else { return nil }
+        return state.armedWhistles[safe: index]
+    }
+
     private var refereePosts: [RefereePost] {
         guard let first = state.armedWhistles.first else { return [] }
         // Only the first is rolled — read off that Whistle's own id rather than a random
@@ -672,7 +684,24 @@ struct CourtView: View {
             // Framed and dropped exactly as a player is, so his feet land on the same
             // floor line theirs would at that depth. Top-aligned because he has no name
             // plate under him taking up the bottom of the box.
-            RefereeFigure(mirrored: post.isLeft, phase: post.phase)
+            let called = whistle(at: post)
+            RefereeFigure(mirrored: post.isLeft, phase: post.phase,
+                          tone: called.map { look.refereeTone(for: $0.id) }
+                              ?? PixelPalette.drawnSkinTone)
+                // Whose call he is, over his head. Small and bracketed: it is an aside
+                // about a man standing there, not a name plate like the players wear.
+                .overlay(alignment: .top) {
+                    if let owner = called?.owner {
+                        SmallCapsText(text: "(\(owner.playerName))",
+                                      font: "AvenirNextCondensed-Heavy",
+                                      size: Referee.name)
+                            .foregroundStyle(.white)
+                            .shadow(color: PixelPalette.shade(for: owner),
+                                    radius: 0, x: 1, y: 1)
+                            .fixedSize()
+                            .offset(y: -Referee.name)
+                    }
+                }
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onInspectReferees)
                 .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
