@@ -177,7 +177,7 @@ struct TurnoverCutscene: Identifiable, Equatable {
         for event in events {
             switch event {
             case .failedReturn:                 kind = .badReturn
-            case .whistleBlew(_, let card, _, _): kind = .whistle(card.name)
+            case .whistleBlew(_, let card, _, _, _): kind = .whistle(card.name)
             case .turnover(let who, _):         seat = who
             case .passed(_, let from, _, _):    thrower = from
             default: break
@@ -261,7 +261,7 @@ struct WhistleReveal: Identifiable, Equatable {
     /// A Whistle counts as met when it is *called*, not when it is set down — a badge on
     /// the face-down card would give away the trap the game works hard to keep.
     static func first(in events: [GameEvent], seen: SeenCards) -> WhistleReveal? {
-        for case .whistleBlew(let owner, let card, let cancelled, let victim) in events {
+        for case .whistleBlew(let owner, let card, let cancelled, let victim, _) in events {
             return WhistleReveal(owner: owner, card: card, cancelled: cancelled,
                                  cancelledCard: victim, isNew: seen.meet(card.id))
         }
@@ -701,7 +701,7 @@ final class GameController {
         // Anything on screen is the game still speaking.
         guard cutscene == nil, turnover == nil, actionCall == nil,
               playedCard == nil, flight == nil, celebratingThree == nil else { return }
-        DevLog.say(.input, "the loop had stopped — restarting it")
+        DevLog.say(.input, "➜ Restarting Input Loop")
         wentQuiet = .now
         loop?.cancel()
         loop = Task { await run() }

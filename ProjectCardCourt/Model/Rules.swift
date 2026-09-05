@@ -1199,7 +1199,8 @@ enum Rules {
             state.discard.append(whistle.card)
             events.append(.whistleBlew(owner: over.owner, card: over.card.descriptor,
                                        cancelled: whistle.card.name,
-                                       cancelledCard: whistle.card.descriptor))
+                                       cancelledCard: whistle.card.descriptor,
+                                       against: whistle.owner))
             let effect = over.card.descriptor.whistle ?? WhistleEffect()
             for _ in 0..<effect.offenderDraws {
                 draw(action.actor, state: &state, events: &events)
@@ -1238,7 +1239,8 @@ enum Rules {
             cancelled = "the shot"
         }
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
-                                   cancelled: cancelled, cancelledCard: cancelledCard))
+                                   cancelled: cancelled, cancelledCard: cancelledCard,
+                                   against: action.actor))
 
         // Villainous Reputation: the referees have their eye on him, and it does not
         // matter whose call it was.
@@ -1441,7 +1443,7 @@ enum Rules {
                 state.discard.append(whistle.card)
                 events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                            cancelled: "the Clamp's effect",
-                                           cancelledCard: voidedClamp))
+                                           cancelledCard: voidedClamp, against: culprit))
                 events.append(.clampVoided(seat: seat, card: whistle.card.descriptor, count: waved))
 
                 if let culprit, effect.offenderDiscardsBag, !state[culprit].bag.isEmpty {
@@ -1862,7 +1864,8 @@ enum Rules {
                     events.append(.whistleBlew(owner: waved.owner,
                                                card: waved.card.descriptor,
                                                cancelled: card.name,
-                                               cancelledCard: card.descriptor))
+                                               cancelledCard: card.descriptor,
+                                               against: seat))
                 } else if shrugged {
                     // Shaken off, and the draw is taken again — it cost nothing but the
                     // card that was never carried.

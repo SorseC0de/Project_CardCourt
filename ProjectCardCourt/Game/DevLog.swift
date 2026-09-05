@@ -80,7 +80,7 @@ enum DevLog {
                 let stack = breakdown.steps
                     .map { "\($0.label)→\($0.total)" }
                     .joined(separator: " ")
-                say(.shot, "\(seat.dev) at \(chance)%  base \(breakdown.base)"
+                say(.shot, "\(seat.dev) SHOOTS at \(chance)%  base \(breakdown.base)"
                     + (stack.isEmpty ? "  (no modifiers)" : "  | \(stack)"))
             case .shotMade(let seat, let points, let roll, _):
                 say(.shot, "\(seat.dev) MADE  +\(points)  roll \(roll)")
@@ -88,7 +88,7 @@ enum DevLog {
                 say(.shot, "\(seat.dev) missed  roll \(roll)")
 
             case .passed(let card, let from, let to, let shot):
-                say(.card, "\(from.dev) → \(to.dev)  \(card.name)  SHOT \(shot)%")
+                say(.card, "\(from.dev) passes to ➜ \(to.dev)  \(card.name)  SHOT \(shot)%")
             case .movePlayed(let seat, let card, let shot):
                 say(.card, "\(seat.dev) plays \(card.name)  SHOT \(shot)%")
             case .clampSet(let seat, let card):
@@ -104,9 +104,11 @@ enum DevLog {
                 say(.whistle, "\(seat.dev) calls \(card.name)")
             case .whistleArmed(let seat):
                 say(.whistle, "\(seat.dev) arms one")
-            case .whistleBlew(let owner, let card, let cancelled, let victim):
-                say(.whistle, "\(owner.dev)'s \(card.name) cancels \(cancelled)"
-                    + (victim.map { " (\($0.name))" } ?? ""))
+            case .whistleBlew(let owner, let card, let cancelled, _, let against):
+                // Whose card, not just which card. The name on its own left you working
+                // out which of the four an Ankle Breaker had belonged to.
+                say(.whistle, "\(owner.dev)'s \(card.name) cancels "
+                    + (against.map { "\($0.dev)'s " } ?? "") + cancelled)
             case .whistlesDismissed:
                 say(.whistle, "silenced for the round")
 
@@ -124,7 +126,7 @@ enum DevLog {
             case .rebounded(let seat):
                 say(.phase, "\(seat.dev) rebounds")
             case .shotClockTicked(let value):
-                say(.phase, "clock \(value)")
+                say(.phase, "shot clock → \(value)")
             case .halftime:
                 mark("halftime")
             case .gameEnded(let winners):

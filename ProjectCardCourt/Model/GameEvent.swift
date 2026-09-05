@@ -15,8 +15,11 @@ enum GameEvent: Hashable, Codable {
     case coinRun(seat: Seat, card: CardDescriptor, heads: Int)
     case discardedForShot(seat: Seat, card: CardDescriptor, count: Int)
     case failedReturn(seat: Seat)
+    /// `against` is the seat the call was made on — whose card, whose shot, whose Clamp.
+    /// Without it the log says a Travel cancelled an Ankle Breaker and leaves you to guess
+    /// whose Ankle Breaker it was.
     case whistleBlew(owner: Seat, card: CardDescriptor, cancelled: String,
-                     cancelledCard: CardDescriptor?)
+                     cancelledCard: CardDescriptor?, against: Seat?)
     case whistleArmed(seat: Seat)
     /// A Whistle with no trigger — Timeout — which resolves the moment it is played
     /// rather than lying in wait. It appended nothing at all before, so playing one was
@@ -119,7 +122,7 @@ enum GameEvent: Hashable, Codable {
             return "\(seat.playerName) \(seat.verb("clamps", "clamp")) down — \(card.name)."
         case .clampBit(let seat, let card, let discarded):
             return "\(card.name) on \(seat.playerName): \(discarded) card\(discarded == 1 ? "" : "s") gone."
-        case .whistleBlew(let owner, let card, let cancelled, _):
+        case .whistleBlew(let owner, let card, let cancelled, _, _):
             return "WHISTLE! \(owner.playerName)'s \(card.name) cancels \(cancelled)."
         case .failedReturn(let seat):
             return "\(seat.playerName) \(seat.verb("has", "have")) nobody to give it back to!"

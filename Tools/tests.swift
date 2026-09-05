@@ -650,7 +650,7 @@ func runTests() {
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         let events = Rules.apply(.shoot, by: seat, to: &state)
         var called: String?
-        for case .whistleBlew(_, let card, _, _) in events { called = card.id }
+        for case .whistleBlew(_, let card, _, _, _) in events { called = card.id }
         Check.that(called == "charge",
                    "the one set first is the one that fires (got \(called ?? "none"))")
         Check.that(state.armedWhistles.count == 1,
