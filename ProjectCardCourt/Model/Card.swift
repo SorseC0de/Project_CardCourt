@@ -41,12 +41,25 @@ struct IntangibleEffect: Hashable, Codable {
     /// Freethrow Merchant: being Clamped is itself a foul, and the defenders never
     /// arrive — the trip to the line replaces what the Clamp was going to do.
     var freeThrowPerClamp: Int = 0
+    /// Unselfish: a card for every pass made from a look worth having. The threshold is
+    /// the SHOT the pass goes out at, read before the pass moves the ball.
+    var drawOnPassAtShot: Int = 0
+    var passDrawThreshold: Int = 0
 }
 
 /// A one-off that fires the moment it is drawn.
 struct GameBreakEffect: Hashable, Codable {
     /// Everybody, not only whoever turned it up.
     var everyoneDraws = 0
+    /// The drawer, plainly. **One batch**, so anything that pays per draw pays once for
+    /// the lot rather than once a card — see `Rules.drawBatch`.
+    var draws = 0
+    /// Ice Wrap and Hit the Bike: every Injury comes off, whatever it was going to last.
+    var healsInjuries = false
+    /// Ice Wrap: what it is worth when there was nothing to heal.
+    var drawIfUninjured = 0
+    /// All-Swissh Selection: owed, and paid on the next make rather than now.
+    var drawsOnNextMake = 0
 
     /// The drawer discards this many at random.
     var discard = 0
@@ -249,6 +262,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "hesi":         return ("HesiIcon", false, 1)
         case "full-court-heave": return ("HeaveIcon", false, 1)
         case "contest":      return ("ContestIcon", false, 1)
+        case "all-swissh-selection": return ("PendingDrawIcon", false, 1)
         case "off-night":    return ("OffNightIcon", false, 1)
         case "benched":      return ("BenchIcon", false, 1)
         case "crowd-noise":  return ("CrowdNoiseIcon", false, 1)

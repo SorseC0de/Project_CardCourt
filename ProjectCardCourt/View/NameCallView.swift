@@ -60,13 +60,16 @@ struct NameCallView: View {
         // Ticking only while it is leaving. Nothing else here needs a frame clock, and a
         // clock running the whole time the card is up is a clock running for nothing.
         TimelineView(.animation(paused: leftAt == nil)) { timeline in
-            ZStack(alignment: .leading) {
-                face
-                    .overlay { SideStreaks().mask { face } }
-                    .frame(width: size.width, height: size.height)
-
-                word(burning: burn(at: timeline.date, rate: wordRate))
-            }
+            // **The word is an overlay on the plate, not a sibling beside it.** As two
+            // children of a stack their widths were negotiated against each other, and
+            // the pair came out side by side with the plate pushed off the leading edge.
+            // Hung on the plate it can only ever be on the plate.
+            face
+                .frame(width: size.width, height: size.height)
+                .overlay { SideStreaks().mask { face } }
+                .overlay(alignment: .leading) {
+                    word(burning: burn(at: timeline.date, rate: wordRate))
+                }
             .opacity(stage == .offstage ? 0 : 1)
             // Leaving: **not animated at all.** Opacity is spent per tick at a rate of its
             // own, so how fast it disappears has nothing to do with how fast it travels.

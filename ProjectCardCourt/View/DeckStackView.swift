@@ -15,8 +15,9 @@ struct DeckStackView: View {
     private enum Pile {
         /// Raises the whole thing in its slot.
         static let lift: CGFloat = 0.12
-        /// Five layers per fifty cards — one for every ten.
-        static let cardsPerSlice = 10
+        /// One layer per twenty cards, so a hundred is five slabs. Half what it was: the
+        /// pile is a reading, not a stack you count, and at ten a full deck was a tower.
+        static let cardsPerSlice = 20
     }
 
     /// The pile gets shorter as the deck empties.

@@ -92,6 +92,17 @@ struct WhistleEffect: Hashable, Codable {
     var pointsToVictim = 0
     /// Trips to the line for the Whistle's owner.
     var freeThrowsToVictim = 0
+    /// And for the player who tripped it. **A Clear Path Foul is called *for* the man who
+    /// was fouled**, and he is the one shooting — so unlike every other Whistle here, the
+    /// offender is the beneficiary.
+    var freeThrowsToOffender = 0
+    /// Cancels the Clamps that were reducing the shooter's SHOT, and pays them what the
+    /// shot they were taking was worth.
+    var clearsShotDebuffClamps = false
+    var awardsShotValueToOffender = false
+    /// Only fires when the man shooting is actually being held down. A Whistle with a
+    /// condition rather than only a trigger — see `Rules.interceptor`.
+    var requiresShotDebuffClamp = false
     /// Delay-of-Game: the first call is a warning, the second is a foul.
     var freeThrowsOnRepeatCall = 0
     /// The cancelled card still spends the Shot Clock it was going to spend. Delay-of-Game

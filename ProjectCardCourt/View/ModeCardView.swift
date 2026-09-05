@@ -355,7 +355,12 @@ enum ModeCardStyle {
     /// How far the name falls away across its own length. Gentler than the prompts —
     /// a phase is announced, not shouted off the edge of the screen.
     /// A picture standing in for the name, as a share of the bar it crosses.
-    static let emblemSize: CGFloat = 1.1
+    ///
+    /// **Bigger than the bar on purpose.** The gold whistle is the same object that was
+    /// set down to arm the trap — `PlayedCardView` draws it at 151pt — and a call that
+    /// shows it smaller than the arming reads as a different, lesser thing. At this it
+    /// spills out over both edges, which is what a whistle blowing should do.
+    static let emblemSize: CGFloat = 2.4
     static let titleTaper: CGFloat = 0.62
 
     /// How solid the bars ever get. Just short of opaque, so the board is

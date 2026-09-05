@@ -84,7 +84,7 @@ enum CardLibrary {
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
-        effect: "Next player discard 2", numberInDeck: 5,
+        effect: "Next player discard 2", numberInDeck: 3,
         clamp: ClampEffect(discardAtStart: 2))
 
     // ── Whistles ──────────────────────────────────────────────────────
@@ -186,6 +186,21 @@ enum CardLibrary {
         whistle: WhistleEffect(ownerInbounds: true, resetsShotClock: true,
                                everyoneDraws: 1))
 
+    static let clearPathFoul = CardDescriptor(
+        id: "clear-path-foul", name: "Clear Path Foul", type: .whistle,
+        effect: "Shooting under a SHOT Clamp: clear them, take the points and 1 FT",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotAttempt, cancelsCard: false,
+                               endsRound: true, freeThrowsToOffender: 1,
+                               clearsShotDebuffClamps: true,
+                               awardsShotValueToOffender: true,
+                               requiresShotDebuffClamp: true))
+
+    static let unselfish = CardDescriptor(
+        id: "unselfish", name: "Unselfish", type: .intangible,
+        effect: "Draw 1 on every pass made at SHOT 50% or better", numberInDeck: 1,
+        intangible: IntangibleEffect(drawOnPassAtShot: 1, passDrawThreshold: 50))
+
     // ── Injuries ──────────────────────────────────────────────────────
     //
     // Their own column on the sheet and their own rules. An ordinary Injury lasts the
@@ -202,6 +217,28 @@ enum CardLibrary {
         id: "torn-achilles", name: "Torn Achilles", type: .gameBreak,
         effect: "Every turn: all but 1 random card is held", numberInDeck: 1,
         gameBreak: GameBreakEffect(isInjury: true, injury: .game, playableEachTurn: 1))
+
+    static let iceWrap = CardDescriptor(
+        id: "ice-wrap", name: "Ice Wrap", type: .gameBreak,
+        effect: "Draw 1. Shake off every Injury — or draw 1 more if there were none",
+        numberInDeck: 5,
+        gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, drawIfUninjured: 1))
+
+    static let hitTheBike = CardDescriptor(
+        id: "hit-the-bike", name: "Hit the Bike", type: .gameBreak,
+        effect: "Shake off every Injury. Draw 1. Hand the ball to another player",
+        numberInDeck: 5,
+        gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, givesBallAway: true))
+
+    static let allStarSelection = CardDescriptor(
+        id: "all-star-selection", name: "All Star Selection", type: .gameBreak,
+        effect: "Draw 2", numberInDeck: 5,
+        gameBreak: GameBreakEffect(draws: 2))
+
+    static let allSwisshSelection = CardDescriptor(
+        id: "all-swissh-selection", name: "All-Swissh Selection", type: .gameBreak,
+        effect: "Draw 3 after your next make", numberInDeck: 3,
+        gameBreak: GameBreakEffect(drawsOnNextMake: 3))
 
     // ── Intangibles ───────────────────────────────────────────────────
 
@@ -226,7 +263,7 @@ enum CardLibrary {
         intangible: IntangibleEffect(bonusFreeThrows: 1))
 
     static let intangibles: [CardDescriptor] = [
-        shotCreator, hotHand, freethrowMerchant, generationalWhistle,
+        shotCreator, hotHand, freethrowMerchant, generationalWhistle, unselfish,
     ]
 
     // ── Game Breaks ───────────────────────────────────────────────────
@@ -248,7 +285,7 @@ enum CardLibrary {
 
     static let mvpVote = CardDescriptor(
         id: "mvp-vote", name: "MVP Vote", type: .gameBreak,
-        effect: "Draw up to 7", numberInDeck: 5,
+        effect: "Draw up to 7", numberInDeck: 1,
         gameBreak: GameBreakEffect(drawUpTo: 7))
 
     static let offNight = CardDescriptor(
@@ -362,6 +399,7 @@ enum CardLibrary {
     static let gameBreaks: [CardDescriptor] = [
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
+        iceWrap, hitTheBike, allStarSelection, allSwisshSelection,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules
@@ -371,7 +409,7 @@ enum CardLibrary {
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
-        blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul,
+        blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
     ]
 
     /// A card somebody else is holding, or one still in the deck.

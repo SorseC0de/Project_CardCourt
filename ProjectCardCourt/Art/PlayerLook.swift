@@ -1,4 +1,5 @@
 import Observation
+import SwiftUI
 
 /// How each seat looks beyond their uniform.
 ///
@@ -58,6 +59,20 @@ final class PlayerLook {
         let rolled = Int.random(in: 0..<PixelPalette.skinTones.count)
         defenderTones[seat] = rolled
         return rolled
+    }
+
+    /// The main colour of a seat's kit, for anything that wants the table's own palette
+    /// rather than the UI's — see `SideStreaks`.
+    func jersey(for seat: Seat) -> Color {
+        guard !seat.isLocal else {
+            return (Kit.colours[safe: HooperKit.shared.jersey] ?? Kit.colours[0]).main
+        }
+        switch seat {
+        case .north: return PixelPalette.gold
+        case .east:  return PixelPalette.green
+        case .west:  return PixelPalette.rose
+        case .south: return PixelPalette.blue
+        }
     }
 
     /// Set by the picker, once there is one.

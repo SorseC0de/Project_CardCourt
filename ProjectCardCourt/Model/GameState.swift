@@ -53,6 +53,9 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// Torn Achilles: the cards that survived this turn's lock, rolled once per
     /// possession and then left alone.
     var injuryUnlocked: [UUID] = []
+    /// All-Swissh Selection: cards owed on the next make, and shown in the HUD until they
+    /// are paid. Survives the round — it is a selection, not a hot streak.
+    var drawsOwedOnMake = 0
     var lastMake: Make?
     var scoredThisRound = false
     var scoredLastRound = false
@@ -100,6 +103,11 @@ struct GameState: Codable {
     var discard: [Card] = []
     var phase: Phase = .inbound(inbounder: .south)
     var round = 1
+    /// What a shooting Special Move is paying for the attempt it is about to take.
+    ///
+    /// Not part of SHOT: it is spent on that one shot and cleared, so a cancelled attempt
+    /// leaves the board exactly where it was. See the note in `Rules.apply`.
+    var pendingShotBonus = 0
     var inbounder: Seat = .south
     var ball: Seat?
     /// nil while the inbounder decides — the UI shows "--".

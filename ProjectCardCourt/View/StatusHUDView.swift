@@ -105,6 +105,7 @@ struct StatusHUDView: View {
         // referee comes or goes on the left of the row.
         VStack(alignment: .trailing, spacing: ballSize * 0.10) {
             HStack(alignment: .center, spacing: ballSize * 0.16) {
+                if owed > 0 { pending }
                 if state.whistlesSilenced { silenced }
                 if !state.armedWhistles.isEmpty { watching }
                 ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize)
@@ -115,6 +116,7 @@ struct StatusHUDView: View {
                    value: state.whistlesSilenced)
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
                    value: state.armedWhistles.isEmpty)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7), value: owed)
     }
 
     /// How many cards are left, over the pixel deck.
@@ -154,6 +156,27 @@ struct StatusHUDView: View {
                 .scaledToFit()
                 // Mirrored to match the referee, as everywhere else the icon appears.
                 .scaleEffect(x: -1)
+                .foregroundStyle(.white)
+        }
+        .drawingGroup()
+        .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+        .transition(.scale(scale: 0.5).combined(with: .opacity))
+    }
+
+    /// Cards this player is owed on their next make — All-Swissh Selection.
+    private var owed: Int { state[GameRules.localSeat].drawsOwedOnMake }
+
+    /// What is waiting on a make. It says a number because the number is the whole of it.
+    private var pending: some View {
+        ZStack {
+            Image("PendingDrawIcon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: refereeSide, height: refereeSide)
+                .foregroundStyle(CardPalette.gold)
+            Text("\(owed)")
+                .font(.custom("AvenirNextCondensed-Heavy", size: refereeSide * 0.5))
                 .foregroundStyle(.white)
         }
         .drawingGroup()

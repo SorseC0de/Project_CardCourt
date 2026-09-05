@@ -170,7 +170,17 @@ enum Rules {
                               && descriptor.comboAfter == state.lastPlayThisPossession)
                 || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
             if comboArmed { delta += descriptor.comboBonus }
-            adjustShot(by: delta, state: &state)
+
+            // **A shooting Special Move does not move SHOT; it prices its own shot.**
+            //
+            // Its number belongs to the attempt, the way a damage-step boost belongs to
+            // the attack — so a Whistle that cancels the shot leaves the board where it
+            // was, rather than handing whoever rebounds a −60% look off a cancelled
+            // Dagger Three. Euro Step is the exception because it does not shoot: it is
+            // a Move card wearing a Special Move's coat, and its SHOT is the board's.
+            let priced = descriptor.special?.shootsImmediately == true
+            if !priced { adjustShot(by: delta, state: &state) }
+            state.pendingShotBonus = priced ? delta : 0
 
             for _ in 0..<descriptor.drawCount { draw(seat, state: &state, events: &events) }
             for _ in 0..<descriptor.selfDiscard { discardAtRandom(from: seat, state: &state) }
@@ -292,6 +302,22 @@ enum Rules {
                     endRound(state: &state, events: &events)
                     return events
                 }
+                // **The draw resolves before the ball moves.** Unselfish queues the pass
+                // and pays first, so a Game Break turned up by that card plays out in
+                // full — and lands on the man who passed, which is who earned it — before
+                // anybody else has the ball.
+                let unselfish = state[seat].intangibles.reduce(0) { total, passive in
+                    guard let effect = passive.intangible, effect.drawOnPassAtShot > 0,
+                          state.shot >= effect.passDrawThreshold else { return total }
+                    return total + effect.drawOnPassAtShot
+                }
+                if unselfish > 0 {
+                    drawBatch(seat, count: unselfish, state: &state, events: &events)
+                }
+                // Read again: the draw may have turned up a Break that moved it.
+                guard case .possession(let stillHolding) = state.phase,
+                      stillHolding == seat else { return events }
+
                 state.lastPasser = seat
                 events.append(.passed(card: descriptor, from: seat, to: receiver, shot: state.shot))
                 beginPossession(receiver, tickClock: true, state: &state, events: &events)
@@ -517,7 +543,10 @@ enum Rules {
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
                                     overClamps: Bool = false,
                                     state: inout GameState, events: inout [GameEvent]) {
-        let resolution = ShotMath.resolve(base: state.shot,
+        // What the card in hand was worth, spent on this attempt and gone.
+        let priced = state.pendingShotBonus
+        state.pendingShotBonus = 0
+        let resolution = ShotMath.resolve(base: state.shot + priced,
                                           modifiers: state.shotModifiers(
                                             for: seat, ignoringClamps: overClamps),
                                           rules: state.rules)
@@ -532,6 +561,11 @@ enum Rules {
             state[seat].scoredThisRound = true
             state[seat].lastMake = Make(round: state.round, chance: chance)
             events.append(.shotMade(seat: seat, points: points, roll: roll, chance: chance))
+            if state[seat].drawsOwedOnMake > 0 {
+                let owed = state[seat].drawsOwedOnMake
+                state[seat].drawsOwedOnMake = 0
+                drawBatch(seat, count: owed, state: &state, events: &events)
+            }
             if let passer = state.lastPasser, passer != seat {
                 state[passer].assists += 1
                 events.append(.assisted(passer))
@@ -555,7 +589,15 @@ enum Rules {
         //
         // No owner exemption. A Whistle catches whoever trips it, its own player included
         // — that is what stops a table being flooded with traps by someone immune to them.
-        return state.armedWhistles.first { $0.trigger?.matches(action) == true }
+        return state.armedWhistles.first { whistle in
+            guard whistle.trigger?.matches(action) == true else { return false }
+            // Clear Path Foul is a call on a defender, so there has to be one holding the
+            // man down. Without the condition it fired on every clean look.
+            if whistle.card.descriptor.whistle?.requiresShotDebuffClamp == true {
+                return state[action.actor].clamps.contains { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
+            }
+            return true
+        }
     }
 
     /// Spends the Whistle, cancels what tripped it, and applies its effects.
@@ -644,9 +686,29 @@ enum Rules {
             tickClock(by: card.descriptor.clockDelta, holder: seat,
                       state: &state, events: &events)
         }
+        if effect.clearsShotDebuffClamps {
+            let cleared = state[offender].clamps.filter { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
+            state[offender].clamps.removeAll { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
+            if let first = cleared.first {
+                events.append(.clampVoided(seat: offender, card: first.card,
+                                           count: cleared.count))
+            }
+        }
+        if effect.awardsShotValueToOffender, case .shoot = action {
+            // What the shot was worth, not a flat two: a Special Move that pays an extra
+            // point on a make is a three, and a foul on one is worth three.
+            let points = state.rules.madeShotPoints + pendingShotBonus(for: offender, in: state)
+            state[offender].points += points
+            state[offender].scoredThisRound = true
+            events.append(.shotMade(seat: offender, points: points, roll: 0))
+        }
+
         let earned = effect.freeThrowsToVictim
             + (calls > 1 ? effect.freeThrowsOnRepeatCall : 0)
         awardFreeThrows(earned, to: whistle.owner, offender: offender,
+                        source: whistle.card.name, state: &state, events: &events)
+        // The man who was fouled, which for a Clear Path is the man who tripped it.
+        awardFreeThrows(effect.freeThrowsToOffender, to: offender, offender: nil,
                         source: whistle.card.name, state: &state, events: &events)
 
         if effect.endsRound {
@@ -659,6 +721,17 @@ enum Rules {
             // Charge takes the ball the same way without charging the turnover.
             reinbound(by: offender, state: &state, events: &events)
         }
+    }
+
+    /// What the shot in flight is worth beyond an ordinary basket.
+    ///
+    /// Read off the Special Move that started it. A card cancelled at the moment it shoots
+    /// has already been discarded, so this looks at what is standing rather than at the
+    /// bag: `pendingShotBonus` is only ever asked during a shot attempt.
+    private static func pendingShotBonus(for seat: Seat, in state: GameState) -> Int {
+        guard let id = state.lastPlayThisPossession,
+              let card = state.rules.cardPool.first(where: { $0.id == id }) else { return 0 }
+        return card.special?.bonusPointOnMake ?? 0
     }
 
     /// Whistles that fire on being played rather than lying in wait.
@@ -959,6 +1032,25 @@ enum Rules {
         }
     }
 
+    /// Draws several as **one batch**.
+    ///
+    /// Anything that pays per draw — Shot Creator — pays once for the lot rather than
+    /// once a card. Drawing three off an All Star Selection is three cards and one bonus,
+    /// which is four; card by card it was three bonuses and six, which is not what any of
+    /// them say.
+    private static func drawBatch(_ seat: Seat, count: Int,
+                                  state: inout GameState, events: inout [GameEvent],
+                                  depth: Int = 0) {
+        guard count > 0 else { return }
+        for _ in 0..<count {
+            draw(seat, state: &state, events: &events, allowBonus: false, depth: depth)
+        }
+        let bonus = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.bonusDraw ?? 0) }
+        for _ in 0..<bonus {
+            draw(seat, state: &state, events: &events, allowBonus: false, depth: depth + 1)
+        }
+    }
+
     private static func draw(_ seat: Seat, state: inout GameState, events: inout [GameEvent],
                              allowBonus: Bool = true, depth: Int = 0, duringDeal: Bool = false) {
         // A Game Break can draw, and what it draws can be another Game Break. Bounded so
@@ -1025,6 +1117,23 @@ enum Rules {
             for other in Seat.allCases where state[other].bag.count > limit {
                 while state[other].bag.count > limit { discardAtRandom(from: other, state: &state) }
             }
+        }
+        if effect.healsInjuries, !state[seat].injuries.isEmpty {
+            // Straight to the pile, both sorts. A Devastating one is out of circulation
+            // for the rest of the game unless a card puts it back — this is that card.
+            state.discard.append(contentsOf: state[seat].injuries.map { Card($0) })
+            state[seat].injuries.removeAll()
+            state[seat].injuryUnlocked = []
+        } else if effect.drawIfUninjured > 0 {
+            drawBatch(seat, count: effect.drawIfUninjured, state: &state,
+                      events: &events, depth: depth + 1)
+        }
+        if effect.draws > 0 {
+            drawBatch(seat, count: effect.draws, state: &state, events: &events,
+                      depth: depth + 1)
+        }
+        if effect.drawsOnNextMake > 0 {
+            state[seat].drawsOwedOnMake += effect.drawsOnNextMake
         }
         if let target = effect.drawUpTo {
             while state[seat].bag.count < target {
