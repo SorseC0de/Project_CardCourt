@@ -175,7 +175,12 @@ func runTests() {
                 Rules.apply(m, by: seat, to: &state)
             }
             if state.round > state.rules.roundsPerHalf {
-                let sizes = Seat.allCases.map { state[$0].bag.count }
+                // A Free Agent has no bag by design — he plays out of everybody else's —
+                // so he is the one seat allowed to come out of a deal with nothing.
+                let dealt = Seat.allCases.filter { seat in
+                    !state[seat].intangibles.contains { $0.intangible?.playsFromOthers == true }
+                }
+                let sizes = dealt.map { state[$0].bag.count }
                 if sizes.contains(where: { $0 < state.rules.startingBagSize }) {
                     Check.that(false, "halftime redeals a full hand (seed \(seed) gave \(sizes))")
                     break

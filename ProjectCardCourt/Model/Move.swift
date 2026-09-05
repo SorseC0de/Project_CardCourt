@@ -5,5 +5,8 @@ import Foundation
 enum Move: Hashable, Codable {
     case inbound(to: Seat)
     case play(Card.ID)
+    /// Free Agent: a card out of somebody else's bag, taken at random. He names the
+    /// player — and that is a *target*, so Floor General names him instead.
+    case borrow(from: Seat)
     case shoot
 }

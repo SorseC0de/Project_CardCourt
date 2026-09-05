@@ -29,6 +29,13 @@ enum Prompts {
             guard let pick = hand.first else { return false }
             Rules.resolveCardFrom(hand.randomElement()?.id ?? pick.id, state: &state)
             return true
+        case .awaitingInjuryPick:
+            // Whatever is face up and mildest; failing that, whatever is on offer.
+            let offered = state.injuriesOffered
+            let seen = offered.filter { !state.injuriesHidden.contains($0.id) }
+            guard let pick = (seen.first ?? offered.first)?.id else { return false }
+            Rules.resolveInjuryPick(pick, state: &state)
+            return true
         case .awaitingInjuryDiscard(let seat, let count):
             let chosen = Array(ai.discardForShot(state, for: seat).prefix(count))
             Rules.resolveInjuryDiscard(chosen, state: &state)

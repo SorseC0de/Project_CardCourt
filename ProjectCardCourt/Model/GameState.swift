@@ -84,6 +84,8 @@ enum Phase: Hashable, Codable {
     /// A card taken out of somebody else's hand, chosen rather than rolled for. The hand
     /// is face down — picking one is a guess, which is the point.
     case awaitingCardFrom(seat: Seat, card: CardDescriptor, victim: Seat)
+    /// Wet Spot: one Injury off the table, some of them face down.
+    case awaitingInjuryPick(seat: Seat, card: CardDescriptor)
     /// Bone Bruise: the turn opens by giving one up, and the sheet says whose choice it
     /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
     /// and resolves into one.
@@ -102,6 +104,7 @@ enum Phase: Hashable, Codable {
         case .awaitingTarget(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat
+        case .awaitingInjuryPick(let seat, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }
@@ -141,6 +144,16 @@ struct GameState: Codable {
     var pendingActor: Seat?
     /// Nutmeg: where the card taken is headed, rather than to the pile.
     var stealTravelsTo: Seat?
+    /// Fresh Ball: the next possession opens without its draw.
+    var skipsNextDraw = false
+    /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.
+    ///
+    /// Queued rather than dumped where it lands. Turning it up on the second card of an
+    /// opening deal should cost the hand you end up with, not the one card you had.
+    var handsOwed: Set<Seat> = []
+    /// Wet Spot: what is on offer, and which of them the picker cannot see.
+    var injuriesOffered: [CardDescriptor] = []
+    var injuriesHidden: Set<String> = []
     var inbounder: Seat = .south
     var ball: Seat?
     /// nil while the inbounder decides — the UI shows "--".

@@ -91,13 +91,29 @@ struct IntangibleEffect: Hashable, Codable {
     /// No Bag, Fundamentalist. One blocks Moves, the other Special Moves.
     var blocksMoves = false
     var blocksSpecialMoves = false
+    /// Free Agent: no bag of his own. He plays out of whoever is nearest.
+    ///
+    /// The hand is dumped once the draw chain that turned this up has finished, not the
+    /// moment it lands — drawing it second in an opening deal should cost the whole hand,
+    /// not one card.
+    var playsFromOthers = false
+    /// Villainous Reputation: every call costs you, whoever it was against.
+    var discardOnAnyWhistle = 0
+    /// And it never really leaves — taken off you, it lands on somebody. Possibly you.
+    var reattachesOnDiscard = false
+    /// Dirty Player: a Clamp of yours lands on a man already hurt and it costs him.
+    var clampCostsInjured = 0
     /// Fundamentalist: each Move once a turn, and the plainest cards are never spent.
     var oneOfEachMovePerTurn = false
     var keepsOnPlay: [String] = []
     /// Floor General: every directed pass is aimed by this player instead.
     var aimsEveryPass = false
-    /// Comes off at the end of the round rather than sitting in a slot for the game. The
-    /// sheet says "this round" on four of them, good and bad alike.
+    /// Comes off at the end of the round rather than sitting in a slot for the game.
+    ///
+    /// **Only the purely negative ones**, generally. An Intangible lasts the game unless
+    /// something clears it; the exception is a passive that does nothing but hurt, which
+    /// is a bad hand for a round rather than a permanent handicap. Floor General and
+    /// Point God both read as round-long from their wording and neither was meant to.
     var lastsRound = false
     /// Unselfish: a card for every pass made from a look worth having. The threshold is
     /// the SHOT the pass goes out at, read before the pass moves the ball.
@@ -120,6 +136,15 @@ struct GameBreakEffect: Hashable, Codable {
     var drawsOnNextMake = 0
     /// Rock Fight: nobody shoots from a look this good or better, for the round.
     var blocksShotAtOrAbove: Int?
+    /// Trade Deadline: every bag moves one seat, and the ball goes with it. The player
+    /// who turned it up says which way.
+    var rotatesHands = false
+    /// Fresh Ball: the next possession opens without its draw. A bad thing — a fresh ball
+    /// is a ball nobody has broken in.
+    var skipsNextDraw = false
+    /// Wet Spot: every Injury in the pile and the deck is laid out, the deck's face down,
+    /// and one of them is yours.
+    var offersInjuries = false
 
     /// The drawer discards this many at random.
     var discard = 0
@@ -573,6 +598,12 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "lethal-shooter":              return "target"
         case "ball-pounder":                return "arrow.down.circle.fill"
         case "unselfish":                   return "heart.circle.fill"
+        case "trade-deadline":              return "arrow.trianglehead.2.clockwise.rotate.90"
+        case "fresh-ball":                  return "basketball"
+        case "wet-spot":                    return "drop.triangle.fill"
+        case "free-agent":                  return "figure.wave"
+        case "villainous-reputation":       return "theatermask.and.paintbrush.fill"
+        case "dirty-player":                return "hand.raised.fingers.spread.fill"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

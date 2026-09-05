@@ -78,6 +78,14 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+            if case .awaitingInjuryPick(let card) = controller.gate {
+                InjuryPickerView(card: card,
+                                 offered: controller.state.injuriesOffered,
+                                 hidden: controller.state.injuriesHidden) {
+                    controller.choose(injury: $0)
+                }
+                .zIndex(12)
+            }
             if case .awaitingCardFrom(let card, let victim) = controller.gate {
                 HandPickerView(card: card, victim: victim,
                                hand: controller.state[victim].bag.count) { index in

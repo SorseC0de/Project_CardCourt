@@ -42,7 +42,9 @@ enum Rules {
         switch state.phase {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
-        case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom: return []
+        case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom,
+             .awaitingInjuryPick:
+            return []
         case .awaitingTarget(let asked, _, let choices) where asked == seat:
             return choices.map { Move.inbound(to: $0) }
         case .possession(let holder) where holder == seat:
@@ -88,9 +90,17 @@ enum Rules {
                 }
                 return true
             }
+            // Free Agent plays out of other people. His own draws are still his — that
+            // is the divergence — so the two sets of options sit side by side.
+            var borrowing: [Move] = []
+            if has(seat, in: state, { $0.playsFromOthers }) {
+                borrowing = Seat.allCases
+                    .filter { $0 != seat && !state[$0].bag.isEmpty }
+                    .map { Move.borrow(from: $0) }
+            }
             // Rock Fight: nobody takes a good look. A bad one is still on offer.
             let barred = state.shotCeilingThisRound.map { state.shot >= $0 } ?? false
-            return (barred ? [] : [.shoot]) + playable.map { Move.play($0.id) }
+            return (barred ? [] : [.shoot]) + playable.map { Move.play($0.id) } + borrowing
         default:
             return []
         }
@@ -130,7 +140,11 @@ enum Rules {
 
     /// A seat may bid anywhere from nothing up to its whole bag.
     static func legalReboundBid(_ state: GameState, for seat: Seat) -> ClosedRange<Int> {
-        0...state[seat].bag.count
+        // A Free Agent has nothing of his own to throw at a board. He is in on the ones
+        // nobody contests and out of every other — which is the simplest honest answer to
+        // a player whose hand is other people's.
+        guard !has(seat, in: state, { $0.playsFromOthers }) else { return 0...0 }
+        return 0...state[seat].bag.count
     }
 
     // MARK: - Applying moves
@@ -147,6 +161,21 @@ enum Rules {
             events.append(.shotClockSet(state.rules.shotClockStart))
             // An inbound is not a pass: it grants no SHOT and no assist credit.
             beginPossession(target, tickClock: false, state: &state, events: &events)
+
+        case .borrow(let owner):
+            guard case .possession(let holder) = state.phase, holder == seat,
+                  has(seat, in: state, { $0.playsFromOthers }) else { return [] }
+            // A target, so Floor General aims it — and the hand is shuffled the moment it
+            // is named, which is what makes taking one at random a real gamble rather
+            // than a memory test.
+            let aiming = Seat.allCases.first { has($0, in: state, { $0.aimsEveryPass }) } ?? seat
+            guard aiming == seat else {
+                state.pendingActor = seat
+                state.phase = .awaitingTarget(seat: aiming, card: CardLibrary.freeAgent,
+                                              choices: Seat.allCases.filter { $0 != seat })
+                return []
+            }
+            return borrow(from: owner, by: seat, state: &state)
 
         case .play(let cardID):
             guard case .possession(let holder) = state.phase, holder == seat,
@@ -422,6 +451,8 @@ enum Rules {
         // `beginPossession` catches the ones drawn at the top of a possession; this
         // catches the ones a play turned up mid-possession.
         handOverBall(state: &state, events: &events)
+        // The outermost edge of the chain, which is where a queued hand is finally owed.
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -563,6 +594,10 @@ enum Rules {
         state.pendingActor = nil
         state.phase = .possession(holder: actor)
 
+        if descriptor.gameBreak?.rotatesHands == true {
+            rotate(towards: target, from: actor, state: &state, events: &events)
+            return events
+        }
         if descriptor.targetDiscards > 0 {
             guard !state[target].bag.isEmpty else {
                 events.append(.movePlayed(seat: actor, card: descriptor, shot: state.shot))
@@ -604,6 +639,70 @@ enum Rules {
         events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
         state.lastPlayThisPossession = descriptor.id
         state.movesThisPossession += 1
+        return events
+    }
+
+    /// One card out of somebody else's bag, played, and handed back.
+    ///
+    /// **It goes back.** The card is theirs; the Free Agent has no bag to spend from and
+    /// nothing of his own to lose, so borrowing costs its owner nothing but the tempo. It
+    /// is the one card in the game that is not spent when it is played.
+    private static func borrow(from owner: Seat, by seat: Seat,
+                               state: inout GameState) -> [GameEvent] {
+        guard !state[owner].bag.isEmpty else { return [] }
+        state[owner].bag = state.shuffled(state[owner].bag)
+        let taken = state[owner].bag.removeFirst()
+        // Lent into his hands so the ordinary play path can run, and put back after.
+        state[seat].bag.append(taken)
+        var events = apply(.play(taken.id), by: seat, to: &state)
+        state[seat].bag.removeAll { $0.id == taken.id }
+        state.discard.removeAll { $0.id == taken.id }
+        state[owner].bag.append(taken)
+        events.append(.drew(seat: owner, card: taken.descriptor, id: taken.id))
+        return events
+    }
+
+    /// The rotation, once a direction has been named.
+    ///
+    /// Everything moves one seat that way — every bag, and the ball with it. The bags go
+    /// first so the man the ball lands on is holding the hand that came with it.
+    private static func rotate(towards target: Seat, from seat: Seat,
+                               state: inout GameState, events: inout [GameEvent]) {
+        let clockwise = seat.left == target
+        var bags: [Seat: [Card]] = [:]
+        for other in Seat.allCases {
+            let onward = clockwise ? other.left : other.right
+            bags[onward] = state[other].bag
+        }
+        for (owner, cards) in bags { state[owner].bag = cards }
+        if let ball = state.ball {
+            let onward = clockwise ? ball.left : ball.right
+            state.ball = onward
+            state.phase = .possession(holder: onward)
+            events.append(.turnover(ball, cause: "Trade Deadline"))
+        }
+    }
+
+    /// One of the Injuries on the table, taken.
+    @discardableResult
+    static func resolveInjuryPick(_ id: String, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingInjuryPick(let seat, _) = state.phase,
+              let taken = state.injuriesOffered.first(where: { $0.id == id })
+        else { return [] }
+        var events: [GameEvent] = []
+        state.injuriesOffered = []
+        state.injuriesHidden = []
+        state.pendingActor = nil
+
+        // Out of wherever it was standing, and onto the man who found the wet spot.
+        state.discard.removeAll { $0.descriptor.id == id }
+        if let index = state.deck.firstIndex(where: { $0.descriptor.id == id }) {
+            state.deck.remove(at: index)
+        }
+        state[seat].injuries.append(taken)
+        rollInjuryLock(seat, state: &state)
+        events.append(.gameBreakRevealed(seat: seat, card: taken))
+        state.phase = .possession(holder: state.ball ?? seat)
         return events
     }
 
@@ -709,9 +808,15 @@ enum Rules {
         events.append(.reboundBids(bids: counts, order: shooter.clockwiseOrderFromHere))
 
         let highest = counts.values.max() ?? 0
-        let contenders = highest == 0
+        var contenders = highest == 0
             ? Seat.allCases
             : Seat.allCases.filter { counts[$0] == highest }
+        // A board nobody wanted goes to the man with nothing to bid. He is out of every
+        // contested one — see `legalReboundBid` — so the uncontested ones are his.
+        if highest == 0,
+           let free = contenders.first(where: { has($0, in: state, { $0.playsFromOthers }) }) {
+            contenders = [free]
+        }
         let winner = state.pick(from: contenders)
 
         state[winner].rebounds += 1
@@ -855,13 +960,26 @@ enum Rules {
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                    cancelled: cancelled, cancelledCard: cancelledCard))
 
+        // Villainous Reputation: the referees have their eye on him, and it does not
+        // matter whose call it was.
+        for other in Seat.allCases {
+            let toll = state[other].intangibles.reduce(0) {
+                $0 + ($1.intangible?.discardOnAnyWhistle ?? 0)
+            }
+            for _ in 0..<toll { discardAtRandom(from: other, state: &state) }
+        }
+
         if effect.recoversTimeout,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
             state[whistle.owner].bag.append(state.discard.remove(at: index))
         }
         if effect.stripsIntangibles, !state[offender].intangibles.isEmpty {
+            let stripped = state[offender].intangibles
             state[offender].intangibles.removeAll()
             events.append(.intangiblesStripped(seat: offender))
+            for card in stripped {
+                rehome(card, from: offender, state: &state, events: &events)
+            }
         }
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
         for _ in 0..<effect.offenderDraws { draw(offender, state: &state, events: &events) }
@@ -1006,7 +1124,12 @@ enum Rules {
         state.clampMagnet = nil
         state.pendingClamps = []
 
-        draw(seat, state: &state, events: &events)
+        // Fresh Ball: a ball nobody has broken in. The possession opens dry.
+        if state.skipsNextDraw {
+            state.skipsNextDraw = false
+        } else {
+            draw(seat, state: &state, events: &events)
+        }
 
 
         // A Whistle that was waiting for these defenders to land. This is the first
@@ -1080,6 +1203,15 @@ enum Rules {
             state[seat].clamps[index].locked = chosen
         }
 
+        // Dirty Player: whoever sent it goes after the knee.
+        if !state[seat].injuries.isEmpty {
+            for clamp in state[seat].clamps {
+                let toll = state[clamp.from].intangibles.reduce(0) {
+                    $0 + ($1.intangible?.clampCostsInjured ?? 0)
+                }
+                for _ in 0..<toll { discardAtRandom(from: seat, state: &state) }
+            }
+        }
         for clamp in state[seat].clamps {
             let count = min(clamp.card.clamp?.discardAtStart ?? 0, state[seat].bag.count)
             guard count > 0 else { continue }
@@ -1245,6 +1377,7 @@ enum Rules {
         state.deck = state.shuffled(pool)
         state.discard.removeAll()
         deal(to: Seat.allCases, count: state.rules.startingBagSize, state: &state, events: &events)
+        settleHands(state: &state, events: &events)
         events.append(.halftime)
     }
 
@@ -1263,6 +1396,20 @@ enum Rules {
                 return
             }
         }
+    }
+
+    /// Pays whatever a draw chain owes, now that it has finished.
+    ///
+    /// Called at the outermost edge of a deal or a draw rather than where the card landed,
+    /// because "discard your hand" has to mean the hand you end up with.
+    static func settleHands(state: inout GameState, events: inout [GameEvent]) {
+        guard !state.handsOwed.isEmpty else { return }
+        for seat in state.handsOwed {
+            guard !state[seat].bag.isEmpty else { continue }
+            state.discard.append(contentsOf: state[seat].bag)
+            state[seat].bag.removeAll()
+        }
+        state.handsOwed.removeAll()
     }
 
     /// Draws several as **one batch**.
@@ -1312,6 +1459,12 @@ enum Rules {
             // Passives never reach a bag — they are revealed and take a slot at once,
             // then replace themselves so slotting one never costs you a card.
             activate(card, for: seat, state: &state, events: &events)
+            // Free Agent takes the whole hand, but not yet: turning it up second in an
+            // opening deal should cost the hand you end up with rather than the one card
+            // you happen to be holding. Settled by `settleHands`, once the chain is done.
+            if card.descriptor.intangible?.playsFromOthers == true {
+                state.handsOwed.insert(seat)
+            }
             draw(seat, state: &state, events: &events,
                  allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
         } else if let effect = card.descriptor.gameBreak {
@@ -1343,8 +1496,8 @@ enum Rules {
             } else {
                 state.discard.append(card)
             }
-            resolveGameBreak(effect, named: card.name, drawnBy: seat,
-                             state: &state, events: &events, depth: depth)
+            resolveGameBreak(effect, named: card.name, card: card.descriptor,
+                             drawnBy: seat, state: &state, events: &events, depth: depth)
         } else {
             state[seat].bag.append(card)
             events.append(.drew(seat: seat, card: card.descriptor, id: card.id))
@@ -1361,6 +1514,7 @@ enum Rules {
     }
 
     private static func resolveGameBreak(_ effect: GameBreakEffect, named name: String,
+                                         card rotatingCard: CardDescriptor,
                                          drawnBy seat: Seat,
                                          state: inout GameState, events: inout [GameEvent],
                                          depth: Int) {
@@ -1398,6 +1552,27 @@ enum Rules {
         if effect.shotThisPossession != 0 {
             adjustShot(by: effect.shotThisPossession, state: &state)
         }
+        if effect.skipsNextDraw { state.skipsNextDraw = true }
+        if effect.rotatesHands {
+            // Which way is the drawer's call, and the two seats either side are the two
+            // answers — the same question the floor already knows how to ask.
+            state.pendingActor = seat
+            state.phase = .awaitingTarget(seat: seat, card: rotatingCard,
+                                          choices: [seat.left, seat.right])
+            return
+        }
+        if effect.offersInjuries {
+            let pool = state.discard.map(\.descriptor).filter { $0.gameBreak?.injury != nil }
+            let inDeck = state.deck.map(\.descriptor).filter { $0.gameBreak?.injury != nil }
+            guard !(pool.isEmpty && inDeck.isEmpty) else { return }
+            state.injuriesOffered = pool + inDeck
+            // What is still in the deck is face down. Knowing an Injury is in there is
+            // not the same as knowing which.
+            state.injuriesHidden = Set(inDeck.map(\.id))
+            state.pendingActor = seat
+            state.phase = .awaitingInjuryPick(seat: seat, card: rotatingCard)
+            return
+        }
         if let ceiling = effect.blocksShotAtOrAbove {
             state.shotCeilingThisRound = ceiling
         }
@@ -1432,10 +1607,31 @@ enum Rules {
                                  state: inout GameState, events: inout [GameEvent]) {
         events.append(.intangibleRevealed(seat: seat, card: card.descriptor))
         state[seat].intangibles.append(card.descriptor)
+        shedIntangibles(for: seat, state: &state, events: &events)
+    }
+
+    /// Pushes the oldest out when the slots overflow, and rehomes whatever refuses to go.
+    private static func shedIntangibles(for seat: Seat, state: inout GameState,
+                                        events: inout [GameEvent]) {
         while state[seat].intangibles.count > state.rules.intangibleSlots {
             let displaced = state[seat].intangibles.removeFirst()
             events.append(.intangibleDisplaced(seat: seat, card: displaced))
+            rehome(displaced, from: seat, state: &state, events: &events)
         }
+    }
+
+    /// A reputation does not go in the bin. It goes to somebody.
+    ///
+    /// Anybody, the man who just shed it included — you do not get to hand it on by
+    /// choosing to. Called wherever a passive comes off a player, so Official Review
+    /// clearing a board and a fourth pushing the oldest out both land the same way.
+    private static func rehome(_ card: CardDescriptor, from seat: Seat,
+                               state: inout GameState, events: inout [GameEvent]) {
+        guard card.intangible?.reattachesOnDiscard == true else { return }
+        let landing = state.pick(from: Seat.allCases)
+        state[landing].intangibles.append(card)
+        events.append(.intangibleRevealed(seat: landing, card: card))
+        shedIntangibles(for: landing, state: &state, events: &events)
     }
 
     /// Dumps a hand and deals a fresh one, the way halftime does. Debug only.

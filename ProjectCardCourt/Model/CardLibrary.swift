@@ -276,8 +276,8 @@ enum CardLibrary {
 
     static let floorGeneral = CardDescriptor(
         id: "floor-general", name: "Floor General", type: .intangible,
-        effect: "You aim every directed pass this round", numberInDeck: 1,
-        intangible: IntangibleEffect(aimsEveryPass: true, lastsRound: true))
+        effect: "You aim every directed pass", numberInDeck: 1,
+        intangible: IntangibleEffect(aimsEveryPass: true))
 
     static let foxLikeFirstStep = CardDescriptor(
         id: "fox-like-first-step", name: "Fox-Like First Step", type: .intangible,
@@ -307,8 +307,8 @@ enum CardLibrary {
 
     static let pointGod = CardDescriptor(
         id: "point-god", name: "Point God", type: .intangible,
-        effect: "Draw 1 after each of your passes this round", numberInDeck: 1,
-        intangible: IntangibleEffect(drawAfterPass: 1, lastsRound: true))
+        effect: "Draw 1 after each of your passes", numberInDeck: 1,
+        intangible: IntangibleEffect(drawAfterPass: 1))
 
     static let shootingSlump = CardDescriptor(
         id: "shooting-slump", name: "Shooting Slump", type: .intangible,
@@ -345,6 +345,23 @@ enum CardLibrary {
         effect: "Every Dribble draws 1 more and costs 10% more", numberInDeck: 1,
         intangible: IntangibleEffect(dribbleBonusDraw: 1, dribbleShotPenalty: -10))
 
+    static let villainousReputation = CardDescriptor(
+        id: "villainous-reputation", name: "Villainous Reputation", type: .intangible,
+        effect: "Every Whistle that fires costs you a card. Taken off you, it finds somebody",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(discardOnAnyWhistle: 1, reattachesOnDiscard: true))
+
+    static let dirtyPlayer = CardDescriptor(
+        id: "dirty-player", name: "Dirty Player", type: .intangible,
+        effect: "Your Clamps cost an injured man a card", numberInDeck: 1,
+        intangible: IntangibleEffect(clampCostsInjured: 1))
+
+    static let freeAgent = CardDescriptor(
+        id: "free-agent", name: "Free Agent", type: .intangible,
+        effect: "No bag. Play a card at random out of a player of your choosing",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(playsFromOthers: true))
+
     static let fundamentalist = CardDescriptor(
         id: "fundamentalist", name: "Fundamentalist", type: .intangible,
         effect: "No Special Moves. Each Move once a turn. Swings, Skip Pass and Dribble are never spent",
@@ -379,6 +396,22 @@ enum CardLibrary {
         id: "rock-fight", name: "Rock Fight", type: .gameBreak,
         effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 4,
         gameBreak: GameBreakEffect(blocksShotAtOrAbove: 50))
+
+    static let tradeDeadline = CardDescriptor(
+        id: "trade-deadline", name: "Trade Deadline", type: .gameBreak,
+        effect: "Left or right: every bag moves one seat, and the ball with it",
+        numberInDeck: 3,
+        gameBreak: GameBreakEffect(rotatesHands: true))
+
+    static let freshBall = CardDescriptor(
+        id: "fresh-ball", name: "Fresh Ball", type: .gameBreak,
+        effect: "The next possession opens without its draw", numberInDeck: 3,
+        gameBreak: GameBreakEffect(skipsNextDraw: true))
+
+    static let wetSpot = CardDescriptor(
+        id: "wet-spot", name: "Wet Spot", type: .gameBreak,
+        effect: "Every Injury in the pile and the deck. Take one", numberInDeck: 2,
+        gameBreak: GameBreakEffect(offersInjuries: true))
 
     static let iceWrap = CardDescriptor(
         id: "ice-wrap", name: "Ice Wrap", type: .gameBreak,
@@ -429,7 +462,7 @@ enum CardLibrary {
         boardCrasher, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
         gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
         sixthMan, sniper, splashCousin, unguardable, lethalShooter, ballPounder,
-        fundamentalist,
+        fundamentalist, freeAgent, villainousReputation, dirtyPlayer,
     ]
 
     // ── Game Breaks ───────────────────────────────────────────────────
@@ -566,6 +599,7 @@ enum CardLibrary {
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
+        tradeDeadline, freshBall, wetSpot,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules

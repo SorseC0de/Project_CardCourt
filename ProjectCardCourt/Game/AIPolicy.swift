@@ -35,6 +35,19 @@ struct AIPolicy {
         let legal = Rules.legalMoves(state, for: seat)
         guard !legal.isEmpty else { return nil }
 
+        // A Free Agent with nothing of his own has only other people's bags. Reaching for
+        // the fullest one is the same rule the rest of this policy uses for a target.
+        let ownCards = legal.contains { if case .play = $0 { return true }; return false }
+        if !ownCards {
+            let borrows = legal.compactMap { move -> Seat? in
+                if case .borrow(let from) = move { return from }
+                return nil
+            }
+            if let fullest = borrows.max(by: { state[$0].bag.count < state[$1].bag.count }) {
+                return .borrow(from: fullest)
+            }
+        }
+
         if case .inbound = state.phase {
             let targets = legal.compactMap { move -> Seat? in
                 if case .inbound(let to) = move { return to }

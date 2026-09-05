@@ -302,6 +302,8 @@ final class GameController {
         case awaitingMode(card: CardDescriptor)
         /// A card out of somebody else's hand, face down.
         case awaitingCardFrom(card: CardDescriptor, victim: Seat)
+        /// Wet Spot: one Injury off the table, some of them face down.
+        case awaitingInjuryPick(card: CardDescriptor)
         case awaitingFreeThrow(FreeThrowTrip)
         case gameOver
     }
@@ -528,6 +530,8 @@ final class GameController {
             return seat.isLocal ? .awaitingMode(card: card) : .thinking
         case .awaitingCardFrom(let seat, let card, let victim):
             return seat.isLocal ? .awaitingCardFrom(card: card, victim: victim) : .thinking
+        case .awaitingInjuryPick(let seat, let card):
+            return seat.isLocal ? .awaitingInjuryPick(card: card) : .thinking
         case .awaitingInjuryDiscard(let seat, let count):
             guard seat.isLocal, let injury = injury(on: seat) else { return .thinking }
             return .awaitingInjuryDiscard(card: injury, count: count)
@@ -762,6 +766,14 @@ final class GameController {
         guard case .awaitingTarget = gate else { return }
         loop?.cancel()
         Task { await present(Rules.resolveTarget(target, state: &state)) }
+    }
+
+    /// An Injury taken off the table.
+    func choose(injury id: String) {
+        guard !isPaused else { return }
+        guard case .awaitingInjuryPick = gate else { return }
+        loop?.cancel()
+        Task { await present(Rules.resolveInjuryPick(id, state: &state)) }
     }
 
     /// A card picked out of a hand nobody can see.
@@ -1088,6 +1100,18 @@ final class GameController {
                 // taking from. One rule, because the AI has no reason to prefer another.
                 let pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
                 await present(Rules.resolveTarget(pick, state: &state))
+                continue
+            }
+            if case .awaitingInjuryPick(let seat, _) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                gate = .thinking
+                try? await Task.sleep(for: .seconds(Pacing.think()))
+                if Task.isCancelled { return }
+                // Whatever is face up and mildest; failing that, whatever is on offer.
+                let offered = state.injuriesOffered
+                let seen = offered.filter { !state.injuriesHidden.contains($0.id) }
+                let pick = (seen.first ?? offered.first)?.id
+                if let pick { await present(Rules.resolveInjuryPick(pick, state: &state)) }
                 continue
             }
             if case .awaitingCardFrom(let seat, _, let victim) = state.phase {
