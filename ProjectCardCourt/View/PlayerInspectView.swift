@@ -18,6 +18,14 @@ struct PlayerInspectView: View {
         static let ball: CGFloat = 40
     }
 
+    /// A card lifted off the sheet to be read, and where it came from.
+    @State private var raised: Raised?
+
+    private struct Raised: Equatable {
+        let card: CardDescriptor
+        let from: CGPoint
+    }
+
     private var player: PlayerState { state[seat] }
     private var hasBall: Bool { state.ball == seat }
 
@@ -61,6 +69,7 @@ struct PlayerInspectView: View {
                         HStack(spacing: 8) {
                             ForEach(player.intangibles) { card in
                                 CardFrontView(descriptor: card, displayWidth: 46)
+                                    .raisable(card) { raised = Raised(card: $0, from: $1) }
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,7 +79,8 @@ struct PlayerInspectView: View {
                 if !player.clamps.isEmpty {
                     VStack(spacing: 6) {
                         SheetHeading(text: "Clamped by")
-                        ClampRosterView(clamps: player.clamps.map(\.brief))
+                        ClampRosterView(clamps: player.clamps.map(\.brief),
+                                        onSelect: { raised = Raised(card: $0, from: $1) })
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -81,6 +91,19 @@ struct PlayerInspectView: View {
                 }
             }
         }
+        // Over the sheet rather than in it: a card at reading size is wider than the row
+        // it came out of, and anywhere off it puts it back down without closing the sheet.
+        .overlay {
+            if let raised {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { self.raised = nil }
+                InspectedCardView(card: raised.card, from: raised.from)
+                    .id(raised.card.id)
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: raised)
     }
 
     /// The front pose, wearing this seat's kit — and the ball beside him if he has it.

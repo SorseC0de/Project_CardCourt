@@ -121,7 +121,7 @@ struct NameCallView: View {
         .lineLimit(1)
         .fixedSize()
         .scaleEffect(x: NameCallStyle.labelStretch, y: 1, anchor: .leading)
-        .offset(x: NameCallStyle.labelX)
+        .offset(x: NameCallStyle.labelX * NameCallStyle.size(reaching: reach).width)
         .opacity(left)
     }
 
@@ -176,7 +176,12 @@ enum NameCallStyle {
     static let noteSize: CGFloat = 13
     static let gap: CGFloat = 8
     static let labelStretch: CGFloat = 0.85
-    static let labelX: CGFloat = 75
+    /// Where the name sits, as a share of the plate's length.
+    ///
+    /// **Measured against the taper, not typed in points.** The plate is clear for its
+    /// first third and only reaches full colour at `fadeTo`, so a fixed inset put the name
+    /// out past the leading edge on empty air — which is what it was doing.
+    static let labelX: CGFloat = ModeCardStyle.fadeTo + 0.04
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having

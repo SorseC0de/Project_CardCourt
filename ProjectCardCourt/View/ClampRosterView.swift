@@ -8,6 +8,9 @@ import SwiftUI
 /// "who did this" is on the card rather than somewhere in the log.
 struct ClampRosterView: View {
     let clamps: [ClampBrief]
+    /// Raised to be read, where the roster sits somewhere a player can poke at it. Nil on
+    /// the call, which is the game talking rather than something to handle.
+    var onSelect: ((CardDescriptor, CGPoint) -> Void)?
 
     private enum Roster {
         static let cardWidth: CGFloat = 46
@@ -29,6 +32,7 @@ struct ClampRosterView: View {
                                 .strokeBorder(Theme.color(for: clamp.from),
                                               lineWidth: Roster.stroke)
                         }
+                        .raisable(clamp.card, onSelect)
                     PlayerNameText(seat: clamp.from, size: Roster.nameSize)
                 }
             }

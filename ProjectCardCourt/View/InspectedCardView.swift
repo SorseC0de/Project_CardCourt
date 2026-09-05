@@ -29,3 +29,29 @@ struct InspectedCardView: View {
         }
     }
 }
+
+extension View {
+    /// Taps this card up out of wherever it is sitting.
+    ///
+    /// The point handed back is the card's own centre on screen, because
+    /// `InspectedCardView` grows out of the place that was tapped — a card arriving from
+    /// nowhere makes you work out which one you asked for.
+    @ViewBuilder
+    func raisable(_ card: CardDescriptor,
+                  _ onSelect: ((CardDescriptor, CGPoint) -> Void)?) -> some View {
+        if let onSelect {
+            overlay {
+                GeometryReader { slot in
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onSelect(card, CGPoint(x: slot.frame(in: .global).midX,
+                                                   y: slot.frame(in: .global).midY))
+                        }
+                }
+            }
+        } else {
+            self
+        }
+    }
+}
