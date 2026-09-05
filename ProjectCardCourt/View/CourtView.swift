@@ -247,6 +247,8 @@ struct CourtView: View {
                                      + Theme.Figure.height * Perspective.playerDrop)
                         // Behind everybody, wedges included — but in front of the dim.
                         .zIndex(Layer.thrower)
+                        // He arrives on the line the way he left the floor.
+                        .transition(.columnWarp())
 
                     // The question is answered once it is in the air.
                     if throwing == nil {
@@ -494,6 +496,8 @@ struct CourtView: View {
         /// What a card wears while an inbound is being chosen. The same overlay that reds
         /// a card being discarded, in the palette's own dark.
         static let cardWash: Color = CardPalette.black.opacity(0.66)
+        /// How long a figure takes to go, or arrive, in columns. A blink, not a wipe.
+        static let warp: Double = 0.14
         /// How far the hand drops out of the way while an inbound is being chosen. Moved
         /// rather than dimmed: two translucent layers over one another multiply, and the
         /// seam where the hand's own sheet met the court's was a black band across the
@@ -636,7 +640,8 @@ struct CourtView: View {
                 .position(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,
                           y: court.y(at: post.depth) - nodeHeight / 2
                              + Theme.Figure.height * Perspective.playerDrop)
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
+                // Referees do not walk on. They are there or they are not.
+                .transition(.columnWarp())
         case .deck:
             let depth = Perspective.deckDepth
             let width = Self.pileWidth * deckTuning.size
@@ -656,8 +661,11 @@ struct CourtView: View {
             let scale = court.scale(of: seat, inbounding: thrower)
             node(seat, on: court)
                 // Whoever is inbounding is drawn on the sideline instead, further up this
-                // same stack. Hidden rather than skipped so nothing below them moves.
-                .opacity(isInbounding(seat) ? 0 : 1)
+                // same stack. Warped out rather than hidden — he is in two places for the
+                // length of a throw-in, and a hard cut is what made that read as a bug.
+                // Still drawn rather than skipped, so nothing below him moves.
+                .columnWarp(isInbounding(seat) ? 1 : 0)
+                .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
                 .scaleEffect(scale, anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .bottom)
                 .position(x: footing.x,

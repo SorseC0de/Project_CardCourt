@@ -1,7 +1,12 @@
 import SwiftUI
 
-/// The Mega Man teleport: a sprite cut into one-pixel columns, every other one thrown up
-/// and the rest thrown down, until there is nothing left in frame.
+/// The teleport: a sprite cut into one-pixel columns, every other one thrown up and the
+/// rest thrown down, until there is nothing left in frame.
+///
+/// **Mega Man's technique at a ninja's speed.** The columns are his; the timing is the one
+/// anime uses for a body that was there a frame ago and is not now — it does not dissolve,
+/// it goes. Slow it down and it stops reading as a teleport and starts reading as a wipe,
+/// so the duration is short enough that the strips are a shear rather than a journey.
 ///
 /// ## How it is drawn
 ///
@@ -14,29 +19,40 @@ import SwiftUI
 /// One *art* pixel, not one point. A stripe of any other width lands on a fraction of a
 /// pixel and the comb crawls as the figure scales — see the note on `SpriteAnimation.scale`,
 /// which is the same number: points per art pixel.
-struct ColumnWarp: ViewModifier {
+struct ColumnWarp: ViewModifier, Animatable {
     /// Nought is whole and untouched; one is fully gone.
     var progress: Double
     /// Points per art pixel — the width of one column.
     var pixel: CGFloat
-    /// How far the two combs travel at full progress, in art pixels. Past the top and
-    /// bottom of anything it is drawn over, which is the point: it does not fade, it
-    /// leaves.
-    var reach: CGFloat = 64
+    /// How far the two combs travel at full progress, in art pixels. Enough to clear the
+    /// figure and no more — at this speed the eye reads the shear, not the trip, and a
+    /// comb still travelling half a court later is a comb somebody has time to look at.
+    var reach: CGFloat = 40
+
+    /// So a change of `progress` is a movement rather than a jump — the whole point is
+    /// that SwiftUI walks it from nought to one and the combs travel while it does.
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
 
     func body(content: Content) -> some View {
         let travel = reach * pixel * CGFloat(progress)
+        // One stack either way, so the view's own type never changes under an animation.
         ZStack {
-            content
-                .mask { Comb(pixel: pixel, odd: false) }
-                .offset(y: -travel)
-            content
-                .mask { Comb(pixel: pixel, odd: true) }
-                .offset(y: travel)
+            if progress <= 0 {
+                // Whole is whole: a figure standing about pays neither mask nor a second
+                // copy of itself.
+                content
+            } else {
+                content
+                    .mask { Comb(pixel: pixel, odd: false) }
+                    .offset(y: -travel)
+                content
+                    .mask { Comb(pixel: pixel, odd: true) }
+                    .offset(y: travel)
+            }
         }
-        // Nothing is drawn at all when it is whole, so a figure standing about pays
-        // neither mask nor second copy.
-        .drawingGroup(opaque: false)
     }
 }
 
@@ -59,11 +75,20 @@ private struct Comb: View {
 
 extension View {
     /// Warps out — or, run backwards, in. `pixel` is the sprite's own scale.
-    func columnWarp(_ progress: Double, pixel: CGFloat, reach: CGFloat = 64) -> some View {
-        // Whole is whole: no mask, no second copy, no drawing group.
-        progress <= 0
-            ? AnyView(self)
-            : AnyView(modifier(ColumnWarp(progress: progress, pixel: pixel, reach: reach)))
+    func columnWarp(_ progress: Double, pixel: CGFloat = Theme.Figure.playerScale,
+                    reach: CGFloat = 40) -> some View {
+        modifier(ColumnWarp(progress: progress, pixel: pixel, reach: reach))
+    }
+}
+
+extension AnyTransition {
+    /// Arriving and leaving in columns, for anything that appears on the floor rather than
+    /// walking on to it — a referee taking the court, a player stepping off it to throw
+    /// the ball back in.
+    static func columnWarp(pixel: CGFloat = Theme.Figure.playerScale,
+                           reach: CGFloat = 40) -> AnyTransition {
+        .modifier(active: ColumnWarp(progress: 1, pixel: pixel, reach: reach),
+                  identity: ColumnWarp(progress: 0, pixel: pixel, reach: reach))
     }
 }
 
@@ -72,8 +97,8 @@ extension View {
 struct ColumnWarpBench: View {
     @State private var progress: Double = 0
     @State private var pixel: CGFloat = 7
-    @State private var reach: CGFloat = 64
-    @State private var seconds: Double = 0.45
+    @State private var reach: CGFloat = 40
+    @State private var seconds: Double = 0.14
 
     var body: some View {
         VStack(spacing: 0) {
