@@ -106,8 +106,14 @@ struct IntangibleEffect: Hashable, Codable {
     /// Fundamentalist: each Move once a turn, and the plainest cards are never spent.
     var oneOfEachMovePerTurn = false
     var keepsOnPlay: [String] = []
-    /// Floor General: every directed pass is aimed by this player instead.
-    var aimsEveryPass = false
+    /// Floor General: **every** target on the floor is named by this player instead —
+    /// who a pass finds, which card comes out of a hand, which branch a card takes. Not
+    /// the choices a player makes about their own board: giving up one of your own cards
+    /// is not a target.
+    var aimsEveryTarget = false
+    /// Franchise Player: a pass costs the man receiving it something. One of his
+    /// passives, or one card out of a hand you cannot see.
+    var passCostsTarget = false
     /// Comes off at the end of the round rather than sitting in a slot for the game.
     ///
     /// **Only the purely negative ones**, generally. An Intangible lasts the game unless
@@ -616,6 +622,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "free-agent":                  return "figure.wave"
         case "villainous-reputation":       return "theatermask.and.paintbrush.fill"
         case "dirty-player":                return "hand.raised.fingers.spread.fill"
+        case "franchise-player":            return "person.crop.rectangle.badge.plus"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

@@ -29,6 +29,12 @@ enum Prompts {
             guard let pick = hand.first else { return false }
             Rules.resolveCardFrom(hand.randomElement()?.id ?? pick.id, state: &state)
             return true
+        case .awaitingToll(_, let victim):
+            // A passive is worth more than a card off a hand nobody can read.
+            let pick: CardPick = state[victim].intangibles.first.map { .named($0.id) }
+                ?? .position(Int.random(in: 0..<max(1, state[victim].bag.count)))
+            Rules.resolveToll(pick, state: &state)
+            return true
         case .awaitingIntangibleDrop(_, let offered):
             // A passive that only hurts is the one to give up; failing that, the oldest,
             // which is what the rule used to do on its own.

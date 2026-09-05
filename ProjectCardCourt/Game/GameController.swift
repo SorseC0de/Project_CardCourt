@@ -306,6 +306,8 @@ final class GameController {
         case awaitingInjuryPick(card: CardDescriptor)
         /// A fourth passive on a full board: which of the four goes.
         case awaitingIntangibleDrop(offered: [CardDescriptor])
+        /// Franchise Player: his board face up, his hand face down.
+        case awaitingToll(victim: Seat)
         case awaitingFreeThrow(FreeThrowTrip)
         case gameOver
     }
@@ -536,6 +538,8 @@ final class GameController {
             return seat.isLocal ? .awaitingInjuryPick(card: card) : .thinking
         case .awaitingIntangibleDrop(let seat, let offered):
             return seat.isLocal ? .awaitingIntangibleDrop(offered: offered) : .thinking
+        case .awaitingToll(let seat, let victim):
+            return seat.isLocal ? .awaitingToll(victim: victim) : .thinking
         case .awaitingInjuryDiscard(let seat, let count):
             guard seat.isLocal, let injury = injury(on: seat) else { return .thinking }
             return .awaitingInjuryDiscard(card: injury, count: count)
@@ -770,6 +774,14 @@ final class GameController {
         guard case .awaitingTarget = gate else { return }
         loop?.cancel()
         Task { await present(Rules.resolveTarget(target, state: &state)) }
+    }
+
+    /// What a pass cost the man who took it.
+    func choose(toll pick: CardPick) {
+        guard !isPaused else { return }
+        guard case .awaitingToll = gate else { return }
+        loop?.cancel()
+        Task { await present(Rules.resolveToll(pick, state: &state)) }
     }
 
     /// The passive given up when a fourth arrives.
@@ -1112,6 +1124,17 @@ final class GameController {
                 // taking from. One rule, because the AI has no reason to prefer another.
                 let pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
                 await present(Rules.resolveTarget(pick, state: &state))
+                continue
+            }
+            if case .awaitingToll(let seat, let victim) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                gate = .thinking
+                try? await Task.sleep(for: .seconds(Pacing.think()))
+                if Task.isCancelled { return }
+                // A passive is worth more than a card off a hand nobody can read.
+                let pick: CardPick = state[victim].intangibles.first.map { .named($0.id) }
+                    ?? .position(Int.random(in: 0..<max(1, state[victim].bag.count)))
+                await present(Rules.resolveToll(pick, state: &state))
                 continue
             }
             if case .awaitingIntangibleDrop(let seat, let offered) = state.phase {

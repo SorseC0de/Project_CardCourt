@@ -88,6 +88,9 @@ enum Phase: Hashable, Codable {
     case awaitingInjuryPick(seat: Seat, card: CardDescriptor)
     /// A fourth passive arriving on a full board: which of the four goes.
     case awaitingIntangibleDrop(seat: Seat, offered: [CardDescriptor])
+    /// Franchise Player: something off the man who just took the pass. His passives are
+    /// face up and his hand is not, so this is one question over two kinds of card.
+    case awaitingToll(seat: Seat, victim: Seat)
     /// Bone Bruise: the turn opens by giving one up, and the sheet says whose choice it
     /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
     /// and resolves into one.
@@ -108,6 +111,7 @@ enum Phase: Hashable, Codable {
         case .awaitingCardFrom(let seat, _, _): return seat
         case .awaitingInjuryPick(let seat, _): return seat
         case .awaitingIntangibleDrop(let seat, _): return seat
+        case .awaitingToll(let seat, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }

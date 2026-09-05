@@ -43,7 +43,7 @@ enum Rules {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
         case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom,
-             .awaitingInjuryPick, .awaitingIntangibleDrop:
+             .awaitingInjuryPick, .awaitingIntangibleDrop, .awaitingToll:
             return []
         case .awaitingTarget(let asked, _, let choices) where asked == seat:
             return choices.map { Move.inbound(to: $0) }
@@ -168,7 +168,7 @@ enum Rules {
             // A target, so Floor General aims it — and the hand is shuffled the moment it
             // is named, which is what makes taking one at random a real gamble rather
             // than a memory test.
-            let aiming = Seat.allCases.first { has($0, in: state, { $0.aimsEveryPass }) } ?? seat
+            let aiming = asker(instead: seat, in: state)
             guard aiming == seat else {
                 state.pendingActor = seat
                 state.phase = .awaitingTarget(seat: aiming, card: CardLibrary.freeAgent,
@@ -377,9 +377,9 @@ enum Rules {
                 // which is the whole of what it does — so if it is on the floor, the ask
                 // goes to them instead.
                 if target == .choice || target == .leftOrRight {
-                    let aiming = Seat.allCases.first { has($0, in: state, { $0.aimsEveryPass }) } ?? seat
                     state.pendingPlay = descriptor
-                    state.phase = .awaitingTarget(seat: aiming, card: descriptor,
+                    state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                                  card: descriptor,
                                                   choices: passChoices(target, from: seat))
                     state.pendingActor = seat
                     return events
@@ -416,13 +416,14 @@ enum Rules {
             } else if descriptor.targetDiscards > 0 {
                 state.pendingPlay = descriptor
                 state.pendingActor = seat
-                state.phase = .awaitingTarget(seat: seat, card: descriptor,
+                state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                              card: descriptor,
                                               choices: Seat.allCases.filter { $0 != seat })
                 return events
             } else if !descriptor.modes.isEmpty {
                 state.pendingPlay = descriptor
                 state.pendingActor = seat
-                state.phase = .awaitingMode(seat: seat, card: descriptor)
+                state.phase = .awaitingMode(seat: asker(instead: seat, in: state), card: descriptor)
                 return events
             } else {
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
@@ -570,6 +571,16 @@ enum Rules {
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
         beginPossession(receiver, tickClock: true, state: &state, events: &events)
 
+        // Franchise Player: the man who took the pass gives something up for it. Asked
+        // ahead of the other two, because it is the pass itself that costs him.
+        if has(seat, in: state, { $0.passCostsTarget }),
+           !state[receiver].bag.isEmpty || !state[receiver].intangibles.isEmpty {
+            state.pendingActor = seat
+            state.phase = .awaitingToll(seat: asker(instead: seat, in: state),
+                                        victim: receiver)
+            return
+        }
+
         // Asked after the possession opens, so the card he was just dealt is in the hand
         // being picked from — a hand that changed size between the question and the
         // answer is a hand the picker was lied to about.
@@ -577,10 +588,12 @@ enum Rules {
             state.stealTravelsTo = seat.seat(inDirection: .left) == receiver
                 ? receiver.left : receiver.right
             state.pendingActor = seat
-            state.phase = .awaitingCardFrom(seat: seat, card: descriptor, victim: receiver)
+            state.phase = .awaitingCardFrom(seat: asker(instead: seat, in: state),
+                                            card: descriptor, victim: receiver)
         } else if descriptor.receiverDiscards > 0, !state[receiver].bag.isEmpty {
             state.pendingActor = seat
-            state.phase = .awaitingCardFrom(seat: seat, card: descriptor, victim: receiver)
+            state.phase = .awaitingCardFrom(seat: asker(instead: seat, in: state),
+                                            card: descriptor, victim: receiver)
         }
     }
 
@@ -607,7 +620,8 @@ enum Rules {
             }
             state.pendingPlay = descriptor
             state.pendingActor = actor
-            state.phase = .awaitingCardFrom(seat: actor, card: descriptor, victim: target)
+            state.phase = .awaitingCardFrom(seat: asker(instead: actor, in: state),
+                                           card: descriptor, victim: target)
             return events
         }
         completePass(descriptor, from: actor, to: target, state: &state, events: &events)
@@ -681,6 +695,33 @@ enum Rules {
             state.phase = .possession(holder: onward)
             events.append(.turnover(ball, cause: "Trade Deadline"))
         }
+    }
+
+    /// What the pass cost him: a passive by name, or a card by where it sits.
+    ///
+    /// Two kinds of card in one question, so the answer says which — his board is face up
+    /// and his hand is not, and picking a position out of a hand you cannot read is the
+    /// same guess Nutmeg asks for.
+    @discardableResult
+    static func resolveToll(_ pick: CardPick, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingToll(_, let victim) = state.phase else { return [] }
+        var events: [GameEvent] = []
+        state.pendingActor = nil
+        state.phase = .possession(holder: state.ball ?? victim)
+
+        switch pick {
+        case .named(let id):
+            guard let index = state[victim].intangibles.firstIndex(where: { $0.id == id })
+            else { return events }
+            let lost = state[victim].intangibles.remove(at: index)
+            events.append(.intangibleDisplaced(seat: victim, card: lost))
+            rehome(lost, from: victim, state: &state, events: &events)
+        case .position(let slot):
+            guard state[victim].bag.indices.contains(slot) else { return events }
+            state.discard.append(state[victim].bag.remove(at: slot))
+        }
+        settleHands(state: &state, events: &events)
+        return events
     }
 
     /// One of the Injuries on the table, taken.
@@ -1299,6 +1340,14 @@ enum Rules {
         case .leftOrRight: return [seat.left, seat.right]
         default: return Seat.allCases.filter { $0 != seat }
         }
+    }
+
+    /// Who names a target right now.
+    ///
+    /// A Floor General names every one of them, whoever is playing the card — which is
+    /// the whole of what the card does. Asked in one place so a new prompt cannot forget.
+    static func asker(instead of: Seat, in state: GameState) -> Seat {
+        Seat.allCases.first { has($0, in: state, { $0.aimsEveryTarget }) } ?? of
     }
 
     /// Whether a passive is standing on this seat.

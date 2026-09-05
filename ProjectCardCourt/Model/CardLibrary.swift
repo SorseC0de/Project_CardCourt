@@ -276,8 +276,8 @@ enum CardLibrary {
 
     static let floorGeneral = CardDescriptor(
         id: "floor-general", name: "Floor General", type: .intangible,
-        effect: "You aim every directed pass", numberInDeck: 1,
-        intangible: IntangibleEffect(aimsEveryPass: true))
+        effect: "You name every target on the floor", numberInDeck: 1,
+        intangible: IntangibleEffect(aimsEveryTarget: true))
 
     static let foxLikeFirstStep = CardDescriptor(
         id: "fox-like-first-step", name: "Fox-Like First Step", type: .intangible,
@@ -344,6 +344,12 @@ enum CardLibrary {
         id: "ball-pounder", name: "Ball Pounder", type: .intangible,
         effect: "Every Dribble draws 1 more and costs 10% more", numberInDeck: 1,
         intangible: IntangibleEffect(dribbleBonusDraw: 1, dribbleShotPenalty: -10))
+
+    static let franchisePlayer = CardDescriptor(
+        id: "franchise-player", name: "Franchise Player", type: .intangible,
+        effect: "Your passes cost the man receiving one: a passive of his, or a card",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(passCostsTarget: true))
 
     static let villainousReputation = CardDescriptor(
         id: "villainous-reputation", name: "Villainous Reputation", type: .intangible,
@@ -475,7 +481,7 @@ enum CardLibrary {
         boardCrasher, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
         gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
         sixthMan, sniper, splashCousin, unguardable, lethalShooter, ballPounder,
-        fundamentalist, freeAgent, villainousReputation, dirtyPlayer,
+        fundamentalist, freeAgent, villainousReputation, dirtyPlayer, franchisePlayer,
     ]
 
     // ── Game Breaks ───────────────────────────────────────────────────

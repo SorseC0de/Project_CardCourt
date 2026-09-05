@@ -78,18 +78,31 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+            if case .awaitingToll(let victim) = controller.gate {
+                // His board is face up and his hand is not, so both are on the table and
+                // only one of them can be read.
+                CardChoiceView(title: "\(victim.playerName) Pays",
+                               note: "A passive, or a card",
+                               offered: controller.state[victim].intangibles,
+                               backs: controller.state[victim].bag.count) {
+                    controller.choose(toll: $0)
+                }
+                .zIndex(12)
+            }
             if case .awaitingIntangibleDrop(let offered) = controller.gate {
                 // The one that just arrived is in the row, so "just discard it" is a
                 // pick rather than a second button.
                 CardChoiceView(title: "Too Many", note: "One has to go", offered: offered,
-                               tint: CardPalette.gold) { controller.choose(dropping: $0) }
+                               tint: CardPalette.gold) { pick in
+                    if case .named(let id) = pick { controller.choose(dropping: id) }
+                }
                     .zIndex(12)
             }
             if case .awaitingInjuryPick(let card) = controller.gate {
                 CardChoiceView(title: card.name, note: "Take one",
                                offered: controller.state.injuriesOffered,
-                               hidden: controller.state.injuriesHidden) {
-                    controller.choose(injury: $0)
+                               hidden: controller.state.injuriesHidden) { pick in
+                    if case .named(let id) = pick { controller.choose(injury: id) }
                 }
                 .zIndex(12)
             }

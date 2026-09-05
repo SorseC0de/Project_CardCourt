@@ -1,5 +1,23 @@
 import SwiftUI
 
+/// The gold ring and the lift that say which one is chosen.
+private struct Picked: ViewModifier {
+    let on: Bool
+    let side: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if on {
+                    RoundedRectangle(cornerRadius: side * CardLayout.cornerFraction,
+                                     style: .continuous)
+                        .strokeBorder(CardPalette.gold, lineWidth: 4)
+                }
+            }
+            .shadow(color: .black.opacity(0.5), radius: on ? 10 : 4, y: on ? 6 : 2)
+    }
+}
+
 /// A row of cards, and one of them taken.
 ///
 /// The shape every "pick one of these" in the game uses: laid on the mode card, tapped to
@@ -11,10 +29,13 @@ struct CardChoiceView: View {
     let note: String
     let offered: [CardDescriptor]
     var hidden: Set<String> = []
+    /// Cards that can only be pointed at — a hand nobody may read. Drawn as backs after
+    /// the named ones, and answered by position.
+    var backs: Int = 0
     var tint: Color = CardPalette.red
-    var onPick: (String) -> Void
+    var onPick: (CardPick) -> Void
 
-    @State private var chosen: String?
+    @State private var chosen: CardPick?
 
     private enum Table {
         static let card: CGFloat = 66
@@ -38,9 +59,14 @@ struct CardChoiceView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(offered, id: \.id) { card in
-                        face(card)
-                            .offset(y: chosen == card.id ? -Table.lift : 0)
-                            .onTapGesture { chosen = card.id }
+                        face(card, pick: .named(card.id))
+                            .offset(y: chosen == .named(card.id) ? -Table.lift : 0)
+                            .onTapGesture { chosen = .named(card.id) }
+                    }
+                    ForEach(0..<backs, id: \.self) { slot in
+                        back(pick: .position(slot))
+                            .offset(y: chosen == .position(slot) ? -Table.lift : 0)
+                            .onTapGesture { chosen = .position(slot) }
                     }
                 }
                 .padding(.vertical, Table.lift)
@@ -60,8 +86,13 @@ struct CardChoiceView: View {
         .fixedSize()
     }
 
-    @ViewBuilder private func face(_ card: CardDescriptor) -> some View {
-        let on = chosen == card.id
+    @ViewBuilder private func back(pick: CardPick) -> some View {
+        Image("CardBackFull").resizable().scaledToFit().frame(width: Table.card)
+            .modifier(Picked(on: chosen == pick, side: Table.card))
+    }
+
+    @ViewBuilder private func face(_ card: CardDescriptor, pick: CardPick) -> some View {
+        let on = chosen == pick
         Group {
             if hidden.contains(card.id) {
                 Image("CardBackFull").resizable().scaledToFit().frame(width: Table.card)
