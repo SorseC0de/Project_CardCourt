@@ -166,7 +166,7 @@ enum GameEvent: Hashable, Codable {
         case .clampVoided(let seat, let card, let count):
             return "\(card.name): the Clamp lands on nothing — \(count) defender\(count == 1 ? "" : "s") waved off \(seat.playerName)."
         case .clampsShaken(let seat, let card, let count):
-            return "\(card.name): \(seat.playerName) \(seat.verb("shakes", "shake")) off \(count) Clamp\(count == 1 ? "" : "s")."
+            return "\(card.name): \(seat.playerName) \(seat.verb("clears", "clear")) \(count) Clamp\(count == 1 ? "" : "s")."
         case .roundEnded(let round):
             return "End of round \(round)."
         case .deckReshuffled:

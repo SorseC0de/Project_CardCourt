@@ -317,7 +317,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Discarded at random from your own hand after the card resolves. Pound Dribble
     /// draws two and gives one back.
     var selfDiscard = 0
-    /// Paid per Clamp shaken off. Spin Move turns being guarded into an advantage.
+    /// Paid per Clamp cleared. Spin Move turns being guarded into an advantage.
     var shotPerClamp = 0
     var drawPerClamp = 0
     /// And what it costs whoever sent them.
@@ -361,7 +361,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let special: SpecialMoveEffect?
     /// Flop: a trip to the line for every Clamp standing on you.
     let freeThrowsPerClamp: Int
-    /// Shakes off every Clamp on the player — Flop sells it, Pump Fake shrugs it.
+    /// Clears every Clamp on the player — Flop sells it, Pump Fake shrugs it.
     let clearsClamps: Bool
     /// Flop with nobody guarding you: the referee has watched you throw yourself down
     /// on an empty floor.
