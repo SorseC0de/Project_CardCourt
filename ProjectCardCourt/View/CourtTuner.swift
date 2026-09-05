@@ -63,7 +63,7 @@ final class DeckTuning {
     ///
     /// A reading rather than a count: Standard deals from close to four hundred cards, and
     /// drawing them honestly stands a tower on the floor taller than the players around it.
-    var slabs: CGFloat = 5
+    var slabs: CGFloat = 10
 }
 
 /// Where the two lines of the inbound prompt sit, while that is being eyeballed. Freeze
@@ -176,7 +176,7 @@ struct DebugActionsView: View {
                         render.courtStage.toggle()
                     }
                     action("reset") {
-                        deck.size = 0.555; deck.x = 0.030; deck.y = 0.02; deck.slabs = 5
+                        deck.size = 0.555; deck.x = 0.030; deck.y = 0.02; deck.slabs = 10
                     }
                 }
                 deckSliders

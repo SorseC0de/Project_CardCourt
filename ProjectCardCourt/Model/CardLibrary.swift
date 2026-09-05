@@ -130,7 +130,7 @@ enum CardLibrary {
     static let hesi = CardDescriptor(
         id: "hesi", name: "Hesi", type: .move,
         effect: "SHOT +10%. Shot Clock -1", numberInDeck: 15,
-        shotDelta: 10, clockDelta: -1)
+        shotDelta: 10, clockDelta: -1, isDribble: true)
 
     static let pumpFake = CardDescriptor(
         id: "pump-fake", name: "Pump Fake", type: .move,

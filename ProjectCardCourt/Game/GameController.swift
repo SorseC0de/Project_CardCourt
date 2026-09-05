@@ -14,6 +14,12 @@ enum Pacing {
     /// for the burst at the rim to have its life — that is the celebration, and it was
     /// being cut off with the view.
     static let cutscene = 4.2
+    /// How long a figure takes to warp off the floor, or on to it — see `ColumnWarp`.
+    ///
+    /// The floor and the sideline take a turn each: he comes apart where he was, and only
+    /// then does he put himself together where he is going. Everything else on the floor
+    /// waits out both halves, or the ball is thrown before he has arrived to throw it.
+    static let warp = 0.14
     /// Longer than the ball takes to arrive and settle, or the scene cuts away while it
     /// is still rolling — which is what made it look like it never stopped.
     static let turnover = 4.0
@@ -1412,6 +1418,10 @@ final class GameController {
             let throwingIn = { if case .inbound = state.phase { return true }; return false }()
             inbounding = throwingIn ? seat : nil
             if throwingIn {
+                // Out of one place and into the other, in that order. The call waits for
+                // both halves rather than talking over a man who is still in pieces.
+                try? await Task.sleep(for: .seconds(Pacing.warp * 2))
+                if Task.isCancelled { return }
                 await announce(.inbound)
                 if Task.isCancelled { return }
             }

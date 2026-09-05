@@ -92,6 +92,22 @@ struct CourtView: View {
     /// player leaving twice does not leave the same way — see `ColumnWarp.seed`.
     @State private var warpSeed: UInt64 = .random(in: .min ... .max)
 
+    /// `inbounding`, a warp late.
+    ///
+    /// **The two halves take a turn each.** Going out he comes apart on the floor and only
+    /// then assembles on the line; coming back he leaves the line first and only then
+    /// puts himself together where he stands. Both at once is one man in two places, which
+    /// is what a teleport is meant to avoid.
+    @State private var arrived: Seat?
+
+    /// He is off the floor: gone, going, or not yet back.
+    private func isAway(_ seat: Seat) -> Bool {
+        inbounding == seat || arrived == seat
+    }
+
+    /// And he is standing on the line, which is only true once he has finished arriving.
+    private var atLine: Seat? { inbounding == arrived ? arrived : nil }
+
     /// True while the ball is crossing between players.
     @State private var ballInFlight = false
     /// 0 at the passer, 1 at the receiver. Named apart from the draw's `flight`.
@@ -237,7 +253,7 @@ struct CourtView: View {
                         .zIndex(Layer.prompt)
                 }
 
-                if let thrower {
+                if let thrower, atLine != nil || throwing != nil {
                     // Dead centre, facing the line of three. He is not on the floor,
                     // so there is no side for him to be on.
                     let depth = RefereePost.farLeft.depth
@@ -349,6 +365,12 @@ struct CourtView: View {
         }
         // A body does not come apart the same way twice.
         .onChange(of: inbounding) { warpSeed = .random(in: .min ... .max) }
+        // And it is in one place at a time: the far half waits a warp for the near one.
+        .task(id: inbounding) {
+            let going = inbounding
+            try? await Task.sleep(for: .seconds(Pacing.warp))
+            arrived = going
+        }
     }
 
     // MARK: - Floor
@@ -505,8 +527,9 @@ struct CourtView: View {
         /// What a card wears while an inbound is being chosen. The same overlay that reds
         /// a card being discarded, in the palette's own dark.
         static let cardWash: Color = CardPalette.black.opacity(0.66)
-        /// How long a figure takes to go, or arrive, in columns. A blink, not a wipe.
-        static let warp: Double = 0.14
+        /// How long a figure takes to go, or arrive, in columns. A blink, not a wipe —
+        /// and the loop waits out two of them, so see `Pacing.warp`, which owns it.
+        static let warp: Double = Pacing.warp
         /// How far the hand drops out of the way while an inbound is being chosen. Moved
         /// rather than dimmed: two translucent layers over one another multiply, and the
         /// seam where the hand's own sheet met the court's was a black band across the
@@ -734,9 +757,9 @@ struct CourtView: View {
                 // same stack. He warps off the floor rather than being cut from it — and
                 // the sprite alone comes apart, since a bag count in columns is a number
                 // falling to bits rather than a player leaving.
-                warp: isInbounding(seat) ? 1 : 0,
+                warp: isAway(seat) ? 1 : 0,
                 warpSeed: warpSeed)
-                .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
+                .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
             HStack(spacing: NamePlate.size * 0.18) {
                 PlayerNameText(seat: seat, size: NamePlate.size,
                                tracking: NamePlate.tracking)
@@ -750,8 +773,8 @@ struct CourtView: View {
             }
                 .animation(.easeOut(duration: 0.2), value: holder == seat)
                 // The name goes with him, whole — it is a label, not a body.
-                .opacity(isInbounding(seat) ? 0 : 1)
-                .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
+                .opacity(isAway(seat) ? 0 : 1)
+                .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
                 .fixedSize()
                 // The node is scaled by its row, which sized Raheem's name to the horizon
                 // and blew the human's up. A name is a label rather than a thing standing
