@@ -17,6 +17,8 @@ final class NameCallTuning {
 
     /// How long the plate is, against how far it flies.
     var cardWidth: CGFloat = NameCallStyle.length
+    /// And how tall, against the same.
+    var cardHeight: CGFloat = NameCallStyle.height
     /// Where its leading edge comes to rest, from the screen's own leading edge. Negative,
     /// so the tail runs off the side and the taper is seen against the screen's edge.
     var cardX: CGFloat = NameCallStyle.cardX
@@ -129,7 +131,10 @@ struct NameCallView: View {
         // laid out against — and every scene that uses it stacks it over the top of
         // something. A ZStack takes the width of its widest child, so an over-wide plate
         // re-centred the shot's backboard from a layer that is meant to be scenery.
-        .frame(width: reach, height: size.height, alignment: .leading)
+        // **Room below for the drop.** The clip is here so the plate cannot size anything
+        // it is stacked over; cut to the plate's own height it also cut the southern half
+        // of its shadow off, which left a drop that only went east.
+        .frame(width: reach, height: size.height + tuning.drop, alignment: .topLeading)
         .clipped()
         .allowsHitTesting(false)
         .task {
@@ -225,7 +230,8 @@ enum NameCallStyle {
     /// dissolve across the first eighth of the screen, which is where it belongs.
 
     static func size(reaching reach: CGFloat) -> CGSize {
-        CGSize(width: reach * NameCallTuning.shared.cardWidth, height: reach * height)
+        CGSize(width: reach * NameCallTuning.shared.cardWidth,
+               height: reach * NameCallTuning.shared.cardHeight)
     }
 
     static let fadeFrom: CGFloat = ModeCardStyle.fadeFrom
@@ -332,6 +338,7 @@ struct NameCallBench: View {
 
             VStack(spacing: 6) {
                 dial("card width", $tuning.cardWidth, 0.2...2.5)
+                dial("card height", $tuning.cardHeight, 0.04...0.5)
                 dial("card x", $tuning.cardX, -1...1)
                 dial("name size", $tuning.nameSize, 8...48)
                 dial("name width", $tuning.nameWidth, 0.4...1.6)
@@ -360,6 +367,7 @@ struct NameCallBench: View {
                         leaving = false
                         run = UUID()
                         tuning.cardWidth = NameCallStyle.length
+                        tuning.cardHeight = NameCallStyle.height
                         tuning.cardX = NameCallStyle.cardX
                         tuning.nameSize = NameCallStyle.labelSize
                         tuning.nameWidth = NameCallStyle.labelStretch
