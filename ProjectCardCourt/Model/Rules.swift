@@ -83,7 +83,11 @@ enum Rules {
                 // Clear Out: you step aside before the play starts, or not at all — and
                 // only out of a ball that was going somewhere.
                 if card.descriptor.firstActionOnly, !isFirstAction(state) { return false }
-                if card.descriptor.clearsOut, clearsTo(seat, in: state) == nil { return false }
+                // Clear Out is never played off the hand: it is offered the moment the
+                // ball reaches you, before the defenders land, and that is the only way
+                // in — see `beginPossession`. In the hand it reads as a card you cannot
+                // play, which is exactly what it is once the question has been answered.
+                if card.descriptor.clearsOut { return false }
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
@@ -210,6 +214,39 @@ enum Rules {
         return live.kind
     }
 
+    /// The Clear Out in his hand, if he holds one and there is anywhere for the ball to go.
+    static func clearOutOnOffer(to seat: Seat, in state: GameState) -> Card? {
+        guard clearsTo(seat, in: state) != nil else { return nil }
+        return state[seat].bag.first { $0.descriptor.clearsOut }
+    }
+
+    /// Taken, or turned down.
+    ///
+    /// Turning it down picks the possession back up exactly where it was put down; taking
+    /// it spends the card and sends the ball on, and the defenders that were about to land
+    /// land on the next man instead — which is the whole reason the question is asked here
+    /// rather than on his turn.
+    @discardableResult
+    static func resolveClearOut(_ taken: Bool, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingClearOut(let seat, _) = state.phase,
+              let held = state.heldPossession else { return [] }
+        var events: [GameEvent] = []
+        state.heldPossession = nil
+
+        guard taken, let card = clearOutOnOffer(to: seat, in: state) else {
+            beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
+                            offering: false, state: &state, events: &events)
+            return events
+        }
+
+        state[seat].bag.removeAll { $0.id == card.id }
+        state.discard.append(card)
+        events.append(.movePlayed(seat: seat, card: card.descriptor, shot: state.shot))
+        clearOut(from: seat, state: &state, events: &events)
+        settleHands(state: &state, events: &events)
+        return events
+    }
+
     /// Clear Out: he steps out of the play and the ball carries on the way it was going.
     ///
     /// **A pass nobody threw.** He does not pass it — he is simply not there, so the ball
@@ -221,15 +258,13 @@ enum Rules {
     private static func clearOut(from seat: Seat, state: inout GameState,
                                  events: inout [GameEvent]) {
         guard let onward = clearsTo(seat, in: state) else { return }
-        // Taken before the board is cleared: `beginPossession` wipes every Clamp on the
-        // floor, and these are the ones that have to survive the trip.
-        let carried = state[seat].clamps
+        // Whatever was about to land on him lands on the man the ball went to. Asked
+        // before they bit, so there is nothing on him to carry — only a pile still in the
+        // air, and gravity takes it wherever the ball ends up.
+        state.clampMagnet = onward
         let passer = state.lastPasser
         events.append(.clearedOut(seat: seat, to: onward))
         beginPossession(onward, tickClock: true, state: &state, events: &events)
-        // After, for the same reason: what `beginPossession` lands is the pending pile,
-        // and these are already on the floor.
-        state[onward].clamps += carried
         // Untouched. The man who threw it is still the man who threw it.
         state.lastPasser = passer
     }
@@ -1495,8 +1530,18 @@ enum Rules {
     }
 
     private static func beginPossession(_ seat: Seat, tickClock shouldTick: Bool,
-                                        fromRebound: Bool = false,
+                                        fromRebound: Bool = false, offering: Bool = true,
                                         state: inout GameState, events: inout [GameEvent]) {
+        // **Asked before anything else happens.** A man who steps out of the play is not
+        // there for the defenders either, and they land four lines below this — so the
+        // question has to come while the possession is still only arriving. Nothing has
+        // been touched yet, so the whole call is simply held and run again on the answer.
+        if offering, let card = clearOutOnOffer(to: seat, in: state) {
+            state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
+                                                            fromRebound: fromRebound)
+            state.phase = .awaitingClearOut(seat: seat, card: card.descriptor)
+            return
+        }
         state.ball = seat
         state.lastPlayThisPossession = nil
         state.lastPlayWasCombo = false

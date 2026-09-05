@@ -182,6 +182,17 @@ struct GameView: View {
                 // the player opened for themselves.
                 .zIndex(11)
             }
+            if case .awaitingClearOut(let card) = controller.gate {
+                CardChoiceView(title: "Clear Out?",
+                               note: "Step aside and the ball carries on",
+                               offered: [card],
+                               tint: CardPalette.orange,
+                               taking: "Play it!",
+                               declining: "No thanks",
+                               onDecline: { controller.choose(clearOut: false) },
+                               onPick: { _ in controller.choose(clearOut: true) })
+                    .zIndex(11)
+            }
             if browsingDiscard {
                 DiscardBrowserView(cards: controller.state.discard,
                                    onDismiss: { browsingDiscard = false })

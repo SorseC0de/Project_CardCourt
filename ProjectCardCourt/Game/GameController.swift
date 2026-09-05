@@ -315,6 +315,8 @@ final class GameController {
         case awaitingMove(Seat)
         case awaitingBid(shooter: Seat)
         case awaitingDiscard(card: CardDescriptor, bonusEach: Int)
+        /// Stepping out of the play, asked the moment the ball reaches you.
+        case awaitingClearOut(card: CardDescriptor)
         /// Bone Bruise's toll at the top of the turn. Its own case, because the shot
         /// discard resolves into a shot and this one resolves into a turn.
         case awaitingInjuryDiscard(card: CardDescriptor, count: Int)
@@ -583,6 +585,8 @@ final class GameController {
             return trip.shooter.isLocal ? .awaitingFreeThrow(trip) : .thinking
         case .awaitingDiscard(let seat, let card, let bonus):
             return seat.isLocal ? .awaitingDiscard(card: card, bonusEach: bonus) : .thinking
+        case .awaitingClearOut(let seat, let card):
+            return seat.isLocal ? .awaitingClearOut(card: card) : .thinking
         case .awaitingTarget(let seat, let card, let choices):
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
@@ -940,6 +944,16 @@ final class GameController {
         }
     }
 
+    /// Stepping out of the play, or standing in it.
+    func choose(clearOut taken: Bool) {
+        guard !isPaused else { return }
+        guard case .awaitingClearOut = gate else { return }
+        drive {
+            await present(Rules.resolveClearOut(taken, state: &state), playedCard: true)
+            await run()
+        }
+    }
+
     /// A card picked out of a hand nobody can see.
     func choose(card id: Card.ID) {
         guard !isPaused else { return }
@@ -1281,6 +1295,17 @@ final class GameController {
                 try? await Task.sleep(for: .seconds(Pacing.freeThrow))
                 aiFreeThrow = nil
                 await present(Rules.resolveFreeThrow(made: made, state: &state))
+                continue
+            }
+            if case .awaitingClearOut(let seat, _) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                gate = .thinking
+                try? await Task.sleep(for: .seconds(Pacing.think()))
+                if Task.isCancelled { return }
+                // Worth it for what is about to land on him, and nothing otherwise: the
+                // card is a way out of the defenders, not a way of moving the ball.
+                await present(Rules.resolveClearOut(!state.pendingClamps.isEmpty,
+                                                    state: &state), playedCard: true)
                 continue
             }
             if case .awaitingTarget(let seat, _, let choices) = state.phase {

@@ -20,6 +20,11 @@ enum Prompts {
             _ = seat
             Rules.resolveTarget(pick, state: &state)
             return true
+        case .awaitingClearOut(let seat, _):
+            // Worth it for what is about to land on him, and nothing otherwise.
+            _ = seat
+            Rules.resolveClearOut(!state.pendingClamps.isEmpty, state: &state)
+            return true
         case .awaitingDiscard(let seat, _, _):
             // Stepback and Turnaround Three ask the same question. Nothing fed in is
             // always a legal answer, which is what an absent player gives.

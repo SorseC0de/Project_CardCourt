@@ -101,6 +101,10 @@ enum Phase: Hashable, Codable {
     /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
     /// and resolves into one.
     case awaitingInjuryDiscard(seat: Seat, count: Int)
+    /// Clear Out: asked the moment the ball arrives, before the defenders land on him.
+    /// Answering no puts the card down for the possession; answering yes spends it and the
+    /// ball carries on without him.
+    case awaitingClearOut(seat: Seat, card: CardDescriptor)
     /// At the line. One attempt at a time until the trip runs out.
     case freeThrows(trip: FreeThrowTrip)
     case gameOver
@@ -127,6 +131,7 @@ enum Phase: Hashable, Codable {
         case .awaitingInjuryPick(let seat, _): return seat
         case .awaitingIntangibleDrop(let seat, _): return seat
         case .awaitingToll(let seat, _): return seat
+        case .awaitingClearOut(let seat, _): return seat
         case .awaitingNaming(let seat, _, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
@@ -221,6 +226,14 @@ struct GameState: Codable {
     /// whatever it finds there. Setting the phase from inside it is writing to something
     /// that is about to be overwritten, which is why Benched did nothing at all.
     var pendingInbound: Seat?
+    /// A possession held mid-arrival while its man is asked whether he is stepping out of
+    /// it — see `Rules.beginPossession`. Everything it needs to pick up where it stopped.
+    struct HeldPossession: Hashable, Codable {
+        let seat: Seat
+        let ticks: Bool
+        let fromRebound: Bool
+    }
+    var heldPossession: HeldPossession?
     /// Back-and-Forth Game: how many more Breaks get waved away as they land.
     var breaksWaived = 0
     /// Mic'd Up: SHOT carried by whoever is holding the ball. Not part of `shot`, which

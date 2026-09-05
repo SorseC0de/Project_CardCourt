@@ -8,22 +8,37 @@ struct CardBackFan: View {
     let count: Int
     var width: CGFloat = 62
     var lift: CGFloat = 26
-    /// How far the fan opens, in degrees across the whole hand.
-    var spread: Double = 34
-    var radius: CGFloat = 260
+    /// How far the fan opens, in degrees across the whole hand, and the radius it opens
+    /// around. **The hand's own numbers** — see `FannedBagView.arc`, which is the arc every
+    /// hand in the game is laid out on, tightening as it grows so a big one does not wrap
+    /// into a circle.
+    var radius: CGFloat = 300
     var tint: Color = Theme.danger
     var isChosen: (Int) -> Bool
     var onPick: (Int) -> Void
 
+    private var spread: Double { min(46, Double(max(count, 1)) * 7) }
+
+    /// Where a card sits on the arc: along it, out from its centre, and turned to face
+    /// out of it. Stacking them on one spot and only turning them — which is what this
+    /// was doing — is a pile of cards, not a hand being held.
+    private func placement(_ index: Int) -> (x: CGFloat, y: CGFloat, angle: Double) {
+        guard count > 1 else { return (0, 0, 0) }
+        let t = Double(index) / Double(count - 1) - 0.5
+        let angle = spread * t
+        let radians = angle * .pi / 180
+        return (radius * CGFloat(sin(radians)),
+                radius * CGFloat(1 - cos(radians)),
+                angle)
+    }
+
     var body: some View {
         ZStack {
             ForEach(0..<count, id: \.self) { index in
-                let along = count > 1 ? Double(index) / Double(count - 1) - 0.5 : 0
-                let angle = along * spread
+                let at = placement(index)
                 back(index)
-                    .rotationEffect(.degrees(angle), anchor: .bottom)
-                    .offset(y: -radius * CGFloat(1 - cos(angle * .pi / 180)))
-                    .offset(y: isChosen(index) ? -lift : 0)
+                    .rotationEffect(.degrees(at.angle), anchor: .bottom)
+                    .offset(x: at.x, y: at.y + (isChosen(index) ? -lift : 0))
                     .zIndex(isChosen(index) ? 1 : 0)
                     .onTapGesture { onPick(index) }
             }

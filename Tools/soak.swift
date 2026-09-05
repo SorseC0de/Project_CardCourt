@@ -66,37 +66,39 @@ func probeDime() {
     }
 }
 
-/// Clear Out: the pass nobody threw.
+/// Clear Out: the question the ball asks on arrival.
 ///
-/// Tanaka clamps and swings left; the man who catches it steps aside; the ball, the Clamp
-/// and the credit all carry on to the next man along.
+/// Tanaka clamps and swings left; the man it is heading for is holding a Clear Out, so he
+/// is asked before the defenders land. He steps aside — and the ball, the Clamps and the
+/// credit all carry on to the next man along.
 func probeClearOut() {
     var state = Rules.newGame(seed: 11, rules: .standard).0
     guard case .inbound(let inbounder) = state.phase else { return }
     Rules.apply(.inbound(to: inbounder.left), by: inbounder, to: &state)
     guard case .possession(let passer) = state.phase else { print("no possession"); return }
 
-    // A Clamp out of the passer, then a swing to the man it lands on.
+    // The man the swing is heading for, and the card in his hand before it gets there.
+    let catcher = passer.left
+    state[catcher].bag.append(Card(CardLibrary.clearOut))
+
     let clamp = Card(CardLibrary.doubleTeam)
     state[passer].bag.append(clamp)
     Rules.apply(.play(clamp.id), by: passer, to: &state)
     let swing = Card(CardLibrary.swingLeft.resolved(passShotBonus: 5))
     state[passer].bag.append(swing)
     Rules.apply(.play(swing.id), by: passer, to: &state)
-    guard case .possession(let caught) = state.phase else {
-        print("no catch:", state.phase.label); return }
-    print("passer \(passer) → \(caught) | clamps on him \(state[caught].clamps.count)",
-          "| last passer \(String(describing: state.lastPasser))")
 
-    let clear = Card(CardLibrary.clearOut)
-    state[caught].bag.append(clear)
-    print("legal:", Rules.legalMoves(state, for: caught).contains(.play(clear.id)),
-          "| clears to", String(describing: Rules.clearsTo(caught, in: state)))
-    let events = Rules.apply(.play(clear.id), by: caught, to: &state)
-    print("APPLY:", events.map { "\($0)".prefix(while: { $0 != "(" }) })
+    print("phase on arrival:", state.phase.label,
+          "| pending clamps", state.pendingClamps.count,
+          "| on him", state[catcher].clamps.count)
+    guard case .awaitingClearOut = state.phase else { print("not asked"); return }
+
+    let events = Rules.resolveClearOut(true, state: &state)
+    print("TAKEN:", events.map { "\($0)".prefix(while: { $0 != "(" }) })
     guard case .possession(let onward) = state.phase else {
         print("no onward:", state.phase.label); return }
     print("ball now \(onward) | clamps on him \(state[onward].clamps.count)",
-          "| clamps left behind \(state[caught].clamps.count)",
-          "| last passer \(String(describing: state.lastPasser))")
+          "| on the man who stepped out \(state[catcher].clamps.count)",
+          "| last passer \(String(describing: state.lastPasser))",
+          "| card spent:", !state[catcher].bag.contains { $0.descriptor.clearsOut })
 }

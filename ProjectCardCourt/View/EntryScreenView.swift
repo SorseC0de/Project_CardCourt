@@ -97,7 +97,7 @@ struct EntryScreenView: View {
             .shadow(color: Chrome.shade, radius: 0, x: 2, y: 2)
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
-            .background(Capsule().fill(CardPalette.blue))
+            .background(Capsule().fill(CardPalette.red))
             .overlay(Capsule().strokeBorder(CardPalette.gold, lineWidth: 3))
             .compositingGroup()
             .shadow(color: CardPalette.orange, radius: 0, x: 4, y: 4)
