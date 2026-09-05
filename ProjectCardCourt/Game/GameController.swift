@@ -738,6 +738,8 @@ final class GameController {
             try? match?.send(.ready)
             return
         }
+        DevLog.say(.deck, "piles drawn "
+                   + (RenderDebug.shared.courtStage ? "by the 3D stage" : "flat"))
         drive {
             DevLog.say(.input, "begin: dealing \(openingDraws.count) cards out")
             // The opening deal goes out card by card before anyone can act.
