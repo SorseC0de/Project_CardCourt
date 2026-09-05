@@ -56,6 +56,7 @@ func play(seed: UInt64, moves: [String]) {
                 .filter(\.isLoggable).map(\.logLine)
             return true
         }
+        if Prompts.step(&state, &ai) { return true }
         guard let seat = state.phase.actingSeat, seat != human else { return false }
         guard let move = ai.move(state, for: seat) else { return false }
         lines += Rules.apply(move, by: seat, to: &state).filter(\.isLoggable).map(\.logLine)
@@ -92,6 +93,8 @@ func play(seed: UInt64, moves: [String]) {
             lines += Rules.resolveRebound(bids: bids, state: &state).filter(\.isLoggable).map(\.logLine)
             continue
         }
+
+        if Prompts.step(&state, &ai) { continue }
 
         guard let seat = state.phase.actingSeat, seat == human else { break }
         let legal = Rules.legalMoves(state, for: human)
@@ -152,6 +155,8 @@ if args.contains("--text") {
     sweepThresholds()
 } else if args.contains("--ft") {
     measureFreeThrows()
+} else if args.contains("--hands") {
+    OpeningHands.run()
 } else if args.contains("--test") {
     runTests()
 } else if args.contains("--play") {
@@ -194,6 +199,7 @@ if args.contains("--text") {
                 for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }
                 _ = Rules.resolveRebound(bids: bids, state: &state); continue
             }
+            if Prompts.step(&state, &ai) { continue }
             guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
             if case .shoot = m {
                 handSize += state[seat].bag.count; shootDecisions += 1

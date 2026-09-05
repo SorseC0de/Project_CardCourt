@@ -44,6 +44,7 @@ func measureFreeThrows() {
                 Rules.resolveRebound(bids: bids, state: &state)
                 continue
             }
+            if Prompts.step(&state, &ai) { continue }
             guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
             for e in Rules.apply(m, by: seat, to: &state) {
                 if case .freeThrowsAwarded(_, let n, let source) = e {

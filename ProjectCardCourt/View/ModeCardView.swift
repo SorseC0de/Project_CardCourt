@@ -56,6 +56,11 @@ struct ModeCardView: View {
 
     var blurbDrop: CGFloat = ModeCardStyle.blurbDrop
 
+    /// The seat the card is about, if it is about one. The bars take that seat's colour
+    /// and the streaks go white — a card that names a player should be that player's,
+    /// and black is what a card with nobody's name on it wears.
+    var seat: Seat?
+
     /// Shown across the seam *instead of* the title, for a call whose whole meaning is a
     /// picture. A word under it would be the same thing said twice.
     var emblem: String? = nil
@@ -110,7 +115,7 @@ struct ModeCardView: View {
                 // thing that is coming towards you; these bars are *passing*, and what
                 // belongs in a shape that passes is the world going by in the direction
                 // it is headed.
-                SideStreaks()
+                SideStreaks(ink: seat == nil ? nil : .white)
                     .frame(width: width, height: bar.height * 2)
                     // **Last, not first.**
                     //
@@ -210,7 +215,11 @@ struct ModeCardView: View {
     /// screen's edge, while the inner ends stay solid and hold the Z.
     private func slat(_ slat: Slat, bar: ModeCardStyle.Bar, width: CGFloat) -> some View {
         Parallelogram(lean: ModeCardStyle.lean)
-            .fill(ModeCardStyle.taper(towards: slat))
+            // Whose card it is, if it is anybody's. The same taper either way — only
+            // what is fading matters.
+            .fill(ModeCardStyle.taper(towards: slat, face: seat.map {
+                Theme.color(for: $0).opacity(ModeCardStyle.faceOpacity)
+            } ?? ModeCardStyle.face))
             .frame(width: bar.width, height: bar.height)
 
             // **Two different moves, both outward.**
@@ -374,7 +383,7 @@ enum ModeCardStyle {
     /// simply one colour or the other. One stop each was a fade that started at
     /// the very tip whether or not it should, with no way to hold the end fully
     /// clear before it began.
-    static func taper(towards slat: ModeCardView.Slat) -> LinearGradient {
+    static func taper(towards slat: ModeCardView.Slat, face: Color = face) -> LinearGradient {
         // Ordered whatever the two knobs are set to. A gradient whose stops run
         // backwards does not warn — it draws something else.
         let from = min(fadeFrom, fadeTo)

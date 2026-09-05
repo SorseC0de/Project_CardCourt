@@ -18,13 +18,18 @@ enum WhistleTrigger: String, Hashable, Codable {
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
     case shotClockLowered
     case whistleFired
+    /// An Injury turning up in somebody's draw. **The one exception to Game Breaks being
+    /// events rather than plays**: Cleared to Play is the sheet's own answer to an Injury,
+    /// and an Injury is the one Break that stays on a player rather than firing and going.
+    /// Raised where the Break lands, not by matching an action.
+    case injuryDrawn
     /// Any *other* Whistle actually firing — not one being set down. Inadvertent Whistle
     /// is the referee blowing over the top of another call, so it cannot be matched
     /// against a `PendingAction` the way the rest are; see `Rules.blow`.
 
     func matches(_ action: PendingAction) -> Bool {
         // Never intercepts a play. It waits for another Whistle instead.
-        if self == .whistleFired { return false }
+        if self == .whistleFired || self == .injuryDrawn { return false }
         switch (self, action) {
         case (.shotAttempt, .shoot):
             return true

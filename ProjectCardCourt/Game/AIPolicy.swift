@@ -218,6 +218,18 @@ struct AITable {
         policies[seat]!.discardForShot(state, for: seat)
     }
 
+    /// Which branch of a card that offers several.
+    ///
+    /// The best look on offer, and a draw when nothing on offer improves the shot — which
+    /// is the same shape as every other decision this policy makes.
+    func mode(of card: CardDescriptor, _ state: GameState, for seat: Seat) -> Int {
+        let best = card.modes.enumerated().max { left, right in
+            left.element.shotDelta < right.element.shotDelta
+        }
+        guard let best, best.element.shotDelta > 0 else { return 0 }
+        return best.offset
+    }
+
     subscript(seat: Seat) -> AITuning {
         get { policies[seat]!.tuning }
         set { policies[seat]!.tuning = newValue }

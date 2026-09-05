@@ -105,23 +105,64 @@ extension GameState {
     /// What this seat's shot picks up beyond the ball's own SHOT.
     ///
     /// Each source appends to the class it belongs to; the calculation never changes.
-    func shotModifiers(for seat: Seat, ignoringClamps: Bool = false) -> ShotModifiers {
+    func shotModifiers(for seat: Seat, ignoringClamps: Bool = false,
+                       fromThree: Bool = false) -> ShotModifiers {
         var modifiers = ShotModifiers()
         // Adds first, in the order the passives were received.
         for passive in self[seat].intangibles {
-            guard let effect = passive.intangible, effect.shotBonus != 0 else { continue }
-            if effect.requiresScoredLastRound && !self[seat].scoredLastRound { continue }
-            modifiers.adds.append(ShotModifier(label: passive.name, amount: Double(effect.shotBonus)))
+            guard let effect = passive.intangible else { continue }
+            guard pays(effect, for: seat, fromThree: fromThree) else { continue }
+            if effect.shotBonus != 0 {
+                modifiers.adds.append(ShotModifier(label: passive.name,
+                                                   amount: Double(effect.shotBonus)))
+            }
+            if effect.shotMultiplier != 0 {
+                modifiers.multipliers.append(ShotModifier(label: passive.name,
+                                                          amount: effect.shotMultiplier))
+            }
+            if let over = effect.shotOverride {
+                modifiers.override = ShotOverride(label: passive.name, amount: Double(over))
+            }
         }
-        modifiers.override = pendingShotOverride
+        // A card's own `SHOT =` beats a passive's, being the thing just played.
+        if let pending = pendingShotOverride { modifiers.override = pending }
+
         // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
         // Nothing is cancelled, though that makes no odds — Clamps come off at the end of
-        // the possession anyway, and a shot ends one.
-        for clamp in ignoringClamps ? [] : self[seat].clamps {
+        // the possession anyway, and a shot ends one. Unguardable does the same thing for
+        // a whole game, and Like That refuses every reduction there is.
+        let shrugs = self[seat].intangibles.contains {
+            $0.intangible?.ignoresClampDebuffs == true || $0.intangible?.shotCannotBeReduced == true
+        }
+        for clamp in (ignoringClamps || shrugs) ? [] : self[seat].clamps {
             let debuff = clamp.card.clamp?.shotDebuff ?? 0
             guard debuff != 0 else { continue }
             modifiers.debuffs.append(ShotModifier(label: clamp.card.name, amount: Double(debuff)))
         }
+        if self[seat].intangibles.contains(where: { $0.intangible?.shotCannotBeReduced == true }) {
+            modifiers.adds.removeAll { $0.amount < 0 }
+        }
         return modifiers
+    }
+
+    /// Whether a passive's conditions are met right now.
+    ///
+    /// One place for all of them, because a passive with two conditions — Clutch Gene
+    /// wants a thin hand *or* a dying clock — reads as one question rather than as a
+    /// chain of guards spread through the stack.
+    private func pays(_ effect: IntangibleEffect, for seat: Seat, fromThree: Bool) -> Bool {
+        if effect.requiresScoredLastRound && !self[seat].scoredLastRound { return false }
+        if effect.requiresThree && !fromThree { return false }
+        if effect.requiresOwnRebound && !possessionFromRebound { return false }
+        if effect.requiresAfterOwnRebound && !possessionFromRebound { return false }
+        if effect.requiresReceivedPass && lastPasser == nil { return false }
+        if let nth = effect.requiresNthShotOfRound, shotsThisRound + 1 != nth { return false }
+        // Either half is enough. Both nil is no condition at all.
+        if effect.requiresHandAtMost != nil || effect.requiresClockAtMost != nil {
+            let thin = effect.requiresHandAtMost.map { self[seat].bag.count <= $0 } ?? false
+            let late = effect.requiresClockAtMost.map { (shotClock ?? 99) <= $0 } ?? false
+            if !thin && !late { return false }
+        }
+        return true
     }
 }

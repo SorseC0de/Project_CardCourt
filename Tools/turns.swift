@@ -35,6 +35,7 @@ func measureTurns() {
                 Rules.resolveRebound(bids: bids, state: &state)
                 continue
             }
+            if Prompts.step(&state, &ai) { continue }
             guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
             if seat != lastActor { handovers += 1; handoverPerSeat[seat, default: 0] += 1; lastActor = seat }
             decisions += 1

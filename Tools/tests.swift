@@ -130,6 +130,7 @@ func runTests() {
                 for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }
                 Rules.resolveRebound(bids: bids, state: &state); continue
             }
+            if Prompts.step(&state, &ai) { continue }
             guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
             Rules.apply(m, by: seat, to: &state)
         }
@@ -169,6 +170,7 @@ func runTests() {
                     for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }
                     Rules.resolveRebound(bids: bids, state: &state); continue
                 }
+                if Prompts.step(&state, &ai) { continue }
                 guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
                 Rules.apply(m, by: seat, to: &state)
             }

@@ -42,7 +42,9 @@ enum Rules {
         switch state.phase {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
-        case .awaitingInjuryDiscard: return []
+        case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom: return []
+        case .awaitingTarget(let asked, _, let choices) where asked == seat:
+            return choices.map { Move.inbound(to: $0) }
         case .possession(let holder) where holder == seat:
             // A Clamp can hold cards down or allow nothing but passes. Both last the
             // possession, and both are read here rather than refused on play — a card you
@@ -58,6 +60,19 @@ enum Rules {
             let playable = state[seat].bag.filter { card in
                 if held.contains(card.id) { return false }
                 if passOnly, card.descriptor.passTarget == nil { return false }
+                // No Bag sits the Moves down; Fundamentalist sits the Special Moves down
+                // and allows each Move once a turn.
+                if card.descriptor.type == .move,
+                   has(seat, in: state, { $0.blocksMoves }) { return false }
+                if card.descriptor.type == .specialMove,
+                   has(seat, in: state, { $0.blocksSpecialMoves }) { return false }
+                if has(seat, in: state, { $0.oneOfEachMovePerTurn }),
+                   card.descriptor.isMove,
+                   state.movesPlayedThisPossession.contains(card.descriptor.id) { return false }
+                // Triple Threat closes the book on Moves for the possession.
+                if card.descriptor.isMove, state.movesClosed { return false }
+                // Lob: the man it found has to put it up first.
+                if state.mustShootFirst == seat { return false }
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
@@ -73,7 +88,9 @@ enum Rules {
                 }
                 return true
             }
-            return [.shoot] + playable.map { Move.play($0.id) }
+            // Rock Fight: nobody takes a good look. A bad one is still on offer.
+            let barred = state.shotCeilingThisRound.map { state.shot >= $0 } ?? false
+            return (barred ? [] : [.shoot]) + playable.map { Move.play($0.id) }
         default:
             return []
         }
@@ -158,14 +175,34 @@ enum Rules {
             // put there names the trap, and the whole point of arming one is that nobody
             // knows what is waiting. It is held in `armedWhistles` and reaches the pile
             // when it blows, is silenced, or the referees go home at the round's end.
-            if descriptor.whistle?.trigger == nil {
-                state.discard.append(card)
+            //
+            // Fundamentalist is the exception to the exception: the plainest cards in the
+            // game go back in the bag, because a fundamentalist's game is those four
+            // things over and over.
+            let kept = state[seat].intangibles.contains {
+                $0.intangible?.keepsOnPlay.contains(descriptor.id) == true
             }
+            if descriptor.whistle?.trigger == nil, !kept {
+                state.discard.append(card)
+            } else if kept {
+                state[seat].bag.insert(card, at: min(index, state[seat].bag.count))
+            }
+            if descriptor.isMove { state.movesPlayedThisPossession.insert(descriptor.id) }
+            if descriptor.blocksFurtherMoves { state.movesClosed = true }
 
             // Read before the card is played, because playing it may spend the tick it
             // is being priced against.
             var delta = descriptor.baseShotDelta
                 + clockBonus(descriptor.special, in: state)
+            // Ball Pounder: every Dribble costs a little more and pays a card.
+            if descriptor.isDribble {
+                delta += state[seat].intangibles.reduce(0) {
+                    $0 + ($1.intangible?.dribbleShotPenalty ?? 0)
+                }
+            }
+            // Fox-Like First Step: a Move that costs SHOT pays it instead.
+            if descriptor.isMove, delta < 0,
+               has(seat, in: state, { $0.invertsMoveDebuffs }) { delta = -delta }
             let comboArmed = (descriptor.comboAfter != nil
                               && descriptor.comboAfter == state.lastPlayThisPossession)
                 || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
@@ -182,7 +219,13 @@ enum Rules {
             if !priced { adjustShot(by: delta, state: &state) }
             state.pendingShotBonus = priced ? delta : 0
 
-            for _ in 0..<descriptor.drawCount { draw(seat, state: &state, events: &events) }
+            var drawing = descriptor.drawCount
+            if descriptor.isDribble {
+                drawing += state[seat].intangibles.reduce(0) {
+                    $0 + ($1.intangible?.dribbleBonusDraw ?? 0)
+                }
+            }
+            drawBatch(seat, count: drawing, state: &state, events: &events)
             for _ in 0..<descriptor.selfDiscard { discardAtRandom(from: seat, state: &state) }
 
             // Flop sells the contact: every Clamp on the player is a trip to the line,
@@ -291,9 +334,27 @@ enum Rules {
                 if state.pendingClamps.count < state.rules.clampSlots {
                     state.pendingClamps.append(ActiveClamp(card: descriptor, from: seat))
                 }
+                // Gravity: whoever it was aimed at, it lands on the man who draws
+                // everybody. Set here so the possession that opens finds it waiting.
+                if let magnet = Seat.allCases.first(where: {
+                    has($0, in: state, { $0.attractsClamps })
+                }) {
+                    state.clampMagnet = magnet
+                }
                 _ = clamp
                 events.append(.clampSet(seat: seat, card: descriptor))
             } else if let target = descriptor.passTarget {
+                // Somebody has to name the man. Floor General names him for everybody,
+                // which is the whole of what it does — so if it is on the floor, the ask
+                // goes to them instead.
+                if target == .choice || target == .leftOrRight {
+                    let aiming = Seat.allCases.first { has($0, in: state, { $0.aimsEveryPass }) } ?? seat
+                    state.pendingPlay = descriptor
+                    state.phase = .awaitingTarget(seat: aiming, card: descriptor,
+                                                  choices: passChoices(target, from: seat))
+                    state.pendingActor = seat
+                    return events
+                }
                 guard let receiver = resolve(target, from: seat, state: state) else {
                     // Behind-the-Back with nobody behind: a live-ball turnover.
                     state[seat].turnovers += 1
@@ -305,22 +366,35 @@ enum Rules {
                 // **The draw resolves before the ball moves.** Unselfish queues the pass
                 // and pays first, so a Game Break turned up by that card plays out in
                 // full — and lands on the man who passed, which is who earned it — before
-                // anybody else has the ball.
-                let unselfish = state[seat].intangibles.reduce(0) { total, passive in
-                    guard let effect = passive.intangible, effect.drawOnPassAtShot > 0,
-                          state.shot >= effect.passDrawThreshold else { return total }
-                    return total + effect.drawOnPassAtShot
+                // anybody else has the ball. Point God pays the same way, on every pass.
+                let earned = state[seat].intangibles.reduce(0) { total, passive in
+                    guard let effect = passive.intangible else { return total }
+                    var cards = effect.drawAfterPass
+                    if effect.drawOnPassAtShot > 0, state.shot >= effect.passDrawThreshold {
+                        cards += effect.drawOnPassAtShot
+                    }
+                    return total + cards
                 }
-                if unselfish > 0 {
-                    drawBatch(seat, count: unselfish, state: &state, events: &events)
+                if earned > 0 {
+                    drawBatch(seat, count: earned, state: &state, events: &events)
                 }
                 // Read again: the draw may have turned up a Break that moved it.
                 guard case .possession(let stillHolding) = state.phase,
                       stillHolding == seat else { return events }
 
-                state.lastPasser = seat
-                events.append(.passed(card: descriptor, from: seat, to: receiver, shot: state.shot))
-                beginPossession(receiver, tickClock: true, state: &state, events: &events)
+                completePass(descriptor, from: seat, to: receiver,
+                             state: &state, events: &events)
+            } else if descriptor.targetDiscards > 0 {
+                state.pendingPlay = descriptor
+                state.pendingActor = seat
+                state.phase = .awaitingTarget(seat: seat, card: descriptor,
+                                              choices: Seat.allCases.filter { $0 != seat })
+                return events
+            } else if !descriptor.modes.isEmpty {
+                state.pendingPlay = descriptor
+                state.pendingActor = seat
+                state.phase = .awaitingMode(seat: seat, card: descriptor)
+                return events
             } else {
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
                 if comboArmed {
@@ -451,6 +525,117 @@ enum Rules {
         0...state[seat].bag.count
     }
 
+    /// Everything a pass does once its man is known.
+    ///
+    /// Shared, because a pass that names its target geometrically and one that had to be
+    /// asked about are the same pass — only the question differs. Two copies of this
+    /// drifted the moment a card was added to one of them.
+    private static func completePass(_ descriptor: CardDescriptor, from seat: Seat,
+                                     to receiver: Seat,
+                                     state: inout GameState, events: inout [GameEvent]) {
+        state.lastPasser = seat
+        events.append(.passed(card: descriptor, from: seat, to: receiver, shot: state.shot))
+        if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
+        if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
+        beginPossession(receiver, tickClock: true, state: &state, events: &events)
+
+        // Asked after the possession opens, so the card he was just dealt is in the hand
+        // being picked from — a hand that changed size between the question and the
+        // answer is a hand the picker was lied to about.
+        if descriptor.stealsAlongPass > 0, !state[receiver].bag.isEmpty {
+            state.stealTravelsTo = seat.seat(inDirection: .left) == receiver
+                ? receiver.left : receiver.right
+            state.pendingActor = seat
+            state.phase = .awaitingCardFrom(seat: seat, card: descriptor, victim: receiver)
+        } else if descriptor.receiverDiscards > 0, !state[receiver].bag.isEmpty {
+            state.pendingActor = seat
+            state.phase = .awaitingCardFrom(seat: seat, card: descriptor, victim: receiver)
+        }
+    }
+
+    /// The man named, and the card that asked doing what it does with him.
+    @discardableResult
+    static func resolveTarget(_ target: Seat, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingTarget(_, let descriptor, let choices) = state.phase,
+              let actor = state.pendingActor, choices.contains(target) else { return [] }
+        var events: [GameEvent] = []
+        state.pendingPlay = nil
+        state.pendingActor = nil
+        state.phase = .possession(holder: actor)
+
+        if descriptor.targetDiscards > 0 {
+            guard !state[target].bag.isEmpty else {
+                events.append(.movePlayed(seat: actor, card: descriptor, shot: state.shot))
+                state.lastPlayThisPossession = descriptor.id
+                state.movesThisPossession += 1
+                return events
+            }
+            state.pendingPlay = descriptor
+            state.pendingActor = actor
+            state.phase = .awaitingCardFrom(seat: actor, card: descriptor, victim: target)
+            return events
+        }
+        completePass(descriptor, from: actor, to: target, state: &state, events: &events)
+        return events
+    }
+
+    /// The branch chosen, and the card resolving as that branch.
+    @discardableResult
+    static func resolveMode(_ index: Int, state: inout GameState) -> [GameEvent] {
+        // Bounds-checked by hand: the `safe:` subscript lives in the view layer, and the
+        // rules module deliberately imports none of it.
+        guard case .awaitingMode(let seat, let descriptor) = state.phase,
+              index >= 0, index < descriptor.modes.count else { return [] }
+        let mode = descriptor.modes[index]
+        var events: [GameEvent] = []
+        state.pendingPlay = nil
+        state.pendingActor = nil
+        state.phase = .possession(holder: seat)
+
+        if mode.shotDelta != 0 { adjustShot(by: mode.shotDelta, state: &state) }
+        if mode.draws > 0 { drawBatch(seat, count: mode.draws, state: &state, events: &events) }
+        if let passes = mode.passes {
+            state.pendingPlay = descriptor
+            state.pendingActor = seat
+            state.phase = .awaitingTarget(seat: seat, card: descriptor,
+                                          choices: passChoices(passes, from: seat))
+            return events
+        }
+        events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
+        state.lastPlayThisPossession = descriptor.id
+        state.movesThisPossession += 1
+        return events
+    }
+
+    /// The card picked out of somebody's hand.
+    ///
+    /// Face down when it was chosen, so this is where the guess is settled. Nutmeg passes
+    /// it along; everything else spends it.
+    @discardableResult
+    static func resolveCardFrom(_ id: Card.ID, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingCardFrom(_, let descriptor, let victim) = state.phase,
+              let actor = state.pendingActor,
+              let index = state[victim].bag.firstIndex(where: { $0.id == id })
+        else { return [] }
+        var events: [GameEvent] = []
+        let taken = state[victim].bag.remove(at: index)
+        state.pendingPlay = nil
+        state.pendingActor = nil
+
+        if let onward = state.stealTravelsTo {
+            state[onward].bag.append(taken)
+            state.stealTravelsTo = nil
+            state.phase = .possession(holder: state.ball ?? actor)
+            return events
+        }
+        state.discard.append(taken)
+        state.phase = .possession(holder: actor)
+        events.append(.movePlayed(seat: actor, card: descriptor, shot: state.shot))
+        state.lastPlayThisPossession = descriptor.id
+        state.movesThisPossession += 1
+        return events
+    }
+
     /// The Injury's toll, paid. Whatever was chosen goes, and the turn starts properly.
     @discardableResult
     static func resolveInjuryDiscard(_ ids: [Card.ID], state: inout GameState) -> [GameEvent] {
@@ -546,6 +731,16 @@ enum Rules {
         // What the card in hand was worth, spent on this attempt and gone.
         let priced = state.pendingShotBonus
         state.pendingShotBonus = 0
+        state.shotsThisRound += 1
+        state.mustShootFirst = nil
+        // Gravity: a man who draws every defender is doing something on every attempt,
+        // whoever takes it.
+        for other in Seat.allCases where other != seat {
+            if has(other, in: state, { $0.assistOnOthersShot }) {
+                state[other].assists += 1
+                events.append(.assisted(other))
+            }
+        }
         let resolution = ShotMath.resolve(base: state.shot + priced,
                                           modifiers: state.shotModifiers(
                                             for: seat, ignoringClamps: overClamps),
@@ -567,7 +762,9 @@ enum Rules {
                 drawBatch(seat, count: owed, state: &state, events: &events)
             }
             if let passer = state.lastPasser, passer != seat {
-                state[passer].assists += 1
+                // Dime pays twice: the assist every pass earns, and its own.
+                let extra = state.dimeFrom == passer ? 1 : 0
+                state[passer].assists += 1 + extra
                 events.append(.assisted(passer))
             }
             endRound(state: &state, events: &events)
@@ -796,12 +993,17 @@ enum Rules {
         state.ball = seat
         state.lastPlayThisPossession = nil
         state.movesThisPossession = 0
+        state.movesPlayedThisPossession = []
+        state.movesClosed = false
         state.possessionFromRebound = fromRebound
 
         // Clamps live for exactly one possession, so the board is cleared before the
         // pending ones land. Without the clear they stay on a player forever.
         for other in Seat.allCases { state[other].clamps = [] }
-        state[seat].clamps = state.pendingClamps
+        // Gravity takes them all, wherever they were sent.
+        let landing = state.clampMagnet ?? seat
+        state[landing].clamps = state.pendingClamps
+        state.clampMagnet = nil
         state.pendingClamps = []
 
         draw(seat, state: &state, events: &events)
@@ -947,11 +1149,38 @@ enum Rules {
 
     private static func resolve(_ target: PassTarget, from seat: Seat, state: GameState) -> Seat? {
         if let geometric = seat.seat(inDirection: target) { return geometric }
-        return state.lastPasser
+        switch target {
+        case .random:
+            let others = Seat.allCases.filter { $0 != seat }
+            var pool = state
+            return others[pool.roll(0...(others.count - 1))]
+        // Somebody has to say. `apply` asks before it gets here — see
+        // `Phase.awaitingPassTarget` — so reaching this means nobody did.
+        case .choice, .leftOrRight: return nil
+        default: return state.lastPasser
+        }
+    }
+
+    /// Who may be picked, when a card lets the passer choose.
+    static func passChoices(_ target: PassTarget, from seat: Seat) -> [Seat] {
+        switch target {
+        case .leftOrRight: return [seat.left, seat.right]
+        default: return Seat.allCases.filter { $0 != seat }
+        }
+    }
+
+    /// Whether a passive is standing on this seat.
+    static func has(_ seat: Seat, in state: GameState,
+                    _ test: (IntangibleEffect) -> Bool) -> Bool {
+        state[seat].intangibles.contains { $0.intangible.map(test) ?? false }
     }
 
     private static func endRound(state: inout GameState, events: inout [GameEvent]) {
         events.append(.roundEnded(state.round))
+        state.shotsThisRound = 0
+        state.shotCeilingThisRound = nil
+        state.dimeFrom = nil
+        state.mustShootFirst = nil
 
         // The referees leave when the round does — a trap does not lie in wait across the
         // inbound that follows it — and the cards they were holding are spent.
@@ -964,6 +1193,10 @@ enum Rules {
             state[seat].scoredThisRound = false
             // Off at the whistle and back into the pile, so halftime shuffles it in with
             // everything else. A Devastating one is not shed and so never returns.
+            // The ones the sheet gives a round to, good and bad alike.
+            let expired = state[seat].intangibles.filter { $0.intangible?.lastsRound == true }
+            state[seat].intangibles.removeAll { $0.intangible?.lastsRound == true }
+            state.discard.append(contentsOf: expired.map { Card($0) })
             let healed = state[seat].injuries.filter { $0.gameBreak?.injury == .round }
             state[seat].injuries.removeAll { $0.gameBreak?.injury == .round }
             state.discard.append(contentsOf: healed.map { Card($0) })
@@ -1085,8 +1318,28 @@ enum Rules {
             events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
             // An Injury is carried, not spent. See `PlayerState.injuries`.
             if effect.injury != nil {
-                state[seat].injuries.append(card.descriptor)
-                rollInjuryLock(seat, state: &state)
+                // Two ways it never lands: a passive that shrugs it off, and the one
+                // Whistle the sheet wrote for exactly this.
+                let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
+                let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
+                if let waved, !shrugged {
+                    state.armedWhistles.removeAll { $0.id == waved.id }
+                    state.discard.append(waved.card)
+                    state.discard.append(card)
+                    events.append(.whistleBlew(owner: waved.owner,
+                                               card: waved.card.descriptor,
+                                               cancelled: card.name,
+                                               cancelledCard: card.descriptor))
+                } else if shrugged {
+                    // Shaken off, and the draw is taken again — it cost nothing but the
+                    // card that was never carried.
+                    state.discard.append(card)
+                    draw(seat, state: &state, events: &events,
+                         allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
+                } else {
+                    state[seat].injuries.append(card.descriptor)
+                    rollInjuryLock(seat, state: &state)
+                }
             } else {
                 state.discard.append(card)
             }
@@ -1144,6 +1397,9 @@ enum Rules {
         }
         if effect.shotThisPossession != 0 {
             adjustShot(by: effect.shotThisPossession, state: &state)
+        }
+        if let ceiling = effect.blocksShotAtOrAbove {
+            state.shotCeilingThisRound = ceiling
         }
         if effect.silencesWhistles {
             state.whistlesSilenced = true

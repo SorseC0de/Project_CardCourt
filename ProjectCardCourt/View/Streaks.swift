@@ -264,6 +264,9 @@ struct FloorStreaks: View {
 /// Seen from the side: streaks running past the thing they are behind, all one way.
 struct SideStreaks: View {
     var intensity: Double = StreakStyle.sideWarp
+    /// One colour for the lot, for a ground that is already saying whose it is. Nil keeps
+    /// the table's kit colours, which is what a black card wants.
+    var ink: Color?
 
     @State private var look = PlayerLook.shared
 
@@ -295,7 +298,7 @@ struct SideStreaks: View {
                     // The table's own colours, not the port's four. What goes past is
                     // the players, so it should be the players' kit.
                     let seat = Seat.allCases[Int(StreakStyle.scatter(index, 5) * 4) % 4]
-                    let colour = look.jersey(for: seat)
+                    let colour = ink ?? look.jersey(for: seat)
                     let glow = intensity
                         * (StreakStyle.faintest + StreakStyle.scatter(index, 4))
 

@@ -15,13 +15,14 @@ enum Seat: Int, CaseIterable, Hashable, Identifiable, Codable {
     var left: Seat { clockwise }
     var right: Seat { counterClockwise }
 
-    /// Geometric pass targets only; `backToPasser` needs game state to resolve.
+    /// Geometric pass targets only. `backToPasser` needs game state to resolve, and the
+    /// three that are decisions need somebody to make them — see `Rules.resolve`.
     func seat(inDirection direction: PassTarget) -> Seat? {
         switch direction {
         case .left:         return left
         case .right:        return right
         case .across:       return across
-        case .backToPasser: return nil
+        case .backToPasser, .choice, .random, .leftOrRight: return nil
         }
     }
 

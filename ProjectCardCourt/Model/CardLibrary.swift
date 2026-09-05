@@ -22,6 +22,34 @@ enum CardLibrary {
         effect: "Pass back to last player. Nobody to give it back to: TOV +1",
         numberInDeck: 5, passTarget: .backToPasser)
 
+    static let dime = CardDescriptor(
+        id: "dime", name: "Dime", type: .pass,
+        effect: "Pass to a player of choice. SHOT +10%", numberInDeck: 10,
+        passTarget: .choice, shotDelta: 10, bonusAssistOnScore: true)
+
+    static let lob = CardDescriptor(
+        id: "lob", name: "Lob", type: .pass,
+        effect: "SHOT +10%. Pass to a player of choice. They must shoot first",
+        numberInDeck: 6,
+        passTarget: .choice, shotDelta: 10, forcesReceiverShot: true)
+
+    static let nutmeg = CardDescriptor(
+        id: "nutmeg", name: "Nutmeg", type: .pass,
+        effect: "Pass Left or Right. A card follows it on to the next player. SHOT +5%",
+        numberInDeck: 6,
+        passTarget: .leftOrRight, shotDelta: 5, stealsAlongPass: 1)
+
+    static let noLook = CardDescriptor(
+        id: "no-look", name: "No-Look", type: .pass,
+        effect: "Pass to a random other player. SHOT +5%", numberInDeck: 15,
+        passTarget: .random, shotDelta: 5)
+
+    static let bulletPass = CardDescriptor(
+        id: "bullet-pass", name: "Bullet Pass", type: .pass,
+        effect: "Pass to a player of choice. SHOT +5%. They discard 1 at random",
+        numberInDeck: 12,
+        passTarget: .choice, shotDelta: 5, receiverDiscards: 1)
+
     static let dribble = CardDescriptor(
         id: "dribble", name: "Dribble", type: .move,
         effect: "Draw 1. SHOT -10%", numberInDeck: 15,
@@ -56,6 +84,35 @@ enum CardLibrary {
 
     /// The sheet's row is cut off after "If no Clamps on you," — so the card does what
     /// the written half says and nothing more. It greys out on an empty floor.
+    static let ankleBreaker = CardDescriptor(
+        id: "ankle-breaker", name: "Ankle Breaker", type: .move,
+        effect: "A player of choice discards 1. SHOT +10%", numberInDeck: 10,
+        shotDelta: 10, targetDiscards: 1)
+
+    static let hesi = CardDescriptor(
+        id: "hesi", name: "Hesi", type: .move,
+        effect: "SHOT +10%. Shot Clock -1", numberInDeck: 15,
+        shotDelta: 10, clockDelta: -1)
+
+    static let pumpFake = CardDescriptor(
+        id: "pump-fake", name: "Pump Fake", type: .move,
+        effect: "SHOT +10%. Shake off every Clamp on you", numberInDeck: 12,
+        shotDelta: 10, clearsClamps: true)
+
+    static let stepback = CardDescriptor(
+        id: "stepback", name: "Stepback", type: .move,
+        effect: "SHOT +10%. Discard 1 for another +10%", numberInDeck: 12,
+        shotDelta: 10, optionalDiscardForShot: 10)
+
+    static let tripleThreat = CardDescriptor(
+        id: "triple-threat", name: "Triple Threat", type: .move,
+        effect: "Choose: draw 1, pass for +5%, or SHOT +10%. No more Moves after it",
+        numberInDeck: 15,
+        modes: [CardMode(label: "Draw 1", draws: 1),
+                CardMode(label: "Pass +5%", shotDelta: 5, passes: .choice),
+                CardMode(label: "SHOT +10%", shotDelta: 10)],
+        blocksFurtherMoves: true)
+
     static let flop = CardDescriptor(
         id: "flop", name: "Flop", type: .move,
         effect: "Cancel Clamps. Take 1 FT for each. If no Clamps on you, TOV +1",
@@ -186,6 +243,11 @@ enum CardLibrary {
         whistle: WhistleEffect(ownerInbounds: true, resetsShotClock: true,
                                everyoneDraws: 1))
 
+    static let clearedToPlay = CardDescriptor(
+        id: "cleared-to-play", name: "Cleared to Play", type: .whistle,
+        effect: "An Injury turns up: it never lands", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .injuryDrawn))
+
     static let clearPathFoul = CardDescriptor(
         id: "clear-path-foul", name: "Clear Path Foul", type: .whistle,
         effect: "Shooting under a SHOT Clamp: clear them, take the points and 1 FT",
@@ -195,6 +257,101 @@ enum CardLibrary {
                                clearsShotDebuffClamps: true,
                                awardsShotValueToOffender: true,
                                requiresShotDebuffClamp: true))
+
+    static let boardCrasher = CardDescriptor(
+        id: "board-crasher", name: "Board-Crasher", type: .intangible,
+        effect: "SHOT +10% off your own board", numberInDeck: 1,
+        intangible: IntangibleEffect(shotBonus: 10, requiresOwnRebound: true))
+
+    static let catchAndShoot = CardDescriptor(
+        id: "catch-and-shoot", name: "Catch & Shoot Specialist", type: .intangible,
+        effect: "SHOT +10% more on every pass you receive", numberInDeck: 1,
+        intangible: IntangibleEffect(shotBonus: 10, requiresReceivedPass: true))
+
+    static let clutchGene = CardDescriptor(
+        id: "clutch-gene", name: "Clutch Gene", type: .intangible,
+        effect: "SHOT x2 at 1 card or fewer, or Shot Clock 3 or under", numberInDeck: 1,
+        intangible: IntangibleEffect(shotMultiplier: 2,
+                                     requiresHandAtMost: 1, requiresClockAtMost: 3))
+
+    static let floorGeneral = CardDescriptor(
+        id: "floor-general", name: "Floor General", type: .intangible,
+        effect: "You aim every directed pass this round", numberInDeck: 1,
+        intangible: IntangibleEffect(aimsEveryPass: true, lastsRound: true))
+
+    static let foxLikeFirstStep = CardDescriptor(
+        id: "fox-like-first-step", name: "Fox-Like First Step", type: .intangible,
+        effect: "Moves that cost SHOT pay it instead", numberInDeck: 1,
+        intangible: IntangibleEffect(invertsMoveDebuffs: true))
+
+    static let gravity = CardDescriptor(
+        id: "gravity", name: "Gravity", type: .intangible,
+        effect: "Every Clamp lands on you. AST +1 on anyone else's attempt",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(attractsClamps: true, assistOnOthersShot: true))
+
+    static let greatConditioning = CardDescriptor(
+        id: "great-conditioning", name: "Great Conditioning", type: .intangible,
+        effect: "Injuries never land. Draw again for each", numberInDeck: 1,
+        intangible: IntangibleEffect(shrugsOffInjuries: true))
+
+    static let likeThat = CardDescriptor(
+        id: "like-that", name: "Like That", type: .intangible,
+        effect: "Nothing takes your SHOT down", numberInDeck: 1,
+        intangible: IntangibleEffect(shotCannotBeReduced: true))
+
+    static let noBag = CardDescriptor(
+        id: "no-bag", name: "No Bag", type: .intangible,
+        effect: "No Move cards this round", numberInDeck: 1,
+        intangible: IntangibleEffect(blocksMoves: true, lastsRound: true))
+
+    static let pointGod = CardDescriptor(
+        id: "point-god", name: "Point God", type: .intangible,
+        effect: "Draw 1 after each of your passes this round", numberInDeck: 1,
+        intangible: IntangibleEffect(drawAfterPass: 1, lastsRound: true))
+
+    static let shootingSlump = CardDescriptor(
+        id: "shooting-slump", name: "Shooting Slump", type: .intangible,
+        effect: "SHOT -20% this round", numberInDeck: 1,
+        intangible: IntangibleEffect(shotBonus: -20, lastsRound: true))
+
+    static let sixthMan = CardDescriptor(
+        id: "sixth-man", name: "Sixth Man", type: .intangible,
+        effect: "SHOT = 100% on the 6th shot of the round", numberInDeck: 1,
+        intangible: IntangibleEffect(shotOverride: 100, requiresNthShotOfRound: 6))
+
+    static let sniper = CardDescriptor(
+        id: "sniper", name: "Sniper", type: .intangible,
+        effect: "SHOT +10% from three", numberInDeck: 1,
+        intangible: IntangibleEffect(shotBonus: 10, requiresThree: true))
+
+    static let splashCousin = CardDescriptor(
+        id: "splash-cousin", name: "Splash Cousin", type: .intangible,
+        effect: "From three: SHOT = 100%", numberInDeck: 1,
+        intangible: IntangibleEffect(requiresThree: true, shotOverride: 100))
+
+    static let unguardable = CardDescriptor(
+        id: "unguardable", name: "Unguardable", type: .intangible,
+        effect: "Clamps do nothing to your SHOT", numberInDeck: 1,
+        intangible: IntangibleEffect(ignoresClampDebuffs: true))
+
+    static let lethalShooter = CardDescriptor(
+        id: "lethal-shooter", name: "Lethal Shooter", type: .intangible,
+        effect: "SHOT = 100% on the shot after your own board", numberInDeck: 1,
+        intangible: IntangibleEffect(shotOverride: 100, requiresAfterOwnRebound: true))
+
+    static let ballPounder = CardDescriptor(
+        id: "ball-pounder", name: "Ball Pounder", type: .intangible,
+        effect: "Every Dribble draws 1 more and costs 10% more", numberInDeck: 1,
+        intangible: IntangibleEffect(dribbleBonusDraw: 1, dribbleShotPenalty: -10))
+
+    static let fundamentalist = CardDescriptor(
+        id: "fundamentalist", name: "Fundamentalist", type: .intangible,
+        effect: "No Special Moves. Each Move once a turn. Swings, Skip Pass and Dribble are never spent",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(blocksSpecialMoves: true, oneOfEachMovePerTurn: true,
+                                     keepsOnPlay: ["swing-left", "swing-right",
+                                                   "skip-pass", "dribble"]))
 
     static let unselfish = CardDescriptor(
         id: "unselfish", name: "Unselfish", type: .intangible,
@@ -217,6 +374,11 @@ enum CardLibrary {
         id: "torn-achilles", name: "Torn Achilles", type: .gameBreak,
         effect: "Every turn: all but 1 random card is held", numberInDeck: 1,
         gameBreak: GameBreakEffect(isInjury: true, injury: .game, playableEachTurn: 1))
+
+    static let rockFight = CardDescriptor(
+        id: "rock-fight", name: "Rock Fight", type: .gameBreak,
+        effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 4,
+        gameBreak: GameBreakEffect(blocksShotAtOrAbove: 50))
 
     static let iceWrap = CardDescriptor(
         id: "ice-wrap", name: "Ice Wrap", type: .gameBreak,
@@ -264,6 +426,10 @@ enum CardLibrary {
 
     static let intangibles: [CardDescriptor] = [
         shotCreator, hotHand, freethrowMerchant, generationalWhistle, unselfish,
+        boardCrasher, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
+        gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
+        sixthMan, sniper, splashCousin, unguardable, lethalShooter, ballPounder,
+        fundamentalist,
     ]
 
     // ── Game Breaks ───────────────────────────────────────────────────
@@ -399,7 +565,7 @@ enum CardLibrary {
     static let gameBreaks: [CardDescriptor] = [
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
-        iceWrap, hitTheBike, allStarSelection, allSwisshSelection,
+        iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules
@@ -410,6 +576,7 @@ enum CardLibrary {
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
+        clearedToPlay,
     ]
 
     /// A card somebody else is holding, or one still in the deck.
@@ -423,7 +590,9 @@ enum CardLibrary {
 
     static let all: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
+        dime, lob, nutmeg, noLook, bulletPass,
         dribble, drive, rhythmDribble, poundDribble, spinMove, crossover,
+        ankleBreaker, hesi, pumpFake, stepback, tripleThreat,
     ]
 
     /// Classic mode's pool: Pass and Move cards only.

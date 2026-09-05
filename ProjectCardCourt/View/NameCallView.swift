@@ -66,7 +66,7 @@ struct NameCallView: View {
             // Hung on the plate it can only ever be on the plate.
             face
                 .frame(width: size.width, height: size.height)
-                .overlay { SideStreaks().mask { face } }
+                .overlay { SideStreaks(ink: .white).mask { face } }
                 .overlay(alignment: .leading) {
                     word(burning: burn(at: timeline.date, rate: wordRate))
                 }
@@ -98,7 +98,9 @@ struct NameCallView: View {
     }
 
     private var face: some View {
-        Parallelogram(lean: ModeCardStyle.lean).fill(NameCallStyle.taper)
+        // The seat's own colour, because the plate exists to say whose moment it is.
+        Parallelogram(lean: ModeCardStyle.lean)
+            .fill(NameCallStyle.taper(for: call.seat))
     }
 
     /// The name, in the one treatment names are drawn in — see `PlayerNameText` — over a
@@ -158,13 +160,14 @@ enum NameCallStyle {
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
     /// trails as it flies out.
-    static var taper: LinearGradient {
-        LinearGradient(
+    static func taper(for seat: Seat) -> LinearGradient {
+        let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
+        return LinearGradient(
             gradient: Gradient(stops: [
                 .init(color: .clear, location: 0),
                 .init(color: .clear, location: ModeCardStyle.fadeFrom),
-                .init(color: ModeCardStyle.face, location: ModeCardStyle.fadeTo),
-                .init(color: ModeCardStyle.face, location: 1),
+                .init(color: face, location: ModeCardStyle.fadeTo),
+                .init(color: face, location: 1),
             ]),
             startPoint: .leading, endPoint: .trailing)
     }

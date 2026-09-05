@@ -1,8 +1,23 @@
 import Foundation
 
 /// Where a pass sends the ball. `backToPasser` resolves against state, not geometry.
+/// One branch of a card that offers a choice. Triple Threat is the only one so far.
+struct CardMode: Hashable, Codable, Identifiable {
+    var id: String { label }
+    let label: String
+    var draws = 0
+    var shotDelta = 0
+    var passes: PassTarget?
+}
+
 enum PassTarget: String, Hashable, Codable {
     case left, right, across, backToPasser
+    /// The passer picks. Asked for rather than worked out — see `Phase.awaitingPassTarget`.
+    case choice
+    /// Nobody picks. No-Look does not know where it is going either.
+    case random
+    /// One of two, and still a choice.
+    case leftOrRight
 }
 
 /// What a Clamp does to whoever it lands on. Most Clamps attach to the next ball-holder,
@@ -41,6 +56,49 @@ struct IntangibleEffect: Hashable, Codable {
     /// Freethrow Merchant: being Clamped is itself a foul, and the defenders never
     /// arrive — the trip to the line replaces what the Clamp was going to do.
     var freeThrowPerClamp: Int = 0
+    /// SHOT multiplied rather than added to. Clutch Gene, under its own conditions.
+    var shotMultiplier: Double = 0
+    /// Clutch Gene fires on either: a hand this thin, or a clock this low.
+    var requiresHandAtMost: Int?
+    var requiresClockAtMost: Int?
+    /// Board-Crasher: only off your own miss. Catch & Shoot: only off a pass.
+    var requiresOwnRebound = false
+    var requiresReceivedPass = false
+    /// Sniper and Splash Cousin only pay from range.
+    var requiresThree = false
+    /// `SHOT = x%` rather than a delta, under whatever conditions are also set.
+    var shotOverride: Int?
+    /// Sixth Man: the nth attempt of the round, counting from one.
+    var requiresNthShotOfRound: Int?
+    /// Lethal Shooter: the shot straight after taking your own board.
+    var requiresAfterOwnRebound = false
+    /// Point God draws on every pass; Unselfish only on a good one.
+    var drawAfterPass: Int = 0
+    /// Ball Pounder: every Dribble is a card richer and a look worse.
+    var dribbleBonusDraw: Int = 0
+    var dribbleShotPenalty: Int = 0
+    /// Like That, Unguardable: nothing may take SHOT down.
+    var shotCannotBeReduced = false
+    var ignoresClampDebuffs = false
+    /// Gravity: every Clamp lands here whoever it was aimed at, and every other player's
+    /// attempt is an assist.
+    var attractsClamps = false
+    var assistOnOthersShot = false
+    /// Great Conditioning: an Injury never lands, and the draw is taken again.
+    var shrugsOffInjuries = false
+    /// Fox-Like First Step: a Move that costs SHOT pays it instead.
+    var invertsMoveDebuffs = false
+    /// No Bag, Fundamentalist. One blocks Moves, the other Special Moves.
+    var blocksMoves = false
+    var blocksSpecialMoves = false
+    /// Fundamentalist: each Move once a turn, and the plainest cards are never spent.
+    var oneOfEachMovePerTurn = false
+    var keepsOnPlay: [String] = []
+    /// Floor General: every directed pass is aimed by this player instead.
+    var aimsEveryPass = false
+    /// Comes off at the end of the round rather than sitting in a slot for the game. The
+    /// sheet says "this round" on four of them, good and bad alike.
+    var lastsRound = false
     /// Unselfish: a card for every pass made from a look worth having. The threshold is
     /// the SHOT the pass goes out at, read before the pass moves the ball.
     var drawOnPassAtShot: Int = 0
@@ -60,6 +118,8 @@ struct GameBreakEffect: Hashable, Codable {
     var drawIfUninjured = 0
     /// All-Swissh Selection: owed, and paid on the next make rather than now.
     var drawsOnNextMake = 0
+    /// Rock Fight: nobody shoots from a look this good or better, for the round.
+    var blocksShotAtOrAbove: Int?
 
     /// The drawer discards this many at random.
     var discard = 0
@@ -116,6 +176,7 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// `SHOT = x%`, but only off the glass. Putback Tip is a tip-in: from anywhere else
     /// it is an ordinary ten per cent, and straight after a board it cannot miss.
     var shotOverrideAfterRebound: Int?
+    /// Lob: the man it lands on has to put it up first.
     /// Bankshot: one flip, paying this much either way.
     var coinFlipShot = 0
     /// Skyhook goes up over everything. The debuff layer is skipped for this shot.
@@ -179,6 +240,22 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var drawPerClamp = 0
     /// And what it costs whoever sent them.
     var clamperDiscardsPerClamp = 0
+    /// Bullet Pass: the man it lands on gives one up for the privilege.
+    var receiverDiscards = 0
+    /// Dime: an extra assist if the man you found scores off it.
+    var bonusAssistOnScore = false
+    /// Lob: he has to put it up as his first action.
+    var forcesReceiverShot = false
+    /// Nutmeg: a card travels the way the pass did, from the receiver to the next along.
+    var stealsAlongPass = 0
+    /// Ankle Breaker: a player of your choosing gives one up.
+    var targetDiscards = 0
+    /// Stepback: an optional card for an optional extra look.
+    var optionalDiscardForShot = 0
+    /// Triple Threat: one of several things, chosen when it is played.
+    var modes: [CardMode] = []
+    /// And what it costs — no more Moves this possession.
+    var blocksFurtherMoves = false
     /// Set on Clamps.
     let clamp: ClampEffect?
     /// Set on Intangibles.
@@ -205,7 +282,19 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
          clamperDiscardsPerClamp: Int = 0,
          freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
-         turnoverIfNoClamps: Bool = false) {
+         turnoverIfNoClamps: Bool = false,
+         receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
+         forcesReceiverShot: Bool = false, stealsAlongPass: Int = 0,
+         targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
+         modes: [CardMode] = [], blocksFurtherMoves: Bool = false) {
+        self.receiverDiscards = receiverDiscards
+        self.bonusAssistOnScore = bonusAssistOnScore
+        self.forcesReceiverShot = forcesReceiverShot
+        self.stealsAlongPass = stealsAlongPass
+        self.targetDiscards = targetDiscards
+        self.optionalDiscardForShot = optionalDiscardForShot
+        self.modes = modes
+        self.blocksFurtherMoves = blocksFurtherMoves
         self.selfDiscard = selfDiscard; self.shotPerClamp = shotPerClamp
         self.drawPerClamp = drawPerClamp
         self.clamperDiscardsPerClamp = clamperDiscardsPerClamp
@@ -439,6 +528,53 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "generational-whistle":        return "star.circle.fill"
         case "contest":                     return "hand.raised.fill"
         case "full-court-press":            return "person.3.fill"
+        // ── The passes: each one says how it finds its man. ──
+        case "dime":                        return "hand.point.up.left.fill"
+        case "lob":                         return "arrow.up.forward"
+        case "nutmeg":                      return "arrow.triangle.branch"
+        case "no-look":                     return "eye.slash.fill"
+        case "bullet-pass":                 return "bolt.horizontal.fill"
+        // ── The moves. ──
+        case "ankle-breaker":               return "bandage.fill"
+        case "hesi":                        return "pause.fill"
+        case "pump-fake":                   return "arrow.up.and.down.circle.fill"
+        case "stepback":                    return "arrow.backward.to.line"
+        // ── Whistles, Breaks and Injuries. ──
+        case "cleared-to-play":             return "checkmark.seal.fill"
+        case "clear-path-foul":             return "figure.run.circle.fill"
+        case "technical-foul":              return "exclamationmark.triangle.fill"
+        case "blocking-foul":               return "hand.raised.slash"
+        case "flagrant-foul":               return "exclamationmark.octagon.fill"
+        case "flagrant-foul-ii":            return "exclamationmark.octagon"
+        case "charge":                      return "figure.fall.circle.fill"
+        case "delay-of-game-warning":       return "hourglass"
+        case "rock-fight":                  return "mountain.2.fill"
+        case "ice-wrap":                    return "snowflake.circle.fill"
+        case "hit-the-bike":                return "figure.outdoor.cycle"
+        case "all-star-selection":          return "star.fill"
+        case "salary-cap-increase":         return "dollarsign.circle.fill"
+        case "foul":                        return "hand.raised.brakesignal"
+        case "bone-bruise":                 return "figure.walk.motion"
+        case "torn-achilles":               return "cross.case.fill"
+        // ── Intangibles. ──
+        case "board-crasher":               return "arrow.up.circle.fill"
+        case "catch-and-shoot":             return "hands.and.sparkles.fill"
+        case "clutch-gene":                 return "bolt.heart.fill"
+        case "floor-general":               return "megaphone.fill"
+        case "fox-like-first-step":         return "hare.fill"
+        case "gravity":                     return "globe.desk.fill"
+        case "like-that":                   return "hand.thumbsup.fill"
+        case "no-bag":                      return "bag.badge.minus"
+        case "point-god":                   return "crown.fill"
+        case "sixth-man":                   return "6.circle.fill"
+        case "sniper":                      return "scope"
+        case "splash-cousin":               return "drop.fill"
+        case "unguardable":                 return "figure.walk.motion.trianglebadge.exclamationmark"
+        case "lethal-shooter":              return "target"
+        case "ball-pounder":                return "arrow.down.circle.fill"
+        case "unselfish":                   return "heart.circle.fill"
+        case "fundamentalist":              return "book.closed.fill"
+
         default: break
         }
         switch type {

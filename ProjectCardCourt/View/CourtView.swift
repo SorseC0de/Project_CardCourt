@@ -108,6 +108,9 @@ struct CourtView: View {
         if case .awaitingInbound(let inbounder) = gate {
             return Set(Seat.allCases.filter { $0 != inbounder })
         }
+        // A card that names a player is picked on the floor, the same way an inbound is.
+        // One gesture for every "which of them" the game asks.
+        if case .awaitingTarget(_, let choices) = gate { return Set(choices) }
         return []
     }
 
@@ -214,6 +217,14 @@ struct CourtView: View {
                                   y: footing.y - Theme.Figure.height / 2
                                      + Theme.Figure.height * Perspective.playerDrop)
                         .zIndex(swipeInFront ? 250 : Layer.behind)
+                }
+
+                // A card asking for a player uses the floor's own question, without the
+                // sideline staging an inbound needs — nobody is throwing anything.
+                if isChoosing {
+                    inboundPrompt
+                        .position(x: geo.size.width / 2, y: geo.size.height * Prompt.y)
+                        .zIndex(Layer.prompt)
                 }
 
                 if let thrower {
@@ -493,14 +504,21 @@ struct CourtView: View {
     ///
     /// `Inbound` is picked out because it is the only word in the sentence that is a rule
     /// rather than English.
+    /// What the two-line prompt says, which depends on what is being asked for.
+    private var promptRuns: (top: String, verb: String) {
+        if case .awaitingTarget(let card, _) = gate { return ("Select a Player", card.name) }
+        return ("Select a Player", "Inbound")
+    }
+
     private var inboundPrompt: some View {
         // Each line placed on its own, because the two are different sizes and the gap
         // that looks right between them is not a spacing — it is where each one sits.
         ZStack {
-            ActionText("Select a Player", size: 46)
+            ActionText(promptRuns.top, size: 46)
                 .offset(x: prompt.topX, y: prompt.topY)
             ActionText(runs: [.init("to "),
-                              .init("Inbound", ink: CardPalette.gold, drop: CardPalette.orange),
+                              .init(promptRuns.verb, ink: CardPalette.gold,
+                                    drop: CardPalette.orange),
                               .init(" to!")],
                        size: 26)
                 .offset(x: prompt.bottomX, y: prompt.bottomY)
@@ -524,6 +542,12 @@ struct CourtView: View {
     /// air; the phase says it a whole presentation early, so the floor set up behind the
     /// scenes that were still playing. The controller says when.
     private var isStill: Bool { throwing != nil || inbounding != nil }
+
+    /// Whether the floor is being asked a question at all.
+    private var isChoosing: Bool {
+        if case .awaitingTarget = gate { return true }
+        return false
+    }
 
     /// Whoever is on the sideline: the one being asked, or the one who has just thrown.
     private var thrower: Seat? { throwing?.from ?? inbounding }

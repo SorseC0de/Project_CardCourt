@@ -78,6 +78,19 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+            if case .awaitingCardFrom(let card, let victim) = controller.gate {
+                HandPickerView(card: card, victim: victim,
+                               hand: controller.state[victim].bag.count) { index in
+                    let hand = controller.state[victim].bag
+                    guard hand.indices.contains(index) else { return }
+                    controller.choose(card: hand[index].id)
+                }
+                .zIndex(12)
+            }
+            if case .awaitingMode(let card) = controller.gate {
+                ModePickerView(card: card) { controller.choose(mode: $0) }
+                    .zIndex(12)
+            }
             if let inspecting {
                 InspectedCardView(card: inspecting.card, from: inspecting.from)
                     .id(inspecting.card.id)
@@ -314,7 +327,15 @@ struct GameView: View {
                   opening: controller.opening,
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },
-                  onSelect: { controller.inbound(to: $0) },
+                  onSelect: { seat in
+                      // The same tap answers both — which is the point of asking for a
+                      // player the way the game already asks for one.
+                      if case .awaitingTarget = controller.gate {
+                          controller.choose(target: seat)
+                      } else {
+                          controller.inbound(to: seat)
+                      }
+                  },
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
                   showingClamps: beingRead?.clamp != nil,

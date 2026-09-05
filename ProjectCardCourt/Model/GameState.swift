@@ -74,6 +74,16 @@ enum Phase: Hashable, Codable {
     case awaitingRebound(shooter: Seat)
     /// Turnaround Three: pick any number to discard, then the shot goes up.
     case awaitingDiscard(seat: Seat, card: CardDescriptor, bonusEach: Int)
+    /// A card that names a player: which one, and who is being asked.
+    ///
+    /// One phase for every kind of it — a pass of choice, a Nutmeg's two, an Ankle
+    /// Breaker's victim. What the choice *does* is on the card; this only collects it.
+    case awaitingTarget(seat: Seat, card: CardDescriptor, choices: [Seat])
+    /// Triple Threat: one of the card's own branches.
+    case awaitingMode(seat: Seat, card: CardDescriptor)
+    /// A card taken out of somebody else's hand, chosen rather than rolled for. The hand
+    /// is face down — picking one is a guess, which is the point.
+    case awaitingCardFrom(seat: Seat, card: CardDescriptor, victim: Seat)
     /// Bone Bruise: the turn opens by giving one up, and the sheet says whose choice it
     /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
     /// and resolves into one.
@@ -89,6 +99,9 @@ enum Phase: Hashable, Codable {
         case .possession(let seat): return seat
         case .awaitingDiscard(let seat, _, _): return seat
         case .awaitingInjuryDiscard(let seat, _): return seat
+        case .awaitingTarget(let seat, _, _): return seat
+        case .awaitingMode(let seat, _): return seat
+        case .awaitingCardFrom(let seat, _, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }
@@ -108,6 +121,26 @@ struct GameState: Codable {
     /// Not part of SHOT: it is spent on that one shot and cleared, so a cancelled attempt
     /// leaves the board exactly where it was. See the note in `Rules.apply`.
     var pendingShotBonus = 0
+    /// Attempts already taken this round, so Sixth Man can count to six.
+    var shotsThisRound = 0
+    /// Rock Fight: nobody shoots from a look this good, for the rest of the round.
+    var shotCeilingThisRound: Int?
+    /// Fundamentalist: which Moves have already been played this possession.
+    var movesPlayedThisPossession: Set<String> = []
+    /// Triple Threat: no more Moves for the rest of it.
+    var movesClosed = false
+    /// Lob: the man it found owes a shot before anything else.
+    var mustShootFirst: Seat?
+    /// Dime: who threw it, so a make pays them the extra assist.
+    var dimeFrom: Seat?
+    /// Gravity: where the pending Clamps are actually going to land.
+    var clampMagnet: Seat?
+    /// The card waiting on an answer, and the seat that played it — which is not always
+    /// the seat being asked. Floor General aims other people's passes.
+    var pendingPlay: CardDescriptor?
+    var pendingActor: Seat?
+    /// Nutmeg: where the card taken is headed, rather than to the pile.
+    var stealTravelsTo: Seat?
     var inbounder: Seat = .south
     var ball: Seat?
     /// nil while the inbounder decides — the UI shows "--".
