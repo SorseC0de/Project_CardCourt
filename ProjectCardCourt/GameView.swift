@@ -579,4 +579,6 @@ struct GameView: View {
 
 #Preview("Name call") { NameCallBench() }
 
+#Preview("Column warp") { ColumnWarpBench() }
+
 #Preview("Straight to the table") { GameView() }
