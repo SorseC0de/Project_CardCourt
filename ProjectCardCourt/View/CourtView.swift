@@ -88,6 +88,10 @@ struct CourtView: View {
     @State private var prompt = InboundTextTuning.shared
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var deckTuning = DeckTuning.shared
+    /// How this warp comes apart. Rolled when somebody steps off the floor, so the same
+    /// player leaving twice does not leave the same way — see `ColumnWarp.seed`.
+    @State private var warpSeed: UInt64 = .random(in: .min ... .max)
+
     /// True while the ball is crossing between players.
     @State private var ballInFlight = false
     /// 0 at the passer, 1 at the receiver. Named apart from the draw's `flight`.
@@ -343,6 +347,8 @@ struct CourtView: View {
                 landedAt = Date()
             }
         }
+        // A body does not come apart the same way twice.
+        .onChange(of: inbounding) { warpSeed = .random(in: .min ... .max) }
     }
 
     // MARK: - Floor
@@ -664,7 +670,7 @@ struct CourtView: View {
                 // same stack. Warped out rather than hidden — he is in two places for the
                 // length of a throw-in, and a hard cut is what made that read as a bug.
                 // Still drawn rather than skipped, so nothing below him moves.
-                .columnWarp(isInbounding(seat) ? 1 : 0)
+                .columnWarp(isInbounding(seat) ? 1 : 0, seed: warpSeed)
                 .animation(.easeInOut(duration: Court.warp), value: isInbounding(seat))
                 .scaleEffect(scale, anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .bottom)

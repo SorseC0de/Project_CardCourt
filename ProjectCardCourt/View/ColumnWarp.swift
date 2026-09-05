@@ -27,76 +27,93 @@ struct ColumnWarp: ViewModifier, Animatable {
     /// How far the columns travel at full progress, in art pixels. Enough to clear the
     /// figure and no more — at this speed the eye reads the shear, not the trip.
     var reach: CGFloat = 40
-    /// How far apart the combs start, as a share of the whole. Zero is every column
-    /// leaving in step, which reads as one thing sliding rather than a body coming apart.
-    var stagger: Double = 0.06
+    /// How much of the run the combs are spread across. Zero is every column leaving in
+    /// step, which reads as one thing sliding rather than a body coming apart.
+    var stagger: Double = 0.10
+    /// **Rolled fresh for every warp.** The same body leaving the same way twice reads as
+    /// a canned animation; the whole effect is that it comes apart differently each time.
+    /// Held by whoever starts the warp so it does not change mid-flight — see
+    /// `AnyTransition.columnWarp` and `CourtView.warpSeed`.
+    var seed: UInt64 = 0
 
     /// How many combs the columns are dealt into.
-    ///
-    /// Each comb is every twelfth column, so only the even ones are ever drawn — the odd
-    /// ones are the gaps the effect is made of — and six of them is enough variation that
-    /// no two neighbours leave together.
     static let combs = 6
-
-    /// Which combs take a one-pixel step sideways on the way out, and which way.
+    /// How far into a comb's own travel the bands have finished narrowing.
     ///
-    /// **One pixel, and not all of them.** Any more reads as the sprite being torn up
-    /// rather than a body flickering out, and every comb doing it reads as a lean.
-    private static let nudge: [CGFloat] = [0, 1, 0, -1, 0, 1]
+    /// **The splay.** At rest the bands are two pixels wide and touching, which is a solid
+    /// sprite; as the warp starts they thin to one and the gaps open between them. So the
+    /// figure is seen to come apart into columns rather than arriving already in pieces.
+    static let thinBy: CGFloat = 0.35
 
-    /// So a change of `progress` is a movement rather than a jump — the whole point is
-    /// that SwiftUI walks it from nought to one and the columns travel while it does.
+    /// So a change of `progress` is a movement rather than a jump.
     var animatableData: Double {
         get { progress }
         set { progress = newValue }
     }
 
     func body(content: Content) -> some View {
-        // One stack either way, so the view's own type never changes under an animation.
         ZStack {
             if progress <= 0 {
-                // Whole is whole: a figure standing about pays neither mask nor a copy
-                // of itself.
                 content
             } else {
                 ForEach(0..<Self.combs, id: \.self) { comb in
                     let along = share(for: comb)
+                    let thinning = min(1, along / Self.thinBy)
                     content
-                        .mask { Comb(pixel: pixel, index: comb, of: Self.combs) }
+                        .mask {
+                            Comb(pixel: pixel, index: comb, of: Self.combs,
+                                 width: pixel * (2 - thinning))
+                        }
                         // **Up, and only up.** Out is the columns leaving overhead; in is
-                        // this run backwards, which is them coming down into place. Two
-                        // directions at once is a thing splitting, not a thing going.
-                        .offset(x: Self.nudge[comb % Self.nudge.count] * pixel * along,
+                        // this run backwards, which is them coming down into place.
+                        .offset(x: nudge(comb) * pixel * along,
                                 y: -reach * pixel * along)
                 }
             }
         }
     }
 
-    /// How far along this comb is, given the whole warp's progress. The last one starts
-    /// when the first is already `stagger × combs` of the way gone.
+    /// How far along this comb is, given the whole warp's progress.
+    ///
+    /// Its start is drawn from the seed rather than from its place in the row, so the
+    /// order the columns leave in is different every time.
     private func share(for comb: Int) -> CGFloat {
-        let spread = stagger * Double(Self.combs - 1)
-        let start = stagger * Double(comb)
-        guard spread < 1 else { return CGFloat(progress) }
-        return CGFloat(min(1, max(0, (progress - start) / (1 - spread))))
+        let start = stagger * roll(comb, 1)
+        guard stagger < 1 else { return CGFloat(progress) }
+        return CGFloat(min(1, max(0, (progress - start) / (1 - stagger))))
+    }
+
+    /// A one-pixel step sideways, on some of them.
+    ///
+    /// One pixel, and not all of them: any more reads as the sprite being torn up rather
+    /// than a body flickering out, and every comb doing it reads as a lean.
+    private func nudge(_ comb: Int) -> CGFloat {
+        let r = roll(comb, 2)
+        return r < 0.34 ? -1 : (r < 0.66 ? 0 : 1)
+    }
+
+    /// A fixed number in `0..<1` for this comb and this question, off the warp's own seed.
+    private func roll(_ comb: Int, _ question: UInt64) -> Double {
+        var x = seed &+ UInt64(comb) &* 0x9E37_79B9_7F4A_7C15 &+ question &* 0xBF58_476D_1CE4_E5B9
+        x = (x ^ (x >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        x = (x ^ (x >> 27)) &* 0x94D0_49BB_1331_11EB
+        return Double((x ^ (x >> 31)) >> 11) / Double(1 << 53)
     }
 }
 
-/// One comb: every `stride`-th column, in art pixels, starting at `index`.
+/// One comb: every `of × 2`-th column, drawn `width` wide.
 private struct Comb: View {
     let pixel: CGFloat
     let index: Int
     let of: Int
+    let width: CGFloat
 
     var body: some View {
         Canvas { context, size in
-            // Twice the comb count, so the columns between them are never drawn at all —
-            // the gaps are half the effect.
             let stride = CGFloat(of * 2) * pixel
             var x = CGFloat(index * 2) * pixel
             while x < size.width {
-                context.fill(Path(CGRect(x: x, y: 0, width: pixel, height: size.height)),
+                context.fill(Path(CGRect(x: x, y: 0, width: width, height: size.height)),
                              with: .color(.black))
                 x += stride
             }
@@ -107,8 +124,8 @@ private struct Comb: View {
 extension View {
     /// Warps out — or, run backwards, in. `pixel` is the sprite's own scale.
     func columnWarp(_ progress: Double, pixel: CGFloat = Theme.Figure.playerScale,
-                    reach: CGFloat = 40) -> some View {
-        modifier(ColumnWarp(progress: progress, pixel: pixel, reach: reach))
+                    reach: CGFloat = 40, seed: UInt64 = 0) -> some View {
+        modifier(ColumnWarp(progress: progress, pixel: pixel, reach: reach, seed: seed))
     }
 }
 
@@ -116,10 +133,16 @@ extension AnyTransition {
     /// Arriving and leaving in columns, for anything that appears on the floor rather than
     /// walking on to it — a referee taking the court, a player stepping off it to throw
     /// the ball back in.
+    ///
+    /// One seed for both ends, rolled where the transition is built: the two instances are
+    /// what SwiftUI interpolates between, so they have to agree on how this one comes
+    /// apart.
     static func columnWarp(pixel: CGFloat = Theme.Figure.playerScale,
                            reach: CGFloat = 40) -> AnyTransition {
-        .modifier(active: ColumnWarp(progress: 1, pixel: pixel, reach: reach),
-                  identity: ColumnWarp(progress: 0, pixel: pixel, reach: reach))
+        let seed = UInt64.random(in: UInt64.min...UInt64.max)
+        return .modifier(
+            active: ColumnWarp(progress: 1, pixel: pixel, reach: reach, seed: seed),
+            identity: ColumnWarp(progress: 0, pixel: pixel, reach: reach, seed: seed))
     }
 }
 
@@ -130,7 +153,8 @@ struct ColumnWarpBench: View {
     @State private var pixel: CGFloat = 7
     @State private var reach: CGFloat = 40
     @State private var seconds: Double = 0.14
-    @State private var stagger: Double = 0.06
+    @State private var stagger: Double = 0.10
+    @State private var seed: UInt64 = .random(in: .min ... .max)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -139,7 +163,7 @@ struct ColumnWarpBench: View {
                 SpriteAnimation(sprite: .front, scale: pixel, isPlaying: false, restFrame: 0)
                     .paletteSwap(PlayerLook.shared.kit(for: .east))
                     .modifier(ColumnWarp(progress: progress, pixel: pixel,
-                                         reach: reach, stagger: stagger))
+                                         reach: reach, stagger: stagger, seed: seed))
             }
             .frame(height: 320)
             .clipped()
@@ -151,13 +175,15 @@ struct ColumnWarpBench: View {
                 dial("reach", Binding(get: { Double(reach) },
                                       set: { reach = CGFloat($0.rounded()) }), 8...160)
                 dial("seconds", $seconds, 0.1...2)
-                dial("stagger", $stagger, 0...0.16)
+                dial("stagger", $stagger, 0...0.4)
                 HStack(spacing: 12) {
                     Button("warp out") {
+                        seed = .random(in: .min ... .max)
                         progress = 0
                         withAnimation(.easeIn(duration: seconds)) { progress = 1 }
                     }
                     Button("warp in") {
+                        seed = .random(in: .min ... .max)
                         progress = 1
                         withAnimation(.easeOut(duration: seconds)) { progress = 0 }
                     }
