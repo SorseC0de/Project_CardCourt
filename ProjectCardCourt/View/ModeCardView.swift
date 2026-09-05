@@ -61,6 +61,11 @@ struct ModeCardView: View {
     /// and black is what a card with nobody's name on it wears.
     var seat: Seat?
 
+    /// One colour for the streaks, when the call has a colour of its own — a Game Break's
+    /// purple, a Clamp's red. Nil leaves them white on a card that belongs to a seat, and
+    /// the table's kit colours on one that belongs to nobody.
+    var streakInk: Color?
+
     /// Shown across the seam *instead of* the title, for a call whose whole meaning is a
     /// picture. A word under it would be the same thing said twice.
     var emblem: String? = nil
@@ -115,7 +120,7 @@ struct ModeCardView: View {
                 // thing that is coming towards you; these bars are *passing*, and what
                 // belongs in a shape that passes is the world going by in the direction
                 // it is headed.
-                SideStreaks(ink: seat == nil ? nil : .white)
+                SideStreaks(ink: streakInk ?? (seat == nil ? nil : .white))
                     .frame(width: width, height: bar.height * 2)
                     // **Last, not first.**
                     //

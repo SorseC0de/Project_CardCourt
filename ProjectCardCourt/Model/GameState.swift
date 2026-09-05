@@ -104,6 +104,15 @@ enum Phase: Hashable, Codable {
     case gameOver
 
     /// The seat that owes a decision, if any.
+    /// A short name for the phase, for logs.
+    var label: String {
+        switch self {
+        case .inbound(let s): return "inbound(\(s))"
+        case .possession(let s): return "possession(\(s))"
+        default: return "\(self)".prefix(while: { $0 != "(" }).description
+        }
+    }
+
     var actingSeat: Seat? {
         switch self {
         case .inbound(let seat):    return seat

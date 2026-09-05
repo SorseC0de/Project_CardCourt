@@ -109,7 +109,10 @@ enum StreakStyle {
     static var sideWarp: Double = 0.72
     static let sideCount = 40
     /// Thick enough to read as objects going past rather than as scratches on the lens.
-    static let sideThickness: CGFloat = 5.0
+    static let sideThickness: CGFloat = 3.0
+    /// And thinner again on the name call, which is a fraction of the mother shape's
+    /// height: the same stroke on a smaller plate reads as a much heavier one.
+    static let sideThicknessSmall: CGFloat = 2.0
     /// The bloom under each one: how much wider, and how much of its brightness it keeps.
     static let sideBloom: CGFloat = 2.6
     static let sideBloomGain: Double = 0.35
@@ -267,6 +270,8 @@ struct SideStreaks: View {
     /// One colour for the lot, for a ground that is already saying whose it is. Nil keeps
     /// the table's kit colours, which is what a black card wants.
     var ink: Color?
+    /// How heavy each one is. The smaller the plate, the thinner they have to be drawn.
+    var thickness: CGFloat = StreakStyle.sideThickness
 
     @State private var look = PlayerLook.shared
 
@@ -292,8 +297,8 @@ struct SideStreaks: View {
                     let x = travelled - length
                     // Spread over the whole height, all running the same way.
                     let y = StreakStyle.scatter(index, 1) * size.height
-                    let streak = CGRect(x: x, y: y - StreakStyle.sideThickness / 2,
-                                        width: length, height: StreakStyle.sideThickness)
+                    let streak = CGRect(x: x, y: y - thickness / 2,
+                                        width: length, height: thickness)
 
                     // The table's own colours, not the port's four. What goes past is
                     // the players, so it should be the players' kit.
@@ -307,7 +312,7 @@ struct SideStreaks: View {
                     // is what a hard-edged game wants.
                     let bloom = streak.insetBy(
                         dx: 0,
-                        dy: -StreakStyle.sideThickness * (StreakStyle.sideBloom - 1) / 2)
+                        dy: -thickness * (StreakStyle.sideBloom - 1) / 2)
                     context.fill(Capsule().path(in: bloom),
                                  with: .color(colour.opacity(glow * StreakStyle.sideBloomGain)))
                     context.fill(Capsule().path(in: streak), with: .color(colour.opacity(glow)))

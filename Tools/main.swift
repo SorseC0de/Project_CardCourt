@@ -157,6 +157,8 @@ if args.contains("--text") {
     measureFreeThrows()
 } else if args.contains("--hands") {
     OpeningHands.run()
+} else if args.contains("--soak") {
+    soak()
 } else if args.contains("--test") {
     runTests()
 } else if args.contains("--play") {

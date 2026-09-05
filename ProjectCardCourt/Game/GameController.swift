@@ -791,7 +791,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingTarget = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveTarget(target, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveTarget(target, state: &state), playedCard: true)
+            await run()
+        }
     }
 
     /// One more man named for the shot, or the naming closed.
@@ -799,7 +802,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingNaming = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveNaming(seat, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveNaming(seat, state: &state), playedCard: true)
+            await run()
+        }
     }
 
     /// What a pass cost the man who took it.
@@ -807,7 +813,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingToll = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveToll(pick, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveToll(pick, state: &state))
+            await run()
+        }
     }
 
     /// The passive given up when a fourth arrives.
@@ -815,7 +824,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingIntangibleDrop = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveIntangibleDrop(id, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveIntangibleDrop(id, state: &state))
+            await run()
+        }
     }
 
     /// An Injury taken off the table.
@@ -823,7 +835,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingInjuryPick = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveInjuryPick(id, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveInjuryPick(id, state: &state))
+            await run()
+        }
     }
 
     /// A card picked out of a hand nobody can see.
@@ -831,7 +846,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingCardFrom = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveCardFrom(id, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveCardFrom(id, state: &state), playedCard: true)
+            await run()
+        }
     }
 
     /// A branch chosen.
@@ -839,7 +857,10 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingMode = gate else { return }
         loop?.cancel()
-        Task { await present(Rules.resolveMode(index, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveMode(index, state: &state), playedCard: true)
+            await run()
+        }
     }
 
     /// The toll, paid by hand. Picked with the same selection the bid and the shot
@@ -855,7 +876,10 @@ final class GameController {
             try? match?.send(.discardForShot(chosen))
             return
         }
-        Task { await present(Rules.resolveInjuryDiscard(chosen, state: &state)) }
+        loop = Task {
+            await present(Rules.resolveInjuryDiscard(chosen, state: &state))
+            await run()
+        }
     }
 
     func submitDiscard() {
@@ -1149,7 +1173,7 @@ final class GameController {
                 // Whoever holds the most is the man worth finding — and the man worth
                 // taking from. One rule, because the AI has no reason to prefer another.
                 let pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
-                await present(Rules.resolveTarget(pick, state: &state))
+                await present(Rules.resolveTarget(pick, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingNaming(let seat, _, let named) = state.phase {
@@ -1164,7 +1188,7 @@ final class GameController {
                 let next = Seat.allCases.first {
                     $0 != shooter && $0 != best && !named.contains($0)
                 }
-                await present(Rules.resolveNaming(next, state: &state))
+                await present(Rules.resolveNaming(next, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingToll(let seat, let victim) = state.phase {
@@ -1211,7 +1235,7 @@ final class GameController {
                 // Face down to everybody, so there is nothing to be clever about.
                 let hand = state[victim].bag
                 let pick = hand[Int.random(in: 0..<max(1, hand.count))].id
-                await present(Rules.resolveCardFrom(pick, state: &state))
+                await present(Rules.resolveCardFrom(pick, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingMode(let seat, let card) = state.phase {
@@ -1220,7 +1244,7 @@ final class GameController {
                 try? await Task.sleep(for: .seconds(Pacing.think()))
                 if Task.isCancelled { return }
                 await present(Rules.resolveMode(ai.mode(of: card, state, for: seat),
-                                                state: &state))
+                                                state: &state), playedCard: true)
                 continue
             }
             if case .awaitingInjuryDiscard(let seat, let count) = state.phase {

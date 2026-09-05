@@ -14,7 +14,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         switch self {
         case .inbound:   return "Inbound"
         case .rebound:   return "Rebound"
-        case .gameBreak: return "Game Break"
+        case .gameBreak: return "Game Break!"
         case .whistle:   return "Whistle"
         case .clamped:   return "Clamped!"
         }
@@ -23,7 +23,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
     /// The line under it. What the call means, not what it is called.
     var blurb: String {
         switch self {
-        case .inbound:   return "Put it back in play"
+        case .inbound:   return "Put the ball back in play"
         case .rebound:   return "The board is live"
         case .gameBreak: return ""//"Nobody played this"
         // The whistle says it with the whistle. See `emblem`.
@@ -42,6 +42,17 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         case .gameBreak: return CardPalette.purple
         case .whistle:   return CardPalette.red
         case .clamped:   return CardPalette.purple
+        }
+    }
+
+    /// What the streaks behind the words are made of. The call's own colour where it has
+    /// one, and the table's kit colours where the call is the game's rather than a card's.
+    var streak: Color? {
+        switch self {
+        case .gameBreak: return CardPalette.purple
+        case .whistle:   return .white
+        case .clamped:   return CardPalette.red
+        case .inbound, .rebound: return nil
         }
     }
 
@@ -91,6 +102,7 @@ struct ActionCallView: View {
                      subtitle: call.blurb,
                      ink: call.ink,
                      subtitleInk: call.drop,
+                     streakInk: call.streak,
                      emblem: call.emblem,
                      accessory: clamps.isEmpty ? nil
                                 : AnyView(ClampRosterView(clamps: clamps)),

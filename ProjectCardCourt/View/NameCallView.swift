@@ -66,7 +66,7 @@ struct NameCallView: View {
             // Hung on the plate it can only ever be on the plate.
             face
                 .frame(width: size.width, height: size.height)
-                .overlay { SideStreaks(ink: .white).mask { face } }
+                .overlay { SideStreaks(ink: .white, thickness: StreakStyle.sideThicknessSmall).mask { face } }
                 .overlay(alignment: .leading) {
                     word(burning: burn(at: timeline.date, rate: wordRate))
                 }

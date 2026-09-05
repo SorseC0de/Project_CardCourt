@@ -697,7 +697,7 @@ enum CardLibrary {
 
     static let micdUp = CardDescriptor(
         id: "micd-up", name: "Mic'd Up", type: .gameBreak,
-        effect: "SHOT + 10% until passed or shot. Yours alone — it does not travel",
+        effect: "SHOT + 10% until passed or shot",
         numberInDeck: 7,
         gameBreak: GameBreakEffect(shotForHolder: 10))
 

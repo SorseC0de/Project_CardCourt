@@ -113,6 +113,22 @@ enum Rules {
         }
     }
 
+    /// A possession nobody can do anything with is a dead ball.
+    ///
+    /// Rock Fight bars the good look and a Lob says shoot first, so a man can be left with
+    /// a hand he may not play and a shot he may not take. On a floor the clock would
+    /// simply run out on him, and that is what happens here: a violation, and the ball.
+    ///
+    /// Checked at the edges of a chain rather than inside one, because a hand that is dead
+    /// halfway through a draw is not dead — it is halfway through a draw.
+    private static func strandOut(state: inout GameState, events: inout [GameEvent]) {
+        guard case .possession(let holder) = state.phase,
+              legalMoves(state, for: holder).isEmpty else { return }
+        state[holder].turnovers += 1
+        events.append(.turnover(holder, cause: "Shot Clock"))
+        endRound(state: &state, events: &events)
+    }
+
     /// Nothing has happened yet this possession — no Move played, no card at all.
     static func isFirstAction(_ state: GameState) -> Bool {
         state.movesThisPossession == 0 && state.lastPlayThisPossession == nil
@@ -588,6 +604,7 @@ enum Rules {
             reinbound(by: trip.shooter, state: &state, events: &events)
         }
         takeTheLine(state: &state, events: &events)
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -654,6 +671,11 @@ enum Rules {
         }
         beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
                         state: &state, events: &events)
+
+        // Everything below is about the possession the pass opened. If the draw at the top
+        // of it handed the ball on — or the clock ran out on a hand he cannot play — there
+        // is no such possession to charge.
+        guard case .possession(let landed) = state.phase, landed == receiver else { return }
 
         // Franchise Player: the man who took the pass gives something up for it. Asked
         // ahead of the other two, because it is the pass itself that costs him.
@@ -733,6 +755,7 @@ enum Rules {
             return events
         }
         completePass(descriptor, from: actor, to: target, state: &state, events: &events)
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -761,6 +784,7 @@ enum Rules {
         events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
         state.lastPlayThisPossession = descriptor.id
         state.movesThisPossession += 1
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -838,6 +862,7 @@ enum Rules {
                     overClamps: special?.ignoresClamps ?? false,
                     state: &state, events: &events)
         state.namedForAssist = []
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -893,6 +918,7 @@ enum Rules {
         rollInjuryLock(seat, state: &state)
         events.append(.gameBreakRevealed(seat: seat, card: taken))
         state.phase = .possession(holder: state.ball ?? seat)
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -923,6 +949,7 @@ enum Rules {
         events.append(.movePlayed(seat: actor, card: descriptor, shot: state.shot))
         state.lastPlayThisPossession = descriptor.id
         state.movesThisPossession += 1
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -946,6 +973,7 @@ enum Rules {
             events.append(.clampBit(seat: seat, card: injury, discarded: count))
         }
         state.phase = .possession(holder: seat)
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -979,6 +1007,7 @@ enum Rules {
         // Only when the round is still running. A round that turned over has already had
         // SHOT reset, and taking the bonus back out of a fresh number would go negative.
         if state.round == roundBefore { adjustShot(by: -bought, state: &state) }
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -1017,6 +1046,7 @@ enum Rules {
         // SHOT carries over — only an inbound resets it.
         beginPossession(winner, tickClock: true, fromRebound: true,
                         state: &state, events: &events)
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -1471,6 +1501,7 @@ enum Rules {
         state.phase = .possession(holder: seat)
         takeTheLine(state: &state, events: &events)
         handOverBall(state: &state, events: &events)
+        strandOut(state: &state, events: &events)
     }
 
     /// Whether the card played immediately before was a dribble of any kind.
@@ -1707,7 +1738,9 @@ enum Rules {
             state.overflowing.remove(seat)
             state.phase = .awaitingIntangibleDrop(seat: seat,
                                                   offered: state[seat].intangibles)
+            return
         }
+        strandOut(state: &state, events: &events)
     }
 
     /// Draws several as **one batch**.
