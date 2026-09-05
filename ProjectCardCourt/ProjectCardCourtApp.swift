@@ -25,6 +25,9 @@ struct RootView: View {
     /// Whether the game was entered to play online. The lobby needs the controller
     /// `GameView` owns, so this rides in with it.
     @State private var straightToLobby = false
+#if DEBUG
+    @State private var bench = false
+#endif
 
     var body: some View {
         ZStack {
@@ -34,7 +37,12 @@ struct RootView: View {
                     onPlay: { straightToLobby = false; screen = .game },
                     onLobby: { straightToLobby = true; screen = .game },
                     onGallery: { screen = .gallery },
-                    onHooper: { screen = .hooper })
+                    onHooper: { screen = .hooper },
+                    onSettings: {
+#if DEBUG
+                        bench = true
+#endif
+                    })
                     .transition(.opacity)
                     // The court is a RealityKit scene, and the first one in a process
                     // costs seconds to bring up. Spent here, under the menu.
@@ -50,5 +58,10 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: screen)
+#if DEBUG
+        // The switches that have to be reachable before a match, since the bench itself
+        // is on the floor of one.
+        .sheet(isPresented: $bench) { FrontBenchView(onDismiss: { bench = false }) }
+#endif
     }
 }
