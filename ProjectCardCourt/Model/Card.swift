@@ -473,7 +473,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Turning applied to the icon, in degrees clockwise.
     var iconRotation: Double {
         switch id {
-        case "shot-creator", "drive": return 90
+        case "shot-creator": return 90
         default: return 0
         }
     }

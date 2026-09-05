@@ -157,9 +157,9 @@ struct CourtView: View {
                 if render.courtStage {
                     CourtStage(deckAt: share(deckPoint(on: court), in: geo.size),
                                discardAt: share(discardPoint(on: court), in: geo.size),
-                               deckLayers: max(1, min(40, state.deck.count / 10)),
+                               deckLayers: DeckStackView.layers(for: state.deck.count),
                                discardLayers: state.discard.isEmpty ? 0
-                                   : max(1, min(40, state.discard.count / 10)),
+                                   : DeckStackView.layers(for: state.discard.count),
                                deckRoutine: deckRoutine,
                                flight: deal.map { deal in
                                    CardFlight(id: deal.id,

@@ -24,6 +24,15 @@ struct ActionBarView: View {
 
     private var canShoot: Bool { legal.contains(.shoot) }
 
+    /// What the rules will not take right now, while they are being asked for a move at
+    /// all. Empty at every other gate, or a hand nobody is being asked about would black
+    /// out entirely.
+    private var barredCards: Set<Card.ID> {
+        guard case .awaitingMove = controller.gate else { return [] }
+        let allowed = playableCards
+        return Set(bag.map(\.id).filter { !allowed.contains($0) })
+    }
+
     /// The court is asking who to throw to, so the hand is not the question.
     private var isChoosingInbound: Bool {
         if case .awaitingInbound = controller.gate { return true }
@@ -59,6 +68,7 @@ struct ActionBarView: View {
                           isSelecting: isSelecting,
                           selected: controller.bidSelection,
                           locked: lockedCards,
+                          barred: barredCards,
                           wash: isChoosingInbound ? CourtView.Court.cardWash : nil,
                           activeReferees: controller.state.armedWhistles.count,
                           onInspectReferees: onInspectReferees,

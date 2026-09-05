@@ -12,7 +12,7 @@ struct DeckStackView: View {
     /// False when a court-wide stage is drawing the pile instead.
     var showsPile = true
 
-    private enum Pile {
+    enum Pile {
         /// Raises the whole thing in its slot.
         static let lift: CGFloat = 0.12
         /// How much of the deck one slab stands for. Read off the ceiling rather than
@@ -24,11 +24,17 @@ struct DeckStackView: View {
     ///
     /// A reading, not a stack you count — see `DeckTuning.slabs`, which is the ceiling and
     /// is on the bench because how tall a deck *looks* right is an eye question.
-    private var layers: Int {
+    ///
+    /// **Static, because two renderers draw this pile.** `CourtStage` draws the one you
+    /// actually see and this view draws the flat fallback; with the arithmetic written out
+    /// in each, the slider moved one of them and the game showed the other.
+    static func layers(for remaining: Int) -> Int {
         let most = min(DeckBody.maxLayers, max(1, Int(DeckTuning.shared.slabs)))
         return max(1, min(most, Int((Double(remaining) / Double(Pile.full)
                                      * Double(most)).rounded(.up))))
     }
+
+    private var layers: Int { Self.layers(for: remaining) }
 
     var body: some View {
         if showsPile {

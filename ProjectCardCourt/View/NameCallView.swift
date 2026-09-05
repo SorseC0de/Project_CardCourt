@@ -121,8 +121,15 @@ struct NameCallView: View {
         .lineLimit(1)
         .fixedSize()
         .scaleEffect(x: NameCallStyle.labelStretch, y: 1, anchor: .leading)
-        .offset(x: NameCallStyle.labelX * NameCallStyle.size(reaching: reach).width)
+        .offset(x: nameX)
         .opacity(left)
+    }
+
+    /// The name's place along the plate: far enough in that it lands at the screen's
+    /// leading edge once the plate has come to rest. It rides the plate in and out from
+    /// there — a word pinned to the screen while the shape moves under it is two things.
+    private var nameX: CGFloat {
+        NameCallStyle.size(reaching: reach).width - reach + NameCallStyle.labelX
     }
 
     private func offset(_ size: CGSize) -> CGFloat {
@@ -149,28 +156,30 @@ struct NameCallView: View {
 /// The plate's proportions and pacing.
 @MainActor
 enum NameCallStyle {
-    /// How tall it is and how long, against how far it flies. A full-screen slide, unlike
-    /// the port's — hand it the screen's width and the plate spans it.
+    /// How tall it is and how long, against how far it flies.
+    ///
+    /// **Longer than the trip, the way the port has it.** The plate is held with its
+    /// trailing edge at `reach`, so one exactly as long as the screen puts its clear head
+    /// at the leading edge — which is where the name goes, and why the name was sitting on
+    /// nothing. At the mother shape's own length the tail runs off the leading edge
+    /// instead, and everything on screen is solid colour.
     static let height: CGFloat = 0.16
-    static let length: CGFloat = 1.0
+    static let length: CGFloat = 2.22
 
     static func size(reaching reach: CGFloat) -> CGSize {
         CGSize(width: reach * length, height: reach * height)
     }
 
-    /// **Solid where the name is, gone at the other end.**
-    ///
-    /// The plate lands against the leading edge of the screen and the name is read there,
-    /// so that end is the one that has to be a colour. What dissolves is the length of it
-    /// running off the far side — the tail, which is behind the word rather than under it.
+    /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
+    /// trails as it flies out.
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
         return LinearGradient(
             gradient: Gradient(stops: [
-                .init(color: face, location: 0),
-                .init(color: face, location: 1 - ModeCardStyle.fadeTo),
-                .init(color: .clear, location: 1 - ModeCardStyle.fadeFrom),
-                .init(color: .clear, location: 1),
+                .init(color: .clear, location: 0),
+                .init(color: .clear, location: ModeCardStyle.fadeFrom),
+                .init(color: face, location: ModeCardStyle.fadeTo),
+                .init(color: face, location: 1),
             ]),
             startPoint: .leading, endPoint: .trailing)
     }
@@ -179,9 +188,9 @@ enum NameCallStyle {
     static let noteSize: CGFloat = 13
     static let gap: CGFloat = 8
     static let labelStretch: CGFloat = 0.85
-    /// Where the name sits, as a share of the plate's length: in from the leading edge by
-    /// enough to clear the parallelogram's own lean, and no further.
-    static let labelX: CGFloat = 0.06
+    /// How far in from the **screen's** leading edge the name sits, in points. Measured
+    /// from there rather than from the plate, which starts well off the side of it.
+    static let labelX: CGFloat = 20
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having

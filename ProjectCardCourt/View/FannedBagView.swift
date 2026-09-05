@@ -18,6 +18,11 @@ struct FannedBagView: View {
     let selected: Set<Card.ID>
     /// Cards a Clamp is holding down — see `Rules.lockedCards`.
     var locked: Set<Card.ID> = []
+    /// Cards the rules refuse *right now* for a reason that is not a Clamp: Clear Out
+    /// after the turn has started, a Move after Triple Threat, a Buzzer Beater off its
+    /// clock. Blacked out rather than left looking live — a card you cannot use should
+    /// look like one before you tap it.
+    var barred: Set<Card.ID> = []
     /// A wash over every card, whatever else is going on. The red one marks a card out;
     /// this one marks the whole hand as not being what is being asked about.
     var wash: Color?
@@ -38,6 +43,8 @@ struct FannedBagView: View {
     private enum Hand {
         /// How far a chosen card stands out of the fan.
         static let chosenLift: CGFloat = 26
+        /// What a card the rules will not take right now wears.
+        static let barredWash = CardPalette.black.opacity(0.55)
     }
 
     private var arc: (spread: Double, radius: CGFloat) {
@@ -63,7 +70,9 @@ struct FannedBagView: View {
                         // question on screen is not about cards at all.
                         let marked = selected.contains(card.id) || refused == card.id
                             || locked.contains(card.id)
-                        if let tint = marked ? Theme.danger.opacity(0.33) : wash {
+                        let out = !marked && barred.contains(card.id)
+                        if let tint = marked ? Theme.danger.opacity(0.33)
+                                             : (out ? Hand.barredWash : wash) {
                             RoundedRectangle(cornerRadius: 76 * CardLayout.cornerFraction,
                                              style: .continuous)
                                 .fill(tint)

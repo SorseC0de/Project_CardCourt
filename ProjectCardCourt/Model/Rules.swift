@@ -1118,6 +1118,15 @@ enum Rules {
         let chance = resolution.chance
         events.append(.shotAttempted(seat: seat, chance: chance, breakdown: resolution))
 
+        // **The defenders' work is done the moment the ball is in the air.**
+        //
+        // One place, here, rather than at the top of the next possession: a shot is the
+        // end of the possession however it lands, and a Clamp left standing through the
+        // rebound was still on the man's chest in the scene after the one it belonged to.
+        // `beginPossession` clears them again on its way in, which is what makes a Clamp
+        // that never met a shot — a turnover, a Timeout — expire too.
+        for other in Seat.allCases { state[other].clamps = [] }
+
         let roll = state.roll(1...100)
         if roll <= chance {
             // A kick-out is a three because of where it put him, not what he did with it.
