@@ -26,6 +26,9 @@ struct CourtStage: View {
     var seatsAt: [Seat: CGPoint] = [:]
     /// The opening deal. Setting one starts the whole performance.
     var opening: OpeningDeal?
+    /// **Held.** Something has the screen — a sheet, a browser, a question — and a deck
+    /// drifting about behind it is the floor carrying on without the player.
+    var frozen = false
 
     private enum Stage {
         /// How much floor the view spans, in metres, measured across the middle.
@@ -146,10 +149,16 @@ struct CourtStage: View {
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
             // Runs for as long as the court is on screen. Cancelled with the view, and
             // it stands aside on its own whenever a routine takes the deck over.
-            .task { await deck.idle(across: Stage.courtWidth) }
+            .task(id: frozen) {
+                guard !frozen else { return }
+                await deck.idle(across: Stage.courtWidth)
+            }
             // The spent pile breathes with the live one. A deck that floats beside a pile
             // that does not reads as one of them being broken.
-            .task { await discard.idle(across: Stage.courtWidth) }
+            .task(id: frozen) {
+                guard !frozen else { return }
+                await discard.idle(across: Stage.courtWidth)
+            }
             .task(id: flight?.id) {
                 guard let flight else { return }
                 let to = floorPoint(flight.to, in: geo.size)

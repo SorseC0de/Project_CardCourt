@@ -713,7 +713,7 @@ enum ModeCardStyle {
 
     /// How long a card that does not stop takes to cross, end to end. The Z is formed at
     /// half of it and the card is gone at all of it, so this is the whole interruption.
-    static let pass: Double = 1.0
+    static let pass: Double = 1.5
 
     // ── The words' timing ─────────────────────────────────────────────
     //

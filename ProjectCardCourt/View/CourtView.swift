@@ -37,6 +37,9 @@ struct CourtView: View {
     /// Who the floor may show coils on — see `GameController.boundSeats`. Not
     /// `state[seat].clamps`, which is a possession ahead of the scene.
     var bound: Set<Seat> = []
+    /// Held: the floor stops moving because something else has the screen.
+    var frozen = false
+
     /// True while a Clamp is being read, which is when who is already clamped matters.
     var showingClamps = false
     /// A tap on somebody who is not a legal target: read them instead of passing to them.
@@ -193,7 +196,8 @@ struct CourtView: View {
                                seatsAt: Dictionary(uniqueKeysWithValues: Seat.allCases.map {
                                    ($0, share(court.footing(of: $0), in: geo.size))
                                }),
-                               opening: opening)
+                               opening: opening,
+                               frozen: frozen)
                 }
 
                 // Hung above the far baseline so the rim clears it rather than

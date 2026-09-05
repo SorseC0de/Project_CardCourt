@@ -48,15 +48,22 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     // Takes the band the log used to sit in, just above the hand.
                     HStack(alignment: .bottom) {
+                        // **Out of the way while the game is asking for something.** Each
+                        // leaves by its own side, and far enough that every slot has gone
+                        // rather than half of one — a plate cut off at the screen's edge
+                        // is a thing you are still looking at.
                         IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
                                             dormant: controller.dormantIntangibles,
                                             slots: controller.state.rules.intangibleSlots,
                                             onSelect: { inspecting = (card: $0, from: $1) })
+                            .offset(x: standingAside ? -Panels.aside : 0)
                         Spacer()
                         DebuffSlotsView(cards: controller.human.clamps.map(\.card),
                                         onSelect: { inspecting = (card: $0, from: $1) })
+                            .offset(x: standingAside ? Panels.aside : 0)
                     }
                     .padding(.bottom, 4)
+                    .animation(.easeInOut(duration: 0.28), value: standingAside)
                     ActionBarView(controller: controller, detail: $detail,
                                   onInspectReferees: { open(.referees) })
                 }
@@ -338,6 +345,21 @@ struct GameView: View {
 
     private func closeFloor() { onFloor = nil }
 
+    private enum Panels {
+        /// How far a slot panel goes to be gone. Wider than the panel itself, so the last
+        /// slot clears the screen rather than sitting on its edge.
+        static let aside: CGFloat = 320
+    }
+
+    /// Whether the floor's own readings should get out of the way: something is being
+    /// asked for out of the hand, and the hand is what the eye needs.
+    private var standingAside: Bool {
+        switch controller.gate {
+        case .awaitingDiscard, .awaitingInjuryDiscard, .awaitingBid: return true
+        default: return false
+        }
+    }
+
     private var dim: Double {
         if browsingDiscard { return Theme.dimBrowser }
         // Your own hand being asked for cards is the same question somebody else's hand
@@ -416,6 +438,8 @@ struct GameView: View {
                   },
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
+                  // Nothing on the floor moves while something else has the screen.
+                  frozen: dim > 0 || onFloor != nil || beingRead != nil,
                   showingClamps: beingRead?.clamp != nil,
                   onInspectPlayer: { open(.player($0)) },
                   onInspectReferees: { open(.referees) })
