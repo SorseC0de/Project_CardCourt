@@ -23,13 +23,19 @@ enum WhistleTrigger: String, Hashable, Codable {
     /// and an Injury is the one Break that stays on a player rather than firing and going.
     /// Raised where the Break lands, not by matching an action.
     case injuryDrawn
+    /// A Game Break turning up in somebody's draw. The **second** exception to Breaks
+    /// being events rather than plays, and for the same reason as `injuryDrawn`: Play-On
+    /// is the sheet's own answer to one, and a Break is not something anybody activated,
+    /// so it is raised where the card lands rather than matched against an action.
     /// Any *other* Whistle actually firing — not one being set down. Inadvertent Whistle
     /// is the referee blowing over the top of another call, so it cannot be matched
     /// against a `PendingAction` the way the rest are; see `Rules.blow`.
+    case gameBreakDrawn
 
     func matches(_ action: PendingAction) -> Bool {
         // Never intercepts a play. It waits for another Whistle instead.
-        if self == .whistleFired || self == .injuryDrawn { return false }
+        if self == .whistleFired || self == .injuryDrawn
+            || self == .gameBreakDrawn { return false }
         switch (self, action) {
         case (.shotAttempt, .shoot):
             return true

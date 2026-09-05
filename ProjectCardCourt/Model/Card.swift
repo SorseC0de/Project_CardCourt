@@ -135,6 +135,11 @@ struct IntangibleEffect: Hashable, Codable {
 struct GameBreakEffect: Hashable, Codable {
     /// Everybody, not only whoever turned it up.
     var everyoneDraws = 0
+    /// Role Player: everybody *else*. The man who turned it up gets nothing.
+    var othersDraw = 0
+    /// Back-and-Forth Game: this many Breaks after it are waved away as they land, and
+    /// the player who drew each one draws again instead.
+    var waivesBreaks = 0
     /// The drawer, plainly. **One batch**, so anything that pays per draw pays once for
     /// the lot rather than once a card — see `Rules.drawBatch`.
     var draws = 0

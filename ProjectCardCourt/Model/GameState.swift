@@ -221,6 +221,8 @@ struct GameState: Codable {
     /// whatever it finds there. Setting the phase from inside it is writing to something
     /// that is about to be overwritten, which is why Benched did nothing at all.
     var pendingInbound: Seat?
+    /// Back-and-Forth Game: how many more Breaks get waved away as they land.
+    var breaksWaived = 0
     /// Mic'd Up: SHOT carried by whoever is holding the ball. Not part of `shot`, which
     /// is the ball's and travels with it — this one is gone the moment he gives it up.
     var holderShot = 0

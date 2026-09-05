@@ -1818,7 +1818,8 @@ enum Rules {
     }
 
     private static func draw(_ seat: Seat, state: inout GameState, events: inout [GameEvent],
-                             allowBonus: Bool = true, depth: Int = 0, duringDeal: Bool = false) {
+                             allowBonus: Bool = true, depth: Int = 0, duringDeal: Bool = false,
+                             wavingBreaks: Bool = false) {
         // A Game Break can draw, and what it draws can be another Game Break. Bounded so
         // a run of them cannot recurse without end. Dealing gets a longer rope because it
         // reshuffles past every Break it turns up.
@@ -1854,6 +1855,32 @@ enum Rules {
             draw(seat, state: &state, events: &events,
                  allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
         } else if let effect = card.descriptor.gameBreak {
+            // **Waved off before it is announced.** Two things do it — a run left by
+            // Back-and-Forth Game, and an armed Play-On — and both mean the same thing:
+            // this Break does not land, and the draw is taken again. One place, so a
+            // third of them is a line rather than another branch through the reveal.
+            if state.breaksWaived > 0 || (!wavingBreaks
+                && state.armedWhistles.contains { $0.trigger == .gameBreakDrawn }) {
+                if state.breaksWaived > 0 {
+                    state.breaksWaived -= 1
+                } else if let waved = state.armedWhistles.first(where: {
+                    $0.trigger == .gameBreakDrawn
+                }) {
+                    // Play-On is spent on the first one and the run carries on without
+                    // it: "until a non-Game Break card is drawn" is the card's own text.
+                    state.armedWhistles.removeAll { $0.id == waved.id }
+                    state.discard.append(waved.card)
+                    events.append(.whistleBlew(owner: waved.owner,
+                                               card: waved.card.descriptor,
+                                               cancelled: card.name,
+                                               cancelledCard: card.descriptor,
+                                               against: seat))
+                }
+                state.discard.append(card)
+                draw(seat, state: &state, events: &events, allowBonus: allowBonus,
+                     depth: depth + 1, duringDeal: duringDeal, wavingBreaks: true)
+                return
+            }
             events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
             // An Injury is carried, not spent. See `PlayerState.injuries`.
             if effect.injury != nil {
@@ -2051,6 +2078,15 @@ enum Rules {
         for _ in 0..<effect.everyoneDraws {
             for other in Seat.allCases { draw(other, state: &state, events: &events) }
         }
+        // Role Player: everybody else eats. Batched, so a Shot Creator on one of them
+        // pays once rather than once a card.
+        if effect.othersDraw > 0 {
+            for other in Seat.allCases where other != seat {
+                drawBatch(other, count: effect.othersDraw, state: &state, events: &events,
+                          depth: depth + 1)
+            }
+        }
+        if effect.waivesBreaks > 0 { state.breaksWaived += effect.waivesBreaks }
         if effect.givesBallAway, let holder = state.ball {
             // Handed over, not taken away: whoever is benched decides where the ball
             // goes. Queued rather than set — see `pendingInbound`.

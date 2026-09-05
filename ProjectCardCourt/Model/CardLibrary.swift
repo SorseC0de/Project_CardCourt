@@ -203,6 +203,12 @@ enum CardLibrary {
         effect: "Cancel Next Move. TOV +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true))
 
+    static let playOn = CardDescriptor(
+        id: "play-on", name: "Play-On", type: .whistle,
+        effect: "Discard each Game Break drawn and draw again, until a card is not one",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .gameBreakDrawn))
+
     static let doubleDribble = CardDescriptor(
         id: "double-dribble", name: "Double Dribble", type: .whistle,
         effect: "Cancel a Dribble. Discard 1. TOV +1", numberInDeck: 1,
@@ -707,12 +713,24 @@ enum CardLibrary {
         numberInDeck: 4,
         gameBreak: GameBreakEffect(drawsPerTenPercentShot: true))
 
+    static let rolePlayer = CardDescriptor(
+        id: "role-player", name: "Role Player", type: .gameBreak,
+        effect: "All other players draw 1 card", numberInDeck: 4,
+        gameBreak: GameBreakEffect(othersDraw: 1))
+
+    static let backAndForthGame = CardDescriptor(
+        id: "back-and-forth-game", name: "Back-and-Forth Game", type: .gameBreak,
+        effect: "Discard the next 3 Game Breaks. Whoever draws one draws again",
+        numberInDeck: 3,
+        gameBreak: GameBreakEffect(waivesBreaks: 3))
+
     static let gameBreaks: [CardDescriptor] = [
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
         tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout, teamDoctor,
         altercation, hugeAltercation, homeCourtAdvantage, awayGame, micdUp, inTheZone,
+        rolePlayer, backAndForthGame,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules
@@ -723,7 +741,7 @@ enum CardLibrary {
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
-        clearedToPlay,
+        clearedToPlay, playOn,
     ]
 
     /// A card somebody else is holding, or one still in the deck.

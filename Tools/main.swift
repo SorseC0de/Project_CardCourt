@@ -159,6 +159,8 @@ if args.contains("--text") {
     OpeningHands.run()
 } else if args.contains("--dime") {
     probeDime()
+} else if args.contains("--names") {
+    listNames()
 } else if args.contains("--soak") {
     soak()
 } else if args.contains("--test") {
