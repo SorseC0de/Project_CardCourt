@@ -38,8 +38,24 @@ final class NameCallTuning {
     var stops: [CGFloat] = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
     /// One slope end to end instead of a ramp between two flats.
     var softTaper = false
-    /// How far south-east the plate's hard white drop sits, in points.
+    /// How far south-east the plate's hard drop sits, in points.
     var drop: CGFloat = NameCallStyle.drop
+    /// What colour that drop is — see `NameCallStyle.dropInk`.
+    var dropInk: DropInk = .white
+
+    /// The three the drop is being chosen between: white, or the seat's own colour taken
+    /// a third and two thirds of the way to the palette's black.
+    enum DropInk: String, CaseIterable, Identifiable, Codable {
+        case white = "A", shaded = "B", darker = "C"
+        var id: String { rawValue }
+        var mix: Double? {
+            switch self {
+            case .white:  return nil
+            case .shaded: return 0.33
+            case .darker: return 0.66
+            }
+        }
+    }
 }
 
 /// One name, waiting its turn or taking it.
@@ -110,7 +126,8 @@ struct NameCallView: View {
                     // offset — so a plate filled with a taper casts a tapered shadow
                     // without being told to. Radius nought keeps it a second edge rather
                     // than a glow, and it goes under the streaks so they are not doubled.
-                    .shadow(color: .white, radius: 0, x: tuning.drop, y: tuning.drop)
+                    .shadow(color: NameCallStyle.dropInk(for: call.seat),
+                            radius: 0, x: tuning.drop, y: tuning.drop)
                     .overlay { SideStreaks(ink: .white,
                                            thickness: StreakStyle.sideThicknessSmall)
                         .mask { face } }
@@ -284,9 +301,15 @@ enum NameCallStyle {
     /// Read off the bench.
     static let cardX: CGFloat = -0.250
     static let labelX: CGFloat = 0.300
-    /// The plate's own drop: hard, white, and south-east. Whole points — a hard drop on a
-    /// fraction of one is a blur.
+    /// The plate's own drop: hard and south-east. Whole points — a hard drop on a fraction
+    /// of one is a blur.
     static let drop: CGFloat = 4
+
+    /// What the drop is drawn in, for the seat the plate belongs to.
+    static func dropInk(for seat: Seat) -> Color {
+        guard let mix = NameCallTuning.shared.dropInk.mix else { return .white }
+        return Theme.color(for: seat).mix(with: CardPalette.black, by: mix)
+    }
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having
@@ -345,10 +368,20 @@ struct NameCallBench: View {
                 dial("name x", $tuning.nameX, -0.2...0.8)
                 dial("drop", Binding(get: { tuning.drop },
                                      set: { tuning.drop = $0.rounded() }), 0...16)
-                Toggle("one slope end to end", isOn: $tuning.softTaper)
-                    .font(.custom(Chrome.display, size: 15))
-                    .foregroundStyle(.white)
-                    .tint(CardPalette.gold)
+                HStack(spacing: 14) {
+                    Toggle("one slope end to end", isOn: $tuning.softTaper)
+                        .font(.custom(Chrome.display, size: 15))
+                        .foregroundStyle(.white)
+                        .tint(CardPalette.gold)
+                    // The drop's colour rides along here rather than taking a row of its
+                    // own: A white, B and C the seat's colour a third and two thirds of
+                    // the way to black.
+                    Picker("", selection: $tuning.dropInk) {
+                        ForEach(NameCallTuning.DropInk.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 130)
+                }
                 // Two stops or four, and a dial for every one of them. The two-stop shape
                 // uses the middle pair, which are the only two it has.
                 ForEach(tuning.softTaper ? [1, 2] : [0, 1, 2, 3], id: \.self) { index in
@@ -375,6 +408,7 @@ struct NameCallBench: View {
                         tuning.stops = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
                         tuning.softTaper = false
                         tuning.drop = NameCallStyle.drop
+                        tuning.dropInk = .white
                     }
                 }
                 .font(.custom(Chrome.display, size: 15))
