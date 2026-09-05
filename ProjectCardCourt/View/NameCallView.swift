@@ -30,6 +30,8 @@ final class NameCallTuning {
     /// The taper, while it is still being looked at.
     var fadeFrom: CGFloat = NameCallStyle.fadeFrom
     var fadeTo: CGFloat = NameCallStyle.fadeTo
+    /// One slope end to end instead of a ramp between two flats — see `NameCallStyle.taper`.
+    var softTaper = false
 }
 
 /// One name, waiting its turn or taking it.
@@ -224,17 +226,34 @@ enum NameCallStyle {
     /// the alpha — so a ramp from `.clear` walks the hue down towards black on its way out
     /// and the tail reads as a dirty shadow rather than the plate thinning. The same colour
     /// at zero alpha only ever spends alpha, which is the fade that was wanted.
+    ///
+    /// ## Banded, or one slope
+    ///
+    /// The stop *count* is not what changes the picture — SwiftUI clamps outside the stop
+    /// range, so flat/ramp/flat in four stops draws exactly what the same ramp draws in
+    /// two. What changes it is where the ramp sits.
+    ///
+    /// **Banded** confines it between `fadeFrom` and `fadeTo`: flat, slope, flat. There is
+    /// a kink at each end where flat meets slope, and the eye reads those as faint lines —
+    /// and the whole alpha range is spent across a fifth of the width, so the steps are
+    /// coarse enough to band.
+    ///
+    /// **Soft** runs one slope end to end: no kinks anywhere, and the same alpha change
+    /// spread over five times the pixels.
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
         let tuning = NameCallTuning.shared
-        return LinearGradient(
-            gradient: Gradient(stops: [
-                .init(color: face.opacity(0), location: 0),
-                .init(color: face.opacity(0), location: min(tuning.fadeFrom, tuning.fadeTo)),
-                .init(color: face, location: max(tuning.fadeFrom, tuning.fadeTo)),
-                .init(color: face, location: 1),
-            ]),
-            startPoint: .leading, endPoint: .trailing)
+        let from = min(tuning.fadeFrom, tuning.fadeTo)
+        let to = max(tuning.fadeFrom, tuning.fadeTo)
+        let stops: [Gradient.Stop] = tuning.softTaper
+            ? [.init(color: face.opacity(0), location: 0),
+               .init(color: face, location: 1)]
+            : [.init(color: face.opacity(0), location: 0),
+               .init(color: face.opacity(0), location: from),
+               .init(color: face, location: to),
+               .init(color: face, location: 1)]
+        return LinearGradient(gradient: Gradient(stops: stops),
+                              startPoint: .leading, endPoint: .trailing)
     }
 
     static let labelSize: CGFloat = 32
@@ -295,6 +314,11 @@ struct NameCallBench: View {
                 dial("name x", $tuning.nameX, -0.2...0.8)
                 dial("fade from", $tuning.fadeFrom, 0...1)
                 dial("fade to", $tuning.fadeTo, 0...1)
+                Toggle("one slope end to end", isOn: $tuning.softTaper)
+                    .font(.custom(Chrome.display, size: 15))
+                    .foregroundStyle(.white)
+                    .tint(CardPalette.gold)
+
                 HStack(spacing: 12) {
                     Button("seat") { seat = seat.clockwise }
                     Button(leaving ? "return" : "leave") { leaving.toggle() }
@@ -306,6 +330,7 @@ struct NameCallBench: View {
                         tuning.nameX = NameCallStyle.labelX
                         tuning.fadeFrom = NameCallStyle.fadeFrom
                         tuning.fadeTo = NameCallStyle.fadeTo
+                        tuning.softTaper = false
                     }
                 }
                 .font(.custom(Chrome.display, size: 15))
