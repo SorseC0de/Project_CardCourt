@@ -11,6 +11,9 @@ struct ReboundCutsceneView: View {
     /// live numbers are already the ones from the other side of it.
     var shot: Int?
     var deck: Int?
+    /// What the miss was taken at, which is not what the board reads — a shot can be
+    /// priced above or below the ball's SHOT by whatever paid for it.
+    var chance: Int?
 
     @State private var spin = false
     @State private var lift = false
@@ -47,7 +50,8 @@ struct ReboundCutsceneView: View {
                 //
                 // Always drawn, and only faded: the stack is centred on its own height, so
                 // a line that comes and goes moves the title and the ball with it.
-                Text("\(shooter.isLocal ? "your" : shooter.playerName + "'s") miss · SHOT stays live")
+                Text("\(shooter.isLocal ? "Your" : shooter.playerName + "'s") miss"
+                     + (chance.map { " (\($0)%)" } ?? ""))
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.inkDim)
                     .opacity(revealedBids == nil ? 1 : 0)

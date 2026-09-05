@@ -60,16 +60,18 @@ struct NameCallView: View {
         // Ticking only while it is leaving. Nothing else here needs a frame clock, and a
         // clock running the whole time the card is up is a clock running for nothing.
         TimelineView(.animation(paused: leftAt == nil)) { timeline in
-            // **The word is an overlay on the plate, not a sibling beside it.** As two
-            // children of a stack their widths were negotiated against each other, and
-            // the pair came out side by side with the plate pushed off the leading edge.
-            // Hung on the plate it can only ever be on the plate.
-            face
-                .frame(width: size.width, height: size.height)
-                .overlay { SideStreaks(ink: .white, thickness: StreakStyle.sideThicknessSmall).mask { face } }
-                .overlay(alignment: .leading) {
-                    word(burning: burn(at: timeline.date, rate: wordRate))
-                }
+            // **Two children, both starting at the leading edge.** The port's own shape:
+            // the plate, and the word over it at an offset. Nothing is negotiated between
+            // them because the plate carries the frame and the word is `fixedSize`.
+            ZStack(alignment: .leading) {
+                face
+                    .overlay { SideStreaks(ink: .white,
+                                           thickness: StreakStyle.sideThicknessSmall)
+                        .mask { face } }
+                    .frame(width: size.width, height: size.height)
+
+                word(burning: burn(at: timeline.date, rate: wordRate))
+            }
             .opacity(stage == .offstage ? 0 : 1)
             // Leaving: **not animated at all.** Opacity is spent per tick at a rate of its
             // own, so how fast it disappears has nothing to do with how fast it travels.
@@ -128,10 +130,22 @@ struct NameCallView: View {
         .lineLimit(1)
         .fixedSize()
         .scaleEffect(x: NameCallStyle.labelStretch, y: 1, anchor: .leading)
-        .offset(x: NameCallStyle.labelX)
+        .offset(x: nameX)
         .opacity(left)
     }
 
+
+    /// How far in the name sits.
+    ///
+    /// **Measured off the lean, because the lean is what pushes it off.** The plate is a
+    /// parallelogram: its top-left corner is `height × lean` to the right of its
+    /// bottom-left one, so at the height the word is drawn at, the shape's own edge is
+    /// most of the way through that shift. A word placed at a flat inset from the frame
+    /// hangs over the slanted edge on to nothing, which is exactly what it was doing.
+    private var nameX: CGFloat {
+        NameCallStyle.size(reaching: reach).height
+            * ModeCardStyle.lean * NameCallStyle.labelClearance
+    }
 
     private func offset(_ size: CGSize) -> CGFloat {
         switch stage {
@@ -195,9 +209,10 @@ enum NameCallStyle {
     static let noteSize: CGFloat = 13
     static let gap: CGFloat = 8
     static let labelStretch: CGFloat = 0.85
-    /// How far in from the **screen's** leading edge the name sits, in points. Measured
-    /// from there rather than from the plate, which starts well off the side of it.
-    static let labelX: CGFloat = 20
+    /// How much of the plate's lean the name clears — see `NameCallView.nameX`. Under one,
+    /// because the word only has to clear the edge beside its own letters rather than the
+    /// corner above them.
+    static let labelClearance: CGFloat = 0.8
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having

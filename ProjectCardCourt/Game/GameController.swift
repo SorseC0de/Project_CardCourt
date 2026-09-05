@@ -475,6 +475,12 @@ final class GameController {
 
     func pause() { guard canPause else { return }; isPaused = true }
     func resume() { isPaused = false }
+    /// What the last attempt was actually taken at.
+    ///
+    /// Not the same number as the board: the board reads the ball's SHOT, and a shot can
+    /// be priced above or below it by whatever paid for it. The rebound says what he
+    /// missed *at*.
+    private(set) var lastChance: Int?
     private(set) var withheldPoints: (seat: Seat, amount: Int)?
     private(set) var flightDuration = Pacing.drawFlight
     /// Set for a beat after a rebound so the reveal can be shown, then cleared.
@@ -1638,6 +1644,7 @@ final class GameController {
         // Marked before a single beat plays: the rules dealt these on the way in, and the
         // hand must not have them until their flight says so.
         for case .drew(_, _, let card) in events { undelivered.insert(card) }
+        for case .shotAttempted(_, let chance, _) in events { lastChance = chance }
         for case .intangibleRevealed(let seat, _) in events {
             unrevealed[seat, default: 0] += 1
         }

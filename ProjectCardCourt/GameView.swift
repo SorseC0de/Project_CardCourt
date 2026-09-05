@@ -345,7 +345,7 @@ struct GameView: View {
             if case .awaitingBid(let shooter) = controller.gate {
                 ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids,
                                     state: controller.state, shot: controller.shownShot,
-                                    deck: controller.shownDeck)
+                                    deck: controller.shownDeck, chance: controller.lastChance)
                     .frame(maxHeight: .infinity)
                     .transition(.opacity)
             } else {
