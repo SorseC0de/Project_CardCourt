@@ -363,14 +363,17 @@ final class GameController {
     /// something. The watchdog reads it — see `watchTheLoop`.
     private var wentQuiet: Date?
     private var watchdog: Task<Void, Never>?
-    /// How many `present` calls are in flight.
+    /// How many tasks are driving the floor.
     ///
     /// **A chain playing out is not a stopped game.** The gate reads `.thinking` for the
-    /// whole of a presentation, and a long one — a shot, a drama, a draw that turns up two
-    /// Game Breaks — can pass eight seconds with nothing on screen in the gaps between its
-    /// scenes. The watchdog was cutting those in half and starting a second chain over the
-    /// top, which is a game playing itself behind whatever is on screen.
-    private var presenting = 0
+    /// whole of a presentation, and plenty of them run well past eight seconds — the
+    /// opening deal, a rebound's reveal and its cutscene, a shot with drama on it. The
+    /// watchdog was cutting those in half and starting a second chain over the top.
+    ///
+    /// Counted here rather than guessed at from what is on screen: a task is either
+    /// driving the floor or it is not, and `zero and thinking` is the whole definition of
+    /// a game that has stopped.
+    private var working = 0
     private(set) var cutscene: ShotCutscene?
     private(set) var turnover: TurnoverCutscene?
     private(set) var reveal: RevealCutscene?
@@ -539,7 +542,7 @@ final class GameController {
             guard let self, !self.isGuest else { return }
             Table.shared.replaceWithComputer(at: seat)
             self.loop?.cancel()
-            self.loop = Task { await self.run() }
+            self.drive { await self.run() }
         }
     }
 
@@ -645,7 +648,7 @@ final class GameController {
                        + "phase \(String(describing: state.phase))")
             loop?.cancel()
             self.state = state
-            loop = Task {
+            drive {
                 await self.present(events,
                                    defenders: self.defenderCount(on: state.phase.actingSeat
                                                                  ?? GameRules.localSeat))
@@ -665,7 +668,7 @@ final class GameController {
             try? match?.send(.move(move))
             return
         }
-        loop = Task {
+        drive {
             await apply(move, by: GameRules.localSeat)
             await run()
         }
@@ -695,16 +698,29 @@ final class GameController {
     }
 
     private func restartIfStalled() {
-        guard !isGuest, !isPaused, !state.isOver, presenting == 0 else { return }
+        guard !isGuest, !isPaused, !state.isOver, working == 0 else { return }
         guard case .thinking = gate, let since = wentQuiet else { return }
         guard Date().timeIntervalSince(since) > 8 else { return }
-        // Anything on screen is the game still speaking.
-        guard cutscene == nil, turnover == nil, actionCall == nil,
-              playedCard == nil, flight == nil, celebratingThree == nil else { return }
-        DevLog.say(.input, "➜ Restarting Input Loop")
+        DevLog.say(.input, "➜ Restarting Input Loop  (\(state.phase.label), "
+                   + "quiet \(Int(Date().timeIntervalSince(since)))s)")
         wentQuiet = .now
+        drive { await self.run() }
+    }
+
+    /// Starts the one task that drives the floor, cancelling whatever was driving it.
+    ///
+    /// Every scene the game plays runs inside one of these, which is what lets the
+    /// watchdog tell a long presentation from a stopped game.
+    /// `@_implicitSelfCapture` for the same reason `Task.init` carries it: every one of
+    /// these bodies is a piece of this controller's own work, and writing `self.` through
+    /// two dozen of them would say something about lifetime that is not true.
+    private func drive(@_implicitSelfCapture _ body: @escaping () async -> Void) {
         loop?.cancel()
-        loop = Task { await run() }
+        drive {
+            self.working += 1
+            defer { self.working -= 1 }
+            await body()
+        }
     }
 
     func begin() {
@@ -722,7 +738,7 @@ final class GameController {
             try? match?.send(.ready)
             return
         }
-        loop = Task {
+        drive {
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
             openingDraws = []
@@ -853,7 +869,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingTarget = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveTarget(target, state: &state), playedCard: true)
             await run()
         }
@@ -864,7 +880,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingNaming = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveNaming(seat, state: &state), playedCard: true)
             await run()
         }
@@ -875,7 +891,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingToll = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveToll(pick, state: &state))
             await run()
         }
@@ -886,7 +902,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingIntangibleDrop = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveIntangibleDrop(id, state: &state))
             await run()
         }
@@ -897,7 +913,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingInjuryPick = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveInjuryPick(id, state: &state))
             await run()
         }
@@ -908,7 +924,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingCardFrom = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveCardFrom(id, state: &state), playedCard: true)
             await run()
         }
@@ -919,7 +935,7 @@ final class GameController {
         guard !isPaused else { return }
         guard case .awaitingMode = gate else { return }
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.resolveMode(index, state: &state), playedCard: true)
             await run()
         }
@@ -938,7 +954,7 @@ final class GameController {
             try? match?.send(.discardForShot(chosen))
             return
         }
-        loop = Task {
+        drive {
             await present(Rules.resolveInjuryDiscard(chosen, state: &state))
             await run()
         }
@@ -955,7 +971,7 @@ final class GameController {
             try? match?.send(.discardForShot(chosen))
             return
         }
-        loop = Task {
+        drive {
             let defenders = defenderCount(on: GameRules.localSeat)
             await present(Rules.resolveDiscardForShot(chosen, state: &state),
                           defenders: defenders)
@@ -974,7 +990,7 @@ final class GameController {
             try? match?.send(.freeThrow(made: made))
             return
         }
-        loop = Task {
+        drive {
             await present(Rules.resolveFreeThrow(made: made, state: &state))
             await run()
         }
@@ -991,7 +1007,7 @@ final class GameController {
             try? match?.send(.reboundBid(mine))
             return
         }
-        loop = Task {
+        drive {
             var bids: [Seat: [Card.ID]] = [:]
             bids[GameRules.localSeat] = mine
             for seat in Seat.allCases where seat != GameRules.localSeat {
@@ -1042,7 +1058,7 @@ final class GameController {
     /// Pulls one card for the human, flight animation and all.
     func debugDraw() {
         loop?.cancel()
-        loop = Task {
+        drive {
             var events: [GameEvent] = []
             Rules.testDraw(GameRules.localSeat, state: &state, events: &events)
             await present(events)
@@ -1080,7 +1096,7 @@ final class GameController {
     /// Sets a Whistle down face-down, the way arming one looks from the table.
     func debugArmWhistle() {
         loop?.cancel()
-        loop = Task {
+        drive {
             playedCard = PlayedCard(seat: GameRules.localSeat,
                                     descriptor: Self.aWhistle(), faceDown: true)
             try? await Task.sleep(for: .seconds(GameRules.playedCardSeconds))
@@ -1095,7 +1111,7 @@ final class GameController {
     /// shows the New badge and waits for a tap. `unsee` puts them all back.
     func debugBlowWhistle() {
         loop?.cancel()
-        loop = Task {
+        drive {
             let card = Self.aWhistle()
             let scene = WhistleReveal(owner: GameRules.localSeat, card: card,
                                       cancelled: "Drive", cancelledCard: CardLibrary.drive,
@@ -1115,7 +1131,7 @@ final class GameController {
     /// Plays a turnover scene without waiting to lose the ball.
     func debugTurnover(_ kind: TurnoverCutscene.Kind) {
         loop?.cancel()
-        loop = Task {
+        drive {
             let scene = TurnoverCutscene(seat: GameRules.localSeat, kind: kind)
             turnover = scene
             try? await Task.sleep(for: .seconds(scene.hold))
@@ -1127,7 +1143,7 @@ final class GameController {
     /// Throws a pass across the court without touching the game.
     func debugPass(to seat: Seat) {
         loop?.cancel()
-        loop = Task {
+        drive {
             practicePass = (GameRules.localSeat, seat)
             // Restamped, so a second press replays rather than being ignored.
             ballSettledAt = Date()
@@ -1145,7 +1161,7 @@ final class GameController {
     /// Sends the human to the line for two, for working on the mini-game.
     func debugFreeThrows() {
         loop?.cancel()
-        loop = Task {
+        drive {
             await present(Rules.debugAwardFreeThrows(2, to: GameRules.localSeat,
                                                          state: &state))
             await run()
@@ -1155,7 +1171,7 @@ final class GameController {
     /// Replays a missed shot, which is where most of the rim drama lives.
     func debugMiss() {
         loop?.cancel()
-        loop = Task {
+        drive {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
                                     chance: Int(ShotTuning.shared.debugChance),
                                     made: false, defenders: 0)
@@ -1168,7 +1184,7 @@ final class GameController {
     /// Replays the shot scene on demand, for matching its timing to the sprite.
     func debugShot() {
         loop?.cancel()
-        loop = Task {
+        drive {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
                                     chance: Int(ShotTuning.shared.debugChance),
                                     made: true, defenders: 0)
@@ -1605,8 +1621,6 @@ final class GameController {
     /// then presents; a guest is handed the resolution and presents.
     private func present(_ events: [GameEvent], defenders: Int = 0,
                          playedCard: Bool = false) async {
-        presenting += 1
-        defer { presenting -= 1 }
         // The gate is what the stage draws from, and it still holds whatever the player
         // was last asked for. Left alone, the rebound board sits behind every cutscene
         // that follows a bid and flashes back the moment one clears.
