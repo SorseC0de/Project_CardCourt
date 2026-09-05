@@ -18,6 +18,10 @@ struct GameView: View {
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
     private let logHeight: CGFloat = 74
+    /// The log's bottom edge in the screen's own space, which is what the name plate
+    /// hangs from. Nought until the first layout, which is one frame before anything
+    /// can be played.
+    @State private var logBottom: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -30,6 +34,18 @@ struct GameView: View {
                 statusBar
                 ScoreboardView(state: controller.shown, withheld: controller.withheldPoints)
                 logStrip
+                    // **Where the name plate hangs from.** Measured rather than added up:
+                    // the plate sits under the log, and the log's own top depends on the
+                    // scoreboard, whose height depends on how many players there are.
+                    // Summing `statusBar + logHeight` left the whole board out of the
+                    // total, which is why every number tried for it landed short.
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.onGeometryChange(for: CGFloat.self) { _ in
+                                geo.frame(in: .named(Chrome.screen)).maxY
+                            } action: { logBottom = $0 }
+                        }
+                    }
                 stage
             }
             .ignoresSafeArea(edges: .bottom)
@@ -199,8 +215,7 @@ struct GameView: View {
                     // other thing that talks, and the two were talking over each other.
                     // The overlay style floats the log over the court and still occupies
                     // that band, so only a log turned off gives the space back.
-                    .padding(.top, Chrome.statusBar
-                             + (logStyle == .hidden ? 0 : logHeight) + 6)
+                    .padding(.top, logBottom + Chrome.underLog)
                     Spacer()
                 }
                 .id(played.id)
@@ -292,6 +307,8 @@ struct GameView: View {
                 finalCard.zIndex(20)
             }
         }
+        // What the log's foot and the name plate are both measured in.
+        .coordinateSpace(name: Chrome.screen)
         #if DEBUG
         // Under the round count, where it is out of the name plate's line — that runs
         // across the top of the court now, which is where the bench used to sit.

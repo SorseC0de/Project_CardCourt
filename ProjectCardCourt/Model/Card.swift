@@ -475,6 +475,18 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         }
     }
 
+    /// Cards that say it with the same mark more than once. Each entry is one copy's
+    /// size as a share of the icon's own, drawn left to right — so a Triple-Team is a
+    /// defender at full size with a smaller one either side of him, and a Double-Team is
+    /// two of equal size. Nil for every card that wears its mark once.
+    var iconRepeat: [CGFloat]? {
+        switch id {
+        case "double-team": return [0.62, 0.62]
+        case "triple-team": return [0.44, 0.66, 0.44]
+        default:            return nil
+        }
+    }
+
     /// Turning applied to the icon, in degrees clockwise.
     var iconRotation: Double {
         switch id {

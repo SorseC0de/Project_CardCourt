@@ -13,6 +13,13 @@ enum Chrome {
     /// How tall the status bar is: two points above, the log button's twenty-six, eight
     /// below. Named because the name plate lines itself up against it.
     static let statusBar: CGFloat = 36
+    /// The coordinate space the whole screen is measured in — see `GameView`, which reads
+    /// the log's foot out of it to hang the name plate under.
+    static let screen = "screen"
+    /// The air between the log and whatever hangs off it.
+    static let underLog: CGFloat = 6
+    /// Where two-colour lettering changes colour, as a share of its height.
+    static let split: CGFloat = 0.8
     /// How far the presented card sits below where it used to, to clear that plate.
     static let playedCardDrop: CGFloat = 20
 
@@ -242,3 +249,23 @@ struct ScreenTitle: View {
     .background(Chrome.ground)
 }
 #endif
+
+
+extension LinearGradient {
+    /// **Two colours, not a blend.** Both stops sit on top of one another at `point`, so
+    /// the colour changes at a line rather than walking between the two — a real gradient
+    /// across lettering reads as a lighting effect, and this reads as a mark that was
+    /// drawn in two inks.
+    ///
+    /// `SwisshWordmark` has worn this since it was built; everything else that letters in
+    /// two colours takes it from here. Apply it to the whole word by masking, never to
+    /// each letter — per letter the line lands at a different height on every one.
+    static func hardSplit(_ top: Color, _ bottom: Color,
+                          at point: CGFloat = Chrome.split) -> LinearGradient {
+        LinearGradient(stops: [.init(color: top, location: 0),
+                               .init(color: top, location: point),
+                               .init(color: bottom, location: point),
+                               .init(color: bottom, location: 1)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+}

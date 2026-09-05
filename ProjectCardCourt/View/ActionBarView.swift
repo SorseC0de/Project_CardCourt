@@ -189,10 +189,14 @@ struct ActionBarView: View {
         static let figure: CGFloat = 14
         static let ball: CGFloat = 22
         static let drop: CGFloat = 2
+        /// `ActionText` spends tracking as a share of each letter's own size, not in
+        /// points — 1.2 there is more than a letter of air between every pair.
+        static let letterGap: CGFloat = 0.02
         /// The second button is three quarters of the first, at the same height.
         static let secondShare: CGFloat = 0.75
     }
 
+    /// Orange, dropped in red; everything standing on it dropped in blue.
     private var shootButton: some View {
         Button { controller.shoot() } label: {
             HStack(spacing: 6) {
@@ -200,16 +204,19 @@ struct ActionBarView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: Act.ball, height: Act.ball)
+                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
                 ActionText("SHOOT", size: Act.word, ink: .white,
-                           drop: CardPalette.red, taper: 0, tracking: 1.2)
+                           drop: CardPalette.blue, taper: 0, tracking: Act.letterGap)
                 Text("(\(controller.shownShot)%)")
                     .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                    .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop)
+                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
             }
             .frame(maxWidth: .infinity)
             .frame(height: Act.height)
-            .background(Capsule().fill(CardPalette.blue))
+            .background(
+                Capsule().fill(CardPalette.orange)
+                    .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
         }
         .frame(width: Act.width)
     }
@@ -219,7 +226,8 @@ struct ActionBarView: View {
     private var borrowButton: some View {
         Button { controller.beginBorrow() } label: {
             ActionText("CHOOSE CARD", size: Act.word * 0.8, ink: CardPalette.blue,
-                       drop: CardPalette.blue.opacity(0.35), taper: 0, tracking: 0.8)
+                       drop: CardPalette.blue.opacity(0.35), taper: 0,
+                       tracking: Act.letterGap)
                 .frame(maxWidth: .infinity)
                 .frame(height: Act.height)
                 .background(Capsule().fill(.white))

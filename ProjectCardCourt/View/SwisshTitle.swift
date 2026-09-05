@@ -48,8 +48,7 @@ struct SwisshTitle: View {
     private func flourish(_ text: String) -> some View {
         Text(text)
             .font(.system(size: size * 0.38, weight: .black, design: .rounded))
-            .foregroundStyle(LinearGradient(colors: [top, bottom],
-                                            startPoint: .top, endPoint: .bottom))
+            .foregroundStyle(LinearGradient.hardSplit(top, bottom))
             .shadow(color: .black.opacity(0.6), radius: 2, y: 2)
             .fixedSize()
             .opacity(landed ? 1 : 0)
@@ -57,14 +56,13 @@ struct SwisshTitle: View {
             .animation(.spring(response: 0.4, dampingFraction: 0.6), value: landed)
     }
 
-    private var word: some View {
+    /// The letters themselves, in their arc. Built once and used twice — as the word and
+    /// as its own mask — so both copies are laid out and animated identically.
+    private var letterRow: some View {
         HStack(spacing: -size * 0.04) {
             ForEach(letters, id: \.offset) { index, character in
                 Text(String(character))
                     .font(.system(size: size, weight: .black, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(colors: [top, bottom],
-                                       startPoint: .top, endPoint: .bottom))
                     .rotationEffect(.degrees(landed ? tilt(index) : -35))
                     .offset(y: landed ? arc(index) : size * 1.6)
                     .scaleEffect(landed ? 1 : 0.2)
@@ -73,6 +71,18 @@ struct SwisshTitle: View {
                         .delay(Double(index) * 0.045), value: landed)
             }
         }
+    }
+
+    /// **One fill over the whole word, not one per letter.**
+    ///
+    /// The letters sit on an arc at alternating tilts, so a gradient given to each of them
+    /// puts the colour change at a different height on every one — the word comes out
+    /// looking mis-set. Drawn once for its shape and once again as the fill masked to that
+    /// shape, which is the treatment `SwisshWordmark` has always worn.
+    private var word: some View {
+        letterRow
+            .foregroundStyle(top)
+            .overlay { LinearGradient.hardSplit(top, bottom).mask(letterRow) }
         // Flattened before either shadow: on a stack SwiftUI casts one per letter, and a
         // hard offset copy of every glyph reads as a second, badly-set word.
         .compositingGroup()

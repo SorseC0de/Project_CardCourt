@@ -26,12 +26,13 @@ final class CardDealer {
     /// How the throw is shaped. Metres and turns.
     private enum Throw {
         /// How high the card rides at the top of its arc, against the distance covered.
-        static let lift: Float = 0.16
-        /// How big it is leaving the pile and how big it is arriving. It leaves at the
-        /// size of the slab it came off — the mesh is that size — and grows a third again
-        /// on its way to you. More than that and it arrives as a poster.
+        /// Barely: a card sliding off a pile leaves the table, it does not lob.
+        static let lift: Float = 0.05
+        /// How big it is leaving the pile and how big it is arriving. **The same, and the
+        /// same as the slab it came off.** It is a card the whole way over; the only
+        /// thing that changes on the trip is which way it faces.
         static let leaves: Float = 1.0
-        static let arrives: Float = 1.35
+        static let arrives: Float = 1.0
         /// How far it turns out of the floor's plane on the way, in turns. The pile lies
         /// flat and the camera looks down at it from thirty-four degrees, so this is what
         /// takes the card the rest of the way to facing you.
@@ -40,9 +41,19 @@ final class CardDealer {
         static let steps = 30
     }
 
-    func build(mesh: MeshResource, material: some RealityKit.Material) {
+    /// The slab, and the picture printed on its top face.
+    ///
+    /// The slab's own mesh carries no texture coordinates, so what a card wears is a thin
+    /// plane sitting just clear of it — the same arrangement the piles use, and it rides
+    /// along because it is a child.
+    func build(mesh: MeshResource, material: some RealityKit.Material,
+               face: Entity? = nil, thickness: Float = 0) {
         let card = ModelEntity(mesh: mesh, materials: [material])
         card.isEnabled = false
+        if let face {
+            face.position = SIMD3(0, thickness / 2 + 0.00005, 0)
+            card.addChild(face)
+        }
         root.addChild(card)
         self.card = card
     }
@@ -79,10 +90,8 @@ final class CardDealer {
             var next = Transform()
             next.translation = start + (end - start) * t + SIMD3(0, lift * sin(t * .pi), 0)
             next.rotation = simd_quatf(angle: -Throw.pitch * 2 * .pi * t, axis: [1, 0, 0])
-            // Eased, so most of the growth lands in the second half — which is where the
-            // eye reads it as coming towards you rather than inflating where it stands.
             next.scale = SIMD3(repeating: Throw.leaves
-                               + (Throw.arrives - Throw.leaves) * (t * t))
+                               + (Throw.arrives - Throw.leaves) * t)
 
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
             try? await Task.sleep(for: .seconds(step))

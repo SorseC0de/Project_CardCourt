@@ -8,6 +8,9 @@ import SwiftUI
 struct CardFrontView: View {
     /// Observed, not just read — otherwise the bench's weight button changes nothing.
     @State private var cardFont = CardFont.shared
+    /// The icon and badge dials — see `IconBench`. Frozen numbers live in `IconTuning`
+    /// itself, so nothing here changes until the bench is used.
+    @State private var icons = IconTuning.shared
 
     let descriptor: CardDescriptor
     /// Width in points. Everything else is a fraction of it, so the card holds together
@@ -75,7 +78,7 @@ struct CardFrontView: View {
     }
 
     @ViewBuilder private var icon: some View {
-        let side = width * CardLayout.iconSizeFraction
+        let side = width * CardLayout.iconSizeFraction * icons.iconScale
         let drop = width * CardLayout.iconShadowFraction
         Group {
             if descriptor.id == "behind-the-back" {
@@ -87,6 +90,18 @@ struct CardFrontView: View {
                     .scaleEffect(x: -1, y: -1)
                     .shadow(color: CardPalette.navy, radius: 0, x: drop, y: 0)
                     .shadow(color: CardPalette.red, radius: 0, x: drop, y: 0)
+            } else if let copies = descriptor.iconRepeat, let art = descriptor.artwork {
+                // Two defenders, or three. Touching rather than spaced: it is one mark
+                // saying how many are on you, not a row of separate icons.
+                HStack(spacing: 0) {
+                    ForEach(Array(copies.enumerated()), id: \.offset) { _, share in
+                        Image(art.name)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: side * art.scale * share,
+                                   height: side * art.scale * share)
+                    }
+                }
             } else if let art = descriptor.artwork {
                 ZStack {
                     Image(art.name)
@@ -196,7 +211,7 @@ struct CardFrontView: View {
         if let badge, let art = CardLayout.keywordGlyphs[badge.run.text] {
             let alone = badge.rest.isEmpty
             let side = width * (alone ? CardLayout.badgeAloneFraction
-                                      : CardLayout.badgeFraction)
+                                      : CardLayout.badgeFraction) * icons.badgeScale
             let drop = width * CardLayout.iconShadowFraction
             VStack {
                 if !alone { Spacer() }
@@ -204,14 +219,20 @@ struct CardFrontView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: side, height: side)
-                    .foregroundStyle(.white)
+                    // The badge *is* the effect when it stands alone, so it is inked like
+                    // the words rather than hard-coded white — which vanished on the one
+                    // body that is white itself.
+                    .foregroundStyle(effectColour)
                     .overlay {
                         // On its face, where the art leaves a place for it.
                         Text(badge.run.value ?? "")
-                            .font(.custom(cardFont.name, size: side * CardLayout.badgeValueShare))
-                            .foregroundStyle(.white)
+                            .font(.custom(cardFont.name,
+                                          size: side * CardLayout.badgeValueShare
+                                                     * icons.valueScale))
+                            .foregroundStyle(effectColour)
                             .shadow(color: CardLayout.iconShadow(for: descriptor.type),
                                     radius: 0, x: drop * 0.6, y: drop * 0.6)
+                            .offset(x: side * icons.valueX, y: side * icons.valueY)
                     }
                     .shadow(color: CardLayout.iconShadow(for: descriptor.type),
                             radius: 0, x: drop, y: drop)
@@ -273,7 +294,12 @@ struct CardFrontView: View {
     private var ringColour: Color { isNavyBodied ? CardPalette.gold : CardPalette.navy }
     /// The name sits on the gold plate, so it stays navy whatever the body is. The effect
     /// text sits on the body itself, which is why that one turns white on a navy card.
-    private var effectColour: Color { isDarkBodied ? .white : CardPalette.navy }
+    /// A Whistle's stripes are black and white, and its body is nearly white — navy
+    /// lettering sits between the two rather than on either side of them.
+    private var effectColour: Color {
+        if descriptor.type == .whistle { return .black }
+        return isDarkBodied ? .white : CardPalette.navy
+    }
     /// Blue is what the artwork used to carry baked in; only the navy-bodied cards
     /// change it, because blue on navy would not read at all.
     private var namePlateShadow: Color { isNavyBodied ? CardPalette.gold : CardPalette.blue }

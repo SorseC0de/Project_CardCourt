@@ -19,6 +19,11 @@ struct ShotCutsceneView: View {
         static let base: CGFloat = 196
         /// How much smaller the man at the back is.
         static let shrink: CGFloat = 0.16
+        /// The contest is live, so the wall never quite stands still: a slow lateral
+        /// shuffle, each man on his own clock so the three do not sway as one board.
+        static let shuffle: CGFloat = 9
+        static let shuffleSeconds: Double = 1.8
+        static let shuffleStagger: Double = 0.35
 
         /// `x` in multiples of the spread, `back` in multiples of the lift.
         static func spots(for count: Int) -> [(x: CGFloat, back: CGFloat)] {
@@ -46,6 +51,8 @@ struct ShotCutsceneView: View {
     }
 
     @State private var nameLeaving = false
+    /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
+    @State private var shuffling = false
     @State private var showBurst = false
     /// When the ball reached the rim, which is what the net decays from.
     @State private var struckAt: Date?
@@ -129,7 +136,7 @@ struct ShotCutsceneView: View {
 
                 // Whoever was contesting is still contesting.
                 ForEach(Array(Wall.spots(for: scene.defenders).enumerated()),
-                        id: \.offset) { _, spot in
+                        id: \.offset) { index, spot in
                     // Turned to face the shooter, so a pair of them close from both
                     // sides rather than both looking the same way.
                     DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
@@ -137,6 +144,14 @@ struct ShotCutsceneView: View {
                         // of three reading as a giant behind the other two.
                         .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back),
                                      anchor: .bottom)
+                        // Sliding while the shot is up. Alternating directions and a
+                        // stagger apiece, or the wall sways as one piece of scenery.
+                        .offset(x: (shuffling ? 1 : -1) * Wall.shuffle
+                                * (index.isMultiple(of: 2) ? 1 : -1))
+                        .animation(.easeInOut(duration: Wall.shuffleSeconds)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(index) * Wall.shuffleStagger),
+                                   value: shuffling)
                         .position(x: geo.size.width / 2 + Wall.spread * spot.x,
                                   y: geo.size.height - Wall.base - Wall.lift * spot.back)
                 }
@@ -183,6 +198,7 @@ struct ShotCutsceneView: View {
                     .zIndex(2)
             }
             .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
+            .task { shuffling = true }
             .task { await run() }
         }
     }

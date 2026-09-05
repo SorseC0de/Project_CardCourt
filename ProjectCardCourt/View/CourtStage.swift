@@ -128,8 +128,26 @@ struct CourtStage: View {
                     discard.adopt(spent, face: ModelEntity(mesh: faceMesh, materials: [facing]),
                                   at: index, thickness: Stage.slab)
                 }
-                dealer.build(mesh: dealtMesh(), material: gold)
-                spender.build(mesh: dealtMesh(), material: navy)
+                // What a card in the air wears: the card's own furniture with nothing
+                // filled in, rather than a slab of flat colour.
+                var blankFacing = UnlitMaterial(color: UIColor(CardPalette.black))
+                if let art = BlankCardFace.printed(),
+                   let texture = try? await TextureResource(image: art, withName: "card-blank",
+                                                            options: .init(semantic: .color)) {
+                    blankFacing.color = .init(tint: .white, texture: .init(texture))
+                    blankFacing.blending = .transparent(opacity: 1.0)
+                }
+                let blank = MeshResource.generatePlane(
+                    width: Stage.cardWidth * Stage.dealtCard,
+                    depth: Stage.cardDepth * Stage.dealtCard)
+                let black = UnlitMaterial(color: UIColor(CardPalette.black))
+                let thickness = Stage.slab * Stage.dealtCard
+                dealer.build(mesh: dealtMesh(), material: black,
+                             face: ModelEntity(mesh: blank, materials: [blankFacing]),
+                             thickness: thickness)
+                spender.build(mesh: dealtMesh(), material: black,
+                              face: ModelEntity(mesh: blank, materials: [blankFacing]),
+                              thickness: thickness)
 
                 DevLog.say(.deck, "stage: built")
                 deck.ground = floorPoint(deckAt, in: geo.size)
