@@ -61,17 +61,15 @@ struct EntryScreenView: View {
                     Button(action: onSettings) {
                         // On a square of its own, like every other control that has an
                         // edge. A bare glyph on the ground read as decoration.
-                        Chip(fill: CardPalette.blue, stroke: CardPalette.gold,
-                             shade: CardPalette.orange, side: Front.gear) {
-                            Image("SettingsIcon")
-                                .renderingMode(.template)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: Front.gear * 0.58,
-                                       height: Front.gear * 0.58)
-                                .foregroundStyle(.white)
-                                .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                        }
+                        Image("SettingsIcon")
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: Front.gear * 0.96,
+                                   height: Front.gear * 0.96)
+                            .foregroundStyle(.white)
+                            .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
+                        
                     }
                     .buttonStyle(.plain)
                 }
