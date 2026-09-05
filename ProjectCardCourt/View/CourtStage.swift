@@ -71,6 +71,7 @@ struct CourtStage: View {
     var body: some View {
         GeometryReader { geo in
             RealityView { content in
+                DevLog.say(.deck, "stage: building the scene")
                 content.camera = .virtual
 
                 let camera = PerspectiveCamera()
@@ -116,6 +117,7 @@ struct CourtStage: View {
                 }
                 dealer.build(mesh: mesh, material: gold)
 
+                DevLog.say(.deck, "stage: built")
                 deck.ground = floorPoint(deckAt, in: geo.size)
                 deck.pile.position = deck.ground
                 discard.ground = floorPoint(discardAt, in: geo.size)

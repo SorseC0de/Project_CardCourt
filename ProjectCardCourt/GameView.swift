@@ -21,6 +21,9 @@ struct GameView: View {
 
     var body: some View {
         ZStack {
+            // Breadcrumb: the body being evaluated at all, which is the thing in doubt
+            // when the screen never arrives. Debug only — `say` compiles to nothing else.
+            let _ = DevLog.say(.input, "GameView body")
             Theme.panel.ignoresSafeArea()
 
             // The court runs to the bottom of the screen; the bag sits straight on it.
@@ -267,7 +270,10 @@ struct GameView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: inspecting?.card)
         .background(keyboardCommands)
-        .task { controller.begin() }
+        .task {
+            DevLog.say(.input, "GameView appeared")
+            controller.begin()
+        }
     }
 
     /// The rebound plays as its own cutscene in the court's place.
