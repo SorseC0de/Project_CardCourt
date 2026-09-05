@@ -35,6 +35,9 @@ struct ScoreCallView: View {
     let call: ScoreCall
 
     private enum Board {
+        /// The score is a number and every other call is a phrase. A number wants to be
+        /// bigger than a phrase.
+        static let titleScale: CGFloat = 1.35
         static let star: CGFloat = 92
         static let head: CGFloat = 3
         static let drop: CGFloat = 4
@@ -52,11 +55,12 @@ struct ScoreCallView: View {
             // corner rather than the screen's.
             let bar = ModeCardStyle.bar(across: geo.size.width)
             ZStack {
-                ModeCardView(title: "+\(call.points) Pts",
+                ModeCardView(title: "+\(call.points)pts",
                              subtitle: call.assists.isEmpty ? "" : "Assisted",
                              ink: .white,
                              subtitleInk: .white,
                              seat: call.seat,
+                             titleScale: Board.titleScale,
                              isLeaving: false,
                              onLanded: {},
                              onFinished: {})

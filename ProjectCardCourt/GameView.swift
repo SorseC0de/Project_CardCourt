@@ -74,9 +74,15 @@ struct GameView: View {
                 .offset(y: isChoosingInbound ? CourtView.Court.handDrop : 0)
                 .animation(.easeOut(duration: 0.3), value: isChoosingInbound)
             }
+            // Above the dim while the hand is the question, under it the rest of the time.
+            .zIndex(standingAside ? 9.5 : 0)
 
             // One dim for the whole screen, always in the hierarchy and turned up when
             // something takes the screen over. Never inserted, so it can only ever fade.
+            //
+            // **The hand is what is being asked for**, so when the question is about cards
+            // the band it lives in is lifted over this rather than washed out with the
+            // floor — see the `zIndex` on it above.
             DimLayer(on: dim > 0, amount: dim, seconds: 0.22)
                 .zIndex(9)
 
@@ -171,8 +177,28 @@ struct GameView: View {
             }
             if let played = controller.playedCard {
                 PlayedCardView(played: played, width: 210)
+                    // Down, out of the name plate's line. The plate is the caption and
+                    // the card is what it is captioning; they were sharing a band.
+                    .offset(y: Chrome.playedCardDrop)
                     .transition(.opacity)
                     .zIndex(7)
+
+                // **Over the card, not under it.** On the status bar's own line — the
+                // same one the SHOT badge takes, counted off the bar's height rather
+                // than hung inside the court, so it can be drawn above everything.
+                VStack {
+                    GeometryReader { geo in
+                        NameCallView(call: NameCall(seat: played.seat),
+                                     reach: geo.size.width,
+                                     isLeaving: controller.playedCardLeaving)
+                    }
+                    .frame(height: NameCallStyle.size(reaching: 393).height)
+                    .padding(.top, Chrome.statusBar + 6)
+                    Spacer()
+                }
+                .id(played.id)
+                .allowsHitTesting(false)
+                .zIndex(8)
             }
             if let onFloor {
                 Group {
@@ -453,21 +479,7 @@ struct GameView: View {
                     .padding(.trailing, 18)
                     .padding(.top, 6)
             }
-            // **The same line the SHOT badge is on**, by taking the same inset off the
-            // same edge rather than counting the status bar's height and hoping.
-            .overlay(alignment: .topLeading) {
-                if let played = controller.playedCard {
-                    GeometryReader { geo in
-                        NameCallView(call: NameCall(seat: played.seat),
-                                     reach: geo.size.width,
-                                     isLeaving: controller.playedCardLeaving)
-                    }
-                    .frame(height: NameCallStyle.size(reaching: 393).height)
-                    .padding(.top, 6)
-                    .id(played.id)
-                    .allowsHitTesting(false)
-                }
-            }
+
             .sheet(isPresented: $showingLobby) {
                 MatchLobbyView(controller: controller)
             }

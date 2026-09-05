@@ -134,7 +134,7 @@ enum CardLibrary {
 
     static let pumpFake = CardDescriptor(
         id: "pump-fake", name: "Pump Fake", type: .move,
-        effect: "SHOT +10%. Shake off every Clamp on you", numberInDeck: 12,
+        effect: "SHOT +10%. Clear all Clamps", numberInDeck: 12,
         shotDelta: 10, clearsClamps: true)
 
     static let stepback = CardDescriptor(
@@ -495,13 +495,13 @@ enum CardLibrary {
 
     static let iceWrap = CardDescriptor(
         id: "ice-wrap", name: "Ice Wrap", type: .gameBreak,
-        effect: "Draw 1. Shake off every Injury — or draw 1 more if there were none",
+        effect: "Draw 1. Clear all Injuries — or draw 1 more if there were none",
         numberInDeck: 5,
         gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, drawIfUninjured: 1))
 
     static let hitTheBike = CardDescriptor(
         id: "hit-the-bike", name: "Hit the Bike", type: .gameBreak,
-        effect: "Shake off every Injury. Draw 1. Hand the ball to another player",
+        effect: "Clear all Injuries. Draw 1. Hand the ball to another player",
         numberInDeck: 5,
         gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, givesBallAway: true))
 

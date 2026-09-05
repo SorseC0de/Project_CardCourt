@@ -68,6 +68,10 @@ struct ModeCardView: View {
         seat.map { PixelPalette.shade(for: $0) } ?? subtitleInk
     }
 
+    /// The title's own weight against the card's. One card says a number and everything
+    /// else says a phrase, and a number wants to be bigger than a phrase.
+    var titleScale: CGFloat = 1
+
     /// One colour for the streaks, when the call has a colour of its own — a Game Break's
     /// purple, a Clamp's red. Nil leaves them white on a card that belongs to a seat, and
     /// the table's kit colours on one that belongs to nobody.
@@ -301,7 +305,7 @@ struct ModeCardView: View {
                 // The game's own lettering rather than the port's: a ramp from loud to
                 // quiet across the word, which is what makes a phase read as called out
                 // rather than labelled. See `ActionText`.
-                ActionText(title, size: ModeCardStyle.titleSize * bar.height,
+                ActionText(title, size: ModeCardStyle.titleSize * bar.height * titleScale,
                            ink: ink, drop: titleShade,
                            taper: ModeCardStyle.titleTaper,
                            tracking: ModeCardStyle.titleTracking)

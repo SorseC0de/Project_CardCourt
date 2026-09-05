@@ -10,6 +10,12 @@ import SwiftUI
 /// Every measurement is a share of the piece's own height or corner, so one number changes
 /// a whole screen's weight rather than thirty.
 enum Chrome {
+    /// How tall the status bar is: two points above, the log button's twenty-six, eight
+    /// below. Named because the name plate lines itself up against it.
+    static let statusBar: CGFloat = 36
+    /// How far the presented card sits below where it used to, to clear that plate.
+    static let playedCardDrop: CGFloat = 20
+
     /// The dark the menus are cut out of. Navy is the palette's only dark, which is what
     /// decides everything below it.
     static let ground = CardPalette.navy

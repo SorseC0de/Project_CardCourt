@@ -103,13 +103,21 @@ struct CourtView: View {
     /// is what a teleport is meant to avoid.
     @State private var arrived: Seat?
 
+    /// True for a warp's length either side of the floor rearranging itself.
+    ///
+    /// **A player set into the line is a player who was somewhere else a frame ago.** The
+    /// thrower warps because he leaves; everybody else was simply appearing at their spot
+    /// in the line and appearing back afterwards, which is the same teleport with none of
+    /// the teleporting.
+    @State private var settling = false
+
     /// He is off the floor: gone, going, or not yet back.
     ///
     /// Read off `thrower` rather than `inbounding`, because the throw itself is part of
     /// being away — the ball leaves his hands from the line, and he cannot be putting
     /// himself back together on the floor while it is still in the air.
     private func isAway(_ seat: Seat) -> Bool {
-        thrower == seat || arrived == seat
+        thrower == seat || arrived == seat || settling
     }
 
     /// And he is standing on the line, which is only true once he has finished arriving.
@@ -373,6 +381,12 @@ struct CourtView: View {
         }
         // A body does not come apart the same way twice.
         .onChange(of: inbounding) { warpSeed = .random(in: .min ... .max) }
+        // The whole floor takes its place in the line, and takes it back.
+        .task(id: isStill) {
+            settling = true
+            try? await Task.sleep(for: .seconds(Pacing.warp))
+            settling = false
+        }
         // And it is in one place at a time: the far half waits a warp for the near one.
         .task(id: thrower) {
             let going = thrower
