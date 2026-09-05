@@ -106,7 +106,8 @@ struct CourtView: View {
 
     private var selectableSeats: Set<Seat> {
         if case .awaitingInbound(let inbounder) = gate {
-            return Set(Seat.allCases.filter { $0 != inbounder })
+            // Altercation: the man you shoved is not standing there waiting for it.
+            return Set(Seat.allCases.filter { $0 != inbounder && $0 != state.inboundBarred })
         }
         // A card that names a player is picked on the floor, the same way an inbound is.
         // One gesture for every "which of them" the game asks.

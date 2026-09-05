@@ -41,7 +41,8 @@ enum Rules {
     static func legalMoves(_ state: GameState, for seat: Seat) -> [Move] {
         switch state.phase {
         case .inbound(let inbounder) where inbounder == seat:
-            return Seat.allCases.filter { $0 != seat }.map { Move.inbound(to: $0) }
+            return Seat.allCases.filter { $0 != seat && $0 != state.inboundBarred }
+                .map { Move.inbound(to: $0) }
         case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom,
              .awaitingInjuryPick, .awaitingIntangibleDrop, .awaitingToll:
             return []
@@ -79,6 +80,8 @@ enum Rules {
                 if card.descriptor.isMove, state.movesClosed { return false }
                 // Lob: the man it found has to put it up first.
                 if state.mustShootFirst == seat { return false }
+                // Clear Out: you step aside before the play starts, or not at all.
+                if card.descriptor.firstActionOnly, !isFirstAction(state) { return false }
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
@@ -108,6 +111,11 @@ enum Rules {
         default:
             return []
         }
+    }
+
+    /// Nothing has happened yet this possession — no Move played, no card at all.
+    static func isFirstAction(_ state: GameState) -> Bool {
+        state.movesThisPossession == 0 && state.lastPlayThisPossession == nil
     }
 
     /// The cards a Torn Achilles leaves you, rolled fresh for the turn.
@@ -158,7 +166,9 @@ enum Rules {
         var events: [GameEvent] = []
         switch move {
         case .inbound(let target):
-            guard case .inbound(let inbounder) = state.phase, inbounder == seat, target != seat else { return [] }
+            guard case .inbound(let inbounder) = state.phase, inbounder == seat,
+                  target != seat, target != state.inboundBarred else { return [] }
+            state.inboundBarred = nil
             state.ball = target
             credit(seat, helping: target, state: &state, events: &events)
             state.shotClock = state.rules.shotClockStart
@@ -256,7 +266,12 @@ enum Rules {
             if !priced { adjustShot(by: delta, state: &state) }
             state.pendingShotBonus = priced ? delta : 0
 
+            // Touch Pass: it only counts if it never stopped in your hands. Read before
+            // the play is counted, or the card has already made itself late.
             var drawing = descriptor.drawCount + (comboArmed ? descriptor.comboDraw : 0)
+            if descriptor.drawIfFirstAction > 0, isFirstAction(state) {
+                drawing += descriptor.drawIfFirstAction
+            }
             if afterCombo, descriptor.comboAssist > 0 {
                 state[seat].assists += descriptor.comboAssist
                 events.append(.assisted(seat))
@@ -430,6 +445,12 @@ enum Rules {
 
                 completePass(descriptor, from: seat, to: receiver,
                              state: &state, events: &events)
+            } else if descriptor.clearsOut {
+                state.clearedOut.insert(seat)
+                events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
+                state.lastPlayThisPossession = descriptor.id
+                state.lastPlayWasCombo = false
+                state.movesThisPossession += 1
             } else if descriptor.targetDiscards > 0 {
                 state.pendingPlay = descriptor
                 state.pendingActor = seat
@@ -580,9 +601,38 @@ enum Rules {
     /// Shared, because a pass that names its target geometrically and one that had to be
     /// asked about are the same pass — only the question differs. Two copies of this
     /// drifted the moment a card was added to one of them.
+    /// Where a pass carries on to when the man it was aimed at has stepped aside.
+    ///
+    /// **Only the neighbours.** A pass thrown left or right has a direction to keep going
+    /// in; one thrown across the floor or at a named man was thrown *at* him, and with him
+    /// not there it is thrown away. See `Rules.clearOut`.
+    private static func onward(_ target: PassTarget?, from seat: Seat, to receiver: Seat) -> Seat? {
+        switch target {
+        case .left:  return receiver.left
+        case .right: return receiver.right
+        // Nutmeg and Hand-Off pick a side and then it is a side like any other.
+        case .leftOrRight: return seat.left == receiver ? receiver.left : receiver.right
+        default: return nil
+        }
+    }
+
     private static func completePass(_ descriptor: CardDescriptor, from seat: Seat,
                                      to receiver: Seat,
                                      state: inout GameState, events: inout [GameEvent]) {
+        // Clear Out: he is not there. A pass thrown to a side carries on to the next man
+        // along; one thrown *at* him goes to ground, and the round with it.
+        if state.clearedOut.contains(receiver) {
+            state.clearedOut.remove(receiver)
+            guard let past = onward(descriptor.passTarget, from: seat, to: receiver) else {
+                state[seat].turnovers += 1
+                events.append(.turnover(seat, cause: descriptor.name))
+                endRound(state: &state, events: &events)
+                return
+            }
+            completePass(descriptor, from: seat, to: past, state: &state, events: &events)
+            return
+        }
+
         // Outlet Pass runs the clock the other way: it hands a tick back instead of
         // costing one, so the possession must not take its own.
         if descriptor.replacesClockTick {
@@ -659,6 +709,14 @@ enum Rules {
         }
         if descriptor.gameBreak?.rotatesHands == true {
             rotate(towards: target, from: actor, state: &state, events: &events)
+            return events
+        }
+        if descriptor.gameBreak?.fightsChosenPlayer == true {
+            // Both men lose something in it, and the ball goes back in to somebody else.
+            discardAtRandom(from: actor, state: &state)
+            discardAtRandom(from: target, state: &state)
+            reinbound(by: actor, state: &state, events: &events)
+            state.inboundBarred = target
             return events
         }
         if descriptor.targetDiscards > 0 {
@@ -978,6 +1036,9 @@ enum Rules {
         // the ball away does not hand the bonus to whoever ends up shooting.
         let owed = state[seat].nextShotBonus
         state[seat].nextShotBonus = 0
+        // Mic'd Up, spent on the attempt it was carried into.
+        let carried = seat == state.ball ? state.holderShot : 0
+        state.holderShot = 0
         // Gravity: a man who draws every defender is doing something on every attempt,
         // whoever takes it.
         for other in Seat.allCases where other != seat {
@@ -986,7 +1047,7 @@ enum Rules {
                 events.append(.assisted(other))
             }
         }
-        let resolution = ShotMath.resolve(base: state.shot + priced + owed,
+        let resolution = ShotMath.resolve(base: state.shot + priced + owed + carried,
                                           modifiers: state.shotModifiers(
                                             for: seat, ignoringClamps: overClamps),
                                           rules: state.rules)
@@ -1272,6 +1333,9 @@ enum Rules {
         state.movesPlayedThisPossession = []
         state.movesClosed = false
         state.possessionFromRebound = fromRebound
+        // Mic'd Up ends where the possession does. Cleared before the draw, so one turned
+        // up by this possession's own card is the one that stands.
+        state.holderShot = 0
 
         // Clamps live for exactly one possession, so the board is cleared before the
         // pending ones land. Without the clear they stay on a player forever.
@@ -1503,8 +1567,16 @@ enum Rules {
         events.append(.roundEnded(state.round))
         state.shotsThisRound = 0
         state.shotCeilingThisRound = nil
+        state.clearedOut.removeAll()
         state.dimeFrom = nil
         state.mustShootFirst = nil
+        state.inboundBarred = nil
+        state.holderShot = 0
+        // The orders still in flight go with it. A shot the round no longer has room for
+        // must not go up inside halftime's deal, and a return leg has nowhere to land.
+        state.shootsAtOnce = nil
+        state.returnsTo = nil
+        state.returnLeg = nil
 
         // The referees leave when the round does — a trap does not lie in wait across the
         // inbound that follows it — and the cards they were holding are spent.
@@ -1751,6 +1823,18 @@ enum Rules {
                 while state[other].bag.count > limit { discardAtRandom(from: other, state: &state) }
             }
         }
+        if effect.everyoneDiscardsHands {
+            // Queued to the edge of the chain, like every other card that takes a hand:
+            // the hand you lose is the one you end up with.
+            state.handsOwed.formUnion(Seat.allCases)
+        }
+        // Everybody swung. Only with a referee out there does anybody get charged for it.
+        if effect.turnoversIfReferee > 0, !state.armedWhistles.isEmpty {
+            for other in Seat.allCases {
+                state[other].turnovers += effect.turnoversIfReferee
+                events.append(.turnover(other, cause: name))
+            }
+        }
         if effect.healsInjuries, !state[seat].injuries.isEmpty {
             // Straight to the pile, both sorts. A Devastating one is out of circulation
             // for the rest of the game unless a card puts it back — this is that card.
@@ -1777,6 +1861,12 @@ enum Rules {
         }
         if effect.shotThisPossession != 0 {
             adjustShot(by: effect.shotThisPossession, state: &state)
+        }
+        if effect.shotForHolder != 0 { state.holderShot += effect.shotForHolder }
+        // In The Zone: a card for every 10% the ball is worth. A cold ball still pays one.
+        if effect.drawsPerTenPercentShot {
+            drawBatch(seat, count: max(1, state.shot / 10), state: &state, events: &events,
+                      depth: depth + 1)
         }
         if effect.skipsNextDraw { state.skipsNextDraw = true }
         // Somebody has to call a timeout. With no referee on the floor there is nobody
@@ -1830,6 +1920,13 @@ enum Rules {
             state.pendingActor = seat
             state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
                                           card: rotatingCard, choices: hurt)
+            return
+        }
+        if effect.fightsChosenPlayer {
+            state.pendingActor = seat
+            state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                          card: rotatingCard,
+                                          choices: Seat.allCases.filter { $0 != seat })
             return
         }
         if effect.offersInjuries {

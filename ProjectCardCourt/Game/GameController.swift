@@ -695,7 +695,8 @@ final class GameController {
         guard case .inbound = state.phase else { return .shoot }
         // The one decision with no way to decline it — the ball has to go somewhere, so
         // the house throws it in.
-        return ai.move(state, for: seat) ?? .inbound(to: seat.clockwise)
+        let anybody = Seat.allCases.first { $0 != seat && $0 != state.inboundBarred }
+        return ai.move(state, for: seat) ?? .inbound(to: anybody ?? seat.clockwise)
     }
 
     /// Holds the board up until every other device has bid, or until it is plain that one
@@ -1533,7 +1534,7 @@ final class GameController {
             await showPlayedCard(in: events)
         }
         release(.play, from: &ledger)
-        shownShot = state.shot
+        shownShot = state.shot + state.holderShot
         if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
             await announce(.whistle)
         }
@@ -1587,7 +1588,7 @@ final class GameController {
         unrevealed.removeAll()
         // A man stays bound until the rules let him go.
         boundSeats = boundSeats.filter { !state[$0].clamps.isEmpty }
-        shownShot = state.shot
+        shownShot = state.shot + state.holderShot
         shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.
         shownDeck = state.deck.count

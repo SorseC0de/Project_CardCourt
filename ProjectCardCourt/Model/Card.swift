@@ -169,6 +169,13 @@ struct GameBreakEffect: Hashable, Codable {
     /// Wet Spot: every Injury in the pile and the deck is laid out, the deck's face down,
     /// and one of them is yours.
     var offersInjuries = false
+    /// Altercation: you and the man you pick shove each other, and each lose a card at
+    /// random. The ball goes back in to anybody but him.
+    var fightsChosenPlayer = false
+    /// Huge Altercation: every hand on the floor.
+    var everyoneDiscardsHands = false
+    /// And what it costs everybody when a referee was standing there to see it.
+    var turnoversIfReferee = 0
 
     /// The drawer discards this many at random.
     var discard = 0
@@ -179,6 +186,11 @@ struct GameBreakEffect: Hashable, Codable {
     var drawUpTo: Int?
     /// Applied to the ball's SHOT for the rest of the possession.
     var shotThisPossession = 0
+    /// Mic'd Up: SHOT the man holding the ball carries himself. It belongs to him and not
+    /// to the ball, so a pass leaves it behind, and his own attempt spends it.
+    var shotForHolder = 0
+    /// In The Zone: a card for every 10% the ball is already worth, and never fewer than one.
+    var drawsPerTenPercentShot = false
     /// Hands the ball to someone else. Not a pass — no SHOT, no assist.
     var givesBallAway = false
     /// No Whistle can fire for the rest of the round.
@@ -317,6 +329,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// worth twice its own SHOT and a card to each of them — and whatever the trip cost
     /// him on the way happens in between.
     var returnsImmediately = false
+    /// Touch Pass: worth more when it never stops in your hands.
+    var drawIfFirstAction = 0
+    /// Clear Out: you are not where the pass expected you to be. A pass thrown by
+    /// direction carries on past you; a pass that named you is thrown away.
+    var clearsOut = false
+    /// You get out of the way before the play starts, or not at all.
+    var firstActionOnly = false
     /// Nutmeg: a card travels the way the pass did, from the receiver to the next along.
     var stealsAlongPass = 0
     /// Ankle Breaker: a player of your choosing gives one up.
@@ -358,7 +377,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
          forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
-         returnsImmediately: Bool = false,
+         returnsImmediately: Bool = false, drawIfFirstAction: Int = 0,
+         clearsOut: Bool = false, firstActionOnly: Bool = false,
          stealsAlongPass: Int = 0,
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
          modes: [CardMode] = [], blocksFurtherMoves: Bool = false) {
@@ -367,6 +387,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.forcesReceiverShot = forcesReceiverShot
         self.forcesImmediateShot = forcesImmediateShot
         self.returnsImmediately = returnsImmediately
+        self.drawIfFirstAction = drawIfFirstAction
+        self.clearsOut = clearsOut
+        self.firstActionOnly = firstActionOnly
         self.stealsAlongPass = stealsAlongPass
         self.targetDiscards = targetDiscards
         self.optionalDiscardForShot = optionalDiscardForShot
@@ -669,6 +692,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "kick-out":                    return "arrow.turn.up.right"
         case "alley-oop":                   return "arrow.up.forward.circle.fill"
         case "right-back":                  return "arrow.left.arrow.right"
+        case "touch-pass":                  return "hand.tap.fill"
+        case "clear-out":                   return "arrow.left.and.right.righttriangle.left.righttriangle.right.fill"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

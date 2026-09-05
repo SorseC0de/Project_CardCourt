@@ -25,10 +25,10 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         switch self {
         case .inbound:   return "Put it back in play"
         case .rebound:   return "The board is live"
-        case .gameBreak: return "Nobody played this"
+        case .gameBreak: return ""//"Nobody played this"
         // The whistle says it with the whistle. See `emblem`.
         case .whistle:   return ""
-        case .clamped:   return "They were waiting for you"
+        case .clamped:   return "Defenders are guarding you closely"
         }
     }
 

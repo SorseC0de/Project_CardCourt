@@ -171,6 +171,8 @@ struct GameState: Codable {
     /// the chain's edge so whatever the outward leg cost him lands first.
     var returnsTo: Seat?
     var returnLeg: CardDescriptor?
+    /// Clear Out: who has stepped out of the way, and is not there for the next pass.
+    var clearedOut: Set<Seat> = []
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
     /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.
@@ -210,6 +212,11 @@ struct GameState: Codable {
     /// whatever it finds there. Setting the phase from inside it is writing to something
     /// that is about to be overwritten, which is why Benched did nothing at all.
     var pendingInbound: Seat?
+    /// Mic'd Up: SHOT carried by whoever is holding the ball. Not part of `shot`, which
+    /// is the ball's and travels with it — this one is gone the moment he gives it up.
+    var holderShot = 0
+    /// Altercation: the man you just shoved is not the man you throw it in to.
+    var inboundBarred: Seat?
     /// How many times each Whistle has been called this round, by descriptor id. Cleared
     /// at the top of a round, which is what makes Delay-of-Game's second call a foul.
     var whistleCallsThisRound: [String: Int] = [:]

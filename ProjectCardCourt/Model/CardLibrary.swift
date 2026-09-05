@@ -44,6 +44,12 @@ enum CardLibrary {
         effect: "Pass to a random other player. SHOT +5%", numberInDeck: 15,
         passTarget: .random, shotDelta: 5)
 
+    static let touchPass = CardDescriptor(
+        id: "touch-pass", name: "Touch Pass", type: .pass,
+        effect: "Pass to a player of choice. SHOT +5%. Draw 2 if it never stopped",
+        numberInDeck: 5,
+        passTarget: .choice, shotDelta: 5, drawIfFirstAction: 2)
+
     static let rightBack = CardDescriptor(
         id: "right-back", name: "Right Back", type: .pass,
         effect: "Pass to a player of choice. SHOT +5%. They give it straight back",
@@ -144,6 +150,12 @@ enum CardLibrary {
                 CardMode(label: "Pass +5%", shotDelta: 5, passes: .choice),
                 CardMode(label: "SHOT +10%", shotDelta: 10)],
         blocksFurtherMoves: true)
+
+    static let clearOut = CardDescriptor(
+        id: "clear-out", name: "Clear Out", type: .move,
+        effect: "First action only. A pass to a side goes past you. One that named you is a TOV",
+        numberInDeck: 8,
+        clearsOut: true, firstActionOnly: true)
 
     static let flop = CardDescriptor(
         id: "flop", name: "Flop", type: .move,
@@ -660,11 +672,47 @@ enum CardLibrary {
         wideOpenThree,
     ]
 
+    static let altercation = CardDescriptor(
+        id: "altercation", name: "Altercation", type: .gameBreak,
+        effect: "Select another player: you and they each discard 1 at random. Inbound to anybody else",
+        numberInDeck: 2,
+        gameBreak: GameBreakEffect(fightsChosenPlayer: true))
+
+    static let hugeAltercation = CardDescriptor(
+        id: "huge-altercation", name: "Huge Altercation", type: .gameBreak,
+        effect: "All players discard their hands. With a referee out, all take 1 TOV. Inbound the ball",
+        numberInDeck: 1,
+        gameBreak: GameBreakEffect(everyoneDiscardsHands: true, turnoversIfReferee: 1,
+                                   givesBallAway: true))
+
+    static let homeCourtAdvantage = CardDescriptor(
+        id: "home-court-advantage", name: "Home Court Advantage", type: .gameBreak,
+        effect: "SHOT + 10%", numberInDeck: 5,
+        gameBreak: GameBreakEffect(shotThisPossession: 10))
+
+    static let awayGame = CardDescriptor(
+        id: "away-game", name: "Away Game", type: .gameBreak,
+        effect: "SHOT - 10%", numberInDeck: 5,
+        gameBreak: GameBreakEffect(shotThisPossession: -10))
+
+    static let micdUp = CardDescriptor(
+        id: "micd-up", name: "Mic'd Up", type: .gameBreak,
+        effect: "SHOT + 10% until passed or shot. Yours alone — it does not travel",
+        numberInDeck: 7,
+        gameBreak: GameBreakEffect(shotForHolder: 10))
+
+    static let inTheZone = CardDescriptor(
+        id: "in-the-zone", name: "In The Zone", type: .gameBreak,
+        effect: "Draw 1 card for each 10% SHOT on the ball, rounded down. Minimum 1",
+        numberInDeck: 4,
+        gameBreak: GameBreakEffect(drawsPerTenPercentShot: true))
+
     static let gameBreaks: [CardDescriptor] = [
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
         tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout, teamDoctor,
+        altercation, hugeAltercation, homeCourtAdvantage, awayGame, micdUp, inTheZone,
     ] + injuries
 
     /// Their own list, because they are their own column on the sheet and their own rules
@@ -690,9 +738,9 @@ enum CardLibrary {
     static let all: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
         dime, lob, nutmeg, noLook, bulletPass, handOff, outletPass, kickOut,
-        alleyOop, rightBack,
+        alleyOop, rightBack, touchPass,
         dribble, drive, rhythmDribble, poundDribble, spinMove, crossover,
-        ankleBreaker, hesi, pumpFake, stepback, tripleThreat,
+        ankleBreaker, hesi, pumpFake, stepback, tripleThreat, clearOut,
     ]
 
     /// Classic mode's pool: Pass and Move cards only.

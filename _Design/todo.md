@@ -2,6 +2,26 @@
 
 Things agreed on but not built. Newest at the top.
 
+## The cuts
+
+A suite of Move cards for the cuts, the way the passes cover the passes. Agreed while
+adding Clear Out — which is the one that already exists, since a clear-out *is* a cut, the
+one where you take your man away from the ball.
+
+The obvious ones, and what each would have to mean on a table:
+
+| Cut | What it is | The shape of the card |
+| --- | --- | --- |
+| Backdoor | Behind a defender who has overplayed you | Something that pays off *being* clamped |
+| Give-and-Go | Pass it and cut for the return | A pass out and a pass back — Right Back already is this, so a Move version would have to differ |
+| Curl | Around a screen, towards the rim | SHOT, with the size of it depending on what came before |
+| Flare | Off the screen the other way, out to the arc | Upgrades to a three |
+| Baseline | Along the endline, weak side | Moves you, not the ball — the only real use for a positional card |
+| Iverson | Across the top, off two screens | Two of something, or a card that only works played second |
+
+Not started, and deliberately parked: the deck is already thick with Moves. This is a
+suite to design as a set once the pass ratio is where it should be.
+
 ## The deal, from the inbound
 
 Low priority, both parts. The inbound looks right now; the dealing that follows it does
