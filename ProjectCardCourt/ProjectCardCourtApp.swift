@@ -44,9 +44,6 @@ struct RootView: View {
 #endif
                     })
                     .transition(.opacity)
-                    // The court is a RealityKit scene, and the first one in a process
-                    // costs seconds to bring up. Spent here, under the menu.
-                    .overlay(alignment: .bottomLeading) { RealityWarmup() }
             case .game:
                 GameView(opensLobby: straightToLobby).transition(.opacity)
             case .gallery:

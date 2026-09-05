@@ -29,7 +29,9 @@ struct DiscardPileView: View {
     /// tilt makes them agree — and even a matched top card would have its stacked edges
     /// recede differently. Sharing the camera removes the question.
     private var pile: some View {
-        DeckBody(layers: layers)
+        // Flat, and owing RealityKit nothing — see `FlatPile`. Thinner slabs than the
+        // deck's, so a handful of cards is a handful rather than a shrunken deck.
+        FlatPile(layers: layers, slab: 0.035)
             .frame(width: width, height: width * DeckBody.frameHeight)
             // Spent cards. Only the pile is drained of colour — a card pulled back out to
             // be read is drawn by `CardFrontView` and is untouched.

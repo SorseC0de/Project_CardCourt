@@ -44,10 +44,13 @@ struct DeckStackView: View {
         }
     }
 
-    /// Real geometry, so the pile keeps its body when the court turns. The flat
-    /// rectangle version this replaced only held up from one angle.
+    /// Flat, and owing RealityKit nothing.
+    ///
+    /// This view only draws at all when the court's 3D stage is off — and the whole point
+    /// of turning that off is to be rid of the renderer, which swapping it for two of
+    /// `DeckBody`'s did not do.
     private var pile: some View {
-        DeckBody(layers: layers, routine: routine)
+        FlatPile(layers: layers)
             .frame(width: width, height: width * DeckBody.frameHeight)
             .allowsHitTesting(false)
     }
