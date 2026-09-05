@@ -63,13 +63,10 @@ struct CourtStage: View {
         static var cardDepth: Float { cardWidth / Float(CardMetrics.aspect) }
         /// How far above the floor the deck rides while it is working.
         static let hover: Float = 0.030
-        /// How much bigger a card in the air is than one in the pile. A dealt card is the
-        /// thing being watched; a slab the size of the ones it came off is a chip.
-        static let dealtCard: Float = 1.8
-        /// How far out of its place the deck leans to hand one over, as a share of the
-        /// way to whoever is drawing. Not the whole trip — that is a lot of deck for one
-        /// card — but far enough that it is plainly reaching out to them.
-        static let lean: Float = 0.22
+        /// How big the card in the air is against one in the pile. **The same**: it comes
+        /// off the top of the deck, so that is the size it leaves at — the growing is done
+        /// on the way over, by the throw itself.
+        static let dealtCard: Float = 1.0
         /// Where it comes in from: high, and beyond the far edge.
         static let entryHeight: Float = 0.090
         static let entryDepth: Float = 1.6
@@ -177,18 +174,15 @@ struct CourtStage: View {
                 guard let flight else { return }
                 let home = floorPoint(flight.from, in: geo.size)
                 let to = floorPoint(flight.to, in: geo.size)
-                // **It leans out to hand the card over, and goes back.** Not the whole
-                // trip — that is a lot of deck for one card — but far enough that it is
-                // plainly reaching towards whoever is drawing, and `travel` banks into
-                // the move rather than sliding square-on.
-                let out = home + (to - home) * Stage.lean + SIMD3(0, Stage.hover, 0)
-                // The two together are `Pacing.deckLean`, which is what the loop waits out
-                // before it counts the card as landed.
-                await deck.travel(to: out, seconds: 0.14, curve: .easeOut)
-                await deck.bow(toward: to, seconds: 0.16)
-                await dealer.fly(from: out, to: to, seconds: flight.seconds)
+                // **It stays where it stands and turns to face them.** Travelling to each
+                // player and back was a lot of deck for one card — and a pile that is
+                // never home is a pile whose size and place are always being re-measured,
+                // which is why it stayed big for the length of a deal. Its own rotation
+                // and pitch are the neutral it returns to; the bow is the whole gesture.
+                await deck.bow(toward: to, seconds: Pacing.deckLean)
+                await dealer.fly(from: home + SIMD3(0, Stage.hover, 0),
+                                 to: to, seconds: flight.seconds)
                 await deck.straighten()
-                await deck.travel(to: home, seconds: 0.24)
                 deck.settle()
             }
             .task(id: spend?.id) {
@@ -210,7 +204,8 @@ struct CourtStage: View {
         .allowsHitTesting(false)
     }
 
-    /// The card in the air, bigger than the ones in the pile it came off.
+    /// The card in the air. The same slab as the ones in the pile it came off — the
+    /// throw does the growing.
     private func dealtMesh() -> MeshResource {
         RoundedSlab.mesh(width: Stage.cardWidth * Stage.dealtCard,
                          depth: Stage.cardDepth * Stage.dealtCard,

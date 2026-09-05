@@ -10,9 +10,12 @@ extension SIMD3 where Scalar == Float {
 
 /// One card at a time, thrown across the court.
 ///
-/// A dealt card is not a straight line and not the same line twice: it lifts, banks, and
-/// turns over on its way, and every throw picks its own arc. That variance is most of what
-/// separates a deck dealing from a rectangle sliding.
+/// **A card leaving a deck, and nothing more.** It starts on top of the pile at the size
+/// of the pile's own top card, rises a little on the way over, grows as it comes towards
+/// you, and pitches from lying flat to facing you. It does not spin, tumble or bow off the
+/// line — that was a card being thrown by somebody showing off, and what it read as was a
+/// card having a fit.
+///
 /// Not `@Observable`, for the same reason as `DeckStage` — see the note there.
 @MainActor
 final class CardDealer {
@@ -23,21 +26,18 @@ final class CardDealer {
     /// How the throw is shaped. Metres and turns.
     private enum Throw {
         /// How high the card rides at the top of its arc, against the distance covered.
-        static let lift: ClosedRange<Float> = 0.18...0.34
-        /// How far it bows off the straight line between the two points.
-        static let bow: ClosedRange<Float> = -0.22...0.22
-        /// Turns about its own face on the way over.
-        static let spin: ClosedRange<Float> = 0.75...1.6
-        /// And how far it tips out of flat while it travels.
-        static let tumble: ClosedRange<Float> = 0.15...0.45
-        /// How big it is leaving the deck and how big it is arriving, against its own
-        /// size. **It grows on the way over**: a card coming to you is a card coming
-        /// *towards* you, and a slab that crosses the floor at one size reads as a chip
-        /// sliding along it.
-        static let leaves: Float = 0.70
-        static let arrives: Float = 1.45
+        static let lift: Float = 0.16
+        /// How big it is leaving the pile and how big it is arriving. It leaves at the
+        /// size of the slab it came off — the mesh is that size — and grows a third again
+        /// on its way to you. More than that and it arrives as a poster.
+        static let leaves: Float = 1.0
+        static let arrives: Float = 1.35
+        /// How far it turns out of the floor's plane on the way, in turns. The pile lies
+        /// flat and the camera looks down at it from thirty-four degrees, so this is what
+        /// takes the card the rest of the way to facing you.
+        static let pitch: Float = (90 - 34) / 360
         /// Steps the arc is walked in. Enough to read as a curve, few enough to be free.
-        static let steps = 36
+        static let steps = 30
     }
 
     func build(mesh: MeshResource, material: some RealityKit.Material) {
@@ -58,24 +58,16 @@ final class CardDealer {
     func fly(from start: SIMD3<Float>, to end: SIMD3<Float>,
              seconds: TimeInterval) async {
         guard let card else { return }
-
-        // **Nothing here may be normalised through zero.** `normalize` of a zero vector is
-        // NaN, and one NaN in a transform is `RETransformComponentSetLocalSRT contains
-        // NaN` — after which the entity's scale and rotation are rubbish and the pile
-        // stretches and shudders rather than simply not moving.
+        // **Nothing here may be divided or normalised through zero.** A throw whose two
+        // ends are the same point — one built from a view that has not been laid out —
+        // makes a NaN, and one NaN in a transform is an entity RealityKit refuses to
+        // write: it keeps what it had, and the pile stretches and shudders.
         guard start.isFinite, end.isFinite, distance(start, end) > .ulpOfOne else { return }
 
-        let span = distance(start, end)
-        let lift = span * Float.random(in: Throw.lift)
-        let bow = span * Float.random(in: Throw.bow)
-        let spin = Float.random(in: Throw.spin) * 2 * .pi
-        let tumble = Float.random(in: Throw.tumble) * 2 * .pi
-        // Sideways from the line of travel, so the bow is always across it.
-        let across = normalize(cross(normalize(end - start), SIMD3<Float>(0, 1, 0)))
-
+        let lift = distance(start, end) * Throw.lift
         card.isEnabled = true
         card.transform = Transform(scale: SIMD3(repeating: Throw.leaves),
-                                   rotation: .init(angle: 0, axis: [0, 1, 0]),
+                                   rotation: .init(angle: 0, axis: [1, 0, 0]),
                                    translation: start)
 
         // Walked rather than tweened: `move(to:)` interpolates between two transforms in
@@ -83,18 +75,14 @@ final class CardDealer {
         let step = seconds / Double(Throw.steps)
         for i in 1...Throw.steps {
             let t = Float(i) / Float(Throw.steps)
-            let arc = sin(t * .pi)
 
             var next = Transform()
-            next.translation = start + (end - start) * t
-                + SIMD3(0, lift * arc, 0)
-                + across * (bow * arc)
-            next.rotation = simd_quatf(angle: spin * t, axis: [0, 1, 0])
-                * simd_quatf(angle: tumble * arc, axis: [1, 0, 0])
-            // Eased rather than linear, so most of the growth happens over the second
-            // half — which is where the eye reads it as approaching rather than inflating.
-            let grown = Throw.leaves + (Throw.arrives - Throw.leaves) * (t * t)
-            next.scale = SIMD3(repeating: grown)
+            next.translation = start + (end - start) * t + SIMD3(0, lift * sin(t * .pi), 0)
+            next.rotation = simd_quatf(angle: -Throw.pitch * 2 * .pi * t, axis: [1, 0, 0])
+            // Eased, so most of the growth lands in the second half — which is where the
+            // eye reads it as coming towards you rather than inflating where it stands.
+            next.scale = SIMD3(repeating: Throw.leaves
+                               + (Throw.arrives - Throw.leaves) * (t * t))
 
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
             try? await Task.sleep(for: .seconds(step))

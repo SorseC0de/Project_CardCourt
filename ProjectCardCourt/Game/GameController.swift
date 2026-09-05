@@ -31,10 +31,10 @@ enum Pacing {
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
     static let drawFlight = 0.30
-    /// What the deck spends leaning out and bowing before it throws — see `CourtStage`,
+    /// What the deck spends turning to face whoever is drawing, before it throws — see `CourtStage`,
     /// which plays that ahead of the card. The beat has to cover it, or the card lands in
     /// a hand before the pile has finished reaching for it.
-    static let deckLean = 0.30
+    static let deckLean = 0.16
     /// How long a card takes to reach the pile from a hand.
     static let spendFlight = 0.34
     static let dealFlight = 0.15
