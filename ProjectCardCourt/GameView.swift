@@ -78,6 +78,21 @@ struct GameView: View {
                     .transition(.opacity)
                     .zIndex(10)
             }
+            if case .awaitingNaming(_, let named) = controller.gate {
+                // The floor takes the names; this only says when there are no more.
+                VStack {
+                    Spacer()
+                    ChunkyButton(title: named.isEmpty ? "Take it alone"
+                                                      : "Shoot (+\(named.count * 10)%)",
+                                 fill: CardPalette.gold, stroke: CardPalette.gold,
+                                 shade: CardPalette.orange, size: 20) {
+                        controller.choose(naming: nil)
+                    }
+                    .frame(width: 240)
+                    .padding(.bottom, 130)
+                }
+                .zIndex(12)
+            }
             if case .awaitingToll(let victim) = controller.gate {
                 // His board is face up and his hand is not, so both are on the table and
                 // only one of them can be read.
@@ -185,6 +200,11 @@ struct GameView: View {
                                    onDismiss: { browsingDiscard = false })
                     .transition(.opacity)
                     .zIndex(11)
+            }
+            if let score = controller.scoreCall {
+                ScoreCallView(call: score)
+                    .transition(.opacity)
+                    .zIndex(41)
             }
             if let call = controller.actionCall {
                 ActionCallView(call: call, clamps: controller.clampCall) {
@@ -362,6 +382,8 @@ struct GameView: View {
                       // player the way the game already asks for one.
                       if case .awaitingTarget = controller.gate {
                           controller.choose(target: seat)
+                      } else if case .awaitingNaming = controller.gate {
+                          controller.choose(naming: seat)
                       } else {
                           controller.inbound(to: seat)
                       }

@@ -45,6 +45,10 @@ enum Rules {
         case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom,
              .awaitingInjuryPick, .awaitingIntangibleDrop, .awaitingToll:
             return []
+        case .awaitingNaming(let asked, _, let named) where asked == seat:
+            return Seat.allCases
+                .filter { $0 != state.ball && !named.contains($0) }
+                .map { Move.inbound(to: $0) }
         case .awaitingTarget(let asked, _, let choices) where asked == seat:
             return choices.map { Move.inbound(to: $0) }
         case .possession(let holder) where holder == seat:
@@ -328,6 +332,16 @@ enum Rules {
                     // Hand the choice back before the shot goes up.
                     state.phase = .awaitingDiscard(seat: seat, card: descriptor,
                                                    bonusEach: special.discardForShotBonus)
+                    return events
+                }
+                if special.shotPerNamed > 0 {
+                    // Named before the shot goes up, because who is owed changes what it
+                    // is worth — and the answer is a list rather than one man.
+                    state.pendingPlay = descriptor
+                    state.pendingActor = seat
+                    state.namedForAssist = []
+                    state.phase = .awaitingNaming(seat: asker(instead: seat, in: state),
+                                                  card: descriptor, named: [])
                     return events
                 }
                 if special.shootsImmediately {
@@ -710,6 +724,42 @@ enum Rules {
         }
     }
 
+    /// One more man named, or the naming closed and the shot going up.
+    ///
+    /// Each is worth SHOT and each is owed an assist, so the two halves of the card are
+    /// the same list read twice — once now and once if it drops.
+    @discardableResult
+    static func resolveNaming(_ named: Seat?, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingNaming(let asked, let descriptor, let sofar) = state.phase,
+              let shooter = state.pendingActor else { return [] }
+        var events: [GameEvent] = []
+
+        if let named, named != shooter, !sofar.contains(named) {
+            let now = sofar + [named]
+            state.namedForAssist = now
+            state.phase = .awaitingNaming(seat: asked, card: descriptor, named: now)
+            return events
+        }
+
+        // Nobody else. The shot is worth what the list came to.
+        state.pendingPlay = nil
+        state.pendingActor = nil
+        state.phase = .possession(holder: shooter)
+        let special = descriptor.special
+        state.pendingShotBonus += (special?.shotPerNamed ?? 0) * state.namedForAssist.count
+
+        if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+            blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
+            state.namedForAssist = []
+            return events
+        }
+        resolveShot(by: shooter, bonusPoints: special?.bonusPointOnMake ?? 0,
+                    overClamps: special?.ignoresClamps ?? false,
+                    state: &state, events: &events)
+        state.namedForAssist = []
+        return events
+    }
+
     /// What the pass cost him: a passive by name, or a card by where it sits.
     ///
     /// Two kinds of card in one question, so the answer says which — his board is face up
@@ -929,6 +979,12 @@ enum Rules {
                 let owed = state[seat].drawsOwedOnMake
                 state[seat].drawsOwedOnMake = 0
                 drawBatch(seat, count: owed, state: &state, events: &events)
+            }
+            // Wide-Open Three: everyone he named takes one, on top of whatever the pass
+            // was already worth.
+            for helper in state.namedForAssist where helper != seat {
+                state[helper].assists += 1
+                events.append(.assisted(helper))
             }
             if let passer = state.lastPasser, passer != seat {
                 // Dime pays twice: the assist every pass earns, and its own.

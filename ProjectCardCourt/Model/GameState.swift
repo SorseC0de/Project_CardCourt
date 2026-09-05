@@ -90,6 +90,8 @@ enum Phase: Hashable, Codable {
     case awaitingInjuryPick(seat: Seat, card: CardDescriptor)
     /// A fourth passive arriving on a full board: which of the four goes.
     case awaitingIntangibleDrop(seat: Seat, offered: [CardDescriptor])
+    /// Wide-Open Three: naming the others, one at a time, until you stop.
+    case awaitingNaming(seat: Seat, card: CardDescriptor, named: [Seat])
     /// Franchise Player: something off the man who just took the pass. His passives are
     /// face up and his hand is not, so this is one question over two kinds of card.
     case awaitingToll(seat: Seat, victim: Seat)
@@ -114,6 +116,7 @@ enum Phase: Hashable, Codable {
         case .awaitingInjuryPick(let seat, _): return seat
         case .awaitingIntangibleDrop(let seat, _): return seat
         case .awaitingToll(let seat, _): return seat
+        case .awaitingNaming(let seat, _, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }
@@ -153,6 +156,8 @@ struct GameState: Codable {
     var pendingActor: Seat?
     /// Nutmeg: where the card taken is headed, rather than to the pile.
     var stealTravelsTo: Seat?
+    /// Wide-Open Three: who has been named so far, and who is owed an assist if it drops.
+    var namedForAssist: [Seat] = []
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
     /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.

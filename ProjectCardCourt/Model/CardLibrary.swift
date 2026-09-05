@@ -608,6 +608,13 @@ enum CardLibrary {
         numberInDeck: 5,
         special: SpecialMoveEffect(coinRunShot: 5, coinRunDraw: 1))
 
+    static let wideOpenThree = CardDescriptor(
+        id: "wide-open-three", name: "Wide-Open Three", type: .specialMove,
+        effect: "Name any others. SHOT +10% each. On a make they each take AST +1",
+        numberInDeck: 2,
+        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
+                                   shotPerNamed: 10))
+
     static let turnaroundThree = CardDescriptor(
         id: "turnaround-three", name: "Turnaround Three", type: .specialMove,
         effect: "Discard any number. SHOT +10% for each. Shoot the ball. +1 PT on make",
@@ -618,6 +625,7 @@ enum CardLibrary {
     static let specialMoves: [CardDescriptor] = [
         fadeaway, fromTheHash, fromTheLogo, fullCourtHeave, buzzerBeater, putbackTip,
         euroStep, turnaroundThree, bankshot, daggerThree, skyhook, slamDunk,
+        wideOpenThree,
     ]
 
     static let gameBreaks: [CardDescriptor] = [

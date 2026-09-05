@@ -36,6 +36,8 @@ enum Pacing {
     static let inboundHold = 0.5
     /// How long a phase call holds before it takes itself off.
     static let actionCall = 1.4
+    /// How long the board holds after a basket.
+    static let scoreCall = 2.0
     /// The beat between one revealed card leaving and the next arriving.
     static let betweenReveals = 0.3
     static let bidReveal = 1.5
@@ -237,6 +239,15 @@ struct AIFreeThrow: Identifiable, Equatable {
 }
 
 /// A Whistle being called, turned face up for everyone.
+/// A basket: what it was worth, and who is owed for it.
+struct ScoreCall: Identifiable, Equatable {
+    let id = UUID()
+    let seat: Seat
+    let points: Int
+    /// Everyone credited. More than one only when a card hands the assist around.
+    let assists: [Seat]
+}
+
 struct WhistleReveal: Identifiable, Equatable {
     let id = UUID()
     let owner: Seat
@@ -308,6 +319,8 @@ final class GameController {
         case awaitingIntangibleDrop(offered: [CardDescriptor])
         /// Franchise Player: his board face up, his hand face down.
         case awaitingToll(victim: Seat)
+        /// Wide-Open Three: naming the others, one at a time, until you stop.
+        case awaitingNaming(card: CardDescriptor, named: [Seat])
         case awaitingFreeThrow(FreeThrowTrip)
         case gameOver
     }
@@ -359,6 +372,8 @@ final class GameController {
     /// A made three, celebrating. The points are withheld from the scoreboard until the
     /// number reaches it.
     private(set) var celebratingThree: Seat?
+    /// A basket, and who is credited for it. Up on every make, not only the big ones.
+    private(set) var scoreCall: ScoreCall?
     /// A one-off Clamp taking its cards: who from, and a stamp so a second one replays
     /// rather than being mistaken for the first.
     private(set) var clampSwipe: (seat: Seat, id: UUID)?
@@ -540,6 +555,8 @@ final class GameController {
             return seat.isLocal ? .awaitingIntangibleDrop(offered: offered) : .thinking
         case .awaitingToll(let seat, let victim):
             return seat.isLocal ? .awaitingToll(victim: victim) : .thinking
+        case .awaitingNaming(let seat, let card, let named):
+            return seat.isLocal ? .awaitingNaming(card: card, named: named) : .thinking
         case .awaitingInjuryDiscard(let seat, let count):
             guard seat.isLocal, let injury = injury(on: seat) else { return .thinking }
             return .awaitingInjuryDiscard(card: injury, count: count)
@@ -774,6 +791,14 @@ final class GameController {
         guard case .awaitingTarget = gate else { return }
         loop?.cancel()
         Task { await present(Rules.resolveTarget(target, state: &state)) }
+    }
+
+    /// One more man named for the shot, or the naming closed.
+    func choose(naming seat: Seat?) {
+        guard !isPaused else { return }
+        guard case .awaitingNaming = gate else { return }
+        loop?.cancel()
+        Task { await present(Rules.resolveNaming(seat, state: &state)) }
     }
 
     /// What a pass cost the man who took it.
@@ -1126,6 +1151,21 @@ final class GameController {
                 await present(Rules.resolveTarget(pick, state: &state))
                 continue
             }
+            if case .awaitingNaming(let seat, _, let named) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                gate = .thinking
+                try? await Task.sleep(for: .seconds(Pacing.think()))
+                if Task.isCancelled { return }
+                // Everyone but the leader. The SHOT is worth having; handing the man in
+                // front an assist is not.
+                let shooter = state.ball
+                let best = Seat.allCases.max { state[$0].score < state[$1].score }
+                let next = Seat.allCases.first {
+                    $0 != shooter && $0 != best && !named.contains($0)
+                }
+                await present(Rules.resolveNaming(next, state: &state))
+                continue
+            }
             if case .awaitingToll(let seat, let victim) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
@@ -1389,6 +1429,24 @@ final class GameController {
     }
 
     /// A three is anything worth more than an ordinary bucket.
+    /// The board, said out loud.
+    ///
+    /// Every make, because a basket is the only thing in the game that changes the score
+    /// and the assists at once — and with Wide-Open Three there can be three men owed for
+    /// one shot.
+    private func callTheScore(in events: [GameEvent]) async {
+        guard case .shotMade(let seat, let points, _, _)? = events.first(where: {
+            if case .shotMade = $0 { return true }; return false
+        }) else { return }
+        var helpers: [Seat] = []
+        for case .assisted(let passer) in events where !helpers.contains(passer) {
+            helpers.append(passer)
+        }
+        scoreCall = ScoreCall(seat: seat, points: points, assists: helpers)
+        try? await Task.sleep(for: .seconds(Pacing.scoreCall))
+        scoreCall = nil
+    }
+
     private func celebrateThree(in events: [GameEvent]) async {
         for case .shotMade(let seat, let points, _, _) in events
         where points > state.rules.madeShotPoints {
@@ -1507,6 +1565,7 @@ final class GameController {
             }
             cutscene = nil
             await celebrateThree(in: events)
+            await callTheScore(in: events)
         }
         release(.shot, from: &ledger)
 

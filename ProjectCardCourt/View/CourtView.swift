@@ -111,6 +111,11 @@ struct CourtView: View {
         // A card that names a player is picked on the floor, the same way an inbound is.
         // One gesture for every "which of them" the game asks.
         if case .awaitingTarget(_, let choices) = gate { return Set(choices) }
+        // Wide-Open Three names as many as it likes, so the ones already named stay lit
+        // rather than dropping out of the picture.
+        if case .awaitingNaming(_, let named) = gate {
+            return Set(Seat.allCases.filter { $0 != state.ball && !named.contains($0) })
+        }
         return []
     }
 
@@ -507,6 +512,7 @@ struct CourtView: View {
     /// What the two-line prompt says, which depends on what is being asked for.
     private var promptRuns: (top: String, verb: String) {
         if case .awaitingTarget(let card, _) = gate { return ("Select a Player", card.name) }
+        if case .awaitingNaming(let card, _) = gate { return ("Name a Player", card.name) }
         return ("Select a Player", "Inbound")
     }
 
@@ -546,6 +552,7 @@ struct CourtView: View {
     /// Whether the floor is being asked a question at all.
     private var isChoosing: Bool {
         if case .awaitingTarget = gate { return true }
+        if case .awaitingNaming = gate { return true }
         return false
     }
 

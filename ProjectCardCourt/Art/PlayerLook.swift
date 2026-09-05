@@ -17,6 +17,7 @@ final class PlayerLook {
     private var tones: [Seat: Int] = [:]
 
     private var defenderTones: [Seat: Int] = [:]
+    private var faces: [Seat: Int] = [:]
     private var waits: [Seat: (cell: Int, mirrored: Bool)] = [:]
 
     func tone(for seat: Seat) -> Int {
@@ -58,6 +59,16 @@ final class PlayerLook {
         if let known = defenderTones[seat] { return known }
         let rolled = Int.random(in: 0..<PixelPalette.skinTones.count)
         defenderTones[seat] = rolled
+        return rolled
+    }
+
+    /// Which head this seat wears. Yours is the one you built; everybody else is rolled
+    /// once and kept, so a man does not change face between one basket and the next.
+    func face(for seat: Seat) -> Int {
+        if seat.isLocal { return HooperKit.shared.face }
+        if let known = faces[seat] { return known }
+        let rolled = Int.random(in: 0..<Sprite.heads.frames)
+        faces[seat] = rolled
         return rolled
     }
 

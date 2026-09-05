@@ -225,6 +225,9 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// `SHOT = x%`, but only off the glass. Putback Tip is a tip-in: from anywhere else
     /// it is an ordinary ten per cent, and straight after a board it cannot miss.
     var shotOverrideAfterRebound: Int?
+    /// Wide-Open Three: name any number of the others. Each is worth this much SHOT, and
+    /// each takes an assist if it goes in — the first card that pays an opponent.
+    var shotPerNamed = 0
     /// Lob: the man it lands on has to put it up first.
     /// Bankshot: one flip, paying this much either way.
     var coinFlipShot = 0
@@ -632,6 +635,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "dirty-player":                return "hand.raised.fingers.spread.fill"
         case "franchise-player":            return "person.crop.rectangle.badge.plus"
         case "team-doctor":                 return "stethoscope"
+        case "wide-open-three":             return "person.3.sequence.fill"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

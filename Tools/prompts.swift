@@ -29,6 +29,16 @@ enum Prompts {
             guard let pick = hand.first else { return false }
             Rules.resolveCardFrom(hand.randomElement()?.id ?? pick.id, state: &state)
             return true
+        case .awaitingNaming(_, _, let named):
+            // Everyone but the leader. The SHOT is worth having; handing the man in front
+            // an assist is not.
+            let shooter = state.ball
+            let best = Seat.allCases.max { state[$0].score < state[$1].score }
+            let next = Seat.allCases.first {
+                $0 != shooter && $0 != best && !named.contains($0)
+            }
+            Rules.resolveNaming(next, state: &state)
+            return true
         case .awaitingToll(_, let victim):
             // A passive is worth more than a card off a hand nobody can read.
             let pick: CardPick = state[victim].intangibles.first.map { .named($0.id) }
