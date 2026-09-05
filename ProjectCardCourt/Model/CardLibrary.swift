@@ -44,6 +44,32 @@ enum CardLibrary {
         effect: "Pass to a random other player. SHOT +5%", numberInDeck: 15,
         passTarget: .random, shotDelta: 5)
 
+    static let alleyOop = CardDescriptor(
+        id: "alley-oop", name: "Alley-Oop", type: .pass,
+        effect: "Pass to a player of choice. SHOT +20%. They shoot at once",
+        numberInDeck: 5,
+        passTarget: .choice, shotDelta: 20, forcesImmediateShot: true)
+
+    static let handOff = CardDescriptor(
+        id: "hand-off", name: "Hand-Off", type: .pass,
+        effect: "Pass Left or Right. SHOT +5%. Draw 1",
+        numberInDeck: 10,
+        passTarget: .leftOrRight, shotDelta: 5, drawCount: 1,
+        comboAfterDribble: true, comboBonus: 5, comboDraw: 1)
+
+    static let outletPass = CardDescriptor(
+        id: "outlet-pass", name: "Outlet Pass", type: .pass,
+        effect: "Pass to a player of choice. SHOT +10%. Shot Clock +01",
+        numberInDeck: 3,
+        passTarget: .choice, shotDelta: 10, clockDelta: 1, replacesClockTick: true)
+
+    static let kickOut = CardDescriptor(
+        id: "kick-out", name: "Kick-Out", type: .pass,
+        effect: "Pass to a player of choice. SHOT +10%. The basket is a three",
+        numberInDeck: 3,
+        passTarget: .choice, shotDelta: 10, comboAfter: "drive",
+        comboDraw: 1, comboAssist: 1, upgradesToThree: true)
+
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
         effect: "Pass to a player of choice. SHOT +5%. They discard 1 at random",
@@ -657,7 +683,8 @@ enum CardLibrary {
 
     static let all: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
-        dime, lob, nutmeg, noLook, bulletPass,
+        dime, lob, nutmeg, noLook, bulletPass, handOff, outletPass, kickOut,
+        alleyOop,
         dribble, drive, rhythmDribble, poundDribble, spinMove, crossover,
         ankleBreaker, hesi, pumpFake, stepback, tripleThreat,
     ]

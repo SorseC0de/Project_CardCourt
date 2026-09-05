@@ -240,6 +240,9 @@ enum Rules {
             let comboArmed = (descriptor.comboAfter != nil
                               && descriptor.comboAfter == state.lastPlayThisPossession)
                 || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
+            // A Kick-Out asks whether the Drive it followed was *itself* a combo — that
+            // is a dribble drive, and a different play from a Drive on its own.
+            let afterCombo = comboArmed && state.lastPlayWasCombo
             if comboArmed { delta += descriptor.comboBonus }
 
             // **A shooting Special Move does not move SHOT; it prices its own shot.**
@@ -253,7 +256,11 @@ enum Rules {
             if !priced { adjustShot(by: delta, state: &state) }
             state.pendingShotBonus = priced ? delta : 0
 
-            var drawing = descriptor.drawCount
+            var drawing = descriptor.drawCount + (comboArmed ? descriptor.comboDraw : 0)
+            if afterCombo, descriptor.comboAssist > 0 {
+                state[seat].assists += descriptor.comboAssist
+                events.append(.assisted(seat))
+            }
             if descriptor.isDribble {
                 drawing += state[seat].intangibles.reduce(0) {
                     $0 + ($1.intangible?.dribbleBonusDraw ?? 0)
@@ -441,6 +448,7 @@ enum Rules {
                     events.append(.comboLanded(seat: seat, card: descriptor, bonus: descriptor.comboBonus))
                 }
                 state.lastPlayThisPossession = descriptor.id
+                state.lastPlayWasCombo = comboArmed
                 state.movesThisPossession += 1
                 // A Move card keeps the ball, so the seat acts again unless its own
                 // clock cost runs the possession out.
@@ -575,12 +583,21 @@ enum Rules {
     private static func completePass(_ descriptor: CardDescriptor, from seat: Seat,
                                      to receiver: Seat,
                                      state: inout GameState, events: inout [GameEvent]) {
+        // Outlet Pass runs the clock the other way: it hands a tick back instead of
+        // costing one, so the possession must not take its own.
+        if descriptor.replacesClockTick {
+            _ = tickClock(by: descriptor.clockDelta, holder: seat,
+                          state: &state, events: &events)
+        }
+        if descriptor.upgradesToThree { state.pendingBonusPoint = 1 }
         state.lastPasser = seat
         credit(seat, helping: receiver, state: &state, events: &events)
         events.append(.passed(card: descriptor, from: seat, to: receiver, shot: state.shot))
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
-        beginPossession(receiver, tickClock: true, state: &state, events: &events)
+        if descriptor.forcesImmediateShot { state.shootsAtOnce = receiver }
+        beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
+                        state: &state, events: &events)
 
         // Franchise Player: the man who took the pass gives something up for it. Asked
         // ahead of the other two, because it is the pass itself that costs him.
@@ -948,6 +965,9 @@ enum Rules {
         state.pendingShotBonus = 0
         state.shotsThisRound += 1
         state.mustShootFirst = nil
+        let upgraded = state.pendingBonusPoint
+        state.pendingBonusPoint = 0
+        _ = upgraded
         // Unselfish, cashed in. Owed to the attempt rather than to the board, so passing
         // the ball away does not hand the bonus to whoever ends up shooting.
         let owed = state[seat].nextShotBonus
@@ -970,7 +990,8 @@ enum Rules {
 
         let roll = state.roll(1...100)
         if roll <= chance {
-            let points = state.rules.madeShotPoints + bonusPoints
+            // A kick-out is a three because of where it put him, not what he did with it.
+            let points = state.rules.madeShotPoints + bonusPoints + upgraded
             state[seat].points += points
             state[seat].scoredThisRound = true
             state[seat].lastMake = Make(round: state.round, chance: chance)
@@ -1240,6 +1261,7 @@ enum Rules {
                                         state: inout GameState, events: inout [GameEvent]) {
         state.ball = seat
         state.lastPlayThisPossession = nil
+        state.lastPlayWasCombo = false
         state.movesThisPossession = 0
         state.movesPlayedThisPossession = []
         state.movesClosed = false
@@ -1572,6 +1594,20 @@ enum Rules {
             state[seat].bag.removeAll()
         }
         state.handsOwed.removeAll()
+
+        // Alley-Oop: it goes up now, with whatever he drew still in his hands. Before the
+        // board's question, because the shot is the possession and a passive changing
+        // hands is not.
+        if let shooter = state.shootsAtOnce {
+            state.shootsAtOnce = nil
+            if case .possession(let holder) = state.phase, holder == shooter {
+                if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+                    blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
+                } else {
+                    resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
+                }
+            }
+        }
 
         // And the question a full board owes. One at a time: answering it can rehome a
         // passive onto another full board, which asks again.

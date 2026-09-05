@@ -158,6 +158,15 @@ struct GameState: Codable {
     var stealTravelsTo: Seat?
     /// Wide-Open Three: who has been named so far, and who is owed an assist if it drops.
     var namedForAssist: [Seat] = []
+    /// Kick-Out: the next basket this possession is worth one more.
+    var pendingBonusPoint = 0
+    /// Whether the last play was itself a combo — a Drive off a Dribble is a dribble
+    /// drive, and a card can ask for that rather than for a Drive.
+    var lastPlayWasCombo = false
+    /// Alley-Oop: the man it found owes a shot the instant the chain settles. Queued for
+    /// the same reason a hand dump is — a shot resolved mid-draw is a shot taken before
+    /// the cards that were still arriving.
+    var shootsAtOnce: Seat?
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
     /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.

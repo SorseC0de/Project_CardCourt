@@ -280,6 +280,19 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// arm it.
     var comboAfterDribble = false
     let comboBonus: Int
+    /// And what else an armed combo is worth. Hand-Off pays a card off a Dribble;
+    /// Kick-Out pays one off a Drive.
+    var comboDraw = 0
+    /// Paid only when the play it followed was **itself** a combo — a Kick-Out off a
+    /// Drive that came off a Dribble is a dribble drive, and that is a different play
+    /// from a Drive standing on its own.
+    var comboAssist = 0
+    /// The next basket this possession is worth one more. A kick-out is a three because
+    /// of where it puts the man, not because of what he does with it.
+    var upgradesToThree = false
+    /// The Shot Clock is moved by this card **instead of** by the possession. Outlet Pass
+    /// runs the other way: it hands a tick back rather than costing one.
+    var replacesClockTick = false
     /// Set on Whistles.
     let whistle: WhistleEffect?
     /// Part of the Dribble family, which Double Dribble watches for.
@@ -298,6 +311,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var bonusAssistOnScore = false
     /// Lob: he has to put it up as his first action.
     var forcesReceiverShot = false
+    /// Alley-Oop: he does not get to choose at all. It goes up the moment he has drawn.
+    var forcesImmediateShot = false
     /// Nutmeg: a card travels the way the pass did, from the receiver to the next along.
     var stealsAlongPass = 0
     /// Ankle Breaker: a player of your choosing gives one up.
@@ -328,6 +343,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          passTarget: PassTarget? = nil, shotDelta: Int? = nil, drawCount: Int = 0,
          clockDelta: Int = 0, comboAfter: String? = nil,
          comboAfterDribble: Bool = false, comboBonus: Int = 0,
+         comboDraw: Int = 0, comboAssist: Int = 0,
+         upgradesToThree: Bool = false, replacesClockTick: Bool = false,
          whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
          special: SpecialMoveEffect? = nil, isDribble: Bool = false,
@@ -336,12 +353,14 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
-         forcesReceiverShot: Bool = false, stealsAlongPass: Int = 0,
+         forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
+         stealsAlongPass: Int = 0,
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
          modes: [CardMode] = [], blocksFurtherMoves: Bool = false) {
         self.receiverDiscards = receiverDiscards
         self.bonusAssistOnScore = bonusAssistOnScore
         self.forcesReceiverShot = forcesReceiverShot
+        self.forcesImmediateShot = forcesImmediateShot
         self.stealsAlongPass = stealsAlongPass
         self.targetDiscards = targetDiscards
         self.optionalDiscardForShot = optionalDiscardForShot
@@ -355,6 +374,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.shotDelta = shotDelta; self.drawCount = drawCount; self.clockDelta = clockDelta
         self.comboAfter = comboAfter; self.comboAfterDribble = comboAfterDribble
         self.comboBonus = comboBonus
+        self.comboDraw = comboDraw; self.comboAssist = comboAssist
+        self.upgradesToThree = upgradesToThree
+        self.replacesClockTick = replacesClockTick
         self.whistle = whistle; self.clamp = clamp
         self.intangible = intangible; self.gameBreak = gameBreak
         self.special = special; self.isDribble = isDribble
@@ -636,6 +658,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "franchise-player":            return "person.crop.rectangle.badge.plus"
         case "team-doctor":                 return "stethoscope"
         case "wide-open-three":             return "person.3.sequence.fill"
+        case "hand-off":                    return "hands.and.sparkles"
+        case "outlet-pass":                 return "arrow.up.right.circle.fill"
+        case "kick-out":                    return "arrow.turn.up.right"
+        case "alley-oop":                   return "arrow.up.forward.circle.fill"
         case "fundamentalist":              return "book.closed.fill"
 
         default: break

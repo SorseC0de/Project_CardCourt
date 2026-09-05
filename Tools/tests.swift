@@ -102,7 +102,9 @@ func runTests() {
         custom.passShotBonus = 99
         let (state, _) = Rules.newGame(seed: 12, rules: custom)
         let everyCard = state.deck + state.players.flatMap(\.bag)
-        let pass = everyCard.first { $0.isPass }!
+        // A pass that carries no SHOT of its own — those are the ones the match's bonus
+        // is baked onto. Hand-Off and the rest bring their own and are left alone.
+        let pass = everyCard.first { $0.descriptor.id == "swing-left" }!
         Check.that(pass.descriptor.shotDelta == 99,
                    "the match's passing bonus is baked onto the card, not looked up")
         Check.that(CardLibrary.swingLeft.shotDelta == nil,
@@ -477,7 +479,11 @@ func runTests() {
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         let receiver = seat.left
         Check.that(state[receiver].clamps.count == 1, "clamped on arrival")
-        let onward = state[receiver].bag.first { $0.isPass }!
+        // A pass that knows where it is going. The ones that ask set a phase instead of
+        // ending the possession, which is the thing being measured here.
+        let onward = state[receiver].bag.first {
+            [.left, .right, .across].contains($0.descriptor.passTarget)
+        }!
         Rules.apply(.play(onward.id), by: receiver, to: &state)
         Check.that(state[receiver].clamps.isEmpty, "and clear once the possession ends")
     }
