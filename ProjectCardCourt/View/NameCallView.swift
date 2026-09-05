@@ -36,6 +36,8 @@ final class NameCallTuning {
     var stops: [CGFloat] = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
     /// One slope end to end instead of a ramp between two flats.
     var softTaper = false
+    /// How far south-east the plate's hard white drop sits, in points.
+    var drop: CGFloat = NameCallStyle.drop
 }
 
 /// One name, waiting its turn or taking it.
@@ -100,6 +102,13 @@ struct NameCallView: View {
             // them because the plate carries the frame and the word is `fixedSize`.
             ZStack(alignment: .leading) {
                 face
+                    // **A hard drop that thins out with the plate.**
+                    //
+                    // A shadow is drawn from what it is under — its alpha, tinted and
+                    // offset — so a plate filled with a taper casts a tapered shadow
+                    // without being told to. Radius nought keeps it a second edge rather
+                    // than a glow, and it goes under the streaks so they are not doubled.
+                    .shadow(color: .white, radius: 0, x: tuning.drop, y: tuning.drop)
                     .overlay { SideStreaks(ink: .white,
                                            thickness: StreakStyle.sideThicknessSmall)
                         .mask { face } }
@@ -269,6 +278,9 @@ enum NameCallStyle {
     /// Read off the bench.
     static let cardX: CGFloat = -0.250
     static let labelX: CGFloat = 0.300
+    /// The plate's own drop: hard, white, and south-east. Whole points — a hard drop on a
+    /// fraction of one is a blur.
+    static let drop: CGFloat = 4
 
     /// In, read, out. **One way out, whatever else arrives** — an exit that can be
     /// interrupted looks like a mistake, and letting it run looks like two things having
@@ -324,6 +336,8 @@ struct NameCallBench: View {
                 dial("name size", $tuning.nameSize, 8...48)
                 dial("name width", $tuning.nameWidth, 0.4...1.6)
                 dial("name x", $tuning.nameX, -0.2...0.8)
+                dial("drop", Binding(get: { tuning.drop },
+                                     set: { tuning.drop = $0.rounded() }), 0...16)
                 Toggle("one slope end to end", isOn: $tuning.softTaper)
                     .font(.custom(Chrome.display, size: 15))
                     .foregroundStyle(.white)
@@ -352,6 +366,7 @@ struct NameCallBench: View {
                         tuning.nameX = NameCallStyle.labelX
                         tuning.stops = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
                         tuning.softTaper = false
+                        tuning.drop = NameCallStyle.drop
                     }
                 }
                 .font(.custom(Chrome.display, size: 15))
