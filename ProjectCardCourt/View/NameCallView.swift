@@ -37,11 +37,11 @@ final class NameCallTuning {
     /// differently.
     var stops: [CGFloat] = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
     /// One slope end to end instead of a ramp between two flats.
-    var softTaper = false
+    var softTaper = NameCallStyle.softTaper
     /// How far south-east the plate's hard drop sits, in points.
     var drop: CGFloat = NameCallStyle.drop
     /// What colour that drop is — see `NameCallStyle.dropInk`.
-    var dropInk: DropInk = .white
+    var dropInk: DropInk = NameCallStyle.dropInk
 
     /// The three the drop is being chosen between: white, or the seat's own colour taken
     /// a third and two thirds of the way to the palette's black.
@@ -236,8 +236,8 @@ struct NameCallView: View {
 enum NameCallStyle {
     /// How tall it is and how long, against how far it flies. Exactly the trip: the plate
     /// spans the screen and no more.
-    static let height: CGFloat = 0.16
-    static let length: CGFloat = 0.750
+    static let height: CGFloat = 0.125
+    static let length: CGFloat = 1.100
 
     /// Where the tail dissolves, as shares of the plate's own length.
     ///
@@ -251,8 +251,14 @@ enum NameCallStyle {
                height: reach * NameCallTuning.shared.cardHeight)
     }
 
-    static let fadeFrom: CGFloat = ModeCardStyle.fadeFrom
-    static let fadeTo: CGFloat = ModeCardStyle.fadeTo
+    /// One slope end to end, from here to here. Read off the bench, like the rest of the
+    /// plate — see `NameCallTuning`, which is still where they can be moved.
+    static let fadeFrom: CGFloat = 0.500
+    static let fadeTo: CGFloat = 0.660
+    /// Two stops rather than four: one continuous slope has no kink where a flat meets it.
+    static let softTaper = true
+    /// The seat's own colour, a third of the way to black.
+    static let dropInk: NameCallTuning.DropInk = .shaded
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the end that
     /// trails as it flies out.
@@ -299,11 +305,11 @@ enum NameCallStyle {
     static let labelStretch: CGFloat = 0.750
     /// Where the plate comes to rest and where the name sits on it, as shares of the trip.
     /// Read off the bench.
-    static let cardX: CGFloat = -0.250
-    static let labelX: CGFloat = 0.300
+    static let cardX: CGFloat = -0.660
+    static let labelX: CGFloat = 0.700
     /// The plate's own drop: hard and south-east. Whole points — a hard drop on a fraction
     /// of one is a blur.
-    static let drop: CGFloat = 4
+    static let drop: CGFloat = 7
 
     /// What the drop is drawn in, for the seat the plate belongs to.
     static func dropInk(for seat: Seat) -> Color {
@@ -406,9 +412,9 @@ struct NameCallBench: View {
                         tuning.nameWidth = NameCallStyle.labelStretch
                         tuning.nameX = NameCallStyle.labelX
                         tuning.stops = [0, NameCallStyle.fadeFrom, NameCallStyle.fadeTo, 1]
-                        tuning.softTaper = false
+                        tuning.softTaper = NameCallStyle.softTaper
                         tuning.drop = NameCallStyle.drop
-                        tuning.dropInk = .white
+                        tuning.dropInk = NameCallStyle.dropInk
                     }
                 }
                 .font(.custom(Chrome.display, size: 15))
