@@ -170,6 +170,15 @@ struct ShotCutscene: Identifiable, Equatable {
     }
 }
 
+/// A board coming down, played on the floor rather than on the rebound screen.
+///
+/// The screen says who won it; this is him going up to take it, with the ball thrown out
+/// of the hoop on the horizon to meet his hands at the top.
+struct ReboundLeap: Identifiable, Equatable {
+    let id = UUID()
+    let seat: Seat
+}
+
 /// A throw-in on its way. Identified, so each one is a fresh flight rather than the last
 /// one's view handed a new pair of points — which leaves it already arrived.
 struct ThrowIn: Identifiable, Equatable {
@@ -559,6 +568,8 @@ final class GameController {
     private(set) var flightDuration = Pacing.drawFlight
     /// Set for a beat after a rebound so the reveal can be shown, then cleared.
     private(set) var revealedBids: [Seat: Int]?
+    /// Who is going up for the board right now, if anybody.
+    private(set) var reboundLeap: ReboundLeap?
     var bidSelection: Set<Card.ID> = []
 
     let seed: UInt64
@@ -1180,6 +1191,15 @@ final class GameController {
             // possession — not to the scramble, which is over. Recording it here was
             // moving the hand and the pile while the rebound was still on screen.
             gate = .thinking
+            // **On the floor, before he draws for it.** The board is off the screen by
+            // now, so the man who won it goes up on the court itself — and the draw that
+            // opens the possession waits until he has come down with the ball.
+            for case .rebounded(let winner) in events {
+                catchUp()
+                reboundLeap = ReboundLeap(seat: winner)
+                try? await Task.sleep(for: .seconds(Theme.Figure.reboundSeconds))
+                reboundLeap = nil
+            }
             await playDrawsAndReveals(in: events)
             release(.draw, from: &ledger)
             release(.reveal, from: &ledger)

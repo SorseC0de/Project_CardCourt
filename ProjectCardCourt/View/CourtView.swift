@@ -4,6 +4,9 @@ struct CourtView: View {
     let state: GameState
     let gate: GameController.Gate
     let revealedBids: [Seat: Int]?
+    /// Who is going up for the board, if anybody. The ball comes out of the hoop to meet
+    /// him — see `reboundBall`.
+    var rebound: ReboundLeap?
     /// When the ball finished changing hands, so the catch plays in view.
     var settledAt: Date?
     /// Who is drawn holding it, which lags the rules across a pass — see
@@ -143,6 +146,9 @@ struct CourtView: View {
     /// subtree is rebuilt, not only when the id changes — so without this the same pass
     /// can be thrown twice, which is what "players sometimes pass the ball twice" was.
     @State private var flewAt: Date?
+    /// The board's ball, from the hoop on the horizon to his hands at the top.
+    @State private var reboundFlight: CGFloat = 0
+    @State private var reboundBall = false
 
     private var selectableSeats: Set<Seat> {
         if case .awaitingInbound(let inbounder) = gate {
@@ -223,8 +229,7 @@ struct CourtView: View {
                 // Hung above the far baseline so the rim clears it rather than
                 // sitting on North's head.
                 FarHoop()
-                    .position(x: court.centreX,
-                              y: court.horizonY - 18 - geo.size.height * 0.05)
+                    .position(hoopPoint(on: court, in: geo.size))
 
                 // Drawn here, before the figures, which is the entire point: the players
                 // stand above it without anything being duplicated or measured against a
@@ -334,6 +339,22 @@ struct CourtView: View {
                         .zIndex(300)
                 }
 
+                // Out of the hoop and into his hands. It leaves at nothing, because it
+                // is coming from the horizon — a ball that starts full size up there is a
+                // ball the size of the rim.
+                if let rebound, reboundBall {
+                    let from = hoopPoint(on: court, in: geo.size)
+                    let to = reboundPoint(of: rebound.seat, on: court)
+                    let end = court.scale(of: rebound.seat)
+                    PixelBallView()
+                        .scaleEffect(Court.ballFromHoop
+                                     + (end - Court.ballFromHoop) * reboundFlight)
+                        .position(x: from.x + (to.x - from.x) * reboundFlight,
+                                  y: from.y + (to.y - from.y) * reboundFlight)
+                        .transition(.identity)
+                        .zIndex(280)
+                }
+
                 // The ball is only its own view while crossing — the dribbling sprite
                 // draws one the rest of the time. It travels from the passer's hands to
                 // the receiver's rather than appearing already arrived.
@@ -364,6 +385,22 @@ struct CourtView: View {
                 // hold while the receiver caught a second one.
                 caughtThrow = throwing.id
                 landedAt = Date()
+            }
+            .task(id: rebound?.id) {
+                guard rebound != nil else { reboundBall = false; return }
+                var appear = Transaction(); appear.disablesAnimations = true
+                withTransaction(appear) { reboundFlight = 0; reboundBall = true }
+                // Timed to reach his hands on the last cell of the leap — both ends read
+                // `reboundRise`, so the catch cannot land a frame either side of it.
+                withAnimation(.easeIn(duration: Theme.Figure.reboundRise)) {
+                    reboundFlight = 1
+                }
+                try? await Task.sleep(for: .seconds(Theme.Figure.reboundRise
+                                                    + Theme.Figure.reboundHang))
+                // The sprite is holding it by now; two balls in one pair of hands is one
+                // too many.
+                var vanish = Transaction(); vanish.disablesAnimations = true
+                withTransaction(vanish) { reboundBall = false }
             }
             .task(id: settledAt) {
                 guard let settledAt, passer != nil, flewAt != settledAt else { return }
@@ -507,6 +544,20 @@ struct CourtView: View {
                        y: footing.y - side * Theme.Pass.handY)
     }
 
+    /// The rim on the horizon, which is where a board comes from.
+    private func hoopPoint(on court: CourtGeometry, in size: CGSize) -> CGPoint {
+        CGPoint(x: court.centreX, y: court.horizonY - 18 - size.height * 0.05)
+    }
+
+    /// Where the ball meets him at the top of the leap: both hands over his head, plus
+    /// the two pixels the jump adds beyond what the sheet can draw.
+    private func reboundPoint(of seat: Seat, on court: CourtGeometry) -> CGPoint {
+        let footing = court.footing(of: seat, inbounding: thrower)
+        let side = Theme.Figure.height * court.scale(of: seat, inbounding: thrower)
+        return CGPoint(x: footing.x + side * Theme.Pass.reboundHandX,
+                       y: footing.y - side * Theme.Pass.reboundHandY)
+    }
+
     /// Both ends of the throw, so the flight is drawn and timed off the same two points.
     private func flightPath(on court: CourtGeometry) -> (CGPoint, CGPoint)? {
         guard let holder else { return nil }
@@ -567,6 +618,10 @@ struct CourtView: View {
 
 
     enum Court {
+        /// How big the ball is as it leaves the rim. It is coming from the horizon, and a
+        /// ball that starts at its own size up there is a ball the size of the hoop.
+        static let ballFromHoop: CGFloat = 0.01
+
         /// How dark everything but the players goes. Shared with `GameView`, which dims
         /// the cards to the same depth.
         static let dim: Double = 0.66
@@ -821,6 +876,11 @@ struct CourtView: View {
                 // throw — the rules moved the ball before the beat began — so the throw
                 // names its own receiver.
                 caughtAt: (holder == seat || throwing?.to == seat) ? landedAt : nil,
+                // Only the man who won it goes up, and only he comes down with it.
+                reboundID: rebound?.seat == seat ? rebound?.id : nil,
+                // Warping to a spot during a stoppage is arriving somewhere; a warp in
+                // the run of play is not, and landing out of one would stop him dead.
+                landsFromWarp: isStill,
                 // Nobody dribbles a ball that is still in the air. The thrower has let go
                 // and the receiver has not caught it yet, so both are simply running.
                 awaitingBall: ballInFlight && holder == seat,

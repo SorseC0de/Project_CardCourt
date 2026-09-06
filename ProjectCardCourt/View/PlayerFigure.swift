@@ -48,6 +48,13 @@ struct PlayerFigure: View {
     var mirrored: Bool?
     /// When this player took possession, which starts the catch.
     var caughtAt: Date?
+    /// The board he is going up for, named by the court. Nil for everybody else, and a
+    /// fresh id every time — two boards in a row are two jumps.
+    var reboundID: UUID?
+    /// Whether arriving out of a warp is landed rather than simply appeared. Only for a
+    /// warp during a stoppage — a man relocating for an inbound has come down somewhere;
+    /// one going somewhere mid-play has not.
+    var landsFromWarp = false
     /// The ball is still crossing to them. They have not got it yet, so they are not
     /// dribbling it — they are running to meet it.
     var awaitingBall = false
@@ -60,6 +67,27 @@ struct PlayerFigure: View {
 
     @State private var look = PlayerLook.shared
     @State private var catching = false
+    /// Where he is in a jump, if he is in one.
+    @State private var leap: Leap = .none
+    /// When the cell being shown started. Its own clock, like the catch's.
+    @State private var leapFrom: Date?
+    /// The two extra pixels, on or off. **Snapped, never tweened** — it is a whole
+    /// number of art pixels in a game drawn in them.
+    @State private var lifted = false
+    /// How far off the floor he reads as being, which is the shadow's business rather
+    /// than the sprite's. Unlike the lift this one is a ramp: a shadow is a soft blob and
+    /// has nothing to snap to.
+    @State private var airborne: CGFloat = 0
+
+    private enum Leap: Equatable {
+        case none
+        /// Going up, one pass of the rebound sheet.
+        case rising
+        /// Held on its last cell with the ball in his hands.
+        case hanging
+        /// Coming down, one pass of the landing sheet.
+        case landing
+    }
     /// When this catch began. The sheet is counted from here, not from the wall clock.
     @State private var caughtFrom: Date?
     /// A one-shot sprite counts from here; without it the frame index never advances.
@@ -94,10 +122,31 @@ struct PlayerFigure: View {
 
     /// Catching for a beat as the ball arrives, then dribbling; jogging without it.
     private var action: Sprite {
+        // **A jump outranks a pose.** The pose is what a cutscene left him in; this is
+        // the floor's own event, happening now.
+        switch leap {
+        case .rising, .hanging: return .rebound
+        case .landing:          return .land
+        case .none:             break
+        }
         if let pose { return pose }
         if catching { return .catchBall }
         guard isHolding, !awaitingBall else { return .run }
         return .dribble
+    }
+
+    /// Everything the leap takes over while it runs: its own rate, its own clock, and a
+    /// cell to hold on at the top.
+    private var leapRate: Double? {
+        switch leap {
+        case .rising, .hanging: return Theme.Figure.reboundFPS
+        case .landing:          return Theme.Figure.landFPS
+        case .none:             return nil
+        }
+    }
+
+    private var leapFrame: Int? {
+        leap == .hanging ? Sprite.rebound.frames - 1 : nil
     }
 
     /// Idle opponents jog and glance back every few seconds. The human never does —
@@ -115,6 +164,42 @@ struct PlayerFigure: View {
 
     /// Now and then he waves at somebody instead of looking behind him.
     private var glanceRare: Sprite? { glance == nil ? nil : .wave }
+
+    /// The whole jump: up, hang, down.
+    ///
+    /// One sequence rather than a chain of `onChange`s, because every beat of it is timed
+    /// off the one before — the ball is thrown to arrive on the sheet's last cell, and it
+    /// is thrown by the court against the same numbers.
+    private func goUpForIt() async {
+        leapFrom = Date()
+        lifted = false
+        leap = .rising
+        withAnimation(.easeOut(duration: Theme.Figure.reboundRise)) { airborne = 1 }
+
+        // The lift comes in where the sheet runs out of frame, not at the start: the
+        // first cells are him leaving the floor, which the drawing already says.
+        let toLift = Double(Theme.Figure.reboundLiftFrom) / Theme.Figure.reboundFPS
+        try? await Task.sleep(for: .seconds(toLift))
+        lifted = true
+        try? await Task.sleep(for: .seconds(max(0, Theme.Figure.reboundRise - toLift)))
+
+        // It is in his hands. Held there on the last cell.
+        leap = .hanging
+        try? await Task.sleep(for: .seconds(Theme.Figure.reboundHang))
+
+        // Down: the two pixels go first, then the landing plays out under him.
+        lifted = false
+        withAnimation(.easeIn(duration: Theme.Figure.landSeconds)) { airborne = 0 }
+        await comeDown()
+    }
+
+    /// One pass of the landing sheet, and back to whatever he was doing.
+    private func comeDown() async {
+        leapFrom = Date()
+        leap = .landing
+        try? await Task.sleep(for: .seconds(Theme.Figure.landSeconds))
+        leap = .none
+    }
 
     /// Whether a seat catches flipped, given who threw it.
     ///
@@ -155,27 +240,33 @@ struct PlayerFigure: View {
         // Bottom-aligned: the shadow is drawn for the 32-pixel frame, and every sheet
         // that is larger has its extra rows above the character rather than below.
         ZStack(alignment: .bottom) {
-            SpriteShadow(scale: scale)
+            SpriteShadow(scale: scale, lift: airborne)
                 // Nothing to cast one while he is between places.
                 .opacity(warp > 0 ? 0 : 1)
             SpriteAnimation(sprite: action, scale: scale,
-                            fps: frameRate,
+                            fps: leapRate ?? frameRate,
                             // A pose rather than a loop: held on one cell, not played.
-                            isPlaying: poseFrame == nil,
-                            restFrame: poseFrame ?? 0,
+                            isPlaying: leapFrame == nil && poseFrame == nil,
+                            restFrame: leapFrame ?? poseFrame ?? 0,
                             // A catch is a one-shot like the shot is. Looping it meant its
                             // frame came from `timeIntervalSinceReferenceDate % frames` — the
                             // wall clock — so every catch began on whatever frame the world
                             // happened to be on, and no two played the same.
-                            playsOnce: playsOnce || action == .catchBall,
+                            playsOnce: leap == .rising || leap == .landing
+                                || playsOnce || action == .catchBall,
                             alternate: playsOnce ? nil : glance,
                             alternateOr: playsOnce ? nil : glanceOr,
                             alternateRare: playsOnce ? nil : glanceRare,
                             phase: Double(seat.rawValue) * 1.3,
                             // A catch on the court counts from when the ball landed; one a
                             // cutscene asks for directly counts from when it appeared.
-                            startedAt: action == .catchBall ? (caughtFrom ?? startedAt) : startedAt,
+                            startedAt: leap == .none
+                                ? (action == .catchBall ? (caughtFrom ?? startedAt) : startedAt)
+                                : leapFrom,
                             stopAtFrame: stopAtFrame)
+                // **The sprite goes up; the shadow stays on the floor.** Which is why it
+                // is here and not around the pair of them.
+                .offset(y: lifted ? -Theme.Figure.reboundLift * scale : 0)
                 .scaleEffect(x: isMirrored ? -1 : 1)
                 // Never animated. Interpolating a flip runs the sprite through zero width,
                 // which reads as a sheet of cardboard turning rather than a player facing
@@ -246,6 +337,19 @@ struct PlayerFigure: View {
                 .animation(.easeOut(duration: 0.25), value: handCount)
                 .animation(.easeOut(duration: 0.22), value: clampCount)
                 .animation(.easeOut(duration: 0.22), value: isDimmed)
+                .task(id: reboundID) {
+                    guard reboundID != nil else { return }
+                    await goUpForIt()
+                }
+                // **On arriving, not on being here.** A man who has warped somewhere
+                // during a stoppage has come down there, so the falling edge is the whole
+                // signal — keyed on the state itself it fired for everybody standing
+                // still the moment the view appeared. Mid-play he has not landed
+                // anywhere; he is still going, and a landing would stop him dead.
+                .onChange(of: warp) { was, now in
+                    guard was > 0, now == 0, landsFromWarp, leap == .none else { return }
+                    Task { await comeDown() }
+                }
                 .task(id: caughtAt) {
                     // The court decides who catches — it is the only thing that stamps
                     // this, and it stamps nobody but the receiver.

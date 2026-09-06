@@ -501,6 +501,7 @@ struct GameView: View {
         AnyView(CourtView(state: controller.shown,
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
+                  rebound: controller.reboundLeap,
                   settledAt: controller.ballSettledAt,
                   shownBall: controller.shownBall,
                   inbounding: controller.inbounding,

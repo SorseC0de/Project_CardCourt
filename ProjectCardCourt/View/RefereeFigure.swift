@@ -36,14 +36,24 @@ struct SpriteShadow: View {
     /// standing in the middle of one.
     private static let shrink: CGFloat = 0.75
 
-    private var side: CGFloat { Sprite.run.frameSize * scale * Self.shrink }
+    /// How far off the floor whoever is casting it has got, 0 to 1. A shadow does not
+    /// go up with a jump — the gap opening under him is what it says, by shrinking and
+    /// thinning as he rises.
+    var lift: CGFloat = 0
+
+    private static let rest: Double = 0.66
+
+    private var side: CGFloat {
+        Sprite.run.frameSize * scale * Self.shrink
+            * (1 - (1 - Theme.Figure.shadowInAir) * lift)
+    }
 
     var body: some View {
         Image("PlayerShadow")
             .interpolation(.none)
             .resizable()
             .frame(width: side, height: side)
-            .opacity(0.66)
+            .opacity(Self.rest * (1 - Theme.Figure.shadowFadeInAir * lift))
     }
 }
 

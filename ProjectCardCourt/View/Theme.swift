@@ -85,6 +85,12 @@ enum Theme {
         /// Up from them.
         static let handY: CGFloat = 0.18
 
+        /// Where the ball meets him at the top of a rebound: his hands come together
+        /// over his head on the sheet's last cell, twenty-six pixels up in a thirty-two
+        /// pixel frame, and the leap's own lift puts him two higher again.
+        static let reboundHandX: CGFloat = 0
+        static let reboundHandY: CGFloat = 28.0 / 32
+
         /// How long the ball takes to cross.
         static let flightSeconds: Double = 0.26
         /// How long it stays in the receiver's hands before the sprite's own ball takes
@@ -127,6 +133,30 @@ enum Theme {
         static let sidelineFPS: Double = 4
         /// The shot runs slower than play does — it is the beat the scene is built on.
         static let shootFPS: Double = 8
+
+        // ── Going up for the board ──────────────────────────────────────
+        /// The leap and the landing, in frames a second.
+        static let reboundFPS: Double = 12
+        static let landFPS: Double = 10
+        /// How much higher he goes than his own frame can draw, in art pixels, and the
+        /// cell it comes in on. He reaches the top of the sheet on the way up and the
+        /// jump wants to be higher than the sheet is tall.
+        static let reboundLift: CGFloat = 2
+        static let reboundLiftFrom = 3
+        /// How long he hangs up there holding it before he starts down.
+        static let reboundHang: Double = 0.20
+
+        /// How long the rise takes: the ball is timed to reach his hands on the last cell
+        /// of it, so both are counted off the same number.
+        static var reboundRise: Double { Double(Sprite.rebound.frames - 1) / reboundFPS }
+        static var landSeconds: Double { Double(Sprite.land.frames) / landFPS }
+        static var reboundSeconds: Double { reboundRise + reboundHang + landSeconds }
+
+        /// What a shadow does while its owner is off the floor: how much of its size and
+        /// how much of its opacity are left at the top. It does not follow him up — it
+        /// shrinks and thins as the gap opens.
+        static let shadowInAir: CGFloat = 0.62
+        static let shadowFadeInAir: CGFloat = 0.5
         /// Standing about with the ball. Slow on purpose — a spin or a bounce at the
         /// running rate reads as fidgeting rather than as somebody waiting.
         static let idleBallFPS: Double = 7.5

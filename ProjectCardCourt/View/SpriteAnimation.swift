@@ -36,6 +36,11 @@ enum Sprite: String, CaseIterable {
     case bounceBall = "Player_front_bounceball"
     /// Arms out, taking it in; and the follow-through held after a jumper. Both one cell,
     /// both face-on — poses rather than loops, like `front`.
+    /// Going up for the board, and coming down off it. Five cells up — he leaves the
+    /// floor on the first and has both hands over his head on the last — and three back
+    /// on to it. Neither loops: a jump happens once.
+    case rebound = "Player_rebound"
+    case land = "Player_land"
     case praised = "Player_praised"
     case gooseneck = "Player_gooseneck"
     /// Nine heads and nine faces on 8-pixel strips, worn rather than played: the frame is
@@ -54,6 +59,8 @@ enum Sprite: String, CaseIterable {
         case .inboundReceiver: return 1
         // Three ways of standing about waiting for a throw.
         case .inboundReceiverBack: return 3
+        case .rebound:      return 5
+        case .land:         return 3
         case .spinBall:     return 4
         case .bounceBall:   return 6
         case .defender:     return 2
