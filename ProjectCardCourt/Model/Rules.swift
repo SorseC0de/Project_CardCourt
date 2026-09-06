@@ -255,6 +255,7 @@ enum Rules {
 
         guard taken, let card = counterOnOffer(to: seat, in: state) else {
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
+                            fromOwnMiss: held.fromOwnMiss,
                             offering: false, state: &state, events: &events)
             return events
         }
@@ -271,6 +272,7 @@ enum Rules {
             let arriving = clampsArriving(on: seat, in: state)
             state.pendingClamps = []
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
+                            fromOwnMiss: held.fromOwnMiss,
                             offering: false, state: &state, events: &events)
             pay(card.descriptor, breaking: arriving, for: seat, state: &state, events: &events)
         }
@@ -1270,6 +1272,7 @@ enum Rules {
         events.append(.rebounded(winner))
         // SHOT carries over — only an inbound resets it.
         beginPossession(winner, tickClock: true, fromRebound: true,
+                        fromOwnMiss: winner == shooter,
                         state: &state, events: &events)
         settleHands(state: &state, events: &events)
         return events
@@ -1608,7 +1611,8 @@ enum Rules {
     }
 
     private static func beginPossession(_ seat: Seat, tickClock shouldTick: Bool,
-                                        fromRebound: Bool = false, offering: Bool = true,
+                                        fromRebound: Bool = false, fromOwnMiss: Bool = false,
+                                        offering: Bool = true,
                                         state: inout GameState, events: inout [GameEvent]) {
         // **Asked before anything else happens.** A man who steps out of the play is not
         // there for the defenders either, and they land four lines below this — so the
@@ -1616,7 +1620,8 @@ enum Rules {
         // been touched yet, so the whole call is simply held and run again on the answer.
         if offering, let card = counterOnOffer(to: seat, in: state) {
             state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
-                                                            fromRebound: fromRebound)
+                                                            fromRebound: fromRebound,
+                                                            fromOwnMiss: fromOwnMiss)
             state.phase = .awaitingCounter(seat: seat, card: card.descriptor)
             return
         }
@@ -1627,6 +1632,7 @@ enum Rules {
         state.movesPlayedThisPossession = []
         state.movesClosed = false
         state.possessionFromRebound = fromRebound
+        state.possessionFromOwnRebound = fromOwnMiss
         // Mic'd Up ends where the possession does. Cleared before the draw, so one turned
         // up by this possession's own card is the one that stands.
         state.holderShot = 0

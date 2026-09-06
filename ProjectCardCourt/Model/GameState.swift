@@ -248,6 +248,7 @@ struct GameState: Codable {
         let seat: Seat
         let ticks: Bool
         let fromRebound: Bool
+        let fromOwnMiss: Bool
     }
     var heldPossession: HeldPossession?
     /// Back-and-Forth Game: how many more Breaks get waved away as they land.
@@ -265,6 +266,10 @@ struct GameState: Codable {
     /// True when this possession began by grabbing a miss. Putback Tip is the only card
     /// that asks, and it is the whole of what makes it a *putback*.
     var possessionFromRebound = false
+    /// **And whether it was his own miss he took back.** A different question: a board off
+    /// somebody else's brick is still a rebound, and the cards that pay for one say "your
+    /// own" on their face — Board-Crasher and Lethal Shooter both.
+    var possessionFromOwnRebound = false
     var lastPasser: Seat?
     /// Descriptor id of the last card played in the current possession; arms combos.
     var lastPlayThisPossession: String?

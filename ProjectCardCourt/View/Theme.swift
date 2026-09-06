@@ -104,7 +104,7 @@ enum Theme {
         /// — is measured from the same place, so speeding a catch up cannot leave one of
         /// them behind. It ran at 10 frames a second, which is 1.6 seconds of catching
         /// before a player would so much as start dribbling.
-        static let catchSeconds: Double = 0.60
+        static let catchSeconds: Double = 0.90
         static var catchFPS: Double { Double(Sprite.catchBall.frames) / catchSeconds }
     }
 

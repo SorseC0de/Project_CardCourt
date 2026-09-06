@@ -153,8 +153,12 @@ extension GameState {
     private func pays(_ effect: IntangibleEffect, for seat: Seat, fromThree: Bool) -> Bool {
         if effect.requiresScoredLastRound && !self[seat].scoredLastRound { return false }
         if effect.requiresThree && !fromThree { return false }
-        if effect.requiresOwnRebound && !possessionFromRebound { return false }
-        if effect.requiresAfterOwnRebound && !possessionFromRebound { return false }
+        // **His own board, not just a board.** Both of these say "your own" on the card;
+        // they were reading `possessionFromRebound`, which is true off anybody's miss —
+        // so Lethal Shooter handed out its hundred per cent for cleaning up after
+        // somebody else.
+        if effect.requiresOwnRebound && !possessionFromOwnRebound { return false }
+        if effect.requiresAfterOwnRebound && !possessionFromOwnRebound { return false }
         if effect.requiresReceivedPass && lastPasser == nil { return false }
         if let nth = effect.requiresNthShotOfRound, shotsThisRound + 1 != nth { return false }
         // Either half is enough. Both nil is no condition at all.

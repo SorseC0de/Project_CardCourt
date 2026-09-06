@@ -570,6 +570,9 @@ final class GameController {
     private(set) var revealedBids: [Seat: Int]?
     /// Who is going up for the board right now, if anybody.
     private(set) var reboundLeap: ReboundLeap?
+    /// When the last pass left the passer's hands, so the beat can wait out the catch
+    /// without waiting for what has already been spent — see `settleTheCatch`.
+    private var passLeftAt: Date?
     var bidSelection: Set<Card.ID> = []
 
     let seed: UInt64
@@ -1756,6 +1759,7 @@ final class GameController {
     private func stampSettled(_ events: [GameEvent]) {
         for case .passed in events {
             ballSettledAt = Date()
+            passLeftAt = Date()
             // Handed over when it lands, not when it was played. The court flies it for
             // exactly this long — both read the same constant, so they cannot drift.
             Task { @MainActor in
@@ -1906,7 +1910,14 @@ final class GameController {
         catchUp()
         release(.whistle, from: &ledger)
         stampSettled(events)
-        await playDrawsAndReveals(in: events)
+        // **The shot is a wall.** Everything the rules did after the ball went up is
+        // shown after the ball comes down — the round ending, the half turning over, a
+        // whole new hand dealt. Flown in one pass they arrived in the order the rules
+        // produced them, which put the halftime deal on screen before the shot that
+        // caused it, and a card revealed out of that deal told you the make before you
+        // had watched it.
+        let (beforeShot, afterShot) = events.splitAtTheShot()
+        await playDrawsAndReveals(in: beforeShot)
         if Task.isCancelled { return }
         catchUp()
         release(.draw, from: &ledger)
@@ -1938,6 +1949,17 @@ final class GameController {
             await celebrateThree(in: events)
             await callTheScore(in: events)
         }
+        // **Whatever the shot set off, now that it has been watched.** Outside the
+        // cutscene's own branch: a batch carrying an attempt that builds no scene would
+        // otherwise strand every card the shot dealt, and a stranded draw is a card
+        // missing from a hand for the rest of the game.
+        if !afterShot.isEmpty {
+            await playDrawsAndReveals(in: afterShot)
+            if Task.isCancelled { return }
+            catchUp()
+            release(.draw, from: &ledger)
+            release(.reveal, from: &ledger)
+        }
         release(.shot, from: &ledger)
 
         if let scene = TurnoverCutscene(events: events) {
@@ -1945,8 +1967,27 @@ final class GameController {
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil
         }
+        // **The turn does not start until the ball is in his hands.**
+        //
+        // Nothing waited for the catch: the beat ended at the throw, and the next play
+        // landed over the top of a man still closing his hands on the last one.
+        await settleTheCatch()
         catchUp()
         record(ledger)
+    }
+
+    /// Whatever is left of the throw and the catch, which are one movement.
+    ///
+    /// **The remainder, not the whole.** The draws fly alongside a pass on purpose — see
+    /// `stampSettled` — so by the time the beat gets here some of it has already been
+    /// spent, and waiting the full pair again would put a hole after every pass.
+    private func settleTheCatch() async {
+        guard let thrown = passLeftAt else { return }
+        passLeftAt = nil
+        let whole = Theme.Pass.flightSeconds + Theme.Pass.catchSeconds
+        let owing = whole - Date().timeIntervalSince(thrown)
+        guard owing > 0 else { return }
+        try? await Task.sleep(for: .seconds(owing))
     }
 
     private func record(_ events: [GameEvent]) {

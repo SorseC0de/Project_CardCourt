@@ -188,3 +188,19 @@ enum GameEvent: Hashable, Codable {
         }
     }
 }
+
+extension Array where Element == GameEvent {
+    /// Cut in two at the attempt, if there is one.
+    ///
+    /// A shot is the one thing on the floor everything else waits behind: the rules run
+    /// the whole chain past it in a single batch — the round ends, the half turns over, a
+    /// new hand is dealt — and every one of those would otherwise be shown while the ball
+    /// is still in the air.
+    func splitAtTheShot() -> (before: [GameEvent], after: [GameEvent]) {
+        guard let at = firstIndex(where: {
+            if case .shotAttempted = $0 { return true }
+            return false
+        }) else { return (self, []) }
+        return (Array(self[..<at]), Array(self[at...]))
+    }
+}

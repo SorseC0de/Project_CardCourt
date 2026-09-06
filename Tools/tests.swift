@@ -545,6 +545,38 @@ func runTests() {
                    "and lock what they came to lock")
     }
 
+    print("Off your own board")
+    do {
+        // Two rebounds of the same shot: one taken by the man who missed it, one not.
+        for own in [true, false] {
+            var (state, seat, _) = openPossession(seed: 91, cards: [])
+            let other = seat.left
+            state[own ? seat : other].intangibles.append(
+                CardLibrary.lethalShooter)
+            state.phase = .awaitingRebound(shooter: seat)
+            Rules.resolveRebound(bids: [seat: [], other: []], state: &state)
+            let winner = state.ball
+            Check.that(winner != nil, "somebody takes the board")
+            Check.that(state.possessionFromRebound, "the possession came off a board")
+            Check.that(state.possessionFromOwnRebound == (winner == seat),
+                       own ? "his own miss counts as his own"
+                           : "somebody else's miss does not")
+        }
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 92, cards: [])
+        state[seat].intangibles.append(CardLibrary.lethalShooter)
+        // Off a board that was not his: the override must not fire.
+        state.phase = .awaitingRebound(shooter: seat.left)
+        state.possessionFromRebound = true
+        state.possessionFromOwnRebound = false
+        let cold = state.shotModifiers(for: seat)
+        Check.that(cold.override == nil, "Lethal Shooter says nothing off somebody else's")
+        state.possessionFromOwnRebound = true
+        let hot = state.shotModifiers(for: seat)
+        Check.that(hot.override?.amount == 100, "and everything off his own")
+    }
+
     print("Viewer-relative seating")
     for viewer in Seat.allCases {
         Check.that(viewer.slot(viewedFrom: viewer) == .south, "\(viewer.playerName) sees themselves nearest")
