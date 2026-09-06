@@ -46,8 +46,30 @@ final class ReboundTuning {
     /// is thrown to arrive on the last cell of it.
     var rise: Double { Double(Sprite.rebound.frames - 1) / riseFPS }
     var landing: Double { Double(Sprite.land.frames) / landFPS }
-    /// The whole thing, which is what the game waits out.
-    var whole: Double { rise + hang + drop + landing }
+
+    /// **When his hands close on it**, counted from the moment he leaves the floor.
+    ///
+    /// The top of the leap, and nothing else — `flight` says how long the ball's trip
+    /// takes, not when it ends. Read the other way round, the ball began its descent at
+    /// `flight + hang` while he began his at `rise + hang`, so with any flight shorter
+    /// than the rise it left his hands early and reached the floor first. There is no
+    /// pair of numbers that fixes that, which is why it could not be tuned out.
+    ///
+    /// A trip longer than the rise is the one case they cannot meet: the ball is still in
+    /// the air when he starts down. The catch waits for it rather than the descent
+    /// starting mid-flight.
+    var catchAt: Double { max(rise, flight) }
+
+    /// How long he actually holds it up there.
+    ///
+    /// The hang, plus however long the ball keeps him waiting when its trip is longer
+    /// than his rise — he cannot start down before he has caught it. So whatever the
+    /// dials are set to, his descent and the ball's begin on the same frame.
+    var hold: Double { catchAt - rise + hang }
+
+    /// The whole thing, which is what the game waits out — including a ball left on
+    /// screen after he has landed.
+    var whole: Double { catchAt + hang + max(drop + landing, vanish) }
 
     func reset() {
         spawnX = ReboundStyle.spawnX; spawnY = ReboundStyle.spawnY
@@ -126,8 +148,8 @@ struct ReboundBench: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(CardPalette.red)
                 Spacer()
-                Text(String(format: "%.2f + %.2f + %.2f + %.2f",
-                            tune.rise, tune.hang, tune.drop, tune.landing))
+                Text(String(format: "%.2f + %.2f + %.2f + %.2f = %.2f",
+                            tune.catchAt, tune.hang, tune.drop, tune.landing, tune.whole))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.6))
                 Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {

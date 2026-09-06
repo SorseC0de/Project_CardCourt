@@ -201,9 +201,10 @@ struct PlayerFigure: View {
         withAnimation(.easeOut(duration: max(0, leapTune.rise - toLift))) { lifted = true }
         try? await Task.sleep(for: .seconds(max(0, leapTune.rise - toLift)))
 
-        // It is in his hands. Held there on the last cell.
+        // It is in his hands. Held there on the last cell — for the hang, and for
+        // however much longer the ball takes to reach him. See `ReboundTuning.hold`.
         leap = .hanging
-        try? await Task.sleep(for: .seconds(leapTune.hang))
+        try? await Task.sleep(for: .seconds(leapTune.hold))
 
         // **Down still holding the catch.** The landing sheet is what touching the floor
         // looks like, and playing it while he is still in the air had him land twice: once

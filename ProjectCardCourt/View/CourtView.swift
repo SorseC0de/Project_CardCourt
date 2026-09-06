@@ -408,7 +408,11 @@ struct CourtView: View {
                 }
                 // Thrown to arrive on the last cell of the leap.
                 withAnimation(.easeIn(duration: rebounding.flight)) { reboundFlight = 1 }
-                try? await Task.sleep(for: .seconds(rebounding.flight + rebounding.hang))
+                // **Held until he is up there**, not until the trip is over. A flight
+                // shorter than the rise put the ball at the catch point early, and
+                // starting the descent from there had it leave his hands and beat him
+                // down — the two were counted off different clocks. See `catchAt`.
+                try? await Task.sleep(for: .seconds(rebounding.catchAt + rebounding.hang))
                 // Caught. It rides his descent rather than hanging in the air he has
                 // left — the same beat he spends coming down still holding the catch.
                 withAnimation(.easeIn(duration: rebounding.drop)) { reboundCarry = 1 }
