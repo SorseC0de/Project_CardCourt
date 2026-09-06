@@ -113,6 +113,13 @@ final class CardDealer {
                              axis: [1, 0, 0])
         }
 
+        // **Whatever was still running, stops.** A flight cancelled part way leaves a
+        // `move` in flight on this entity, and assigning a transform under it does not
+        // take it off — the two then interpolate against each other, which is a card
+        // that grows on its way over and now and then flashes up enormous. The pile had
+        // the same fault and the same cure.
+        card.stopAllAnimations()
+
         let lift = distance(start, end) * Throw.lift
         card.isEnabled = true
         card.transform = Transform(scale: SIMD3(repeating: Throw.leaves),
@@ -143,6 +150,7 @@ final class CardDealer {
             if t >= 1 { break }
             try? await Task.sleep(for: .seconds(step))
         }
+        card.stopAllAnimations()
         card.isEnabled = false
     }
 }

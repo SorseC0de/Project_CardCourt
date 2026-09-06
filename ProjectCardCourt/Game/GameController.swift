@@ -30,14 +30,20 @@ enum Pacing {
     static let whistleReveal = 3.0
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
-    static let drawFlight = 0.30
+    /// How long a card takes to come off the pile. It was a third of a second, which is
+    /// not long enough to read a card being turned over and put away — the stage had been
+    /// quietly flying them for 0.55 all along, and that is the trip that reads.
+    static let drawFlight = 0.55
     /// What the deck spends turning to face whoever is drawing, before it throws — see `CourtStage`,
     /// which plays that ahead of the card. The beat has to cover it, or the card lands in
     /// a hand before the pile has finished reaching for it.
     static let deckLean = 0.16
+    /// The gap between one card being done with and the next being asked for. Small, and
+    /// the only thing standing between a flight and being cancelled on its last frame.
+    static let handover = 0.08
     /// How long a card takes to reach the pile from a hand.
     static let spendFlight = 0.34
-    static let dealFlight = 0.15
+    static let dealFlight = 0.30
     /// How long the host holds the opening deal waiting for the other devices to say they
     /// are on screen. Long enough for a slow join, short enough that a phone that never
     /// answers does not hold the game up.
@@ -1069,8 +1075,12 @@ final class GameController {
         } else {
             flight = DrawFlight(seat: seat)
         }
+        // A little more than the stage spends, not exactly it: waiting the same number
+        // to the millisecond means the next draw arrives on the last frame of the last
+        // one and cancels it there.
         try? await Task.sleep(for: .seconds(duration + (RenderDebug.shared.courtStage
-                                                        ? Pacing.deckLean : 0)))
+                                                        ? Pacing.deckLean + Pacing.handover
+                                                        : 0)))
         // It is in the bag now, and not a moment before.
         if let card { undelivered.remove(card) }
     }
