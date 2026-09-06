@@ -977,6 +977,23 @@ final class GameController {
         DevLog.say(.net, "table ready: \(readySeats.count)/\(remotes.count) answered")
     }
 
+    /// **Puts the game down for good.**
+    ///
+    /// Quitting is not pausing: nothing is left running to be resumed, the table is given
+    /// back, and whoever else was in the match is told rather than left waiting on a
+    /// device that has walked away. The controller itself is dropped by whoever owns it —
+    /// this is what has to happen first.
+    func quit() {
+        loop?.cancel()
+        loop = nil
+        watchdog?.cancel()
+        watchdog = nil
+        match?.leave()
+        match = nil
+        gate = .thinking
+        DevLog.say(.input, "quit — the session is over")
+    }
+
     /// Waits on one seat's device for one decision, and gives up when its clock runs out.
     ///
     /// Written against the inbox rather than a continuation because a client is allowed to

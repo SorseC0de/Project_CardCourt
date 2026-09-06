@@ -1,7 +1,15 @@
 import SwiftUI
 
 struct GameView: View {
-    @State private var controller = GameController()
+    /// **Owned by `RootView`, not by the screen.** A controller deals a game the moment
+    /// it exists, so one made here would be a game dealt by looking at the court — and
+    /// quitting has to unload the session, which a screen cannot do to itself.
+    var controller: GameController
+    /// Ends the session and goes back to the front screen.
+    var onQuit: () -> Void = {}
+    /// The same again, dealt fresh.
+    var onRunItBack: () -> Void = {}
+    @State private var paused = false
     @State private var logStyle: LogStyle = .overlay
     @State private var detail: Card?
     /// A slotted passive or an active debuff, held up to be read.
@@ -10,11 +18,6 @@ struct GameView: View {
     @State private var browsingDiscard = false
     /// What the player has tapped open on the floor. See `Inspection`.
     @State private var onFloor: Inspection?
-    @State private var showingLobby = false
-    /// Set by the front screen when Play Online is what brought you here. The lobby needs
-    /// a controller and the controller lives down here, so the way in is a flag rather
-    /// than a screen of its own.
-    var opensLobby = false
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
     private let logHeight: CGFloat = 74
@@ -50,6 +53,7 @@ struct GameView: View {
             prompts.zIndex(2)
             scenes.zIndex(3)
             calls.zIndex(4)
+            if paused { pauseMenu.zIndex(5) }
         }
         // What the log's foot and the name plate are both measured in.
         .coordinateSpace(name: Chrome.screen)
@@ -435,10 +439,7 @@ struct GameView: View {
     /// - **D** draws a single card (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
-            Button("New game") {
-                controller = GameController()
-                controller.begin()
-            }
+            Button("New game") { onRunItBack() }
             .keyboardShortcut("r", modifiers: [])
 
             #if DEBUG
@@ -495,7 +496,7 @@ struct GameView: View {
     private var standingAside: Bool {
         switch controller.gate {
         case .awaitingDiscard, .awaitingInjuryDiscard, .awaitingBid,
-             .awaitingTarget, .awaitingNaming:
+             .awaitingTarget, .awaitingNaming, .awaitingInbound:
             return true
         default: return false
         }
@@ -624,10 +625,7 @@ struct GameView: View {
                     .padding(.top, 6)
             }
 
-            .sheet(isPresented: $showingLobby) {
-                MatchLobbyView(controller: controller)
-            }
-            .task { if opensLobby { showingLobby = true } })
+            )
     }
 
     /// Sits under the scoreboard. Overlay drops the solid panel for a scrim so the top
@@ -686,6 +684,7 @@ struct GameView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel(logStyle.label)
+                pauseButton
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -693,6 +692,63 @@ struct GameView: View {
         .padding(.top, 2)
         .padding(.bottom, 8)
         .background(Theme.panel)
+    }
+
+    /// **The only way out of a game.** Louder than the two readings beside it, because it
+    /// is the one thing on the bar that does something rather than saying something.
+    private var pauseButton: some View {
+        Button {
+            controller.pause()
+            withAnimation(.easeOut(duration: 0.2)) { paused = true }
+        } label: {
+            Image(systemName: "pause.fill")
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 27, height: 27)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(CardPalette.blue))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(.white, lineWidth: 1.5))
+                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Pause")
+    }
+
+    /// Stopped, and what can be done about it.
+    ///
+    /// **Quitting unloads the game**, rather than walking away from one still running
+    /// behind the front screen — see `RootView`. In a match it cannot stop the table, so
+    /// the freeze is silently nothing there and the only real choice is to leave.
+    private var pauseMenu: some View {
+        ZStack {
+            Color.black.opacity(0.86).ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { resume() }
+            VStack(spacing: 18) {
+                ScreenTitle(text: "Paused", drop: CardPalette.blue)
+                if !controller.canPause {
+                    Text("The table carries on without you.")
+                        .font(.custom(Chrome.display, size: 15))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                VStack(spacing: 12) {
+                    ChunkyButton(title: "Resume", fill: CardPalette.blue) { resume() }
+                    ChunkyButton(title: "Quit Game", fill: CardPalette.red) {
+                        paused = false
+                        onQuit()
+                    }
+                }
+                .padding(.horizontal, 40)
+            }
+        }
+        .transition(.opacity)
+    }
+
+    private func resume() {
+        controller.resume()
+        withAnimation(.easeOut(duration: 0.2)) { paused = false }
     }
 
     /// The last number the clock actually showed.
@@ -755,10 +811,7 @@ struct GameView: View {
                     .padding(.horizontal, 26)
                     .padding(.top, 4)
 
-                Button {
-                    controller = GameController()
-                    controller.begin()
-                } label: {
+                Button { onRunItBack() } label: {
                     Text("RUN IT BACK")
                         .font(.system(size: 14, weight: .black)).tracking(1.2)
                         .foregroundStyle(.black)
@@ -789,4 +842,4 @@ struct GameView: View {
 
 #Preview("Column warp") { ColumnWarpBench() }
 
-#Preview("Straight to the table") { GameView() }
+#Preview("Straight to the table") { GameView(controller: GameController()) }

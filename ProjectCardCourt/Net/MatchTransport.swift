@@ -25,6 +25,10 @@ protocol MatchTransport: AnyObject {
     var onClientMessage: ((Seat, ClientMessage) -> Void)? { get set }
     /// Called on a player's device when the host has said something.
     var onHostMessage: ((HostMessage) -> Void)? { get set }
+    /// Puts the match down for good. A game that has been quit is not a game somebody
+    /// else is still waiting on.
+    func leave()
+
     /// Called when somebody drops. Their seat carries on under the AI, which is the only
     /// answer that keeps a four-handed game going.
     var onSeatLost: ((Seat) -> Void)? { get set }

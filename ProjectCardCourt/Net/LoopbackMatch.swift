@@ -98,6 +98,11 @@ final class LoopbackMatch: MatchTransport {
         host.onClientMessage?(seat, copy)
     }
 
+    func leave() {
+        wire.devices.removeAll()
+        Table.shared.seatSolo()
+    }
+
     /// Pulls a seat off the table, the way a dropped phone does.
     func drop(_ seat: Seat) {
         guard isHost else { return }

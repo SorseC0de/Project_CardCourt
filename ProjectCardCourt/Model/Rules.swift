@@ -275,6 +275,11 @@ enum Rules {
                             fromOwnMiss: held.fromOwnMiss,
                             offering: false, state: &state, events: &events)
             pay(card.descriptor, breaking: arriving, for: seat, state: &state, events: &events)
+            // **A trip is queued, not taken.** `awardFreeThrows` only puts one down —
+            // the phase is set here, after the possession has finished settling, or the
+            // line would be set on a phase about to be replaced. Flop broke the Clamps
+            // before they landed and then nobody went to the line.
+            takeTheLine(state: &state, events: &events)
         }
         settleHands(state: &state, events: &events)
         return events

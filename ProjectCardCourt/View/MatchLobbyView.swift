@@ -13,12 +13,15 @@ import SwiftUI
 /// chairs before a match exists made it look like a game was already under way.
 struct MatchLobbyView: View {
     var controller: GameController
+    /// Backing out. The session goes with it — see `RootView`.
+    var onLeave: () -> Void = {}
+    /// The match is running and the court is what to look at now.
+    var onStart: () -> Void = {}
     @State private var session = GameCenterMatch()
     @State private var table = Table.shared
     /// Held between the clasp and the table appearing, so the shake gets its moment
     /// rather than being cut off by the thing it was waiting for.
     @State private var shaking = false
-    @Environment(\.dismiss) private var dismiss
 
     private enum Beat {
         /// How long the full handshake holds before the table comes up.
@@ -87,7 +90,7 @@ struct MatchLobbyView: View {
             // done the moment the game is running.
             guard status == .playing else { return }
             if session.isHost { controller.begin() }
-            dismiss()
+            onStart()
         }
     }
 
@@ -107,7 +110,7 @@ struct MatchLobbyView: View {
                     SpriteAnimation(sprite: .heads, scale: 4, isPlaying: false, restFrame: 0)
                 }
             }
-            Button { dismiss() } label: {
+            Button { onLeave() } label: {
                 Chip(fill: CardPalette.red, stroke: CardPalette.gold,
                      shade: CardPalette.orange, side: 38) {
                     Image(systemName: "xmark")
@@ -239,14 +242,14 @@ struct MatchLobbyView: View {
                     ChunkyButton(title: "Waiting for the host", fill: CardPalette.gray,
                                  isEnabled: false) {}
                 }
-                Button { session.stop() } label: {
+                Button { session.stop(); onLeave() } label: {
                     SmallCapsText(text: "Leave the table", font: Chrome.display, size: 15)
                         .foregroundStyle(CardPalette.red)
                 }
                 .buttonStyle(.plain)
             }
         case .playing:
-            ChunkyButton(title: "Take the floor", fill: CardPalette.gold) { dismiss() }
+            ChunkyButton(title: "Take the floor", fill: CardPalette.gold) { onStart() }
         }
     }
 
