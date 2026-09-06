@@ -1687,7 +1687,11 @@ final class GameController {
     /// This is the other sort: he arrives, swipes, and drifts off, which is the only time
     /// anybody sees him.
     private func showClampBite(in events: [GameEvent]) async {
-        for case .clampBit(let seat, _, _) in events {
+        // **Only a Clamp brings a body.** `clampBit` is the event for anything that takes
+        // cards out of a hand — a Clamp, an Injury's toll each turn, a Bullet Pass
+        // knocking one loose on the way in — and the floor was answering all three by
+        // sending a defender out to swipe at him. The card says which it was.
+        for case .clampBit(let seat, let card, _) in events where card.type == .clamp {
             clampSwipe = (seat: seat, id: UUID())
             try? await Task.sleep(for: .seconds(Pacing.clampSwipe))
             clampSwipe = nil

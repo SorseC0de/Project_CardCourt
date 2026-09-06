@@ -27,9 +27,17 @@ struct ThreeCelebrationView: View {
     private let sparkleScale: CGFloat = 3
 
     private enum Beat {
-        /// Between the palm and each finger. Three fingers landing inside a third of a
-        /// second read as one shape appearing rather than as three arriving.
-        static let between: Double = 0.20
+        /// The fist arrives on its own and sits there. Fingers on the way up before
+        /// anybody has read the hand is one shape appearing, not a gesture being made.
+        static let fistHolds: Double = 0.40
+        /// And then one finger at a time.
+        static let between: Double = 0.30
+        /// How long the sparkle sheet runs, which is when it has to go: it is a one-shot
+        /// and a one-shot holds its last cell forever. Those were the pixels left stuck
+        /// on the floor after the hand had gone.
+        static var sparkle: Double {
+            Double(Sprite.sparkleBurst.frames) / Theme.Figure.playerFPS
+        }
     }
 
     var body: some View {
@@ -92,7 +100,12 @@ struct ThreeCelebrationView: View {
         // was firing against an empty screen.
         withAnimation(.spring(response: 0.34, dampingFraction: 1)) { arrived[0] = true }
         sparkleAt = Date()
-        try? await Task.sleep(for: .seconds(Beat.between))
+        // Taken off on its own clock, so the fingers are not waiting on it.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(Beat.sparkle))
+            sparkleAt = nil
+        }
+        try? await Task.sleep(for: .seconds(Beat.fistHolds))
         for finger in 1..<4 {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.42)) { arrived[finger] = true }
             try? await Task.sleep(for: .seconds(Beat.between))
