@@ -97,15 +97,13 @@ enum Theme {
         /// over.
         static let holdSeconds: Double = 0.08
 
-        /// How long a catch takes, start to finish.
-        ///
-        /// **The only number to move.** The frame rate follows from it, and everything
-        /// that has to stay in step — the hold, the sprite swap, a cutscene's ball flight
-        /// — is measured from the same place, so speeding a catch up cannot leave one of
-        /// them behind. It ran at 10 frames a second, which is 1.6 seconds of catching
-        /// before a player would so much as start dribbling.
-        static let catchSeconds: Double = 0.90
-        static var catchFPS: Double { Double(Sprite.catchBall.frames) / catchSeconds }
+        /// How fast the catch sheet plays — see `Theme.Figure` on rates.
+        static let catchFPS: Double = 20
+        /// And so how long a catch takes: sixteen cells at that rate. **This direction,
+        /// not the other one.** It was written the other way round — a duration was
+        /// chosen and the rate fell out of it at 17.8 a second, which is not a rate
+        /// anybody draws for and holds cells for an uneven number of screen refreshes.
+        static var catchSeconds: Double { Double(Sprite.catchBall.frames) / catchFPS }
     }
 
     enum Figure {
@@ -125,6 +123,24 @@ enum Theme {
         /// Low: at four tenths a man who is not an option still reads as a man standing
         /// there, and the whole point is that he is not one of the answers.
         static let dimmed: Double = 0.15
+        // ── How fast the sheets play ────────────────────────────────────
+        //
+        // **The rate is chosen and the duration follows.** A sheet plays at a speed
+        // somebody picked for the drawing, and how long it takes is `frames / rate`.
+        // Never the reverse: pick a duration and the rate that falls out is whatever
+        // arithmetic left behind.
+        //
+        // **The test is refreshes, not round numbers.** A screen redraws sixty times a
+        // second — a hundred and twenty on the newer ones — so a rate is even only if
+        // `60 / rate` is a whole number of them. At 7.5 every cell is held for exactly
+        // eight refreshes and reads clean; at 8 it alternates seven and eight and
+        // judders. These are the rates that pass, and nothing plays at anything else:
+        //
+        //     4 → 15    7.5 → 8    10 → 6    12 → 5    15 → 4    20 → 3    30 → 2
+        //
+        // Sprite sheets only. A card's hold or a ball's arc is arithmetic rather than
+        // animation and takes whatever it needs.
+
         /// The sheets were exported at 10 (0.1s per frame in the GIFs); they read
         /// sluggish at that, so the game runs them faster than they were authored.
         static let playerFPS: Double = 15
@@ -132,7 +148,8 @@ enum Theme {
         /// poses and a hold, so the eye reads a state rather than a motion.
         static let sidelineFPS: Double = 4
         /// The shot runs slower than play does — it is the beat the scene is built on.
-        static let shootFPS: Double = 8
+        /// Was 8, which is the one rate in the game that did not divide the refresh.
+        static let shootFPS: Double = 10
 
         // ── Going up for the board ──────────────────────────────────────
         /// The leap and the landing, in frames a second.

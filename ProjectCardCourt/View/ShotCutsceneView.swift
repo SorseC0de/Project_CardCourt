@@ -218,12 +218,15 @@ struct ShotCutsceneView: View {
             }
             .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
             .task { shuffling = true }
-            // Timed off the sheet rather than off the scene: the shot animation is
-            // thirteen cells at its own rate, and that is when it is done with him.
+            // **At the release, not at the end of the sheet.** The gooseneck *is* the
+            // follow-through — he holds it while the ball is up, which means turning to
+            // the room the moment it leaves his hand. Timed off the whole thirteen cells
+            // he turned as the ball came down, with nothing left to watch. Off the same
+            // dial the ball leaves on, so the two cannot drift apart.
             .task {
                 guard scene.signature != .none else { return }
-                let played = Double(Sprite.shoot.frames) / Theme.Figure.shootFPS
-                try? await Task.sleep(for: .seconds(played))
+                try? await Task.sleep(for: .seconds(tuning.releaseDelay
+                                                    / max(0.1, tuning.tempo)))
                 facingYou = true
             }
             .task { await run() }

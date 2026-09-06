@@ -54,7 +54,8 @@ struct ThreeCelebrationView: View {
                 .position(centre)
 
                 if let sparkleAt {
-                    SpriteAnimation(sprite: .sparkleBurst, scale: sparkleScale, fps: 14,
+                    SpriteAnimation(sprite: .sparkleBurst, scale: sparkleScale,
+                                    fps: Theme.Figure.playerFPS,
                                     playsOnce: true, startedAt: sparkleAt)
                         .position(centre)
                         .allowsHitTesting(false)
