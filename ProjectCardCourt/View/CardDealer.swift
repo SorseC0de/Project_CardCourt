@@ -32,6 +32,10 @@ final class CardDealer {
         /// it reaches him.
         static let leaves: Float = 1.0
         static let arrives: Float = 0.01
+        /// How far it rides above the straight line, against the distance covered. **Up,
+        /// off the table.** A card that only shrinks along a flat line reads as sinking
+        /// into the floor rather than being dealt off the top of a pile.
+        static let lift: Float = 0.12
         /// Where it starts leaning: wherever the deck is leaning. It comes off the top of
         /// a pile that has already bowed toward him.
         static let bowed = DeckStage.bowAngle
@@ -55,9 +59,16 @@ final class CardDealer {
     /// from below — about Z, which mirrors it left to right rather than standing the name
     /// plate on its head.
     func build(mesh: MeshResource, material: some RealityKit.Material,
-               face: Entity? = nil, thickness: Float = 0) {
+               face: Entity? = nil, back: Entity? = nil, thickness: Float = 0) {
         let card = ModelEntity(mesh: mesh, materials: [material])
         card.isEnabled = false
+        // **The printed back on top, the blank front underneath.** A card leaves the pile
+        // the way it sat on it — back up — and the curl is what turns it over. Until then
+        // what you are watching is the back of a card, not a slab of flat colour.
+        if let back {
+            back.position = SIMD3(0, thickness / 2 + 0.00005, 0)
+            card.addChild(back)
+        }
         if let face {
             face.position = SIMD3(0, -(thickness / 2 + 0.00005), 0)
             face.orientation = simd_quatf(angle: .pi, axis: [0, 0, 1])
@@ -92,6 +103,7 @@ final class CardDealer {
                              axis: [1, 0, 0])
         }
 
+        let lift = distance(start, end) * Throw.lift
         card.isEnabled = true
         card.transform = Transform(scale: SIMD3(repeating: Throw.leaves),
                                    rotation: lean(0), translation: start)
@@ -104,6 +116,7 @@ final class CardDealer {
             let t = Float(i) / Float(Throw.steps)
             var next = Transform()
             next.translation = start + (end - start) * t
+                + SIMD3(0, lift * sin(t * .pi), 0)
             next.rotation = lean(t)
             next.scale = SIMD3(repeating: Throw.leaves
                                + (Throw.arrives - Throw.leaves) * t)

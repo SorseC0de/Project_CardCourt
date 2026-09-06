@@ -142,11 +142,19 @@ struct CourtStage: View {
                     depth: Stage.cardDepth * Stage.dealtCard)
                 let black = UnlitMaterial(color: UIColor(CardPalette.black))
                 let thickness = Stage.slab * Stage.dealtCard * 0.5
+                // The same printed back the pile wears, at the dealt card's own size.
+                let dealtBack = MeshResource.generatePlane(
+                    width: Stage.cardWidth * Stage.dealtCard
+                        * Float(CardMetrics.artboard.width / CardMetrics.backShape.width),
+                    depth: Stage.cardDepth * Stage.dealtCard
+                        * Float(CardMetrics.artboard.height / CardMetrics.backShape.height))
                 dealer.build(mesh: dealtMesh(), material: black,
                              face: ModelEntity(mesh: blank, materials: [blankFacing]),
+                             back: ModelEntity(mesh: dealtBack, materials: [facing]),
                              thickness: thickness)
                 spender.build(mesh: dealtMesh(), material: black,
                               face: ModelEntity(mesh: blank, materials: [blankFacing]),
+                              back: ModelEntity(mesh: dealtBack, materials: [facing]),
                               thickness: thickness)
 
                 DevLog.say(.deck, "stage: built")
