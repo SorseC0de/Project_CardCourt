@@ -1,37 +1,6 @@
 import Observation
 import SwiftUI
 
-/// Where one eye sits on one cell of one sheet.
-///
-/// **Per eye, per frame, per sheet**, because that is how the drawing varies: a head that
-/// turns hides one eye and lifts the other, a head that bobs takes both with it, and a
-/// sheet drawn from behind has neither. Three named rules covered the easy cases and
-/// nothing else; a table covers all of them and says exactly what it is doing.
-struct EyeSpot: Codable, Hashable {
-    /// Art pixels from the head's own origin, **as seen on screen**: right and down are
-    /// positive for both eyes. The far eye is drawn flipped, so its offset is turned
-    /// round on the way in — nudging it right moves it right.
-    var x: CGFloat = 0
-    var y: CGFloat = 0
-    /// Whether it is drawn at all. A man in profile has one eye; a man with his back
-    /// turned has none.
-    var shown = true
-}
-
-/// Which of the two.
-///
-/// The sheet holds one eye and the other is a flipped copy of it, so they are named for
-/// what they are rather than left and right — which swaps meaning the moment the whole
-/// figure mirrors.
-enum Eye: String, CaseIterable, Codable {
-    /// The one the sheet is drawn with.
-    case near
-    /// Its reflection.
-    case far
-
-    var title: String { self == .near ? "Near" : "Far" }
-}
-
 /// Every eye on every sheet, tuned by hand and dumped as source.
 ///
 /// Lives in `UserDefaults` while it is being worked out, and is meant to end up in
@@ -60,10 +29,15 @@ final class EyeTuning {
         "\(sheet.rawValue)/\(frame)/\(eye.rawValue)"
     }
 
-    /// Where this eye goes. Tuned if it has been; otherwise what the sheet's own rule
-    /// says, which is where the tuning starts from rather than something it replaces.
+    /// Where this eye goes.
+    ///
+    /// Three answers in order: what was placed on this exact cell, what was placed on the
+    /// whole sheet, and — failing both — what the code guessed. The middle one is what
+    /// most sheets need, since a head that does not move wants one answer for sixteen
+    /// frames.
     func spot(_ sheet: Sprite, frame: Int, eye: Eye) -> EyeSpot {
-        tuned[Self.key(sheet, frame: frame, eye: eye)] ?? Self.guessed(sheet, frame: frame, eye: eye)
+        EyeTable.spot(sheet.rawValue, frame: frame, eye: eye, in: tuned)
+            ?? Self.guessed(sheet, frame: frame, eye: eye)
     }
 
     func set(_ spot: EyeSpot, on sheet: Sprite, frame: Int, eye: Eye) {
@@ -96,41 +70,30 @@ final class EyeTuning {
         }
     }
 
+    /// How many of this sheet's cells have been placed, out of how many there are.
+    func progress(_ sheet: Sprite) -> (done: Int, all: Int) {
+        let all = sheet.frames * Eye.allCases.count
+        let done = (0..<sheet.frames).reduce(0) { running, frame in
+            running + Eye.allCases.count { tuned[Self.key(sheet, frame: frame, eye: $0)] != nil }
+        }
+        return (done, all)
+    }
+
     private func save() {
         guard let data = try? JSONEncoder().encode(tuned) else { return }
         UserDefaults.standard.set(data, forKey: Self.store)
+        // **Also to the log, every time.** The table lives in `UserDefaults`, and a
+        // rebuild from Xcode reinstalls the app and takes the container with it. A pass
+        // nobody has printed yet is a pass one build away from being done twice.
+        DevLog.say(.input, "eyes: \(tuned.count) placed")
     }
 
     // MARK: - Out
 
-    /// The whole table as Swift, ready to paste into `baked`.
-    ///
-    /// Only what differs from the guess is written: a dump that repeats the default for
-    /// every frame of every sheet is four hundred lines saying nothing.
+    /// The whole table as Swift, ready to paste in.
     var dump: String {
-        var lines: [String] = []
-        for sheet in Sprite.allCases {
-            var sheetLines: [String] = []
-            for frame in 0..<sheet.frames {
-                for eye in Eye.allCases {
-                    let key = Self.key(sheet, frame: frame, eye: eye)
-                    guard let spot = tuned[key],
-                          spot != Self.guessed(sheet, frame: frame, eye: eye) else { continue }
-                    sheetLines.append(
-                        "    \"\(key)\": EyeSpot(x: \(trim(spot.x)), y: \(trim(spot.y)),"
-                        + " shown: \(spot.shown)),")
-                }
-            }
-            guard !sheetLines.isEmpty else { continue }
-            lines.append("    // \(sheet.rawValue)")
-            lines += sheetLines
-        }
-        guard !lines.isEmpty else { return "// nothing tuned yet" }
-        return "static let baked: [String: EyeSpot] = [\n" + lines.joined(separator: "\n") + "\n]"
-    }
-
-    private func trim(_ value: CGFloat) -> String {
-        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+        EyeTable.source(from: tuned,
+                        sheets: Sprite.allCases.map { (name: $0.rawValue, frames: $0.frames) })
     }
 
     // MARK: - What the code guessed

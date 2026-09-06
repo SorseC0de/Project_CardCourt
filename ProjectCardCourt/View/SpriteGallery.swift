@@ -57,9 +57,12 @@ struct SpriteGallery: View {
         HStack(spacing: 8) {
             SmallCapsText(text: "Eyes", font: Chrome.display, size: 20, tracking: 1)
                 .foregroundStyle(.white)
-            Text(sheet.rawValue)
+            // How much of this sheet is placed, so the pass has an end you can see.
+            let done = eyes.progress(sheet)
+            Text("\(sheet.rawValue)  \(done.done)/\(done.all)")
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(eyes.isTuned(sheet) ? CardPalette.gold : CardPalette.gray)
+                .foregroundStyle(done.done == done.all ? CardPalette.gold
+                                 : (done.done > 0 ? .white : CardPalette.gray))
             Spacer()
             chip("play", on: playing) { playing.toggle() }
             chip("reset", on: false) { eyes.forget(sheet) }
