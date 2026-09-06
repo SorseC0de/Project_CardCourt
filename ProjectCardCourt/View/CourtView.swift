@@ -215,7 +215,14 @@ struct CourtView: View {
                                flight: deal.map { deal in
                                    CardFlight(id: deal.id,
                                               from: share(deckPoint(on: court), in: geo.size),
-                                              to: share(court.footing(of: deal.seat), in: geo.size))
+                                              to: share(court.footing(of: deal.seat), in: geo.size),
+                                              // **The same number the controller waits.**
+                                              // It was taking the default and flying for
+                                              // longer than anybody was waiting, so the
+                                              // next draw cancelled it a little over half
+                                              // way — which is a card that is large and
+                                              // then simply gone, having never shrunk.
+                                              seconds: flightDuration)
                                },
                                seatsAt: Dictionary(uniqueKeysWithValues: Seat.allCases.map {
                                    ($0, share(court.footing(of: $0), in: geo.size))

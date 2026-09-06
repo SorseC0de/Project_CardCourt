@@ -27,11 +27,11 @@ final class CardDealer {
     /// How the throw is shaped. Metres, radians and turns.
     private enum Throw {
         /// **It leaves at the size of the slab it came off and shrinks into the bag.**
-        /// Not to nothing: a hundredth was small enough that the last stretch was a card
-        /// winking out rather than being put away, and the turn it had just finished went
-        /// with it. A tenth still arrives as gone without throwing the end away.
+        /// Not to nothing — a scale of zero is a matrix that cannot be inverted, and
+        /// RealityKit will not have it — but to near enough that it is gone by the time
+        /// it arrives.
         static let leaves: Float = 1.0
-        static let arrives: Float = 0.1
+        static let arrives: Float = 0.01
         /// How far it rides above the straight line, against the distance covered.
         /// A card picked up off a table, not one lobbed across the room: the hand lifts
         /// it just clear of the pile and turns it over on the way.
@@ -121,9 +121,17 @@ final class CardDealer {
         // Walked rather than tweened: `move(to:)` slerps between two rotations, and a
         // quarter turn slerped in one go swings the card out of the line it is meant to
         // be travelling along.
+        // **Walked against the clock, not against a counter.** `Task.sleep` can only ever
+        // be late, and thirty of them compound — a trip walked by step index overruns the
+        // time it was given and gets cancelled by whatever comes next, which is a card
+        // that vanishes in the middle of its own animation. Reading `t` off the clock
+        // costs a dropped step under load and finishes on time regardless.
         let step = seconds / Double(Throw.steps)
-        for i in 1...Throw.steps {
-            let t = Float(i) / Float(Throw.steps)
+        let began = Date()
+        var t: Float = 0
+        while t < 1 {
+            if Task.isCancelled { break }
+            t = min(1, Float(Date().timeIntervalSince(began) / seconds))
             var next = Transform()
             next.translation = start + (end - start) * t
                 + SIMD3(0, lift * sin(t * .pi), 0)
@@ -132,8 +140,8 @@ final class CardDealer {
             next.scale = SIMD3(repeating: Throw.leaves
                                + (Throw.arrives - Throw.leaves) * gone)
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
+            if t >= 1 { break }
             try? await Task.sleep(for: .seconds(step))
-            if Task.isCancelled { break }
         }
         card.isEnabled = false
     }
