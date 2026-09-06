@@ -650,7 +650,8 @@ struct GameView: View {
                         HooperPortrait(pose: Winner.poses[place % Winner.poses.count],
                                        // Only the player has chosen a face; the rest
                                        // wear the one on their sheet.
-                                       kit: seat.isLocal ? HooperKit.shared : nil)
+                                       kit: seat.isLocal ? HooperKit.shared : nil,
+                                       seat: seat)
                             .scaleEffect(2.1, anchor: .bottom)
                             .frame(width: Theme.Figure.headDiameter * 2.1,
                                    height: Theme.Figure.height * 2.1, alignment: .bottom)

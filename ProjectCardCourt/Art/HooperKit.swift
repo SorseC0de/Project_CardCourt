@@ -191,17 +191,22 @@ enum Kit {
         }
 
         /// Whether the sheet is drawn face-on, and so wears the chosen head. The two ball
-        /// idles and the throw-in stance are all front views, like `front` itself.
+        /// idles are front views like `front` itself; the sideline figure is one too, but
+        /// it puts its own face on.
         var facesYou: Bool {
             switch self {
-            case .spinning, .bouncing, .holding, .front: return true
+            case .spinning, .bouncing, .front: return true
             default: return false
             }
         }
 
-        /// Whether a ball has to be put in his hands. The two ball sheets carry their own;
-        /// the throw-in stance is drawn empty.
-        var needsBall: Bool { self == .holding }
+        /// Whether this is the sideline figure rather than a plain sheet.
+        ///
+        /// The throw-in stance is drawn empty-handed and faceless, and `InbounderFigure`
+        /// already knows where the ball and the face go on it — tuned once, when he was
+        /// put on the sideline. Drawing him here a second way would be two answers to a
+        /// question that has one.
+        var isSideline: Bool { self == .holding }
 
         /// Whether the sheet has a face printed on it that the chosen one has to cover.
         /// The three front views do; nothing else is drawn looking at you.

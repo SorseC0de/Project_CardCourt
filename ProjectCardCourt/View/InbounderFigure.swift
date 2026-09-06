@@ -24,6 +24,9 @@ struct InbounderFigure: View {
     var mirrored = false
     /// Frames a second. The slowest thing in the game on purpose.
     var fps: Double = Theme.Figure.sidelineFPS
+    /// What he wears, when it is not simply his seat's. The player's own kit on the
+    /// screens where he is a portrait rather than a man on a sideline.
+    var swaps: [PaletteSwap]?
 
     private var side: CGFloat { sprite.frameSize * scale }
     /// The face's shift per frame, in art pixels — the loop, written out.
@@ -50,7 +53,7 @@ struct InbounderFigure: View {
             }
             .frame(width: side, height: side)
         }
-        .paletteSwap(PlayerLook.shared.kit(for: seat))
+        .paletteSwap(swaps ?? PlayerLook.shared.kit(for: seat))
         .scaleEffect(x: mirrored ? -1 : 1)
     }
 

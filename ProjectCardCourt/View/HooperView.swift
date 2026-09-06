@@ -296,20 +296,25 @@ struct HooperPortrait: View {
     let pose: Kit.Pose
     /// Whose face and colours. Nil for anybody but the player, who wears their sheet.
     var kit: HooperKit?
+    /// Only read when there is no kit — the sideline figure falls back to a seat's
+    /// colours the way it does on the court.
+    var seat: Seat = GameRules.localSeat
     var scale: CGFloat = Theme.Figure.playerScale
 
     var body: some View {
         ZStack {
-            SpriteAnimation(sprite: pose.sprite, scale: scale, fps: pose.fps,
-                            isPlaying: pose.plays, restFrame: pose.frame)
-                .paletteSwap(kit?.swaps ?? [])
-            // The throw-in stance is drawn with the hands up and nothing in them.
-            if pose.needsBall {
-                PixelBallView(scale: scale)
-                    .offset(x: Theme.Figure.heldBall.x * scale,
-                            y: Theme.Figure.heldBall.y * scale)
+            if pose.isSideline {
+                // **The sideline figure, held on its first cell.** Its face, its ball and
+                // its palette were all settled when he was put on the sideline; asking
+                // for it again here is the whole point of it being a view.
+                InbounderFigure(seat: seat, holdsBall: true, frozen: true,
+                                face: kit?.face ?? 0, scale: scale, swaps: kit?.swaps)
+            } else {
+                SpriteAnimation(sprite: pose.sprite, scale: scale, fps: pose.fps,
+                                isPlaying: pose.plays, restFrame: pose.frame)
+                    .paletteSwap(kit?.swaps ?? [])
+                if let kit, pose.facesYou { face(kit) }
             }
-            if let kit, pose.facesYou { face(kit) }
         }
     }
 

@@ -130,10 +130,6 @@ enum Theme {
         /// Standing about with the ball. Slow on purpose — a spin or a bounce at the
         /// running rate reads as fidgeting rather than as somebody waiting.
         static let idleBallFPS: Double = 7.5
-        /// Where the ball sits on the throw-in stance, in art pixels from the middle of
-        /// its 32-pixel frame. That sheet is drawn with the hands up and empty; this is
-        /// what puts something in them.
-        static let heldBall = CGPoint(x: 0, y: 2)
         /// Empty rows under the character in the sheet: the ink ends four pixels short
         /// of the frame, which is dead space anything sitting below has to be pulled
         /// back through.
