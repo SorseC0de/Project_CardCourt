@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Player_front_bounceball.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

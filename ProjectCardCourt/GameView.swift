@@ -643,11 +643,11 @@ struct GameView: View {
 
             VStack(spacing: 14) {
                 HStack(spacing: 22) {
-                    ForEach(winners, id: \.self) { seat in
-                        // Facing the room, not jogging upcourt. The game is over; there
-                        // is nowhere left for him to be running.
-                        PlayerFigure(seat: seat, sprite: .front, spriteFrame: 0,
-                                     mirrored: false)
+                    ForEach(Array(winners.enumerated()), id: \.element) { place, seat in
+                        // Facing the room with the ball, not jogging upcourt — the game
+                        // is over and there is nowhere left to run. One pose each where
+                        // more than one of them won, so a tie is not the same man twice.
+                        WinnerPose(seat: seat, pose: Winner.poses[place % Winner.poses.count])
                             .scaleEffect(2.1, anchor: .bottom)
                             .frame(width: Theme.Figure.headDiameter * 2.1,
                                    height: Theme.Figure.height * 2.1, alignment: .bottom)

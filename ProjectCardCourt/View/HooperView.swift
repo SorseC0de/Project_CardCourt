@@ -95,11 +95,18 @@ struct HooperView: View {
         VStack(spacing: 4) {
             ZStack {
                 SpriteAnimation(sprite: pose.sprite, scale: Sheet.scale,
+                                fps: pose.fps,
                                 isPlaying: pose.plays, restFrame: pose.frame)
                     .paletteSwap(kit.swaps)
+                // The throw-in stance is drawn with the hands up and nothing in them.
+                if pose.needsBall {
+                    PixelBallView(scale: Sheet.scale)
+                        .offset(x: Theme.Figure.heldBall.x * Sheet.scale,
+                                y: Theme.Figure.heldBall.y * Sheet.scale)
+                }
                 // The head rides on the body's shoulders — see `SpriteMetrics`. Only the
-                // front pose is drawn face-on, so it is the only one wearing it.
-                if pose == .front { head }
+                // face-on poses wear it; from behind or side-on it would be a mask.
+                if pose.facesYou { head }
             }
             .frame(height: Sheet.stage)
 
@@ -296,3 +303,31 @@ struct HooperView: View {
 #if DEBUG
 #Preview("My Hooper") { HooperView() }
 #endif
+
+/// A winner, standing there with the ball.
+///
+/// The results screen's own figure rather than `PlayerFigure`: that one is a man on a
+/// court, with a shadow, a ball in his hands only while he is holding one, and a warp it
+/// leaves by. This is a portrait.
+struct WinnerPose: View {
+    let seat: Seat
+    let pose: Kit.Pose
+    var scale: CGFloat = Theme.Figure.playerScale
+
+    var body: some View {
+        ZStack {
+            SpriteAnimation(sprite: pose.sprite, scale: scale, fps: pose.fps,
+                            isPlaying: pose.plays, restFrame: pose.frame)
+            if pose.needsBall {
+                PixelBallView(scale: scale)
+                    .offset(x: Theme.Figure.heldBall.x * scale,
+                            y: Theme.Figure.heldBall.y * scale)
+            }
+        }
+    }
+}
+
+/// The three the results screen picks from, in the order it hands them out.
+enum Winner {
+    static let poses: [Kit.Pose] = [.spinning, .bouncing, .holding]
+}

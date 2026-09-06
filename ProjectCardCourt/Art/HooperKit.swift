@@ -127,12 +127,17 @@ enum Kit {
 
     /// The poses the sprite can be turned to, in the order they are offered.
     enum Pose: String, CaseIterable, Identifiable {
-        case front, running, dribbling, receiving, shooting
+        /// The three idle ones lead, because they are the ones worth watching — a kit is
+        /// judged on a player standing there with the ball, not mid-stride.
+        case spinning, bouncing, holding, front, running, dribbling, receiving, shooting
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
+            case .spinning:  return "Spin"
+            case .bouncing:  return "Bounce"
+            case .holding:   return "Hold"
             case .front:     return "Front"
             case .running:   return "Run"
             case .dribbling: return "Dribble"
@@ -143,6 +148,10 @@ enum Kit {
 
         var sprite: Sprite {
             switch self {
+            case .spinning:  return .spinBall
+            case .bouncing:  return .bounceBall
+            // The throw-in wind-up, held on its first cell: hands up, facing the room.
+            case .holding:   return .inbounder
             case .front:     return .front
             case .running:   return .run
             case .dribbling: return .dribble
@@ -160,6 +169,33 @@ enum Kit {
         /// The still poses hold on a frame; the rest run — the shot included. It is a
         /// one-shot on the court because a shot happens once; here it is a thing being
         /// looked at, and a pose that plays through and stops is a pose you miss.
-        var plays: Bool { self != .front && self != .receiving }
+        var plays: Bool {
+            switch self {
+            case .front, .receiving, .holding: return false
+            default: return true
+            }
+        }
+
+        /// How fast it runs. The two ball idles are deliberately unhurried.
+        var fps: Double {
+            switch self {
+            case .spinning, .bouncing: return Theme.Figure.idleBallFPS
+            case .shooting:            return Theme.Figure.shootFPS
+            default:                   return Theme.Figure.playerFPS
+            }
+        }
+
+        /// Whether the sheet is drawn face-on, and so wears the chosen head. The two ball
+        /// idles and the throw-in stance are all front views, like `front` itself.
+        var facesYou: Bool {
+            switch self {
+            case .spinning, .bouncing, .holding, .front: return true
+            default: return false
+            }
+        }
+
+        /// Whether a ball has to be put in his hands. The two ball sheets carry their own;
+        /// the throw-in stance is drawn empty.
+        var needsBall: Bool { self == .holding }
     }
 }
