@@ -1075,12 +1075,12 @@ final class GameController {
         } else {
             flight = DrawFlight(seat: seat)
         }
-        // A little more than the stage spends, not exactly it: waiting the same number
+        // The flight, and a little more — not exactly it, since waiting the same number
         // to the millisecond means the next draw arrives on the last frame of the last
-        // one and cancels it there.
+        // one and cancels it there. The pile's own turn is not in this: it happens
+        // alongside the card rather than in front of it.
         try? await Task.sleep(for: .seconds(duration + (RenderDebug.shared.courtStage
-                                                        ? Pacing.deckLean + Pacing.handover
-                                                        : 0)))
+                                                        ? Pacing.handover : 0)))
         // It is in the bag now, and not a moment before.
         if let card { undelivered.remove(card) }
     }

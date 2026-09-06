@@ -214,10 +214,18 @@ struct CourtStage: View {
                 // held pile is one the court stops sizing and the idle stops drifting for
                 // the rest of the game.
                 defer { deck.settle() }
-                await deck.bow(toward: to, seconds: Pacing.deckLean)
-                await dealer.fly(from: home + SIMD3(0, Stage.hover, 0),
-                                 to: to + SIMD3(0, Stage.bagHeight, 0),
-                                 seconds: flight.seconds)
+                // **The pile turns while the card is already going.** Bowing first and
+                // throwing after is a queue: every card waits on the deck, and the deck
+                // waits on every card. They are two things happening at once — he reaches
+                // for it as it leaves — so the trip costs the flight and nothing else.
+                async let turns: Void = deck.bow(toward: to, seconds: Pacing.deckLean)
+                async let sent: Void = dealer.fly(from: home + SIMD3(0, Stage.hover, 0),
+                                                  to: to + SIMD3(0, Stage.bagHeight, 0),
+                                                  seconds: flight.seconds)
+                _ = await (turns, sent)
+                // Only if nothing else is asked for. Another card cancels this, which is
+                // the pile carrying straight on to the next man rather than squaring up
+                // between every one of them.
                 await deck.straighten()
             }
             .task(id: spend?.id) {
