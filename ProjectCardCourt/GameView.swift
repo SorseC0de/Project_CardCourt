@@ -647,7 +647,10 @@ struct GameView: View {
                         // Facing the room with the ball, not jogging upcourt — the game
                         // is over and there is nowhere left to run. One pose each where
                         // more than one of them won, so a tie is not the same man twice.
-                        WinnerPose(seat: seat, pose: Winner.poses[place % Winner.poses.count])
+                        HooperPortrait(pose: Winner.poses[place % Winner.poses.count],
+                                       // Only the player has chosen a face; the rest
+                                       // wear the one on their sheet.
+                                       kit: seat.isLocal ? HooperKit.shared : nil)
                             .scaleEffect(2.1, anchor: .bottom)
                             .frame(width: Theme.Figure.headDiameter * 2.1,
                                    height: Theme.Figure.height * 2.1, alignment: .bottom)

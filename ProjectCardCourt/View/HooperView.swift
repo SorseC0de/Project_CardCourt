@@ -93,22 +93,8 @@ struct HooperView: View {
     /// wears, and this is the thing being looked at rather than a thing to press.
     private var stage: some View {
         VStack(spacing: 4) {
-            ZStack {
-                SpriteAnimation(sprite: pose.sprite, scale: Sheet.scale,
-                                fps: pose.fps,
-                                isPlaying: pose.plays, restFrame: pose.frame)
-                    .paletteSwap(kit.swaps)
-                // The throw-in stance is drawn with the hands up and nothing in them.
-                if pose.needsBall {
-                    PixelBallView(scale: Sheet.scale)
-                        .offset(x: Theme.Figure.heldBall.x * Sheet.scale,
-                                y: Theme.Figure.heldBall.y * Sheet.scale)
-                }
-                // The head rides on the body's shoulders — see `SpriteMetrics`. Only the
-                // face-on poses wear it; from behind or side-on it would be a mask.
-                if pose.facesYou { head }
-            }
-            .frame(height: Sheet.stage)
+            HooperPortrait(pose: pose, kit: kit, scale: Sheet.scale)
+                .frame(height: Sheet.stage)
 
             SmallCapsText(text: kit.billing, font: Chrome.display, size: 30, tracking: 1)
                 .foregroundStyle(.white)
@@ -126,14 +112,6 @@ struct HooperView: View {
             .strokeBorder(CardPalette.gold, lineWidth: Chrome.stroke))
     }
 
-    /// One cell of the heads sheet, sat where the body expects it.
-    private var head: some View {
-        SpriteAnimation(sprite: .heads, scale: Sheet.scale, isPlaying: false,
-                        restFrame: kit.face)
-            .paletteSwap(PixelPalette.skin(tone: kit.tone))
-            .offset(x: (SpriteMetrics.headOrigin.x - 12) * Sheet.scale,
-                    y: (SpriteMetrics.headOrigin.y - 12) * Sheet.scale)
-    }
 
     // MARK: - The choices
 
@@ -304,24 +282,62 @@ struct HooperView: View {
 #Preview("My Hooper") { HooperView() }
 #endif
 
-/// A winner, standing there with the ball.
+/// One pose, drawn as a portrait.
 ///
-/// The results screen's own figure rather than `PlayerFigure`: that one is a man on a
-/// court, with a shadow, a ball in his hands only while he is holding one, and a warp it
-/// leaves by. This is a portrait.
-struct WinnerPose: View {
-    let seat: Seat
+/// Not `PlayerFigure`: that one is a man on a court, with a shadow under him, a ball in
+/// his hands only while he is holding one, and a warp he leaves by. This is him standing
+/// still to be looked at — on his own screen, and on the results card.
+///
+/// **The chosen face goes on over the printed one.** The front sheets are drawn with a
+/// face already, so it is painted out in skin first — see `Kit.faceMask`. Nothing here
+/// re-exports art: the rectangle and the per-frame shift are both measured off the
+/// drawing, in the drawing's own pixels.
+struct HooperPortrait: View {
     let pose: Kit.Pose
+    /// Whose face and colours. Nil for anybody but the player, who wears their sheet.
+    var kit: HooperKit?
     var scale: CGFloat = Theme.Figure.playerScale
 
     var body: some View {
         ZStack {
             SpriteAnimation(sprite: pose.sprite, scale: scale, fps: pose.fps,
                             isPlaying: pose.plays, restFrame: pose.frame)
+                .paletteSwap(kit?.swaps ?? [])
+            // The throw-in stance is drawn with the hands up and nothing in them.
             if pose.needsBall {
                 PixelBallView(scale: scale)
                     .offset(x: Theme.Figure.heldBall.x * scale,
                             y: Theme.Figure.heldBall.y * scale)
+            }
+            if let kit, pose.facesYou { face(kit) }
+        }
+    }
+
+    /// The face, following the head from frame to frame.
+    ///
+    /// Its own clock rather than the sprite's: `SpriteAnimation.cell` is a pure function
+    /// of the wall clock, so two views asking it at the same instant get the same cell
+    /// without either having to be inside the other.
+    private func face(_ kit: HooperKit) -> some View {
+        TimelineView(.animation(minimumInterval: 1 / pose.fps, paused: !pose.plays)) { tick in
+            let cell = pose.plays
+                ? SpriteAnimation.cell(of: pose.sprite, at: tick.date, fps: pose.fps)
+                : pose.frame
+            let shift = pose.headShift(atFrame: cell)
+            ZStack {
+                if pose.hasBakedFace {
+                    OnSheet(rect: Kit.faceMask, shift: shift, scale: scale) {
+                        Rectangle().fill(PixelPalette.skinColour(tone: kit.tone))
+                    }
+                }
+                // The head rides on the body's shoulders — see `SpriteMetrics`.
+                OnSheet(rect: CGRect(origin: SpriteMetrics.headOrigin,
+                                     size: CGSize(width: 8, height: 8)),
+                        shift: shift, scale: scale) {
+                    SpriteAnimation(sprite: .heads, scale: scale, isPlaying: false,
+                                    restFrame: kit.face)
+                        .paletteSwap(PixelPalette.skin(tone: kit.tone))
+                }
             }
         }
     }

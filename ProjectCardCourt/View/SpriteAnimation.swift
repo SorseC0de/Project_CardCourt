@@ -160,6 +160,17 @@ struct SpriteAnimation: View {
         return x % UInt64(odds) == 0
     }
 
+    /// Which cell a looping sheet is on at this instant.
+    ///
+    /// A pure function of the wall clock, so anything laid over a sprite can ask the same
+    /// question and get the same answer without the two having to share a view — see
+    /// `HooperPortrait`, whose face has to move with a head that moves between frames.
+    static func cell(of sprite: Sprite, at date: Date,
+                     fps: Double, phase: TimeInterval = 0) -> Int {
+        let elapsed = (date.timeIntervalSinceReferenceDate + phase) * fps
+        return Int(elapsed.rounded(.down)) % sprite.frames
+    }
+
     private func frame(of showing: Sprite, at date: Date) -> Int {
         guard playsOnce else {
             let elapsed = (date.timeIntervalSinceReferenceDate + phase) * fps
@@ -169,5 +180,30 @@ struct SpriteAnimation: View {
         let elapsed = date.timeIntervalSince(startedAt) * fps
         let last = min(stopAtFrame ?? showing.frames - 1, showing.frames - 1)
         return min(last, max(0, Int(elapsed.rounded(.down))))
+    }
+}
+
+
+/// Something laid on a 32-pixel sheet, placed in the art's own coordinates.
+///
+/// Sprite overlays are all measured in art pixels — see `SpriteMetrics` — and a point
+/// offset worked out from a centred frame is a number nobody can check against the
+/// drawing. This takes the rectangle straight off the sheet.
+struct OnSheet<Content: View>: View {
+    /// Where it goes on the cell, in art pixels from its top-left.
+    var rect: CGRect
+    /// How far this frame's version of it has moved from that.
+    var shift: CGPoint = .zero
+    var scale: CGFloat
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.clear.frame(width: 32 * scale, height: 32 * scale)
+            content
+                .frame(width: rect.width * scale, height: rect.height * scale)
+                .offset(x: (rect.minX + shift.x) * scale,
+                        y: (rect.minY + shift.y) * scale)
+        }
     }
 }

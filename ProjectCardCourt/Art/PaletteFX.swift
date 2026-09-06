@@ -113,6 +113,13 @@ enum PixelPalette {
     /// not in the picture does nothing.
     static let skinDeepShade = maroon
 
+    /// The lit skin this tone comes out as — the same colour `skin(tone:)` swaps to,
+    /// resolved rather than filtered. For painting over something drawn on a sheet, where
+    /// a swap would have to reach inside a view that is not a sprite.
+    static func skinColour(tone: Int) -> Color {
+        tone == drawnSkinTone ? skin : (skinTones[safe: tone]?.light ?? skin)
+    }
+
     static func skin(tone: Int) -> [PaletteSwap] {
         guard let pair = skinTones[safe: tone], tone != drawnSkinTone else { return [] }
         // Where `pair.light` sits in the ramp. The deep tone is two below it, and the
