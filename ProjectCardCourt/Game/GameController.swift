@@ -2115,6 +2115,10 @@ final class GameController {
         // caused it, and a card revealed out of that deal told you the make before you
         // had watched it.
         let (beforeShot, afterShot) = events.splitAtTheShot()
+        // **The ball lands, and then he draws.** The draw is the first thing a possession
+        // does and nothing may come between the two — a card flying while the ball is
+        // still crossing reads as two plays at once, and it is one.
+        await settleTheThrow()
         await playDrawsAndReveals(in: beforeShot)
         if Task.isCancelled { return }
         catchUp()
@@ -2172,6 +2176,18 @@ final class GameController {
         await settleTheCatch()
         catchUp()
         record(ledger)
+    }
+
+    /// Whatever is left of the throw alone — the ball reaching his hands.
+    ///
+    /// The catch plays on past this, and the draw goes out over the top of it. Kept
+    /// separate from `settleTheCatch` for that reason: one is where the ball *is*, and
+    /// the other is when the man has finished closing his hands on it.
+    private func settleTheThrow() async {
+        guard let thrown = passLeftAt else { return }
+        let owing = Theme.Pass.flightSeconds - Date().timeIntervalSince(thrown)
+        guard owing > 0 else { return }
+        try? await Task.sleep(for: .seconds(owing))
     }
 
     /// Whatever is left of the throw and the catch, which are one movement.

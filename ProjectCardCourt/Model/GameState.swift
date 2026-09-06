@@ -249,6 +249,10 @@ struct GameState: Codable {
         let ticks: Bool
         let fromRebound: Bool
         let fromOwnMiss: Bool
+        /// Whether the possession's own draw has already been made. It happens before the
+        /// question is asked, and the question re-runs the whole opening on the answer —
+        /// so without this he draws twice for turning one down.
+        let drew: Bool
     }
     var heldPossession: HeldPossession?
     /// Back-and-Forth Game: how many more Breaks get waved away as they land.

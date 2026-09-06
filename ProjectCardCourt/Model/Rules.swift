@@ -243,20 +243,6 @@ enum Rules {
         return state[seat].bag.first { $0.descriptor.clearsClamps }
     }
 
-    /// **The out, drawn into.**
-    ///
-    /// A second offer, made after the possession's own draw rather than at its arrival —
-    /// and a different question from the first one, because by now the Clamp is standing
-    /// on him rather than still in the air. The card that just landed is an answer to it,
-    /// and a hand is not worth much if the answer in it has to wait for a turn that the
-    /// thing it answers is spoiling. Taking it simply plays the card.
-    static func drawnCounter(for seat: Seat, in state: GameState) -> Card? {
-        guard !state[seat].clamps.isEmpty else { return nil }
-        let locked = lockedCards(state, for: seat)
-        return state[seat].bag.first {
-            $0.descriptor.clearsClamps && !locked.contains($0.id)
-        }
-    }
 
     /// Taken, or turned down.
     ///
@@ -266,22 +252,15 @@ enum Rules {
     /// rather than on his turn.
     @discardableResult
     static func resolveCounter(_ taken: Bool, state: inout GameState) -> [GameEvent] {
-        guard case .awaitingCounter(let seat, _) = state.phase else { return [] }
-        // **The drawn one.** No possession is being held here — it has already begun, and
-        // the Clamp is standing rather than arriving — so taking it is nothing more than
-        // playing the card, which is what the card does.
-        guard let held = state.heldPossession else {
-            state.phase = .possession(holder: seat)
-            guard taken, let card = drawnCounter(for: seat, in: state) else { return [] }
-            return apply(.play(card.id), by: seat, to: &state)
-        }
+        guard case .awaitingCounter(let seat, _) = state.phase,
+              let held = state.heldPossession else { return [] }
         var events: [GameEvent] = []
         state.heldPossession = nil
 
         guard taken, let card = counterOnOffer(to: seat, in: state) else {
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
-                            fromOwnMiss: held.fromOwnMiss,
-                            offering: false, state: &state, events: &events)
+                            fromOwnMiss: held.fromOwnMiss, offering: false,
+                            alreadyDrew: held.drew, state: &state, events: &events)
             return events
         }
 
@@ -297,8 +276,8 @@ enum Rules {
             let arriving = clampsArriving(on: seat, in: state)
             state.pendingClamps = []
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
-                            fromOwnMiss: held.fromOwnMiss,
-                            offering: false, state: &state, events: &events)
+                            fromOwnMiss: held.fromOwnMiss, offering: false,
+                            alreadyDrew: held.drew, state: &state, events: &events)
             pay(card.descriptor, breaking: arriving, for: seat, state: &state, events: &events)
             // **A trip is queued, not taken.** `awardFreeThrows` only puts one down —
             // the phase is set here, after the possession has finished settling, or the
@@ -1663,19 +1642,8 @@ enum Rules {
 
     private static func beginPossession(_ seat: Seat, tickClock shouldTick: Bool,
                                         fromRebound: Bool = false, fromOwnMiss: Bool = false,
-                                        offering: Bool = true,
+                                        offering: Bool = true, alreadyDrew: Bool = false,
                                         state: inout GameState, events: inout [GameEvent]) {
-        // **Asked before anything else happens.** A man who steps out of the play is not
-        // there for the defenders either, and they land four lines below this — so the
-        // question has to come while the possession is still only arriving. Nothing has
-        // been touched yet, so the whole call is simply held and run again on the answer.
-        if offering, let card = counterOnOffer(to: seat, in: state) {
-            state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
-                                                            fromRebound: fromRebound,
-                                                            fromOwnMiss: fromOwnMiss)
-            state.phase = .awaitingCounter(seat: seat, card: card.descriptor)
-            return
-        }
         state.ball = seat
         state.lastPlayThisPossession = nil
         state.lastPlayWasCombo = false
@@ -1688,6 +1656,35 @@ enum Rules {
         // up by this possession's own card is the one that stands.
         state.holderShot = 0
 
+        // **Draw, then the defenders.**
+        //
+        // The card comes off the pile before anything is allowed to act on it — a Clamp
+        // is still in the air at draw time, so the card just drawn is a card you can
+        // answer it with, and it is in the hand a lock picks from. Landing them first
+        // meant a Contest that arrived on the pass and a Pump Fake drawn a moment later
+        // could never meet, which is the whole of "drawing the out".
+        if !alreadyDrew {
+            // Fresh Ball: a ball nobody has broken in. The possession opens dry.
+            if state.skipsNextDraw {
+                state.skipsNextDraw = false
+            } else {
+                draw(seat, state: &state, events: &events)
+            }
+        }
+
+        // **And now the question, with the pile still in the air.** A man who steps out
+        // of the play is not there for the defenders either, and they land immediately
+        // below — so this is the last moment it can be asked. The whole opening is held
+        // and run again on the answer, which is what `drew` is for.
+        if offering, let card = counterOnOffer(to: seat, in: state) {
+            state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
+                                                            fromRebound: fromRebound,
+                                                            fromOwnMiss: fromOwnMiss,
+                                                            drew: true)
+            state.phase = .awaitingCounter(seat: seat, card: card.descriptor)
+            return
+        }
+
         // Clamps live for exactly one possession, so the board is cleared before the
         // pending ones land. Without the clear they stay on a player forever.
         for other in Seat.allCases { state[other].clamps = [] }
@@ -1696,13 +1693,6 @@ enum Rules {
         state[landing].clamps = state.pendingClamps
         state.clampMagnet = nil
         state.pendingClamps = []
-
-        // Fresh Ball: a ball nobody has broken in. The possession opens dry.
-        if state.skipsNextDraw {
-            state.skipsNextDraw = false
-        } else {
-            draw(seat, state: &state, events: &events)
-        }
 
 
         // A Whistle that was waiting for these defenders to land. This is the first
@@ -1817,14 +1807,6 @@ enum Rules {
         let toll = state[seat].injuries.reduce(0) { $0 + ($1.gameBreak?.discardsEachTurn ?? 0) }
         if toll > 0, !state[seat].bag.isEmpty {
             state.phase = .awaitingInjuryDiscard(seat: seat, count: min(toll, state[seat].bag.count))
-            return
-        }
-        // **Asked again, now that he has drawn.** See `drawnCounter`: the Clamp is on him
-        // by this point, so this is the card in his hand being an answer to what is
-        // already standing there rather than a way of avoiding it.
-        if drawnCounter(for: seat, in: state) != nil, state.pendingFreeThrows == nil,
-           state.pendingInbound == nil {
-            state.phase = .awaitingCounter(seat: seat, card: drawnCounter(for: seat, in: state)!.descriptor)
             return
         }
         state.phase = .possession(holder: seat)
