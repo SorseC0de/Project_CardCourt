@@ -326,6 +326,11 @@ struct PlayerFigure: View {
                         // ticks over, so the arrival lands on something rather than a
                         // number quietly becoming a different number.
                         .scaleEffect(bagTook ? Bag.swell : 1)
+                        // Its own animation, keyed to its own flag. Raised inside a
+                        // `withAnimation` on a hopped task it was being swallowed by the
+                        // implicit animations further out, which are keyed to the count.
+                        .animation(.spring(response: 0.26, dampingFraction: 0.45),
+                                   value: bagTook)
                         .foregroundStyle(.white)
                         // One drop for the pair. Without this SwiftUI casts one per child and
                         // the bag's falls across the number.
@@ -355,12 +360,10 @@ struct PlayerFigure: View {
                 .animation(.easeOut(duration: 0.25), value: handCount)
                 .onChange(of: handCount) { was, now in
                     guard let was, let now, now > was else { return }
+                    bagTook = true
                     Task { @MainActor in
-                        withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) {
-                            bagTook = true
-                        }
                         try? await Task.sleep(for: .seconds(Bag.swellHolds))
-                        withAnimation(.easeOut(duration: 0.18)) { bagTook = false }
+                        bagTook = false
                     }
                 }
                 .animation(.easeOut(duration: 0.22), value: clampCount)

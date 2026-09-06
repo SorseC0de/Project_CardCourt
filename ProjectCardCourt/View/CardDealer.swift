@@ -46,8 +46,16 @@ final class CardDealer {
         /// put away.
         static let turnsBy: Float = 0.55
         static let shrinksFrom: Float = 0.60
-        /// Steps the trip is walked in. Enough to read as a curl, few enough to be free.
-        static let steps = 30
+        /// Steps the trip is walked in.
+        ///
+        /// **Few and long, not many and short.** Every step is a hop to the main actor,
+        /// and the main actor is busy dealing — thirty of them at eighteen milliseconds
+        /// meant most were skipped under load, so the shrink at the end never got a turn
+        /// and the card simply went out. Ten leaves RealityKit fifty-odd milliseconds to
+        /// interpolate each one on its own thread, where nothing this app is doing can
+        /// interrupt it, and a tenth of a turn is small enough that a slerp across it
+        /// stays on the line.
+        static let steps = 10
     }
 
     /// The slab, and the picture printed on the face **away** from you.
