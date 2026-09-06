@@ -108,13 +108,12 @@ struct ShotCutsceneView: View {
 
                 Group {
                     if scene.made {
-                        // **The plain word for a Lethal Shooter make.** A sentence set
-                        // across the screen shrinks to fit and stops being readable, and
-                        // the line's own joke — a genie, a fishing rod — is not the story
-                        // on this one. The burst says the rest.
                         if showResult {
-                            SwisshTitle(line: scene.signature == .understood
-                                        ? .plain : scene.line)
+                            if scene.signature == .understood {
+                                understood
+                            } else {
+                                SwisshTitle(line: scene.line)
+                            }
                         }
                     } else if scene.drama == .robbery {
                         // It counts, right up until it doesn't. The make's word holds
@@ -294,6 +293,32 @@ struct ShotCutsceneView: View {
     private enum Understood {
         static let marks = ["🧠", "🎯", "✖️", "➕", "➗", "♾️", "√", "√", "1", "0", "1", "0"]
         static let count = 26
+        /// Big enough to read across a room, and it stays that size.
+        static let size: CGFloat = 34
+        static let drop: CGFloat = 3
+    }
+
+    /// He is not being congratulated; he is being told he was right.
+    ///
+    /// **Not `ActionText`.** That face is a word or two shouted across the screen, and a
+    /// whole sentence set in it has to shrink to fit — by the time it fits, it cannot be
+    /// read. This one holds its size and wraps instead.
+    private var understood: some View {
+        Text(understoodLine)
+            .font(.system(size: Understood.size, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .shadow(color: CardPalette.blue, radius: 0,
+                    x: Understood.drop, y: Understood.drop)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 26)
+    }
+
+    /// "Raheem understands it now.", and "You understand it now."
+    private var understoodLine: String {
+        let seat = scene.shooter
+        return "\(seat.playerName) \(seat.verb("understands", "understand")) it now."
     }
 
     private func run() async {
