@@ -113,6 +113,9 @@ struct PlayerFigure: View {
         return .runLook2
     }
 
+    /// Now and then he waves at somebody instead of looking behind him.
+    private var glanceRare: Sprite? { glance == nil ? nil : .wave }
+
     /// Whether a seat catches flipped, given who threw it.
     ///
     /// Static and shared on purpose: the ball's hand offset is measured on the unflipped
@@ -167,6 +170,7 @@ struct PlayerFigure: View {
                             playsOnce: playsOnce || action == .catchBall,
                             alternate: playsOnce ? nil : glance,
                             alternateOr: playsOnce ? nil : glanceOr,
+                            alternateRare: playsOnce ? nil : glanceRare,
                             phase: Double(seat.rawValue) * 1.3,
                             // A catch on the court counts from when the ball landed; one a
                             // cutscene asks for directly counts from when it appeared.

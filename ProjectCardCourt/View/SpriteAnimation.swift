@@ -9,6 +9,9 @@ enum Sprite: String, CaseIterable {
     /// The same glance over the other shoulder. North gets both and tosses for it — see
     /// `SpriteAnimation.current(at:)`.
     case runLook2 = "Player_Run_Look2"
+    /// A wave at somebody off court, played now and then in place of a glance. Rare on
+    /// purpose: it is a flourish, and a flourish on a timer stops being one.
+    case wave = "Player_Wave"
     /// The referee's own sheet. He jogs and looks about like everyone else — a referee
     /// standing dead still would read as a prop rather than a man watching you.
     case refereeRunLook = "Referee_Run_Look"
@@ -90,6 +93,9 @@ struct SpriteAnimation: View {
     /// A second cut-away, when there is a choice of them. Tossed for each time one is due
     /// — off the cycle's own number, so it is settled rather than re-rolled every frame.
     var alternateOr: Sprite?
+    /// A third, played instead of either of the others once in a while — see
+    /// `Alternates.rarely` for how often, and `rolls` for why it is not simply random.
+    var alternateRare: Sprite?
     var alternateEvery: TimeInterval = 5
     /// This sprite's own offset into the clock, so four players do not run — or glance —
     /// in unison.
@@ -124,11 +130,28 @@ struct SpriteAnimation: View {
         let run = Double(alternate.frames) / fps
         let cycle = clock.truncatingRemainder(dividingBy: alternateEvery)
         guard cycle < run else { return sprite }
-        guard let alternateOr else { return alternate }
-        // Which shoulder, this time round. Read off the number of the cycle rather than
-        // rolled: a random draw would land differently on every frame of the same glance.
+        // Read off the number of the cycle rather than rolled: a random draw would land
+        // differently on every frame of the same glance.
         let turn = Int(clock / alternateEvery)
+        // Every so often he waves at somebody instead of checking his shoulder.
+        if let alternateRare, Self.rolls(turn, oneIn: Alternates.rarely) { return alternateRare }
+        guard let alternateOr else { return alternate }
+        // Which shoulder, this time round.
         return turn.isMultiple(of: 2) ? alternate : alternateOr
+    }
+
+    enum Alternates {
+        /// How often the rare one comes up, in glances.
+        static let rarely = 7
+    }
+
+    /// A settled roll off the cycle's own number: the same cycle always answers the same
+    /// way, so it holds for the whole of one glance — and consecutive cycles do not
+    /// answer in a pattern, which a plain remainder would.
+    static func rolls(_ turn: Int, oneIn odds: Int) -> Bool {
+        var x = UInt64(bitPattern: Int64(turn)) &* 0x9E37_79B9_7F4A_7C15
+        x ^= x >> 29
+        return x % UInt64(odds) == 0
     }
 
     private func frame(of showing: Sprite, at date: Date) -> Int {
