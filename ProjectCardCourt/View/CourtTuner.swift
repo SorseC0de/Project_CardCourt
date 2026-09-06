@@ -136,7 +136,6 @@ struct DebugActionsView: View {
     @AppStorage("bench.deck") private var showDeck = false
     /// The one HUD arrangement that is a setting rather than a measurement.
     @AppStorage(DeckReadout.setting) private var deckReadout = DeckReadout.over
-    @State private var lobby = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -146,7 +145,6 @@ struct DebugActionsView: View {
         .padding(6)
         .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.6)))
         .animation(.easeOut(duration: 0.15), value: isOpen)
-        .sheet(isPresented: $lobby) { MatchLobbyView(controller: controller) }
     }
 
     /// The live tools, and a door to each of the two things worth watching on their own.
@@ -174,7 +172,6 @@ struct DebugActionsView: View {
                 }
                 // Not a real screen yet, and it cannot be until the app has a Game Center
                 // record to authenticate against.
-                action("match") { lobby = true }
             }
             if showCuts {
                 HStack(spacing: 4) {

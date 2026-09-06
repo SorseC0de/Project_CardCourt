@@ -23,28 +23,52 @@ struct RootView: View {
 
     @State private var screen: Screen = .front
 
-    /// **The session, and nothing until somebody asks for one.**
+    /// **The game, and nothing until there is one to play.**
     ///
-    /// A `GameController` deals a game the moment it exists, so one held here while the
-    /// front screen is up is a game being played behind a menu — which is what backing
-    /// out of a failed match used to reveal. It is made when a game is asked for and
-    /// dropped when one is quit, and the front screen means there is no game at all.
+    /// A `GameController` deals the moment it exists — it has to, since it cannot know
+    /// yet whether it is about to be a match — so one held while a menu is up is a deck
+    /// shuffled and a hand dealt behind that menu. It is made when a game actually
+    /// starts, and dropped when one is quit.
     @State private var game: GameController?
+    /// The match, which outlives no game and starts none. Made when the lobby is opened
+    /// and put down when it is left.
+    @State private var session: GameCenterMatch?
 #if DEBUG
     @State private var bench = false
 #endif
 
-    /// Deals a session and shows it. The only place a game begins.
-    private func open(_ next: Screen) {
+    /// Deals a game and shows it. The only place one begins.
+    private func deal() {
         game?.quit()
         game = GameController()
-        screen = next
+        screen = .game
+    }
+
+    /// Opens the queue. **No game is dealt here** — there is nothing to deal for yet, and
+    /// a deck shuffled behind the lobby is a game being played in the dark.
+    private func lobby() {
+        game?.quit()
+        game = nil
+        session = GameCenterMatch()
+        screen = .lobby
+    }
+
+    /// The match is on. Now there is something to deal for.
+    private func startMatch() {
+        guard let session else { return }
+        let controller = GameController()
+        controller.join(session)
+        game = controller
+        screen = .game
+        controller.begin()
     }
 
     /// Ends it and unloads it. Coming back means dealing again.
     private func quit() {
         game?.quit()
         game = nil
+        session?.leave()
+        session = nil
         Table.shared.seatSolo()
         screen = .front
     }
@@ -54,8 +78,8 @@ struct RootView: View {
             switch screen {
             case .front:
                 EntryScreenView(
-                    onPlay: { open(.game) },
-                    onLobby: { open(.lobby) },
+                    onPlay: { deal() },
+                    onLobby: { lobby() },
                     onGallery: { screen = .gallery },
                     onHooper: { screen = .hooper },
                     onSettings: {
@@ -68,17 +92,17 @@ struct RootView: View {
                 // A screen of its own rather than a sheet over the court. Over the court
                 // it was sitting on a game that had already been dealt, and closing it
                 // put you in the middle of one you never asked to play.
-                if let game {
-                    MatchLobbyView(controller: game,
+                if let session {
+                    MatchLobbyView(session: session,
                                    onLeave: { quit() },
-                                   onStart: { screen = .game })
+                                   onStart: { startMatch() })
                         .transition(.opacity)
                 }
             case .game:
                 if let game {
                     GameView(controller: game,
                              onQuit: { quit() },
-                             onRunItBack: { open(.game) })
+                             onRunItBack: { deal() })
                         .transition(.opacity)
                 }
             case .gallery:

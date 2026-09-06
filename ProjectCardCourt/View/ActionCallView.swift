@@ -23,7 +23,9 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
     var blurb: String {
         switch self {
         case .inbound:   return "Put the ball back in play"
-        case .gameBreak: return "Nobody played this"
+        // Deliberately silent. It says nothing a player needs and reads as an
+        // explanation of something that has not happened yet.
+        case .gameBreak: return ""
         // The whistle says it with the whistle. See `emblem`.
         case .whistle:   return ""
         case .clamped:   return "Defenders are guarding you closely"

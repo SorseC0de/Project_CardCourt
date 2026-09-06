@@ -357,9 +357,19 @@ extension GameCenterMatch: GKMatchDelegate {
                 guard id == self.hostID,
                       let message = try? MatchCoder.decode(HostMessage.self, from: data)
                 else { return }
-                // The lobby watches the status rather than the wire, so the one message
-                // that changes what the screen is for is read here as well as passed on.
-                if case .start = message { self.status = .playing }
+                // **Read here as well as passed on.** Until the game starts there is no
+                // controller to pass anything to — one is not made until there is a match
+                // to play, or opening the lobby deals a game behind it — so the two
+                // messages that arrive before that point are acted on by the wire itself.
+                switch message {
+                case .start:
+                    self.status = .playing
+                case .seated(let seat, let chairs):
+                    Table.shared.seat(chairs, asLocal: seat)
+                    DevLog.say(.net, "seated at \(seat.name) by the host")
+                default:
+                    break
+                }
                 self.onHostMessage?(message)
             }
         }

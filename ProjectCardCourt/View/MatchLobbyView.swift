@@ -12,12 +12,14 @@ import SwiftUI
 /// The table stays empty until somebody is really in it. Showing three computers in the
 /// chairs before a match exists made it look like a game was already under way.
 struct MatchLobbyView: View {
-    var controller: GameController
+    /// **The lobby has no game.** One is not dealt until a match actually starts — see
+    /// `RootView` — because a deck shuffled behind this screen is a game being played in
+    /// the dark, and it was the game you fell into when a match failed.
+    var session: GameCenterMatch
     /// Backing out. The session goes with it — see `RootView`.
     var onLeave: () -> Void = {}
-    /// The match is running and the court is what to look at now.
+    /// The match is running: deal, and go and look at the court.
     var onStart: () -> Void = {}
-    @State private var session = GameCenterMatch()
     @State private var table = Table.shared
     /// Held between the clasp and the table appearing, so the shake gets its moment
     /// rather than being cut off by the thing it was waiting for.
@@ -68,12 +70,12 @@ struct MatchLobbyView: View {
             }
         }
         .onAppear {
-            // Wired before signing in, so the handlers are live before the first message
-            // can arrive. `isActive` keeps a solo game solo until a match is running.
-            controller.join(session)
             session.signIn()
         }
-        .sheet(item: $session.pendingSignIn) { sheet in
+        // Bound by hand: the session is handed in rather than held here, so there is no
+        // projected value to reach for.
+        .sheet(item: Binding(get: { session.pendingSignIn },
+                             set: { session.pendingSignIn = $0 })) { sheet in
             SignInSheet(controller: sheet.controller).ignoresSafeArea()
         }
         .onChange(of: session.status) { _, status in
@@ -88,8 +90,9 @@ struct MatchLobbyView: View {
             }
             // The host starts it; everybody else is told. Either way the lobby's job is
             // done the moment the game is running.
+            // Whoever pressed it and whoever was told: the game is dealt on the way to
+            // the court, by the one place that deals games.
             guard status == .playing else { return }
-            if session.isHost { controller.begin() }
             onStart()
         }
     }
@@ -283,7 +286,7 @@ struct MatchLobbyView: View {
 
 #if DEBUG
 #Preview("Lobby") {
-    MatchLobbyView(controller: GameController())
+    MatchLobbyView(session: GameCenterMatch())
 }
 #endif
 
