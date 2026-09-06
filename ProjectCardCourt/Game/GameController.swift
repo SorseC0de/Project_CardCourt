@@ -634,6 +634,7 @@ final class GameController {
     private var movesFromWire: [Seat: Move] = [:]
     private var discardsFromWire: [Seat: [Card.ID]] = [:]
     private var freeThrowsFromWire: [Seat: Bool] = [:]
+    private var decisionsFromWire: [Seat: Decision] = [:]
     /// Seats whose device has said it is on screen and ready to be dealt to. The host
     /// holds the opening deal until they all have — see `waitForTheTable`.
     private var readySeats: Set<Seat> = []
@@ -760,6 +761,11 @@ final class GameController {
             guard case .freeThrows(let trip) = state.phase, trip.shooter == seat
             else { return }
             freeThrowsFromWire[seat] = made
+        // Refused unless the phase says this is the seat being asked, like everything
+        // else here — which is the whole of the host's authority.
+        case .decision(let decision):
+            guard state.phase.actingSeat == seat else { return }
+            decisionsFromWire[seat] = decision
         }
     }
 
@@ -785,6 +791,30 @@ final class GameController {
                 self.gate = self.localGate
             }
         }
+    }
+
+    /// **A guest's answer goes up the wire and the board does not move.**
+    ///
+    /// True when it was sent, which is the caller's cue to stop — the host will say what
+    /// it meant, and anything resolved here in the meantime is this device playing its
+    /// own game. Every prompt has to go through here: eight of them did not, and a guest
+    /// answering one of those went off on its own from that moment and never came back.
+    private func sendUp(_ decision: Decision) -> Bool {
+        guard isGuest else { return false }
+        gate = .thinking
+        try? match?.send(.decision(decision))
+        return true
+    }
+
+    /// What a seat chose, when its device is somewhere else.
+    ///
+    /// Nil for a seat played here, and nil again when a device sat on the question until
+    /// its clock ran out — both fall through to the house's answer. The game never waits
+    /// on a phone forever.
+    private func decision(from seat: Seat) async -> Decision? {
+        guard Table.shared.isRemote(seat) else { return nil }
+        gate = .thinking
+        return await waitOn(seat, for: \.decisionsFromWire)
     }
 
     /// A choice this device's player made.
@@ -1100,6 +1130,7 @@ final class GameController {
     func choose(target: Seat) {
         guard !isPaused else { return }
         guard case .awaitingTarget = gate else { return }
+        if sendUp(.target(target)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveTarget(target, state: &state), playedCard: true)
@@ -1111,6 +1142,7 @@ final class GameController {
     func choose(naming seat: Seat?) {
         guard !isPaused else { return }
         guard case .awaitingNaming = gate else { return }
+        if sendUp(.naming(seat)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveNaming(seat, state: &state), playedCard: true)
@@ -1122,6 +1154,7 @@ final class GameController {
     func choose(toll pick: CardPick?) {
         guard !isPaused else { return }
         guard case .awaitingToll = gate else { return }
+        if sendUp(.toll(pick)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveToll(pick, state: &state))
@@ -1133,6 +1166,7 @@ final class GameController {
     func choose(dropping id: String) {
         guard !isPaused else { return }
         guard case .awaitingIntangibleDrop = gate else { return }
+        if sendUp(.dropping(id)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveIntangibleDrop(id, state: &state))
@@ -1144,6 +1178,7 @@ final class GameController {
     func choose(injury id: String) {
         guard !isPaused else { return }
         guard case .awaitingInjuryPick = gate else { return }
+        if sendUp(.injury(id)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveInjuryPick(id, state: &state))
@@ -1155,6 +1190,7 @@ final class GameController {
     func choose(counter taken: Bool) {
         guard !isPaused else { return }
         guard case .awaitingCounter = gate else { return }
+        if sendUp(.counter(taken)) { return }
         drive {
             await present(Rules.resolveCounter(taken, state: &state), playedCard: true)
             await run()
@@ -1165,6 +1201,7 @@ final class GameController {
     func choose(card id: Card.ID) {
         guard !isPaused else { return }
         guard case .awaitingCardFrom = gate else { return }
+        if sendUp(.cardFrom(id)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveCardFrom(id, state: &state), playedCard: true)
@@ -1176,6 +1213,7 @@ final class GameController {
     func choose(mode index: Int) {
         guard !isPaused else { return }
         guard case .awaitingMode = gate else { return }
+        if sendUp(.mode(index)) { return }
         loop?.cancel()
         drive {
             await present(Rules.resolveMode(index, state: &state), playedCard: true)
@@ -1536,96 +1574,132 @@ final class GameController {
             }
             if case .awaitingCounter(let seat, _) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // Worth it for what is about to land on him, and nothing otherwise: the
                 // card is a way out of the defenders, not a way of moving the ball.
-                await present(Rules.resolveCounter(!state.pendingClamps.isEmpty,
-                                                    state: &state), playedCard: true)
+                var taken = !state.pendingClamps.isEmpty
+                if case .counter(let said)? = await decision(from: seat) {
+                    taken = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveCounter(taken, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingTarget(let seat, _, let choices) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // Whoever holds the most is the man worth finding — and the man worth
                 // taking from. One rule, because the AI has no reason to prefer another.
-                let pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
+                var pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
+                if case .target(let said)? = await decision(from: seat), choices.contains(said) {
+                    pick = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
                 await present(Rules.resolveTarget(pick, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingNaming(let seat, _, let named) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // Everyone but the leader. The SHOT is worth having; handing the man in
                 // front an assist is not.
                 let shooter = state.ball
                 let best = Seat.allCases.max { state[$0].score < state[$1].score }
-                let next = Seat.allCases.first {
+                var next = Seat.allCases.first {
                     $0 != shooter && $0 != best && !named.contains($0)
                 }
+                if case .naming(let said)? = await decision(from: seat) {
+                    next = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
                 await present(Rules.resolveNaming(next, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingToll(let seat, let victim) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // A passive is worth more than a card off a hand nobody can read.
-                let pick: CardPick = state[victim].intangibles.first.map { .named($0.id) }
+                var pick: CardPick? = state[victim].intangibles.first.map { .named($0.id) }
                     ?? .position(Int.random(in: 0..<max(1, state[victim].bag.count)))
+                if case .toll(let said)? = await decision(from: seat) {
+                    pick = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
                 await present(Rules.resolveToll(pick, state: &state))
                 continue
             }
             if case .awaitingIntangibleDrop(let seat, let offered) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // A passive that only hurts is the one to give up; failing that, the
                 // oldest, which is what the rule used to do on its own.
                 let worst = offered.first { ($0.intangible?.shotBonus ?? 0) < 0
                                             || $0.intangible?.blocksMoves == true }
-                await present(Rules.resolveIntangibleDrop(worst?.id ?? offered[0].id,
-                                                          state: &state))
+                var dropping = worst?.id ?? offered[0].id
+                if case .dropping(let said)? = await decision(from: seat),
+                   offered.contains(where: { $0.id == said }) {
+                    dropping = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveIntangibleDrop(dropping, state: &state))
                 continue
             }
             if case .awaitingInjuryPick(let seat, _) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // Whatever is face up and mildest; failing that, whatever is on offer.
                 let offered = state.injuriesOffered
                 let seen = offered.filter { !state.injuriesHidden.contains($0.id) }
-                let pick = (seen.first ?? offered.first)?.id
+                var pick = (seen.first ?? offered.first)?.id
+                if case .injury(let said)? = await decision(from: seat),
+                   offered.contains(where: { $0.id == said }) {
+                    pick = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
                 if let pick { await present(Rules.resolveInjuryPick(pick, state: &state)) }
                 continue
             }
             if case .awaitingCardFrom(let seat, _, let victim) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
-                if Task.isCancelled { return }
                 // Face down to everybody, so there is nothing to be clever about.
                 // An empty hand is answerable: nothing is taken, and the question closes.
                 // Reading `hand[0]` off one was a crash waiting for a Free Agent.
-                let pick = state[victim].bag.randomElement()?.id ?? UUID()
+                var pick = state[victim].bag.randomElement()?.id ?? UUID()
+                if case .cardFrom(let said)? = await decision(from: seat),
+                   state[victim].bag.contains(where: { $0.id == said }) {
+                    pick = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
                 await present(Rules.resolveCardFrom(pick, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingMode(let seat, let card) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                gate = .thinking
-                await think()
+                var mode = ai.mode(of: card, state, for: seat)
+                if case .mode(let said)? = await decision(from: seat),
+                   card.modes.indices.contains(said) {
+                    mode = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
                 if Task.isCancelled { return }
-                await present(Rules.resolveMode(ai.mode(of: card, state, for: seat),
-                                                state: &state), playedCard: true)
+                await present(Rules.resolveMode(mode, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingInjuryDiscard(let seat, let count) = state.phase {

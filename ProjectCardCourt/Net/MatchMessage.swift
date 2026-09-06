@@ -7,6 +7,24 @@ import Foundation
 /// and re-derives every consequence itself. That is what makes a modified client a player
 /// who can make illegal choices and have them refused, rather than one who can rewrite
 /// the score.
+/// An answer to whatever the game stopped to ask.
+///
+/// **One case rather than eight.** The host already knows what the question was — the
+/// phase says so — so a client that answers a question nobody asked is refused on that
+/// rather than on which message it reached for. It also means a new prompt needs a case
+/// here and nothing else: the alternative was eight more `ClientMessage`s, and the eight
+/// that were missing are exactly why a guest answering a prompt went off on its own.
+enum Decision: Codable {
+    case target(Seat)
+    case naming(Seat?)
+    case toll(CardPick?)
+    case dropping(String)
+    case injury(String)
+    case counter(Bool)
+    case cardFrom(UUID)
+    case mode(Int)
+}
+
 enum ClientMessage: Codable {
     /// Sent once the client is on screen and ready to be dealt to.
     case ready
@@ -15,6 +33,8 @@ enum ClientMessage: Codable {
     case reboundBid([UUID])
     /// Turnaround Three: the cards fed into the shot.
     case discardForShot([UUID])
+    /// Everything else the game stops to ask for. See `Decision`.
+    case decision(Decision)
     /// The free-throw mini-game's own result. The trip it belongs to is in the phase, so
     /// a stale result cannot be applied to a later one.
     case freeThrow(made: Bool)
