@@ -17,10 +17,7 @@ enum Sprite: String, CaseIterable {
     case refereeRunLook = "Referee_Run_Look"
     /// Throwing it back in from the sideline. Four frames, and deliberately slow.
     case inbounder = "Player_Inbounder"
-    /// Waiting for it. One frame — nobody is moving during an inbound.
-    case inboundReceiver = "Player_Inbound_Receiver"
-    /// The same, seen from behind: what three of the four are during an inbound, since
-    /// they are turned upcourt toward the thrower.
+    /// What three of the four do during an inbound: turned upcourt toward the thrower.
     case inboundReceiverBack = "Player_Inbound_Receiver_Back"
 
     /// Dust off the floor. Five cells, and the last of them is deliberately empty — the
@@ -69,7 +66,6 @@ enum Sprite: String, CaseIterable {
         case .front, .back, .right, .akuma, .praised, .gooseneck: return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
-        case .inboundReceiver: return 1
         // Three ways of standing about waiting for a throw.
         case .inboundReceiverBack: return 3
         case .rebound:      return 5
@@ -93,7 +89,7 @@ enum Sprite: String, CaseIterable {
     var face: Kit.FaceBuild? {
         switch self {
         // Drawn looking at you: both eyes, the sheet's one and its reflection.
-        case .front, .spinBall, .bounceBall, .gooseneck, .praised, .inboundReceiver:
+        case .front, .spinBall, .bounceBall, .gooseneck, .praised:
             return .whole
         // Side on: the near eye, and the far one behind the nose.
         case .right:
@@ -105,18 +101,6 @@ enum Sprite: String, CaseIterable {
         // Turned away, or not a man at all.
         default:
             return nil
-        }
-    }
-
-    /// Whether a face is printed on this sheet already, and so has to be painted out in
-    /// skin before the chosen one goes on — see `Kit.faceMask`.
-    ///
-    /// Goes when every sheet has been re-exported faceless, which is what the TODO on the
-    /// mask is about.
-    var hasBakedFace: Bool {
-        switch self {
-        case .front, .spinBall, .bounceBall, .gooseneck, .praised: return true
-        default: return false
         }
     }
 

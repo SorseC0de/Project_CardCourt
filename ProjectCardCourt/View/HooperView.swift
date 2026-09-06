@@ -385,10 +385,9 @@ struct HooperView: View {
 /// he is holding one and a warp he leaves by. This is him standing still to be looked at
 /// — on his own screen, and on the results card.
 ///
-/// **The chosen face goes on over the printed one.** Some front sheets are drawn with a
-/// face already, so it is painted out in skin first — see `Kit.faceMask`. Nothing here
-/// re-exports art: the rectangle and the per-frame shift are both measured off the
-/// drawing, in the drawing's own pixels.
+/// **The face is added, never painted over.** Every sheet is drawn faceless, so what
+/// goes on is the eyes and nothing else — where each one sits is `EyeTuning`'s answer,
+/// placed by hand against the drawing rather than worked out from it.
 struct HooperPortrait: View {
     let pose: Kit.Pose
     /// Whose face and colours. Nil for anybody but the player, who wears their sheet.

@@ -37,14 +37,9 @@ struct FaceOnSheet: View {
     @ViewBuilder
     private func composed(at cell: Int) -> some View {
         ZStack {
-            // Painted out first, on the sheets that still have a face printed on them.
-            // Goes when they are all re-exported faceless.
-            if sheet.hasBakedFace {
-                OnSheet(rect: Kit.faceMask, shift: sheet.headShift(atFrame: cell),
-                        scale: scale) {
-                    Rectangle().fill(PixelPalette.skinColour(tone: tone))
-                }
-            }
+            // **Nothing to paint out.** Every sheet is drawn faceless now, so a face is
+            // only ever added — no skin-coloured rectangle over a printed one, no mask to
+            // keep in step with a head that moves.
             ForEach(Eye.allCases, id: \.self) { which in
                 let spot = eyes.spot(sheet, frame: cell, eye: which)
                 if spot.shown {

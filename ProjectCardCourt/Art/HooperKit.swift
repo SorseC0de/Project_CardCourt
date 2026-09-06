@@ -155,19 +155,6 @@ enum Kit {
         }
     }
 
-    /// The face already printed on the front sheets: (13,6) through (18,10) inclusive,
-    /// in art pixels. Painted over in skin before the chosen face goes on, which is
-    /// cheaper than re-exporting four sheets without one.
-    ///
-    /// - TODO: Re-import every sheet faceless and make the eyes programmatic. Painting a
-    ///   skin-coloured rectangle over a printed face is a patch, and it costs: the mask
-    ///   has to be tracked per sheet and per frame (see `Pose.headShift`), it only works
-    ///   where the head is drawn at a known offset, and a blink or a look is impossible
-    ///   because the eyes are baked into the art. Faceless sheets plus eyes drawn at
-    ///   runtime would drop the mask, the offsets and the `hasBakedFace` flag together,
-    ///   and give expressions for nothing.
-    static let faceMask = CGRect(x: 13, y: 6, width: 6, height: 5)
-
     /// How a view wears the face sheet.
     ///
     /// **The sheet holds one eye.** A face is symmetric, so a view drawn looking at you is
@@ -274,8 +261,6 @@ enum Kit {
             case .defending: return .defender
             case .running:   return .run
             case .dribbling: return .dribble
-            // The receiver sheet the court actually uses. `inboundReceiver` is the old
-            // single-cell one, kept only so the numbering behind it still lines up.
             case .receiving: return .inboundReceiverBack
             case .shooting:  return .shoot
             }
@@ -335,10 +320,6 @@ enum Kit {
         /// put on the sideline. Drawing him here a second way would be two answers to a
         /// question that has one.
         var isSideline: Bool { self == .holding }
-
-        /// Whether the sheet has a face printed on it that the chosen one has to cover —
-        /// the sheet's own answer, like everything else about how it is drawn.
-        var hasBakedFace: Bool { sprite.hasBakedFace }
 
         /// Where this sheet's head sits on a given frame — the sheet's own answer, since
         /// the court draws sheets no pose has a name for.

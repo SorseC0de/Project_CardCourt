@@ -95,7 +95,7 @@ struct InbounderFigure: View {
 #Preview("Inbounder") {
     HStack(spacing: 30) {
         InbounderFigure(seat: .south, holdsBall: true, scale: 5)
-        InbounderFigure(seat: .east, sprite: .inboundReceiver, scale: 5, mirrored: true)
+        InbounderFigure(seat: .east, sprite: .inboundReceiverBack, scale: 5, mirrored: true)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Theme.courtFloor)
