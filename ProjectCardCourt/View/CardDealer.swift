@@ -26,12 +26,12 @@ final class CardDealer {
     /// How the throw is shaped. Metres and turns.
     /// How the throw is shaped. Metres, radians and turns.
     private enum Throw {
-        /// **It leaves at the size of the slab it came off and shrinks the whole way.**
-        /// Not to nothing — a scale of zero is a matrix that cannot be inverted, and
-        /// RealityKit will not have it — but to near enough that it is gone by the time
-        /// it reaches him.
+        /// **It leaves at the size of the slab it came off and shrinks into the bag.**
+        /// Not to nothing: a hundredth was small enough that the last stretch was a card
+        /// winking out rather than being put away, and the turn it had just finished went
+        /// with it. A tenth still arrives as gone without throwing the end away.
         static let leaves: Float = 1.0
-        static let arrives: Float = 0.01
+        static let arrives: Float = 0.1
         /// How far it rides above the straight line, against the distance covered.
         /// A card picked up off a table, not one lobbed across the room: the hand lifts
         /// it just clear of the pile and turns it over on the way.
