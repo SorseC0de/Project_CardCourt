@@ -168,9 +168,11 @@ struct ReboundBench: View {
                         dial("spawn y", $tune.spawnY, -160...160)
                         dial("hand x", $tune.handX, -1...1)
                         dial("hand y", $tune.handY, 0...1.6)
-                        dial("leaves at", $tune.fromHoop, 0.01...1)
+                        dial("size at rim", $tune.fromHoop, 0.01...1)
                         time("flight", $tune.flight, 0.1...2)
-                        time("ball goes", $tune.vanish, 0...2)
+                        // Named for what it does, since "leaves at" read as when the ball
+                        // leaves rather than how big it is when it does.
+                        time("ball off", $tune.vanish, 0...2)
                         heading("the leap")
                         rate("rise fps", $tune.riseFPS)
                         rate("land fps", $tune.landFPS)

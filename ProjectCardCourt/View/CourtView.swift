@@ -5,7 +5,7 @@ struct CourtView: View {
     let gate: GameController.Gate
     let revealedBids: [Seat: Int]?
     /// Who is going up for the board, if anybody. The ball comes out of the hoop to meet
-    /// him — see `reboundBall`.
+    /// him — see `ReboundBallView`.
     var rebound: ReboundLeap?
     /// When the ball finished changing hands, so the catch plays in view.
     var settledAt: Date?
@@ -146,13 +146,6 @@ struct CourtView: View {
     /// subtree is rebuilt, not only when the id changes — so without this the same pass
     /// can be thrown twice, which is what "players sometimes pass the ball twice" was.
     @State private var flewAt: Date?
-    /// The board's ball, from the hoop on the horizon to his hands at the top.
-    @State private var reboundFlight: CGFloat = 0
-    @State private var reboundBall = false
-    /// How far into his descent the ball is. **It comes down with him**: from the moment
-    /// he has it, it is a ball in a pair of hands, and a ball that stayed where it met
-    /// them was a ball he had jumped away from.
-    @State private var reboundCarry: CGFloat = 0
     @State private var rebounding = ReboundTuning.shared
 
     private var selectableSeats: Set<Seat> {
@@ -351,20 +344,18 @@ struct CourtView: View {
                         .zIndex(300)
                 }
 
-                // Out of the hoop and into his hands. It leaves at nothing, because it
-                // is coming from the horizon — a ball that starts full size up there is a
+                // Out of the hoop and into his hands. It leaves small, because it is
+                // coming from the horizon — a ball that starts full size up there is a
                 // ball the size of the rim.
-                if let rebound, reboundBall {
-                    let from = boardLeaves(on: court, in: geo.size)
-                    let to = reboundPoint(of: rebound.seat, on: court)
-                    let end = court.scale(of: rebound.seat)
-                    let drop = rebounding.lift * Theme.Figure.playerScale
-                        * court.scale(of: rebound.seat) * reboundCarry
-                    PixelBallView()
-                        .scaleEffect(rebounding.fromHoop
-                                     + (end - rebounding.fromHoop) * reboundFlight)
-                        .position(x: from.x + (to.x - from.x) * reboundFlight,
-                                  y: from.y + (to.y - from.y) * reboundFlight + drop)
+                if let rebound {
+                    ReboundBallView(
+                        from: boardLeaves(on: court, in: geo.size),
+                        to: reboundPoint(of: rebound.seat, on: court),
+                        end: court.scale(of: rebound.seat),
+                        descent: rebounding.lift * Theme.Figure.playerScale
+                            * court.scale(of: rebound.seat))
+                        // One board, one ball. See `ReboundBallView`.
+                        .id(rebound.id)
                         .transition(.identity)
                         .zIndex(280)
                 }
@@ -399,28 +390,6 @@ struct CourtView: View {
                 // hold while the receiver caught a second one.
                 caughtThrow = throwing.id
                 landedAt = Date()
-            }
-            .task(id: rebound?.id) {
-                guard rebound != nil else { reboundBall = false; return }
-                var appear = Transaction(); appear.disablesAnimations = true
-                withTransaction(appear) {
-                    reboundFlight = 0; reboundCarry = 0; reboundBall = true
-                }
-                // Thrown to arrive on the last cell of the leap.
-                withAnimation(.easeIn(duration: rebounding.flight)) { reboundFlight = 1 }
-                // **Held until he is up there**, not until the trip is over. A flight
-                // shorter than the rise put the ball at the catch point early, and
-                // starting the descent from there had it leave his hands and beat him
-                // down — the two were counted off different clocks. See `catchAt`.
-                try? await Task.sleep(for: .seconds(rebounding.catchAt + rebounding.hang))
-                // Caught. It rides his descent rather than hanging in the air he has
-                // left — the same beat he spends coming down still holding the catch.
-                withAnimation(.easeIn(duration: rebounding.drop)) { reboundCarry = 1 }
-                // Taken off when the dial says, which is once the sprite has a ball of
-                // its own to draw. Not faded: it was being animated out of a view with
-                // `.transition(.identity)`, which is no animation at all.
-                try? await Task.sleep(for: .seconds(rebounding.vanish))
-                reboundBall = false
             }
             .task(id: settledAt) {
                 guard let settledAt, passer != nil, flewAt != settledAt else { return }
@@ -1007,5 +976,63 @@ private struct InboundThrow: View {
                 withAnimation(.easeInOut(duration: seconds)) { travelled = 1 }
             }
             .allowsHitTesting(false)
+    }
+}
+
+/// The board coming out of the rim and into his hands.
+///
+/// **Its own view, and a new one for every board.** The trip used to be three `@State`s
+/// on the court, put back to nought at the top of the same task that then animated them —
+/// and SwiftUI collapses both writes into one update, so it compared the value it last
+/// drew (a 1 left over from the previous board) against the 1 the animation was heading
+/// for, decided nothing had changed, and dropped the ball straight into his hands at full
+/// size. The first rebound of a court's life animated and none after it did, which is why
+/// the size dial looked like a knob wired to nothing.
+///
+/// A view made fresh for each board — see the `.id` on it — starts where it says it does,
+/// so there is nothing left over to compare against.
+private struct ReboundBallView: View {
+    /// The rim it comes out of, and his hands at the top of the leap.
+    var from: CGPoint
+    var to: CGPoint
+    /// How big it is when it gets there: his row's own scale.
+    var end: CGFloat
+    /// How far he comes down once he has it, in points.
+    var descent: CGFloat
+
+    @State private var tune = ReboundTuning.shared
+    /// How far along the trip it is, and how far into his descent.
+    @State private var flown: CGFloat = 0
+    @State private var carried: CGFloat = 0
+    @State private var gone = false
+
+    var body: some View {
+        Group {
+            if !gone {
+                PixelBallView()
+                    .scaleEffect(tune.fromHoop + (end - tune.fromHoop) * flown)
+                    .position(x: from.x + (to.x - from.x) * flown,
+                              y: from.y + (to.y - from.y) * flown + descent * carried)
+            }
+        }
+        .task { await travel() }
+    }
+
+    private func travel() async {
+        // Thrown to arrive on the last cell of the leap.
+        withAnimation(.easeIn(duration: tune.flight)) { flown = 1 }
+        // **Held until he is up there**, not until the trip is over. A flight shorter
+        // than the rise put the ball at the catch point early, and starting the descent
+        // from there had it leave his hands and beat him down — the two were counted off
+        // different clocks. See `ReboundTuning.catchAt`.
+        try? await Task.sleep(for: .seconds(tune.catchAt + tune.hang))
+        // Caught. It rides his descent rather than hanging in the air he has left — the
+        // same beat he spends coming down still holding the catch.
+        withAnimation(.easeIn(duration: tune.drop)) { carried = 1 }
+        // Taken off when the dial says, which is once the sprite has a ball of its own to
+        // draw. Not faded: it was being animated out of a view carrying
+        // `.transition(.identity)`, which is no animation at all.
+        try? await Task.sleep(for: .seconds(tune.vanish))
+        gone = true
     }
 }
