@@ -58,10 +58,12 @@ final class CardDealer {
     ///
     /// **Underneath, not on top.** A card leaves the pile lying face down, and the curl
     /// is what turns it over: printed on the upper face it was face up on the deck and
-    /// blank by the time it reached anybody, which is the whole thing backwards. The
-    /// plane is single-sided and looks along +Y, so it is turned right over to be seen
-    /// from below — about Z, which mirrors it left to right rather than standing the name
-    /// plate on its head.
+    /// blank by the time it reached anybody, which is the whole thing backwards.
+    ///
+    /// The plane is single-sided and looks along +Y, so it is turned right over to be
+    /// seen from below. **About X**, not Z: the card finishes at ninety degrees the other
+    /// way, and turning the print about Z left it standing on its head at the end of that
+    /// — the two rotations have to agree about which edge is the top.
     func build(mesh: MeshResource, material: some RealityKit.Material,
                face: Entity? = nil, back: Entity? = nil, thickness: Float = 0) {
         let card = ModelEntity(mesh: mesh, materials: [material])
@@ -75,7 +77,7 @@ final class CardDealer {
         }
         if let face {
             face.position = SIMD3(0, -(thickness / 2 + 0.00005), 0)
-            face.orientation = simd_quatf(angle: .pi, axis: [0, 0, 1])
+            face.orientation = simd_quatf(angle: .pi, axis: [1, 0, 0])
             card.addChild(face)
         }
         root.addChild(card)

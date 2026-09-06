@@ -84,7 +84,7 @@ final class DealTuning {
     static let shared = DealTuning()
     /// Degrees from lying flat, about the axis it is travelling along. Ninety is standing
     /// straight up; the sign is which way it turns over.
-    var endAngle: Double = 90
+    var endAngle: Double = -90
 }
 
 @Observable
