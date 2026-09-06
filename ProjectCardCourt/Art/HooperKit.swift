@@ -134,7 +134,14 @@ enum Kit {
     enum Pose: String, CaseIterable, Identifiable {
         /// The three idle ones lead, because they are the ones worth watching — a kit is
         /// judged on a player standing there with the ball, not mid-stride.
-        case spinning, bouncing, holding, front, running, dribbling, receiving, shooting
+        case spinning, bouncing, holding, front, gooseneck, praised, defending,
+             running, dribbling, receiving, shooting
+
+        /// The ones My Hooper offers, which is not all of them. `praised` and `defending`
+        /// are results card poses only — arms out to a crowd is a thing that happens to
+        /// you rather than a way of standing you would pick to be looked at in, and
+        /// nobody picks their kit by how they look guarding somebody.
+        static let offered: [Pose] = allCases.filter { $0 != .praised && $0 != .defending }
 
         var id: String { rawValue }
 
@@ -144,6 +151,9 @@ enum Kit {
             case .bouncing:  return "Bounce"
             case .holding:   return "Hold"
             case .front:     return "Front"
+            case .gooseneck: return "Gooseneck"
+            case .praised:   return "Praised"
+            case .defending: return "D-Up"
             case .running:   return "Run"
             case .dribbling: return "Dribble"
             case .receiving: return "Catch"
@@ -158,6 +168,9 @@ enum Kit {
             // The throw-in wind-up, held on its first cell: hands up, facing the room.
             case .holding:   return .inbounder
             case .front:     return .front
+            case .gooseneck: return .gooseneck
+            case .praised:   return .praised
+            case .defending: return .defender
             case .running:   return .run
             case .dribbling: return .dribble
             // The receiver sheet the court actually uses. `inboundReceiver` is the old
@@ -176,7 +189,7 @@ enum Kit {
         /// looked at, and a pose that plays through and stops is a pose you miss.
         var plays: Bool {
             switch self {
-            case .front, .receiving, .holding: return false
+            case .front, .receiving, .holding, .gooseneck, .praised: return false
             default: return true
             }
         }
@@ -186,6 +199,8 @@ enum Kit {
             switch self {
             case .spinning, .bouncing: return Theme.Figure.idleBallFPS
             case .shooting:            return Theme.Figure.shootFPS
+            // Two poses, braced. Four a second, like everything off the run of play.
+            case .defending:           return Theme.Figure.sidelineFPS
             default:                   return Theme.Figure.playerFPS
             }
         }
@@ -195,7 +210,7 @@ enum Kit {
         /// it puts its own face on.
         var facesYou: Bool {
             switch self {
-            case .spinning, .bouncing, .front: return true
+            case .spinning, .bouncing, .front, .gooseneck, .praised: return true
             default: return false
             }
         }
@@ -212,7 +227,7 @@ enum Kit {
         /// The three front views do; nothing else is drawn looking at you.
         var hasBakedFace: Bool {
             switch self {
-            case .front, .spinning, .bouncing: return true
+            case .front, .spinning, .bouncing, .gooseneck, .praised: return true
             default: return false
             }
         }
@@ -226,6 +241,8 @@ enum Kit {
             switch self {
             case .spinning: return CGPoint(x: 1, y: 0)
             case .bouncing: return CGPoint(x: 1, y: frame >= 3 ? -1 : 0)
+            // Head thrown back a pixel with the arms out.
+            case .praised:  return CGPoint(x: 0, y: -1)
             default:        return .zero
             }
         }

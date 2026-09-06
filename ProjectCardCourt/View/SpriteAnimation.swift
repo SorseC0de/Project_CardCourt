@@ -34,6 +34,10 @@ enum Sprite: String, CaseIterable {
     /// them — unlike the throw-in stance, which is drawn empty-handed.
     case spinBall = "Player_front_spinball"
     case bounceBall = "Player_front_bounceball"
+    /// Arms out, taking it in; and the follow-through held after a jumper. Both one cell,
+    /// both face-on — poses rather than loops, like `front`.
+    case praised = "Player_praised"
+    case gooseneck = "Player_gooseneck"
     /// Nine heads and nine faces on 8-pixel strips, worn rather than played: the frame is
     /// picked, not advanced. A face is laid over a head, and both over a body — see
     /// `SpriteMetrics.headOrigin` for where they sit.
@@ -44,7 +48,7 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
-        case .front:        return 1
+        case .front, .praised, .gooseneck: return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
         case .inboundReceiver: return 1

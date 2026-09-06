@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Player_gooseneck.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

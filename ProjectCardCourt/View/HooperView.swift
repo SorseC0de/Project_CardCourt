@@ -48,7 +48,7 @@ struct HooperView: View {
                     section("Belt & shoes") { swatches($kit.belt) }
                 }
                 section("Pose") {
-                    SlabPicker(options: Kit.Pose.allCases, choice: $pose) { $0.title }
+                    SlabPicker(options: Kit.Pose.offered, choice: $pose) { $0.title }
                 }
                 section("Position") {
                     SlabPicker(options: Kit.Position.allCases,
@@ -312,7 +312,10 @@ struct HooperPortrait: View {
             } else {
                 SpriteAnimation(sprite: pose.sprite, scale: scale, fps: pose.fps,
                                 isPlaying: pose.plays, restFrame: pose.frame)
-                    .paletteSwap(kit?.swaps ?? [])
+                    // The player's own kit where there is one; otherwise the seat's, the
+                    // way he is dressed on the floor. Not the sheet's blue — that is the
+                    // human's colour, and it put every winner in it.
+                    .paletteSwap(kit?.swaps ?? PlayerLook.shared.kit(for: seat))
                 if let kit, pose.facesYou { face(kit) }
             }
         }
@@ -348,7 +351,16 @@ struct HooperPortrait: View {
     }
 }
 
-/// The three the results screen picks from, in the order it hands them out.
+/// What the results screen picks from.
+///
+/// Handed out from a place in the list that moves game to game, so the five come round
+/// rather than the first two being the only ones anybody sees — and so a tie is never
+/// the same man standing there twice.
 enum Winner {
-    static let poses: [Kit.Pose] = [.spinning, .bouncing, .holding]
+    static let poses: [Kit.Pose] = [.spinning, .bouncing, .holding, .gooseneck,
+                                    .praised, .defending]
+
+    static func pose(at place: Int, from start: Int) -> Kit.Pose {
+        poses[(start + place) % poses.count]
+    }
 }

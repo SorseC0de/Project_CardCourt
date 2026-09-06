@@ -173,7 +173,8 @@ struct ShotCutsceneView: View {
                     // turns to the room the moment it is done with him.
                     Group {
                         if facingYou {
-                            PlayerFigure(seat: scene.shooter, sprite: .front,
+                            // The follow-through, held. He is watching it go in.
+                            PlayerFigure(seat: scene.shooter, sprite: .gooseneck,
                                          spriteFrame: 0, mirrored: false)
                         } else {
                             PlayerFigure(seat: scene.shooter, sprite: .shoot,

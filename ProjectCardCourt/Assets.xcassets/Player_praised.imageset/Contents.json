@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Player_praised.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

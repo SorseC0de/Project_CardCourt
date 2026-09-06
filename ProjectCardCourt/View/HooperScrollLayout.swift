@@ -35,7 +35,7 @@ struct HooperScrollLayout: View {
                     VStack(spacing: 18) {
                         stage
                         section("Pose") {
-                            SlabPicker(options: Kit.Pose.allCases, choice: $pose) { $0.title }
+                            SlabPicker(options: Kit.Pose.offered, choice: $pose) { $0.title }
                         }
                         section("Face") { faces }
                         section("Skin") {
