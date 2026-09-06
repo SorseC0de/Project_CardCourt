@@ -79,6 +79,8 @@ struct PlayerFigure: View {
     /// has nothing to snap to.
     @State private var airborne: CGFloat = 0
     @State private var leapTune = ReboundTuning.shared
+    /// Raised for a beat when a card arrives — see `Bag`.
+    @State private var bagTook = false
 
     private enum Leap: Equatable {
         case none
@@ -105,6 +107,9 @@ struct PlayerFigure: View {
         /// the number's own size — it is what reads as the same size beside it.
         static let side: CGFloat = 34
         static let gap: CGFloat = 3
+        /// How big it goes when a card lands in it, and how long it stays there.
+        static let swell: CGFloat = 1.35
+        static let swellHolds: Double = 0.16
     }
 
     /// The rate this sprite runs at. The catch has its own, and the hold that keeps
@@ -317,6 +322,10 @@ struct PlayerFigure: View {
                                 .font(.custom("AvenirNextCondensed-Heavy", size: Bag.number))
                                 .contentTransition(.numericText())
                         }
+                        // **It takes the card.** The bag swells for a beat as the count
+                        // ticks over, so the arrival lands on something rather than a
+                        // number quietly becoming a different number.
+                        .scaleEffect(bagTook ? Bag.swell : 1)
                         .foregroundStyle(.white)
                         // One drop for the pair. Without this SwiftUI casts one per child and
                         // the bag's falls across the number.
@@ -344,6 +353,16 @@ struct PlayerFigure: View {
                 }
                 .animation(.easeOut(duration: 0.22), value: marker)
                 .animation(.easeOut(duration: 0.25), value: handCount)
+                .onChange(of: handCount) { was, now in
+                    guard let was, let now, now > was else { return }
+                    Task { @MainActor in
+                        withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) {
+                            bagTook = true
+                        }
+                        try? await Task.sleep(for: .seconds(Bag.swellHolds))
+                        withAnimation(.easeOut(duration: 0.18)) { bagTook = false }
+                    }
+                }
                 .animation(.easeOut(duration: 0.22), value: clampCount)
                 .animation(.easeOut(duration: 0.22), value: isDimmed)
                 .task(id: reboundID) {

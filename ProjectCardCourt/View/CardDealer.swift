@@ -32,10 +32,10 @@ final class CardDealer {
         /// it reaches him.
         static let leaves: Float = 1.0
         static let arrives: Float = 0.01
-        /// How far it rides above the straight line, against the distance covered. **Up,
-        /// off the table.** A card that only shrinks along a flat line reads as sinking
-        /// into the floor rather than being dealt off the top of a pile.
-        static let lift: Float = 0.12
+        /// How far it rides above the straight line, against the distance covered.
+        /// A card picked up off a table, not one lobbed across the room: the hand lifts
+        /// it just clear of the pile and turns it over on the way.
+        static let lift: Float = 0.07
         /// Where it starts leaning: wherever the deck is leaning. It comes off the top of
         /// a pile that has already bowed toward him.
         static let bowed = DeckStage.bowAngle

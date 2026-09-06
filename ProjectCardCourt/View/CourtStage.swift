@@ -67,6 +67,10 @@ struct CourtStage: View {
         /// off the top of the deck, so that is the size it leaves at — the growing is done
         /// on the way over, by the throw itself.
         static let dealtCard: Float = 1.0
+        /// How far above the floor a dealt card finishes: the bag over his head, not his
+        /// feet. A card that lands where he is standing has been dropped at him; the bag
+        /// is what it is going into, and it is what counts up when it arrives.
+        static let bagHeight: Float = 0.055
         /// Where it comes in from: high, and beyond the far edge.
         static let entryHeight: Float = 0.090
         static let entryDepth: Float = 1.6
@@ -212,7 +216,8 @@ struct CourtStage: View {
                 defer { deck.settle() }
                 await deck.bow(toward: to, seconds: Pacing.deckLean)
                 await dealer.fly(from: home + SIMD3(0, Stage.hover, 0),
-                                 to: to, seconds: flight.seconds)
+                                 to: to + SIMD3(0, Stage.bagHeight, 0),
+                                 seconds: flight.seconds)
                 await deck.straighten()
             }
             .task(id: spend?.id) {
