@@ -10,7 +10,6 @@ struct GameView: View {
     /// The same again, dealt fresh.
     var onRunItBack: () -> Void = {}
     @State private var paused = false
-    @State private var logStyle: LogStyle = .overlay
     @State private var detail: Card?
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
@@ -138,9 +137,9 @@ struct GameView: View {
                         // Takes the band the log used to sit in, just above the hand.
                         HStack(alignment: .bottom) {
                             // **Out of the way while the game is asking for something.** Each
-                            // leaves by its own side, and far enough that every slot has gone
-                            // rather than half of one — a plate cut off at the screen's edge
-                            // is a thing you are still looking at.
+                            // leaves by its own side, all but an edge — see `Panels.peek`.
+                            // Gone entirely read as a panel that had been taken away; a
+                            // sliver says it is standing just off the screen.
                             IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
                                                 dormant: controller.dormantIntangibles,
                                                 slots: controller.shown.rules.intangibleSlots,
@@ -482,9 +481,12 @@ struct GameView: View {
     private func closeFloor() { onFloor = nil }
 
     private enum Panels {
-        /// How far a slot panel goes to be gone. Wider than the panel itself, so the last
-        /// slot clears the screen rather than sitting on its edge.
-        static let aside: CGFloat = 320
+        /// How far a slot panel goes to get out of the way, less the sliver it leaves
+        /// behind. It used to clear the screen entirely, which said the panel was gone
+        /// rather than moved — an edge still showing is a thing you know is coming back.
+        static let aside: CGFloat = 320 - peek
+        /// What is left on screen of a panel that has stood aside.
+        static let peek: CGFloat = 14
         /// And how far down they sit, out from under the flanks' feet.
         static let drop: CGFloat = 8
     }
@@ -628,30 +630,32 @@ struct GameView: View {
             )
     }
 
-    /// Sits under the scoreboard. Overlay drops the solid panel for a scrim so the top
-    /// of the court still reads through it.
-    @ViewBuilder private var logStrip: some View {
-        switch logStyle {
-        case .panel:
-            LogView(lines: controller.log).frame(height: logHeight)
-        case .overlay:
-            ZStack {
-                Rectangle().fill(Color.black.opacity(0.35))
-                LogView(lines: controller.log, showsBackground: false)
-            }
-            .frame(height: logHeight)
-            // Faded at both ends. A mask does not block touches, so this still scrolls.
-            .mask(LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black, location: 0.2),
-                    .init(color: .black, location: 0.85),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .top, endPoint: .bottom))
-        case .hidden:
-            EmptyView()
+    /// Sits under the scoreboard: a scrim rather than a solid panel, so the top of the
+    /// court still reads through it.
+    ///
+    /// **The only way it is drawn.** There were three — a panel, this, and nothing — on a
+    /// button in the status bar. Two of them were there to be compared against this one
+    /// while it was being settled, and it has been.
+    private var logStrip: some View {
+        ZStack {
+            // **Actual black while the screen is dim.** A scrim over the court is a
+            // lighter black than the dim lays over everything else, so the strip stood
+            // out as a panel the moment the game stopped to ask something. Under the dim
+            // it goes the whole way, and matches.
+            Rectangle().fill(Color.black.opacity(dim > 0 ? 1 : 0.35))
+                .animation(.easeInOut(duration: 0.22), value: dim > 0)
+            LogView(lines: controller.log, showsBackground: false)
         }
+        .frame(height: logHeight)
+        // Faded at both ends. A mask does not block touches, so this still scrolls.
+        .mask(LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .black, location: 0.2),
+                .init(color: .black, location: 0.85),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .top, endPoint: .bottom))
     }
 
     /// Where that seat sits on the scoreboard, which orders by score.
@@ -674,16 +678,6 @@ struct GameView: View {
                 Text("HALF \(controller.shown.half)")
                     .font(.system(size: 11, weight: .bold)).tracking(1)
                     .foregroundStyle(Theme.inkDim)
-                Button {
-                    withAnimation(.easeInOut(duration: 0.22)) { logStyle = logStyle.next }
-                } label: {
-                    Image(systemName: logStyle.symbol)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.inkDim)
-                        .frame(width: 26, height: 26)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel(logStyle.label)
                 pauseButton
             }
             .frame(maxWidth: .infinity, alignment: .trailing)

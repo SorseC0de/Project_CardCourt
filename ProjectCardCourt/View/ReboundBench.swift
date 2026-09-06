@@ -91,10 +91,10 @@ enum ReboundStyle {
     static let handY: CGFloat = 0.800
     /// Small leaving the rim, since it is coming from the horizon — but not nothing, or
     /// there is no ball to see for the first third of the trip.
-    static let fromHoop: CGFloat = 0.300
+    static let fromHoop: CGFloat = 0.150
 
     static let flight: Double = 0.25
-    static let vanish: Double = 0.50
+    static let vanish: Double = 0.30
 
     static let riseFPS: Double = 12
     static let landFPS: Double = 15

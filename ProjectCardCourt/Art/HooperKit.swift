@@ -131,6 +131,14 @@ enum Kit {
     /// The face already printed on the front sheets: (13,6) through (18,10) inclusive,
     /// in art pixels. Painted over in skin before the chosen face goes on, which is
     /// cheaper than re-exporting four sheets without one.
+    ///
+    /// - TODO: Re-import every sheet faceless and make the eyes programmatic. Painting a
+    ///   skin-coloured rectangle over a printed face is a patch, and it costs: the mask
+    ///   has to be tracked per sheet and per frame (see `Pose.headShift`), it only works
+    ///   where the head is drawn at a known offset, and a blink or a look is impossible
+    ///   because the eyes are baked into the art. Faceless sheets plus eyes drawn at
+    ///   runtime would drop the mask, the offsets and the `hasBakedFace` flag together,
+    ///   and give expressions for nothing.
     static let faceMask = CGRect(x: 13, y: 6, width: 6, height: 5)
 
     /// The poses the sprite can be turned to, in the order they are offered.
@@ -138,7 +146,7 @@ enum Kit {
         /// The three idle ones lead, because they are the ones worth watching — a kit is
         /// judged on a player standing there with the ball, not mid-stride.
         case spinning, bouncing, holding, front, gooseneck, praised, defending,
-             running, dribbling, receiving, shooting
+             running, dribbling, receiving, shooting, back
 
         /// The ones My Hooper offers, which is not all of them. `praised` and `defending`
         /// are results card poses only — arms out to a crowd is a thing that happens to
@@ -155,6 +163,7 @@ enum Kit {
             case .holding:   return "Hold"
             case .front:     return "Front"
             case .gooseneck: return "Gooseneck"
+            case .back:      return "Back"
             case .praised:   return "Praised"
             case .defending: return "D-Up"
             case .running:   return "Run"
@@ -172,6 +181,7 @@ enum Kit {
             case .holding:   return .inbounder
             case .front:     return .front
             case .gooseneck: return .gooseneck
+            case .back:      return .back
             case .praised:   return .praised
             case .defending: return .defender
             case .running:   return .run
@@ -192,7 +202,7 @@ enum Kit {
         /// looked at, and a pose that plays through and stops is a pose you miss.
         var plays: Bool {
             switch self {
-            case .front, .receiving, .holding, .gooseneck, .praised: return false
+            case .front, .back, .receiving, .holding, .gooseneck, .praised: return false
             default: return true
             }
         }

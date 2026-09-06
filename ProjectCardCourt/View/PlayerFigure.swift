@@ -97,6 +97,13 @@ struct PlayerFigure: View {
     @State private var startedAt: Date?
     /// Two positions, held a beat each — a hop rather than a glide.
     @State private var hop: CGFloat = 0
+    /// When he last came down on the floor, so the dust can be counted off it.
+    @State private var dustAt: Date?
+
+    /// This figure's offset into the sprite clock, so four players do not run in unison.
+    /// Read by the dust as well as by the sheet — a puff on a different phase is a bounce
+    /// somebody else made.
+    private var clockPhase: TimeInterval { Double(seat.rawValue) * 1.3 }
 
     private var tint: Color { Theme.color(for: seat) }
 
@@ -219,6 +226,9 @@ struct PlayerFigure: View {
     /// One pass of the landing sheet, on the floor, and back to whatever he was doing.
     private func comeDown() async {
         leapFrom = Date()
+        // He is on the floor as this begins — the sheet is the arrival, not the fall —
+        // so the dust goes up on the same instant.
+        dustAt = Date()
         leap = .landing
         try? await Task.sleep(for: .seconds(leapTune.landing))
         leap = .none
@@ -266,6 +276,14 @@ struct PlayerFigure: View {
             SpriteShadow(scale: scale, lift: airborne)
                 // Nothing to cast one while he is between places.
                 .opacity(warp > 0 ? 0 : 1)
+            // Kicked up where he lands, and where the ball comes back off the floor.
+            // Under the sprite: it is dust at his feet, not something thrown over him.
+            if warp == 0 {
+                SmokePuff(startedAt: dustAt, scale: scale)
+                if action == .dribble {
+                    DribbleDust(scale: scale, phase: clockPhase)
+                }
+            }
             SpriteAnimation(sprite: action, scale: scale,
                             fps: leapRate ?? frameRate,
                             // A pose rather than a loop: held on one cell, not played.
@@ -282,7 +300,7 @@ struct PlayerFigure: View {
                             alternate: playsOnce || leaping ? nil : glance,
                             alternateOr: playsOnce || leaping ? nil : glanceOr,
                             alternateRare: playsOnce || leaping ? nil : glanceRare,
-                            phase: Double(seat.rawValue) * 1.3,
+                            phase: clockPhase,
                             // A catch on the court counts from when the ball landed; one a
                             // cutscene asks for directly counts from when it appeared.
                             startedAt: leap == .none

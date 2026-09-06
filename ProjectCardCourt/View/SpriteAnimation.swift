@@ -23,6 +23,10 @@ enum Sprite: String, CaseIterable {
     /// they are turned upcourt toward the thrower.
     case inboundReceiverBack = "Player_Inbound_Receiver_Back"
 
+    /// Dust off the floor. Five cells, and the last of them is deliberately empty — the
+    /// puff ends on nothing rather than on a shape being switched off.
+    case smoke = "Smoke"
+
     /// Guarding, and the swipe he makes on a Clamp that does its work at once.
     case defender = "Defender"
     case defenderSwipe = "Defender_Swipe"
@@ -30,6 +34,9 @@ enum Sprite: String, CaseIterable {
     case sparkleBurst = "SparkleBurst"
     /// A player facing the camera. One frame — a pose, not a loop.
     case front = "Player_front"
+    /// Turned away, watching the play. One frame, like `front` — it is what everybody who
+    /// is not going up for the board is doing while somebody else is.
+    case back = "Player_back"
     /// Idling with the ball, face-on. Both carry their own ball, so nothing is laid over
     /// them — unlike the throw-in stance, which is drawn empty-handed.
     case spinBall = "Player_front_spinball"
@@ -53,7 +60,7 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
-        case .front, .praised, .gooseneck: return 1
+        case .front, .back, .praised, .gooseneck: return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
         case .inboundReceiver: return 1
@@ -61,6 +68,7 @@ enum Sprite: String, CaseIterable {
         case .inboundReceiverBack: return 3
         case .rebound:      return 5
         case .land:         return 3
+        case .smoke:        return 5
         case .spinBall:     return 4
         case .bounceBall:   return 6
         case .defender:     return 2

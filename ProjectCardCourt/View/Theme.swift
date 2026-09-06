@@ -175,6 +175,22 @@ enum Theme {
         /// of the frame, which is dead space anything sitting below has to be pulled
         /// back through.
         static let spriteFootPadding: CGFloat = 4 / 32
+
+        // ── Dust ────────────────────────────────────────────────────────
+        /// The dust sheet's own rate, and how faint it is by its last cell.
+        static let smokeFPS: Double = 12
+        static let smokeFade: Double = 0.10
+        /// **Which cells of the dribble the ball is on the floor for.** Read off the
+        /// sheet rather than picked: its lowest row is 27 on these two and higher on
+        /// every other, and both are drawn wider than the ball is, which is the squash.
+        static let dribbleStrikes = [2, 10]
+        /// Where a puff sits, in art pixels from the middle of the foot line — right and
+        /// up positive. A landing is under him; a bounce is out where the ball comes
+        /// down, which is column 22 of the 32 the frame is wide.
+        static let landingDust = CGPoint(x: 0, y: 0)
+        static let dribbleDust = CGPoint(x: 6, y: -1)
+        /// How big a bounce's puff is against a landing's. A ball is not a body.
+        static let dribbleDustScale: CGFloat = 0.5
         /// The sprite is square, so its footprint is just its side.
         static var height: CGFloat { Sprite.run.frameSize * playerScale }
     }

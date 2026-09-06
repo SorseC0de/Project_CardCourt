@@ -694,6 +694,16 @@ struct CourtView: View {
     /// scenes that were still playing. The controller says when.
     private var isStill: Bool { throwing != nil || inbounding != nil }
 
+    /// Whether this seat is watching somebody else go up for the board.
+    ///
+    /// The rebound is over when the leap is — `rebound` is put down at the end of it, on
+    /// the same clock the leap runs on — so the three of them stand still for exactly as
+    /// long as he is in the air, and are running again on the frame he starts dribbling.
+    private func watching(_ seat: Seat) -> Bool {
+        guard let rebound else { return false }
+        return rebound.seat != seat
+    }
+
     /// Whether the floor is being asked a question at all.
     private var isChoosing: Bool {
         if case .awaitingTarget = gate { return true }
@@ -880,7 +890,13 @@ struct CourtView: View {
                 // turned to watch whoever is throwing it, rather than facing whichever
                 // way the run of play had left them. One of four ways of standing, so a
                 // line of four is not one man printed four times.
-                sprite: isStill ? .inboundReceiverBack : nil,
+                //
+                // **Nothing else on the court moves while somebody is going up.** The
+                // three who are not on the board stand and watch it, turned away — they
+                // were jogging on the spot through the whole leap, which read as a play
+                // carrying on behind the one thing everybody is meant to be looking at.
+                // They pick their running back up the moment he comes down with it.
+                sprite: isStill ? .inboundReceiverBack : (watching(seat) ? .back : nil),
                 spriteFrame: isStill ? look.waiting(for: seat).cell : nil,
                 facing: passer,
                 mirrored: isStill ? (look.waiting(for: seat).mirrored

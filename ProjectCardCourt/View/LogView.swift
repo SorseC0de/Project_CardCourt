@@ -1,41 +1,15 @@
 import SwiftUI
 
-/// How the log shares space with the court.
-enum LogStyle: CaseIterable {
-    /// Its own band beneath the court.
-    case panel
-    /// Court takes the space; the log floats over it, faded out at the top.
-    case overlay
-    /// No log at all; the court takes the space.
-    case hidden
-
-    var next: LogStyle {
-        let all = LogStyle.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
-    }
-
-    var symbol: String {
-        switch self {
-        case .panel:   return "list.bullet.rectangle"
-        case .overlay: return "rectangle.bottomthird.inset.filled"
-        case .hidden:  return "rectangle"
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .panel:   return "Log panel"
-        case .overlay: return "Log overlay"
-        case .hidden:  return "Log hidden"
-        }
-    }
-}
-
 struct LogView: View {
     let lines: [LogLine]
     var showsBackground = true
     /// Off for the overlay style, where the log is decoration rather than a control.
     var isInteractive = true
+
+    /// The end of the log, and the room under the newest line that keeps it out of the
+    /// fade. Scrolled to rather than padded — see the body.
+    private static let foot = "log-foot"
+    private static let footRoom: CGFloat = 42
 
     @State private var contentHeight: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
@@ -56,12 +30,18 @@ struct LogView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .id(line.id)
                         }
+                        // **Where the scroll stops, and why it is a view.** As padding
+                        // this room sat outside everything the reader could aim at, so
+                        // scrolling to the last line put it on the very edge — the
+                        // faintest part of the fade the room is there to clear. A view
+                        // can be scrolled to, so the log ends where its content does.
+                        Color.clear
+                            .frame(height: Self.footRoom)
+                            .id(Self.foot)
                     }
                     .padding(.horizontal, 12)
                     .padding(.trailing, isInteractive ? 6 : 0)
                     .padding(.top, 6)
-                    // Clears the bottom fade, so the newest line is never the faintest.
-                    .padding(.bottom, 14)
                     .background {
                         // Preferences do not survive the ScrollView here, so read the
                         // geometry directly and publish it after layout settles.
@@ -79,14 +59,22 @@ struct LogView: View {
                 .scrollDisabled(!isInteractive)
                 .onAppear {
                     viewportHeight = geo.size.height
-                    // Switching styles rebuilds this view, so start at the newest line.
-                    if let last = lines.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                    proxy.scrollTo(Self.foot, anchor: .bottom)
                 }
-                .onChange(of: geo.size.height) { viewportHeight = geo.size.height }
+                .onChange(of: geo.size.height) {
+                    viewportHeight = geo.size.height
+                    // The band changing height moves the floor the log is standing on.
+                    proxy.scrollTo(Self.foot, anchor: .bottom)
+                }
                 .onChange(of: lines.count) {
-                    guard let last = lines.last else { return }
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(last.id, anchor: .bottom) }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(Self.foot, anchor: .bottom)
+                    }
                 }
+            }
+            .mask(alignment: .bottom) {
+                LinearGradient(colors: [.clear, CardPalette.black], startPoint: .bottom, endPoint: .top)
+                    .allowsHitTesting(false)
             }
             .overlay(alignment: .topTrailing) {
                 if isInteractive && isScrollable { indicator(in: geo.size) }

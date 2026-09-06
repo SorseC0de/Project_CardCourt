@@ -192,6 +192,9 @@ struct ActionBarView: View {
         /// `ActionText` spends tracking as a share of each letter's own size, not in
         /// points — 1.2 there is more than a letter of air between every pair.
         static let letterGap: CGFloat = 0.02
+        /// The button's own word is set in plain type, so its tracking is points like
+        /// everything else's.
+        static let wordGap: CGFloat = 0.5
         /// The second button is three quarters of the first, at the same height.
         static let secondShare: CGFloat = 0.75
     }
@@ -205,8 +208,14 @@ struct ActionBarView: View {
                     .scaledToFit()
                     .frame(width: Act.ball, height: Act.ball)
                     .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
-                ActionText("SHOOT", size: Act.word, ink: .white,
-                           drop: CardPalette.blue, taper: 0, tracking: Act.letterGap)
+                // Plain type, not `ActionText`. The word sits beside a reading set in
+                // ordinary letters and takes the same drop shadow as it — a display face
+                // between the ball and the percentage made three treatments in one pill.
+                Text("SHOOT")
+                    .font(.system(size: Act.word, weight: .heavy, design: .rounded))
+                    .tracking(Act.wordGap)
+                    .foregroundStyle(.white)
+                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
                 Text("(\(controller.shownShot)%)")
                     .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)

@@ -43,16 +43,22 @@ struct SpriteShadow: View {
 
     private static let rest: Double = 0.66
 
-    private var side: CGFloat {
-        Sprite.run.frameSize * scale * Self.shrink
-            * (1 - (1 - Theme.Figure.shadowInAir) * lift)
-    }
+    /// What it measures on the floor, which does not change. **The gap is drawn, not
+    /// laid out**: shrinking the frame itself made a bottom-aligned shadow shrink toward
+    /// its own bottom edge, so it slid down the floor as he went up and back as he came
+    /// down — a shadow walking away from the man casting it.
+    private var side: CGFloat { Sprite.run.frameSize * scale * Self.shrink }
+
+    /// How much of it is left at the top of a jump. Applied as a scale about its own
+    /// centre, so it stays where his feet were.
+    private var gap: CGFloat { 1 - (1 - Theme.Figure.shadowInAir) * lift }
 
     var body: some View {
         Image("PlayerShadow")
             .interpolation(.none)
             .resizable()
             .frame(width: side, height: side)
+            .scaleEffect(gap)
             .opacity(Self.rest * (1 - Theme.Figure.shadowFadeInAir * lift))
     }
 }
