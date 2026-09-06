@@ -168,6 +168,9 @@ enum Theme {
         /// shrinks and thins as the gap opens.
         static let shadowInAir: CGFloat = 0.62
         static let shadowFadeInAir: CGFloat = 0.5
+        /// The turn on the My Hooper stage: half a second a view, two seconds all the way
+        /// round. Two divides sixty like every other rate in the game.
+        static let turnFPS: Double = 2
         /// Standing about with the ball. Slow on purpose — a spin or a bounce at the
         /// running rate reads as fidgeting rather than as somebody waiting.
         static let idleBallFPS: Double = 7.5

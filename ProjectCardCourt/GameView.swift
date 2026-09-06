@@ -24,9 +24,9 @@ struct GameView: View {
     /// hangs from. Nought until the first layout, which is one frame before anything
     /// can be played.
     @State private var logBottom: CGFloat = 0
-    /// Where the results card starts in `Winner.poses`. Rolled once per game, so the
-    /// same win does not always end on the same picture.
-    @State private var winnerPose = Int.random(in: 0..<Winner.poses.count)
+    /// The roll the results card's poses come off. Once per game, so nobody changes
+    /// stance every time the card redraws — see `Winner.pose(for:at:from:)`.
+    @State private var winnerPose = Int.random(in: 0..<10_000)
     /// Where each player's PTS cell is, read off the board rather than guessed at.
     @State private var pointsCells: [Seat: CGPoint] = [:]
 
@@ -780,7 +780,8 @@ struct GameView: View {
                         // Facing the room with the ball, not jogging upcourt — the game
                         // is over and there is nowhere left to run. One pose each where
                         // more than one of them won, so a tie is not the same man twice.
-                        HooperPortrait(pose: Winner.pose(at: place, from: winnerPose),
+                        HooperPortrait(pose: Winner.pose(for: seat, at: place,
+                                                         from: winnerPose),
                                        // Only the player has chosen a face; the rest
                                        // wear the one on their sheet.
                                        kit: seat.isLocal ? HooperKit.shared : nil,

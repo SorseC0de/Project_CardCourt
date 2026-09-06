@@ -24,6 +24,28 @@ final class HooperKit {
     var position: Kit.Position { didSet { save() } }
     /// A card off the pool they have actually met. Nil until they pick one.
     var favourite: String? { didSet { save() } }
+    /// The stances they are willing to be caught in when they win, by raw value.
+    ///
+    /// **Empty is not "none".** Nobody wants to win and be drawn as nothing, so an empty
+    /// set means the whole list — which is also what it means before anybody has been to
+    /// this screen. Ticking one is how you say "always this"; ticking three is how you
+    /// say "any of these".
+    var winPoses: Set<String> { didSet { save() } }
+
+    /// What the results card may actually catch this player in.
+    var chosenWinPoses: [Kit.Pose] {
+        let picked = Kit.Pose.winnable.filter { winPoses.contains($0.rawValue) }
+        return picked.isEmpty ? Kit.Pose.winnable : picked
+    }
+
+    func toggleWinPose(_ pose: Kit.Pose) {
+        guard pose.canWin else { return }
+        if winPoses.contains(pose.rawValue) {
+            winPoses.remove(pose.rawValue)
+        } else {
+            winPoses.insert(pose.rawValue)
+        }
+    }
 
     /// The four things about him that anybody else can see, ready to travel.
     var look: Table.Look {
@@ -48,6 +70,7 @@ final class HooperKit {
         position = Kit.Position(rawValue: store.string(forKey: Key.position) ?? "")
             ?? .pointGuard
         favourite = store.string(forKey: Key.favourite)
+        winPoses = Set(store.stringArray(forKey: Key.winPoses) ?? [])
     }
 
     private enum Key {
@@ -59,6 +82,7 @@ final class HooperKit {
         static let belt = "hooper.belt"
         static let position = "hooper.position"
         static let favourite = "hooper.favourite"
+        static let winPoses = "hooper.winPoses"
     }
 
     private func save() {
@@ -71,6 +95,7 @@ final class HooperKit {
         store.set(belt, forKey: Key.belt)
         store.set(position.rawValue, forKey: Key.position)
         store.set(favourite, forKey: Key.favourite)
+        store.set(Array(winPoses), forKey: Key.winPoses)
     }
 }
 
@@ -94,7 +119,9 @@ enum Kit {
         Pair(name: "Red",    main: PixelPalette.vermilion, shade: PixelPalette.darkRed),
         Pair(name: "Green",  main: PixelPalette.green,     shade: PixelPalette.pine),
         Pair(name: "Lime",   main: PixelPalette.lime,      shade: PixelPalette.green),
-        Pair(name: "Teal",   main: PixelPalette.azure,     shade: PixelPalette.deepTeal),
+        // Shaded with the palette's 19 rather than its 10: deep teal is two rows away
+        // from azure and read as a different colour under it rather than as its shadow.
+        Pair(name: "Teal",   main: PixelPalette.azure,     shade: PixelPalette.blue),
         Pair(name: "Rose",   main: PixelPalette.rose,      shade: PixelPalette.darkMagenta),
         Pair(name: "Violet", main: PixelPalette.lavender,  shade: PixelPalette.dusk),
         Pair(name: "White",  main: PixelPalette.ice,       shade: PixelPalette.slate),
@@ -141,28 +168,83 @@ enum Kit {
     ///   and give expressions for nothing.
     static let faceMask = CGRect(x: 13, y: 6, width: 6, height: 5)
 
+    /// How a view wears the face sheet.
+    ///
+    /// **The sheet holds one eye.** A face is symmetric, so a view drawn looking at you is
+    /// that eye and a flipped copy of it over the same 8-wide cell — one drawing doing
+    /// both sides. A view in profile is the eye on its own; the far one is behind the
+    /// nose. Nothing here has to know where an eye sits: the mirror is about the cell's
+    /// own centre, and the head is centred on that cell.
+    ///
+    /// The sheets where he glances over a shoulder are the exception symmetry does not
+    /// cover. His head is turned, so the eye nearer the edge of it rides a pixel higher
+    /// than the one facing you.
+    enum FaceBuild: Equatable {
+        /// The eye and its mirror, level.
+        case whole
+        /// The eye alone.
+        case profile
+        /// Both, with the mirrored one moved — in art pixels, negative being up.
+        case glancing(lift: CGFloat)
+
+        /// Where the flipped copy goes, or nil when there is not one.
+        var mirror: CGPoint? {
+            switch self {
+            case .whole:            return .zero
+            case .profile:          return nil
+            case .glancing(let up): return CGPoint(x: 0, y: up)
+            }
+        }
+    }
+
     /// The poses the sprite can be turned to, in the order they are offered.
     enum Pose: String, CaseIterable, Identifiable {
         /// The three idle ones lead, because they are the ones worth watching — a kit is
         /// judged on a player standing there with the ball, not mid-stride.
-        case spinning, bouncing, holding, front, gooseneck, praised, defending,
-             running, dribbling, receiving, shooting, back
+        case stand, spinning, bouncing, holding, gooseneck, praised, fierce, defending,
+             running, dribbling, receiving, shooting
+        /// The three views `stand` turns through. Not stances anybody picks — they are
+        /// frames of one that is — so they are never offered on their own.
+        case front, back, right
 
-        /// The ones My Hooper offers, which is not all of them. `praised` and `defending`
-        /// are results card poses only — arms out to a crowd is a thing that happens to
-        /// you rather than a way of standing you would pick to be looked at in, and
-        /// nobody picks their kit by how they look guarding somebody.
-        static let offered: [Pose] = allCases.filter { $0 != .praised && $0 != .defending }
+        /// The ones My Hooper offers, which is not all of them.
+        static let offered: [Pose] = allCases.filter { !turnOnly.contains($0) }
+        private static let turnOnly: Set<Pose> = [.front, .back, .right]
+
+        /// The views the turn walks, and which of them is mirrored: front, his right, his
+        /// back, then that same side sheet flipped. One sheet does the work of two, a man
+        /// being the same shape from either side.
+        static let turn: [(view: Pose, mirrored: Bool)] = [
+            (.front, false), (.right, false), (.back, false), (.right, true),
+        ]
+
+        /// Whether this is the turn rather than a single sheet.
+        var turns: Bool { self == .stand }
+
+        /// Whether this is a stance somebody can be caught standing in when they win.
+        ///
+        /// **Not everything is.** A shot, a catch and a run are things happening to a
+        /// player mid-play, and the turn is how he stands when nothing is happening at
+        /// all — none of them is a way of being looked at after the final whistle.
+        var canWin: Bool {
+            ![.stand, .shooting, .receiving, .running].contains(self)
+        }
+
+        /// Every pose the results card may catch somebody in.
+        static let winnable: [Pose] = offered.filter(\.canWin)
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
+            case .stand:     return "Stand"
             case .spinning:  return "Spin"
             case .bouncing:  return "Bounce"
             case .holding:   return "Hold"
             case .front:     return "Front"
+            case .right:     return "Side"
             case .gooseneck: return "Gooseneck"
+            case .fierce:    return "Fierce"
             case .back:      return "Back"
             case .praised:   return "Praised"
             case .defending: return "D-Up"
@@ -175,6 +257,9 @@ enum Kit {
 
         var sprite: Sprite {
             switch self {
+            // The view the turn opens on. Anything drawing a `stand` walks `Pose.turn`
+            // rather than asking for one sheet — see `HooperPortrait`.
+            case .stand:     return .front
             case .spinning:  return .spinBall
             case .bouncing:  return .bounceBall
             // The throw-in wind-up, held on its first cell: hands up, facing the room.
@@ -182,6 +267,9 @@ enum Kit {
             case .front:     return .front
             case .gooseneck: return .gooseneck
             case .back:      return .back
+            case .right:     return .right
+            // Squared up with his back to the room, arms out.
+            case .fierce:    return .akuma
             case .praised:   return .praised
             case .defending: return .defender
             case .running:   return .run
@@ -202,7 +290,8 @@ enum Kit {
         /// looked at, and a pose that plays through and stops is a pose you miss.
         var plays: Bool {
             switch self {
-            case .front, .back, .receiving, .holding, .gooseneck, .praised: return false
+            case .front, .back, .right, .fierce,
+                 .receiving, .holding, .gooseneck, .praised: return false
             default: return true
             }
         }
@@ -210,6 +299,8 @@ enum Kit {
         /// How fast it runs. The two ball idles are deliberately unhurried.
         var fps: Double {
             switch self {
+            // Half a second a view, so a full turn takes two.
+            case .stand:               return Theme.Figure.turnFPS
             case .spinning, .bouncing: return Theme.Figure.idleBallFPS
             case .shooting:            return Theme.Figure.shootFPS
             // Two poses, braced. Four a second, like everything off the run of play.
@@ -218,15 +309,24 @@ enum Kit {
             }
         }
 
-        /// Whether the sheet is drawn face-on, and so wears the chosen head. The two ball
+        /// Whether the sheet is drawn face-on, and so wears the chosen face. The two ball
         /// idles are front views like `front` itself; the sideline figure is one too, but
         /// it puts its own face on.
+        ///
+        /// `stand` answers for the view it is showing rather than for itself, so the face
+        /// comes and goes as he turns — see `HooperPortrait`.
         var facesYou: Bool {
             switch self {
             case .spinning, .bouncing, .front, .gooseneck, .praised: return true
+            // In profile, and wearing one eye of it — see `FaceBuild`.
+            case .right: return true
             default: return false
             }
         }
+
+        /// How this view wears the face sheet — the sheet's own answer, since the court
+        /// draws sheets no pose has a name for. See `FaceBuild`.
+        var face: FaceBuild { sprite.face ?? .whole }
 
         /// Whether this is the sideline figure rather than a plain sheet.
         ///

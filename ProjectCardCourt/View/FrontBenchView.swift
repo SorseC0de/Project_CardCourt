@@ -12,6 +12,7 @@ struct FrontBenchView: View {
 
     @State private var render = RenderDebug.shared
     @State private var deck = DeckTuning.shared
+    @State private var sprites = false
 
     var body: some View {
         ZStack {
@@ -36,6 +37,14 @@ struct FrontBenchView: View {
                     Slider(value: $deck.slabs, in: 1...20, step: 1).tint(CardPalette.gold)
                 }
 
+                ChunkyButton(title: "Sprite gallery", fill: CardPalette.navy,
+                             stroke: CardPalette.gold, shade: CardPalette.blue,
+                             size: 16) { sprites = true }
+                Text("Every sheet a player is drawn from, with the face composed on it "
+                     + "the way the game composes it — for checking where the eyes land.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(CardPalette.gray)
+
                 Spacer()
                 ChunkyButton(title: "Done", fill: CardPalette.blue,
                              stroke: CardPalette.gold, shade: CardPalette.navy,
@@ -43,6 +52,9 @@ struct FrontBenchView: View {
             }
             .foregroundStyle(.white)
             .padding(24)
+        }
+        .fullScreenCover(isPresented: $sprites) {
+            SpriteGallery(onDismiss: { sprites = false })
         }
     }
 }

@@ -21,14 +21,21 @@ struct HooperView: View {
     @State private var pickingFavourite = false
 
     private enum Sheet {
-        /// Art pixels per point. Whole numbers only — this is pixel art.
-        static let scale: CGFloat = 5
-        /// Room for the tallest sheet, so the panel does not resize when the pose does.
-        static let stage: CGFloat = 48 * scale
-        static let gap: CGFloat = 10
+        /// Art pixels per point. Half of one, and deliberately: this is exactly one and a
+        /// half times the five he was drawn at. At seven and a half points an art pixel is
+        /// twenty-two or twenty-three device pixels rather than a round number of them,
+        /// which is a fraction of a percent at this magnification and nothing you can see.
+        static let scale: CGFloat = 7.5
+        /// **Floor to crown, in art pixels.** Sized off the tallest thing he does rather
+        /// than off the biggest sheet: the shot is drawn in a 48-frame but only thirty-one
+        /// rows of it are ink above his feet, and reserving all forty-eight was a third of
+        /// the box holding nothing. Every sheet stands on the same line — see
+        /// `Sprite.footPadding`.
+        static let stage: CGFloat = 32 * scale
+        static let gap: CGFloat = 8
         static let heading: CGFloat = 11
         /// The swatches, and the scale the faces are drawn at.
-        static let swatch: CGFloat = 28
+        static let swatch: CGFloat = 26
         static let face: CGFloat = 3
     }
 
@@ -47,13 +54,6 @@ struct HooperView: View {
                     section("Jersey") { swatches($kit.jersey) }
                     section("Belt & shoes") { swatches($kit.belt) }
                 }
-                section("Pose") {
-                    SlabPicker(options: Kit.Pose.offered, choice: $pose) { $0.title }
-                }
-                section("Position") {
-                    SlabPicker(options: Kit.Position.allCases,
-                               choice: $kit.position) { $0.rawValue }
-                }
                 HStack(alignment: .bottom, spacing: Sheet.gap) {
                     section("Number") { number }
                     section("Name") { nameField }
@@ -62,8 +62,7 @@ struct HooperView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
+            .padding(.vertical, 6)
 
             if pickingFavourite { favouritePicker }
         }
@@ -92,11 +91,22 @@ struct HooperView: View {
     /// A flat slab, not a `Panel`: the orange drop under one of those is what a *button*
     /// wears, and this is the thing being looked at rather than a thing to press.
     private var stage: some View {
-        VStack(spacing: 4) {
-            HooperPortrait(pose: pose, kit: kit, scale: Sheet.scale)
-                .frame(height: Sheet.stage)
+        VStack(spacing: 6) {
+            // **The stances, above the man they change.** Off at the bottom of the screen
+            // they were a list of words you read and then looked up to check; here the
+            // thing being changed is directly under the hand changing it.
+            poseStrip
 
-            SmallCapsText(text: kit.billing, font: Chrome.display, size: 30, tracking: 1)
+            HStack(alignment: .bottom, spacing: 6) {
+                positions
+                Spacer(minLength: 0)
+                figure
+                Spacer(minLength: 0)
+                winPoseTick
+            }
+            .frame(height: Sheet.stage)
+
+            SmallCapsText(text: kit.billing, font: Chrome.display, size: 26, tracking: 1)
                 .foregroundStyle(.white)
                 .shadow(color: Chrome.shade, radius: 0, x: 4, y: 4)
                 .lineLimit(1)
@@ -106,10 +116,97 @@ struct HooperView: View {
                 .padding(.horizontal, 12)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: Chrome.radius).fill(CardPalette.blue))
         .overlay(RoundedRectangle(cornerRadius: Chrome.radius)
             .strokeBorder(CardPalette.gold, lineWidth: Chrome.stroke))
+    }
+
+    /// Him, standing on the floor of the box.
+    ///
+    /// Bottom-aligned and pushed down by whatever empty rows his sheet leaves under his
+    /// feet, so a 48-frame and a 32-frame put a man on the same line. What runs off the
+    /// top of the box is the sheet's own empty rows.
+    private var figure: some View {
+        HooperPortrait(pose: pose, kit: kit, scale: Sheet.scale, castsShadow: true)
+            .offset(y: pose.sprite.footPadding * Sheet.scale)
+            .frame(height: Sheet.stage, alignment: .bottom)
+            .clipped()
+    }
+
+    /// The stances, as a row you push along.
+    private var poseStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 5) {
+                ForEach(Kit.Pose.offered) { option in
+                    let on = option == pose
+                    SmallCapsText(text: option.title, font: Chrome.display, size: 14,
+                                  tracking: 0.5)
+                        .foregroundStyle(on ? CardPalette.navy : .white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(on ? CardPalette.gold
+                                                      : CardPalette.navy.opacity(0.55)))
+                        .onTapGesture { pose = option }
+                }
+            }
+            .padding(.horizontal, 10)
+        }
+        .animation(.easeOut(duration: 0.18), value: pose)
+    }
+
+    /// Where he plays, stacked down the empty side of the box.
+    private var positions: some View {
+        VStack(spacing: 3) {
+            ForEach(Kit.Position.allCases) { spot in
+                let on = spot == kit.position
+                SmallCapsText(text: spot.rawValue, font: Chrome.display, size: 13,
+                              tracking: 0.5)
+                    .foregroundStyle(on ? CardPalette.navy : .white.opacity(0.75))
+                    .frame(width: 34, height: 20)
+                    .background(RoundedRectangle(cornerRadius: 5)
+                        .fill(on ? CardPalette.gold : CardPalette.navy.opacity(0.55)))
+                    .onTapGesture { kit.position = spot }
+            }
+        }
+        .padding(.leading, 10)
+        .animation(.easeOut(duration: 0.18), value: kit.position)
+    }
+
+    /// **Whether he can be caught standing in this one.**
+    ///
+    /// Ticking is the whole of how a win pose is chosen — there is no second list to keep
+    /// in step with this one. None ticked is every one of them, which is what somebody who
+    /// has never opened this screen means as much as somebody who has.
+    @ViewBuilder private var winPoseTick: some View {
+        if pose.canWin {
+            let on = kit.winPoses.contains(pose.rawValue)
+            VStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(on ? CardPalette.gold : .clear)
+                    .frame(width: 22, height: 22)
+                    .overlay(RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(on ? CardPalette.gold : .white.opacity(0.7),
+                                      lineWidth: 2))
+                    .overlay {
+                        if on {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .black))
+                                .foregroundStyle(CardPalette.navy)
+                        }
+                    }
+                SmallCapsText(text: "Win Pose", font: Chrome.display, size: 11,
+                              tracking: 0.5)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+            .frame(width: 58)
+            .contentShape(Rectangle())
+            .onTapGesture { kit.toggleWinPose(pose) }
+            .padding(.trailing, 10)
+            .animation(.easeOut(duration: 0.18), value: on)
+        } else {
+            Color.clear.frame(width: 58)
+        }
     }
 
 
@@ -118,7 +215,7 @@ struct HooperView: View {
     /// The nine heads, wrapped. **No box behind them** — a head on a slab reads as a
     /// button with a face on it; the ring alone says which one is on.
     private var faces: some View {
-        wrapped(0..<Sprite.heads.frames, side: 8 * Sheet.face) { index in
+        wrapped(0..<Sprite.heads.frames, columns: 3) { index in
             let on = index == kit.face
             SpriteAnimation(sprite: .heads, scale: Sheet.face, isPlaying: false,
                             restFrame: index)
@@ -135,7 +232,7 @@ struct HooperView: View {
     /// The light half of each pair. A swatch showing both would be asking the player to
     /// pick a shading rule.
     private var skins: some View {
-        wrapped(PixelPalette.skinTones.indices, side: Sheet.swatch) { index in
+        wrapped(PixelPalette.skinTones.indices, columns: 3) { index in
             disc(PixelPalette.skinTones[index].light, on: index == kit.tone)
                 .onTapGesture { kit.tone = index }
         }
@@ -143,7 +240,7 @@ struct HooperView: View {
     }
 
     private func swatches(_ choice: Binding<Int>) -> some View {
-        wrapped(Kit.colours.indices, side: Sheet.swatch) { index in
+        wrapped(Kit.colours.indices, columns: 4) { index in
             disc(Kit.colours[index].main, on: index == choice.wrappedValue)
                 .onTapGesture { choice.wrappedValue = index }
         }
@@ -161,20 +258,20 @@ struct HooperView: View {
             .scaleEffect(on ? 1.12 : 1)
     }
 
-    /// A list wrapped into as many rows as it takes.
+    /// A list in a stated number of columns.
     ///
-    /// **Adaptive, not a fixed count per row.** Six to a row is six discs plus five gaps
-    /// wide whatever the column is, and two of those columns side by side came to more
-    /// than the screen — so the lists ran off both edges. This asks for as many as fit.
+    /// **Counted, not adaptive.** Every one of these lists has a shape it wants — nine
+    /// faces are three rows of three, six tones are two of three, twelve colours are three
+    /// of four — and an adaptive grid gave whatever the width happened to allow, which
+    /// changed with the phone. The counts are known, so they are said.
     private func wrapped<Data: RandomAccessCollection, Item: View>(
-        _ data: Data, side: CGFloat, @ViewBuilder item: @escaping (Data.Element) -> Item
+        _ data: Data, columns: Int, @ViewBuilder item: @escaping (Data.Element) -> Item
     ) -> some View where Data.Element: Hashable {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: side), spacing: 6,
-                                     alignment: .leading)],
-                  alignment: .leading, spacing: 6) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: columns),
+                  spacing: 5) {
             ForEach(Array(data), id: \.self) { item($0) }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Number and name
@@ -284,11 +381,11 @@ struct HooperView: View {
 
 /// One pose, drawn as a portrait.
 ///
-/// Not `PlayerFigure`: that one is a man on a court, with a shadow under him, a ball in
-/// his hands only while he is holding one, and a warp he leaves by. This is him standing
-/// still to be looked at — on his own screen, and on the results card.
+/// Not `PlayerFigure`: that one is a man on a court, with a ball in his hands only while
+/// he is holding one and a warp he leaves by. This is him standing still to be looked at
+/// — on his own screen, and on the results card.
 ///
-/// **The chosen face goes on over the printed one.** The front sheets are drawn with a
+/// **The chosen face goes on over the printed one.** Some front sheets are drawn with a
 /// face already, so it is painted out in skin first — see `Kit.faceMask`. Nothing here
 /// re-exports art: the rectangle and the per-frame shift are both measured off the
 /// drawing, in the drawing's own pixels.
@@ -300,67 +397,113 @@ struct HooperPortrait: View {
     /// colours the way it does on the court.
     var seat: Seat = GameRules.localSeat
     var scale: CGFloat = Theme.Figure.playerScale
+    /// Whether he stands on anything. Off on the results card, where the men are cut out
+    /// against black and a shadow would be a floor nobody drew.
+    var castsShadow = false
 
     var body: some View {
-        ZStack {
-            if pose.isSideline {
+        ZStack(alignment: .bottom) {
+            if castsShadow { SpriteShadow(scale: scale) }
+            if pose.turns {
+                // **Four views on one clock.** A turn is not a sheet, so it is walked
+                // here rather than described by `Pose.sprite` — and the face comes and
+                // goes with the view, since only one of the four is looking at you.
+                TimelineView(.animation(minimumInterval: 1 / Theme.Figure.turnFPS)) { tick in
+                    let step = Int((tick.date.timeIntervalSinceReferenceDate
+                                    * Theme.Figure.turnFPS).rounded(.down))
+                    let showing = Kit.Pose.turn[step % Kit.Pose.turn.count]
+                    figure(showing.view, mirrored: showing.mirrored)
+                }
+            } else if pose.isSideline {
                 // **The sideline figure, held on its first cell.** Its face, its ball and
                 // its palette were all settled when he was put on the sideline; asking
                 // for it again here is the whole point of it being a view.
                 InbounderFigure(seat: seat, holdsBall: true, frozen: true,
                                 face: kit?.face ?? 0, scale: scale, swaps: kit?.swaps)
             } else {
-                SpriteAnimation(sprite: pose.sprite, scale: scale, fps: pose.fps,
-                                isPlaying: pose.plays, restFrame: pose.frame)
-                    // The player's own kit where there is one; otherwise the seat's, the
-                    // way he is dressed on the floor. Not the sheet's blue — that is the
-                    // human's colour, and it put every winner in it.
-                    .paletteSwap(kit?.swaps ?? PlayerLook.shared.kit(for: seat))
-                if let kit, pose.facesYou { face(kit) }
+                figure(pose, mirrored: false)
             }
+        }
+    }
+
+    /// One sheet, dressed, with a face on it when it is looking at you.
+    @ViewBuilder
+    private func figure(_ showing: Kit.Pose, mirrored: Bool) -> some View {
+        ZStack {
+            SpriteAnimation(sprite: showing.sprite, scale: scale, fps: showing.fps,
+                            isPlaying: showing.plays, restFrame: showing.frame)
+                // The player's own kit where there is one; otherwise the seat's, the way
+                // he is dressed on the floor. Not the sheet's blue — that is the human's
+                // colour, and it put every winner in it.
+                .paletteSwap(kit?.swaps ?? PlayerLook.shared.kit(for: seat))
+            if let kit, showing.facesYou { face(kit, on: showing) }
+        }
+        .scaleEffect(x: mirrored ? -1 : 1)
+    }
+
+    /// One eye, on the head the body already has.
+    private func eye(_ kit: HooperKit, shift: CGPoint) -> some View {
+        OnSheet(rect: CGRect(origin: SpriteMetrics.headOrigin,
+                             size: CGSize(width: 8, height: 8)),
+                shift: shift, scale: scale) {
+            SpriteAnimation(sprite: .faces, scale: scale, isPlaying: false,
+                            restFrame: kit.face)
+                .paletteSwap(PixelPalette.skin(tone: kit.tone))
         }
     }
 
     /// The face, following the head from frame to frame.
     ///
+    /// **The face sheet, not the heads sheet.** The bodies already have a head drawn on
+    /// them — they are simply faceless — so what goes on is the features and nothing
+    /// else. A whole 8×8 head laid at the same origin covered his hair and a slice of his
+    /// shoulders with a second head. `InbounderFigure` has always had this right.
+    ///
     /// Its own clock rather than the sprite's: `SpriteAnimation.cell` is a pure function
     /// of the wall clock, so two views asking it at the same instant get the same cell
     /// without either having to be inside the other.
-    private func face(_ kit: HooperKit) -> some View {
-        TimelineView(.animation(minimumInterval: 1 / pose.fps, paused: !pose.plays)) { tick in
-            let cell = pose.plays
-                ? SpriteAnimation.cell(of: pose.sprite, at: tick.date, fps: pose.fps)
-                : pose.frame
-            let shift = pose.headShift(atFrame: cell)
+    private func face(_ kit: HooperKit, on showing: Kit.Pose) -> some View {
+        TimelineView(.animation(minimumInterval: 1 / showing.fps,
+                                paused: !showing.plays)) { tick in
+            let cell = showing.plays
+                ? SpriteAnimation.cell(of: showing.sprite, at: tick.date, fps: showing.fps)
+                : showing.frame
+            let shift = showing.headShift(atFrame: cell)
             ZStack {
-                if pose.hasBakedFace {
+                if showing.hasBakedFace {
                     OnSheet(rect: Kit.faceMask, shift: shift, scale: scale) {
                         Rectangle().fill(PixelPalette.skinColour(tone: kit.tone))
                     }
                 }
-                // The head rides on the body's shoulders — see `SpriteMetrics`.
-                OnSheet(rect: CGRect(origin: SpriteMetrics.headOrigin,
-                                     size: CGSize(width: 8, height: 8)),
-                        shift: shift, scale: scale) {
-                    SpriteAnimation(sprite: .heads, scale: scale, isPlaying: false,
-                                    restFrame: kit.face)
-                        .paletteSwap(PixelPalette.skin(tone: kit.tone))
+                // The features ride on the head the body already has — see `SpriteMetrics`.
+                // **One eye, and its reflection.** The sheet holds a single eye per cell,
+                // so a face is that cell plus a flipped copy of it over the same 8-wide
+                // box — mirrored about the box's own centre, which is where the head is
+                // centred. A view in profile takes the one eye and no copy.
+                eye(kit, shift: shift)
+                if let mirror = showing.face.mirror {
+                    eye(kit, shift: CGPoint(x: shift.x + mirror.x, y: shift.y + mirror.y))
+                        .scaleEffect(x: -1)
                 }
             }
         }
     }
 }
 
-/// What the results screen picks from.
-///
-/// Handed out from a place in the list that moves game to game, so the five come round
-/// rather than the first two being the only ones anybody sees — and so a tie is never
-/// the same man standing there twice.
+/// What the results card catches a winner standing in.
 enum Winner {
-    static let poses: [Kit.Pose] = [.spinning, .bouncing, .holding, .gooseneck,
-                                    .praised, .defending]
-
-    static func pose(at place: Int, from start: Int) -> Kit.Pose {
-        poses[(start + place) % poses.count]
+    /// The pose for one winner.
+    ///
+    /// **The player's own is theirs to decide.** Whatever they ticked in My Hooper is the
+    /// pool; one tick means always that one, none means the whole list — the same freedom
+    /// said twice. Everybody else is rolled.
+    ///
+    /// Taken off a seed the screen holds rather than rolled here, so the man does not
+    /// change stance every time the card redraws — and off `place` as well, so a tie is
+    /// never the same man standing there twice.
+    static func pose(for seat: Seat, at place: Int, from seed: Int) -> Kit.Pose {
+        let pool = seat.isLocal ? HooperKit.shared.chosenWinPoses : Kit.Pose.winnable
+        guard !pool.isEmpty else { return .gooseneck }
+        return pool[(seed &+ place &* 31) % pool.count]
     }
 }

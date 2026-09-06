@@ -37,6 +37,12 @@ enum Sprite: String, CaseIterable {
     /// Turned away, watching the play. One frame, like `front` — it is what everybody who
     /// is not going up for the board is doing while somebody else is.
     case back = "Player_back"
+    /// Side on. One frame, and the left is this one mirrored — the three views plus the
+    /// back are the whole turn. See `Kit.Pose.stand`.
+    case right = "Player_right"
+    /// Squared up and glowering, arms out. Faceless like the rest of the turn, so the
+    /// chosen face drops straight on it.
+    case akuma = "Player_akumapose"
     /// Idling with the ball, face-on. Both carry their own ball, so nothing is laid over
     /// them — unlike the throw-in stance, which is drawn empty-handed.
     case spinBall = "Player_front_spinball"
@@ -60,7 +66,7 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
-        case .front, .back, .praised, .gooseneck: return 1
+        case .front, .back, .right, .akuma, .praised, .gooseneck: return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
         case .inboundReceiver: return 1
@@ -74,6 +80,52 @@ enum Sprite: String, CaseIterable {
         case .defender:     return 2
         case .defenderSwipe: return 1
         default:            return 16
+        }
+    }
+
+    /// **How this sheet wears the face, and where.** Nil is a sheet with no face to
+    /// wear — the strips themselves, the referee who has his own, anything that is not a
+    /// man seen from the front.
+    ///
+    /// Per sheet rather than per pose, because the court draws sheets the poses have no
+    /// name for. See `Kit.FaceBuild` for what the three answers mean; audit them in
+    /// `SpriteGallery`, which is what it is for.
+    var face: Kit.FaceBuild? {
+        switch self {
+        // Drawn looking at you: both eyes, the sheet's one and its reflection.
+        case .front, .spinBall, .bounceBall, .gooseneck, .praised, .inboundReceiver:
+            return .whole
+        // Side on: the near eye, and the far one behind the nose.
+        case .right:
+            return .profile
+        // Glancing over a shoulder. His head is turned, so the eye nearer the edge of it
+        // rides a pixel higher than the one still facing you.
+        case .runLook, .runLook2, .wave:
+            return .glancing(lift: -1)
+        // Turned away, or not a man at all.
+        default:
+            return nil
+        }
+    }
+
+    /// Where an 8×8 head sits on this sheet, in art pixels from the cell's top-left.
+    /// Measured off `Player_front` and shared by every 32-frame; the shot is drawn in a
+    /// bigger frame and sits lower in it.
+    var headOrigin: CGPoint {
+        switch self {
+        case .shoot: return CGPoint(x: SpriteMetrics.headOrigin.x + 8,
+                                    y: SpriteMetrics.headOrigin.y + 8)
+        default:     return SpriteMetrics.headOrigin
+        }
+    }
+
+    /// Empty rows under the character, in art pixels. **Measured, one sheet at a time.**
+    /// The 32-frames leave four; the shot is drawn in a 48-frame and leaves thirteen, so
+    /// bottom-aligning the two put one man's feet nine pixels below the other's.
+    var footPadding: CGFloat {
+        switch self {
+        case .shoot: return 13
+        default:     return 4
         }
     }
 
