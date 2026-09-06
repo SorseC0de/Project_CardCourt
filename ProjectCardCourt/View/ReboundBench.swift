@@ -11,7 +11,9 @@ import SwiftUI
 final class ReboundTuning {
     static let shared = ReboundTuning()
 
-    /// Where the ball comes from, in points off the rim on the horizon.
+    /// Where the ball starts, in points off the rim it comes out of. **The rim does not
+    /// move with it** — the hoop hangs where the court hangs it, and these two say where
+    /// the board leaves it from.
     var spawnX: CGFloat = ReboundStyle.spawnX
     var spawnY: CGFloat = ReboundStyle.spawnY
     /// Where it meets his hands, in shares of his own drawn height from his feet.
@@ -20,16 +22,23 @@ final class ReboundTuning {
     /// How big it is leaving the rim, against the size it arrives at.
     var fromHoop: CGFloat = ReboundStyle.fromHoop
 
-    /// How long it takes to arrive, and how long it takes to go once he has it.
+    /// How long it takes to arrive.
     var flight: Double = ReboundStyle.flight
-    var fade: Double = ReboundStyle.fade
+    /// How long after the catch the ball is taken off, in seconds. It is there and then
+    /// it is not: the sprite draws one of its own once he is back on the floor, and this
+    /// is the hand-over. Nothing fades — the old `fade` dial animated a view with
+    /// `.transition(.identity)`, so it did nothing at all.
+    var vanish: Double = ReboundStyle.vanish
 
     /// The leap. `rise` and `land` are the sheets' own rates and step through the ones
     /// that divide the refresh — see `Theme.Figure` — so the drawing cannot fall out of
-    /// step with the timing. `hang` and `lift` are free.
+    /// step with the timing. `hang`, `drop` and `lift` are free.
     var riseFPS: Double = ReboundStyle.riseFPS
     var landFPS: Double = ReboundStyle.landFPS
     var hang: Double = ReboundStyle.hang
+    /// How long he takes to come down, **still holding the catch**. The landing sheet is
+    /// what touching the floor looks like, so it plays after this rather than through it.
+    var drop: Double = ReboundStyle.drop
     /// How much higher he goes than the sheet can draw, in art pixels.
     var lift: CGFloat = ReboundStyle.lift
 
@@ -38,40 +47,40 @@ final class ReboundTuning {
     var rise: Double { Double(Sprite.rebound.frames - 1) / riseFPS }
     var landing: Double { Double(Sprite.land.frames) / landFPS }
     /// The whole thing, which is what the game waits out.
-    var whole: Double { rise + hang + landing }
+    var whole: Double { rise + hang + drop + landing }
 
     func reset() {
         spawnX = ReboundStyle.spawnX; spawnY = ReboundStyle.spawnY
         handX = ReboundStyle.handX;   handY = ReboundStyle.handY
         fromHoop = ReboundStyle.fromHoop
-        flight = ReboundStyle.flight; fade = ReboundStyle.fade
+        flight = ReboundStyle.flight; vanish = ReboundStyle.vanish
         riseFPS = ReboundStyle.riseFPS; landFPS = ReboundStyle.landFPS
-        hang = ReboundStyle.hang; lift = ReboundStyle.lift
+        hang = ReboundStyle.hang; drop = ReboundStyle.drop; lift = ReboundStyle.lift
     }
 }
 
 /// What the bench was left at.
 enum ReboundStyle {
-    /// Off the rim: right of centre and a little below it, so the ball is not born
-    /// inside the ring.
+    /// Straight out of the rim.
     static let spawnX: CGFloat = 0
     static let spawnY: CGFloat = 0
     /// Both hands over his head. Under the old 28/32 the ball floated above them.
     static let handX: CGFloat = 0
-    static let handY: CGFloat = 0.780
-    /// It leaves at nothing, coming from the horizon.
-    static let fromHoop: CGFloat = 0.010
+    static let handY: CGFloat = 0.800
+    /// Small leaving the rim, since it is coming from the horizon — but not nothing, or
+    /// there is no ball to see for the first third of the trip.
+    static let fromHoop: CGFloat = 0.300
 
-    static let flight: Double = 0.60
-    static let fade: Double = 0.25
+    static let flight: Double = 0.25
+    static let vanish: Double = 0.50
 
-    /// Slower than it was: at twelve the whole leap was over before it read as one.
-    static let riseFPS: Double = 10
-    static let landFPS: Double = 10
-    static let hang: Double = 0.30
+    static let riseFPS: Double = 12
+    static let landFPS: Double = 15
+    static let hang: Double = 0.35
+    static let drop: Double = 0.25
     /// Art pixels. Two was the sheet's own head-room and no more, which is why he never
     /// looked like he left the floor.
-    static let lift: CGFloat = 9
+    static let lift: CGFloat = 13
 }
 
 // MARK: - Bench
@@ -117,7 +126,8 @@ struct ReboundBench: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(CardPalette.red)
                 Spacer()
-                Text(String(format: "%.2f + %.2f + %.2f", tune.rise, tune.hang, tune.landing))
+                Text(String(format: "%.2f + %.2f + %.2f + %.2f",
+                            tune.rise, tune.hang, tune.drop, tune.landing))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.6))
                 Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
@@ -138,11 +148,12 @@ struct ReboundBench: View {
                         dial("hand y", $tune.handY, 0...1.6)
                         dial("leaves at", $tune.fromHoop, 0.01...1)
                         time("flight", $tune.flight, 0.1...2)
-                        time("fade", $tune.fade, 0.05...1.5)
+                        time("ball goes", $tune.vanish, 0...2)
                         heading("the leap")
                         rate("rise fps", $tune.riseFPS)
                         rate("land fps", $tune.landFPS)
                         time("hang", $tune.hang, 0...1.5)
+                        time("drop", $tune.drop, 0.05...1.5)
                         dial("lift (px)", $tune.lift, 0...40)
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)

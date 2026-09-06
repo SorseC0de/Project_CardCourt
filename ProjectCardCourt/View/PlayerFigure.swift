@@ -205,12 +205,17 @@ struct PlayerFigure: View {
         leap = .hanging
         try? await Task.sleep(for: .seconds(leapTune.hang))
 
-        // Down: the two pixels go first, then the landing plays out under him.
-        withAnimation(.easeIn(duration: leapTune.landing)) { lifted = false; airborne = 0 }
+        // **Down still holding the catch.** The landing sheet is what touching the floor
+        // looks like, and playing it while he is still in the air had him land twice: once
+        // in the drawing, on the way down, and again when he actually arrived. So the leap
+        // stays `hanging` — last cell of the rebound sheet, ball in his hands — for the
+        // whole descent, and the sheet changes when the floor does.
+        withAnimation(.easeIn(duration: leapTune.drop)) { lifted = false; airborne = 0 }
+        try? await Task.sleep(for: .seconds(leapTune.drop))
         await comeDown()
     }
 
-    /// One pass of the landing sheet, and back to whatever he was doing.
+    /// One pass of the landing sheet, on the floor, and back to whatever he was doing.
     private func comeDown() async {
         leapFrom = Date()
         leap = .landing

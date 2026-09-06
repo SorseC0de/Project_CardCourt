@@ -355,7 +355,7 @@ struct CourtView: View {
                 // is coming from the horizon — a ball that starts full size up there is a
                 // ball the size of the rim.
                 if let rebound, reboundBall {
-                    let from = hoopPoint(on: court, in: geo.size)
+                    let from = boardLeaves(on: court, in: geo.size)
                     let to = reboundPoint(of: rebound.seat, on: court)
                     let end = court.scale(of: rebound.seat)
                     let drop = rebounding.lift * Theme.Figure.playerScale
@@ -410,10 +410,13 @@ struct CourtView: View {
                 withAnimation(.easeIn(duration: rebounding.flight)) { reboundFlight = 1 }
                 try? await Task.sleep(for: .seconds(rebounding.flight + rebounding.hang))
                 // Caught. It rides his descent rather than hanging in the air he has
-                // left, and only then does the sprite's own ball take over.
-                withAnimation(.easeIn(duration: rebounding.landing)) { reboundCarry = 1 }
-                try? await Task.sleep(for: .seconds(rebounding.landing))
-                withAnimation(.easeOut(duration: rebounding.fade)) { reboundBall = false }
+                // left — the same beat he spends coming down still holding the catch.
+                withAnimation(.easeIn(duration: rebounding.drop)) { reboundCarry = 1 }
+                // Taken off when the dial says, which is once the sprite has a ball of
+                // its own to draw. Not faded: it was being animated out of a view with
+                // `.transition(.identity)`, which is no animation at all.
+                try? await Task.sleep(for: .seconds(rebounding.vanish))
+                reboundBall = false
             }
             .task(id: settledAt) {
                 guard let settledAt, passer != nil, flewAt != settledAt else { return }
@@ -558,9 +561,20 @@ struct CourtView: View {
     }
 
     /// The rim on the horizon, which is where a board comes from.
+    ///
+    /// **Nothing tunable in it.** The spawn dials used to sit here, and since the hoop
+    /// itself is drawn at this point they moved the rim and the ball together — so the
+    /// two dials for where the ball leaves the rim could not move it relative to the rim.
+    /// See `boardLeaves`.
     private func hoopPoint(on court: CourtGeometry, in size: CGSize) -> CGPoint {
-        CGPoint(x: court.centreX + rebounding.spawnX,
-                y: court.horizonY - 18 - size.height * 0.05 + rebounding.spawnY)
+        CGPoint(x: court.centreX,
+                y: court.horizonY - 18 - size.height * 0.05)
+    }
+
+    /// Where the ball comes out of the rim: the rim, and the offset off it.
+    private func boardLeaves(on court: CourtGeometry, in size: CGSize) -> CGPoint {
+        let rim = hoopPoint(on: court, in: size)
+        return CGPoint(x: rim.x + rebounding.spawnX, y: rim.y + rebounding.spawnY)
     }
 
     /// Where the ball meets him at the top of the leap: both hands over his head, plus
@@ -794,6 +808,11 @@ struct CourtView: View {
             // floor line theirs would at that depth. Top-aligned because he has no name
             // plate under him taking up the bottom of the box.
             let called = whistle(at: post)
+            // His name is drawn as it would be at the near row and then handed to the
+            // far one, so the whole label — size and the gap over his head — is the same
+            // on every post. Same trick the plates use; see `nameScale`.
+            let nameScale = court.scale(at: Perspective.inboundLine)
+                / court.scale(at: post.depth)
             RefereeFigure(mirrored: post.isLeft, phase: post.phase,
                           tone: called.map { look.refereeTone(for: $0.id) }
                               ?? PixelPalette.drawnSkinTone)
@@ -808,7 +827,8 @@ struct CourtView: View {
                             .shadow(color: PixelPalette.shade(for: owner),
                                     radius: 0, x: 1, y: 1)
                             .fixedSize()
-                            .offset(y: -Referee.name)
+                            .scaleEffect(nameScale, anchor: .bottom)
+                            .offset(y: -Referee.name * nameScale)
                     }
                 }
                 .contentShape(Rectangle())

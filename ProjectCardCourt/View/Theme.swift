@@ -152,22 +152,16 @@ enum Theme {
         static let shootFPS: Double = 10
 
         // ── Going up for the board ──────────────────────────────────────
-        /// The leap and the landing, in frames a second.
-        static let reboundFPS: Double = 12
-        static let landFPS: Double = 10
-        /// How much higher he goes than his own frame can draw, in art pixels, and the
-        /// cell it comes in on. He reaches the top of the sheet on the way up and the
-        /// jump wants to be higher than the sheet is tall.
-        static let reboundLift: CGFloat = 2
+        /// Which cell of the rise the extra height comes in on. He reaches the top of the
+        /// sheet on the way up and the jump wants to be higher than the sheet is tall,
+        /// but not from the first frame — those are him leaving the floor, which the
+        /// drawing already says.
+        ///
+        /// **The only one of these left.** Every other number in the leap — both rates,
+        /// the hang, the drop, how high he goes — lives on `ReboundTuning`, where it can
+        /// be moved against the others and watched. A second set here was a second answer
+        /// to the same question, and nothing read it.
         static let reboundLiftFrom = 3
-        /// How long he hangs up there holding it before he starts down.
-        static let reboundHang: Double = 0.20
-
-        /// How long the rise takes: the ball is timed to reach his hands on the last cell
-        /// of it, so both are counted off the same number.
-        static var reboundRise: Double { Double(Sprite.rebound.frames - 1) / reboundFPS }
-        static var landSeconds: Double { Double(Sprite.land.frames) / landFPS }
-        static var reboundSeconds: Double { reboundRise + reboundHang + landSeconds }
 
         /// What a shadow does while its owner is off the floor: how much of its size and
         /// how much of its opacity are left at the top. It does not follow him up — it
