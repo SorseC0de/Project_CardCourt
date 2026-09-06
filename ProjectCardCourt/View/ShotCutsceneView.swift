@@ -53,6 +53,8 @@ struct ShotCutsceneView: View {
     @State private var nameLeaving = false
     /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
     @State private var shuffling = false
+    /// Raised when the shot animation has run out, on the shots that turn him around.
+    @State private var facingYou = false
     @State private var showBurst = false
     /// When the ball reached the rim, which is what the net decays from.
     @State private var struckAt: Date?
@@ -104,7 +106,13 @@ struct ShotCutsceneView: View {
 
                 Group {
                     if scene.made {
-                        if showResult { SwisshTitle(line: scene.line) }
+                        if showResult {
+                            if scene.signature == .understood {
+                                understood
+                            } else {
+                                SwisshTitle(line: scene.line)
+                            }
+                        }
                     } else if scene.drama == .robbery {
                         // It counts, right up until it doesn't. The make's word holds
                         // until the robbery arrives, then clears out from under it —
@@ -160,10 +168,20 @@ struct ShotCutsceneView: View {
                     // Never mirrored here, whoever is shooting. On the court West faces
                     // the other way; in a cutscene there is no court to face, and one
                     // player turned around reads as a mistake rather than as staging.
-                    PlayerFigure(seat: scene.shooter, sprite: .shoot,
-                                 playsOnce: true, fps: Theme.Figure.shootFPS,
-                                 mirrored: false)
-                        .scaleEffect(1.7)
+                    // **Two poses, one figure.** The shot plays out as it always does;
+                    // on the shots that are about the shooter rather than the ball, he
+                    // turns to the room the moment it is done with him.
+                    Group {
+                        if facingYou {
+                            PlayerFigure(seat: scene.shooter, sprite: .front,
+                                         spriteFrame: 0, mirrored: false)
+                        } else {
+                            PlayerFigure(seat: scene.shooter, sprite: .shoot,
+                                         playsOnce: true, fps: Theme.Figure.shootFPS,
+                                         mirrored: false)
+                        }
+                    }
+                    .scaleEffect(1.7)
                     Text("SHOT \(scene.chance)%")
                         .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(Theme.ink)
@@ -199,6 +217,14 @@ struct ShotCutsceneView: View {
             }
             .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
             .task { shuffling = true }
+            // Timed off the sheet rather than off the scene: the shot animation is
+            // thirteen cells at its own rate, and that is when it is done with him.
+            .task {
+                guard scene.signature != .none else { return }
+                let played = Double(Sprite.shoot.frames) / Theme.Figure.shootFPS
+                try? await Task.sleep(for: .seconds(played))
+                facingYou = true
+            }
             .task { await run() }
         }
     }
@@ -249,6 +275,30 @@ struct ShotCutsceneView: View {
         return scene.made
             ? CGPoint(x: rim.x, y: size.height * 1.25)
             : CGPoint(x: rim.x + size.width * 0.9 * scene.caromSide, y: -size.height * 0.35)
+    }
+
+    /// Lethal Shooter's make. He is not celebrating — he is being told he was right.
+    ///
+    /// The burst is arithmetic rather than confetti: the operators, a target, a brain,
+    /// and the ones and noughts underneath all of it. Lettered white over a hard blue
+    /// drop, which the emoji among them pick up as well.
+    private var understood: some View {
+        ZStack {
+            EmojiBurst(emoji: ["🧠", "🎯", "✖️", "➕", "➗", "♾️",
+                               "√", "√", "1", "0", "1", "0"],
+                       count: 26, reach: 210, size: 30,
+                       ink: .white, drop: CardPalette.blue)
+            ActionText(understoodLine, size: 30, ink: .white,
+                       drop: CardPalette.blue, taper: 0, tracking: 0.02)
+                .fixedSize()
+                .minimumScaleFactor(0.5)
+        }
+    }
+
+    /// "Raheem understands it now.", and "You understand it now."
+    private var understoodLine: String {
+        let seat = scene.shooter
+        return "\(seat.playerName) \(seat.verb("understands", "understand")) it now."
     }
 
     private func run() async {

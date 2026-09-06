@@ -78,6 +78,19 @@ struct LogLine: Identifiable {
     let kind: Kind
 }
 
+/// A make with a scene of its own.
+///
+/// Most shots play out the same way — the ball's business at the rim is the whole story.
+/// These two are about the shooter rather than the ball, so he turns to face you once the
+/// shot animation has finished with him.
+enum ShotSignature: Equatable {
+    case none
+    /// Lethal Shooter. He already knew, and the arithmetic goes off around him.
+    case understood
+    /// Turnaround Three: he took it facing away, so facing you is where he ends up.
+    case turnaround
+}
+
 struct ShotCutscene: Identifiable, Equatable {
     let id = UUID()
     let shooter: Seat
@@ -98,8 +111,13 @@ struct ShotCutscene: Identifiable, Equatable {
     /// not change under the player mid-animation.
     let missCall: String
 
+    /// Whether this one gets a scene of its own.
+    let signature: ShotSignature
+
     /// Built directly, for replaying the scene from the debug panel.
-    init(shooter: Seat, chance: Int, made: Bool, defenders: Int) {
+    init(shooter: Seat, chance: Int, made: Bool, defenders: Int,
+         signature: ShotSignature = .none) {
+        self.signature = signature
         self.shooter = shooter
         self.chance = chance
         self.made = made
@@ -113,19 +131,30 @@ struct ShotCutscene: Identifiable, Equatable {
             : ["NO GOOD", "A MISS", "MISSED", "NOPE"].randomElement()!
     }
 
-    init?(events: [GameEvent], defenders: Int = 0) {
+    init?(events: [GameEvent], defenders: Int = 0, lastPlay: String? = nil) {
         var shooter: Seat?
         var chance = 0
         var made: Bool?
+        var breakdown: ShotResolution?
         for event in events {
             switch event {
-            case .shotAttempted(let seat, let pct, _): shooter = seat; chance = pct
+            case .shotAttempted(let seat, let pct, let steps):
+                shooter = seat; chance = pct; breakdown = steps
             case .shotMade: made = true
             case .shotMissed: made = false
             default: break
             }
         }
         guard let shooter, let made else { return nil }
+        // Read off the shot's own arithmetic rather than off the rules: whatever set the
+        // number is named in the breakdown, which is the one place that already knows.
+        if breakdown?.steps.contains(where: { $0.label == CardLibrary.lethalShooter.name }) == true {
+            self.signature = .understood
+        } else if lastPlay == CardLibrary.turnaroundThree.id {
+            self.signature = .turnaround
+        } else {
+            self.signature = .none
+        }
         self.shooter = shooter
         self.chance = chance
         self.made = made
@@ -505,8 +534,21 @@ final class GameController {
     /// live match only during your own possession, since the game carries on without you.
     var canInspect: Bool { canPause || state.ball == GameRules.localSeat }
 
-    func pause() { guard canPause else { return }; isPaused = true }
-    func resume() { isPaused = false }
+    /// **Counted, because more than one thing can hold the game at once.** A first
+    /// sighting waiting to be tapped and a card raised off the floor are two holds, and
+    /// putting one down used to release the other.
+    private var holds = 0
+
+    func pause() {
+        guard canPause else { return }
+        holds += 1
+        isPaused = true
+    }
+
+    func resume() {
+        holds = max(0, holds - 1)
+        isPaused = holds > 0
+    }
     /// What the last attempt was actually taken at.
     ///
     /// Not the same number as the board: the board reads the ball's SHOT, and a shot can
@@ -1305,6 +1347,16 @@ final class GameController {
         }
     }
 
+    /// Plays a Lethal Shooter make, which is otherwise a card and a rebound away.
+    func debugUnderstood() {
+        cutscene = ShotCutscene(shooter: GameRules.localSeat, chance: 100, made: true,
+                                defenders: 2, signature: .understood)
+        Task {
+            try? await Task.sleep(for: .seconds(Pacing.cutscene))
+            cutscene = nil
+        }
+    }
+
     /// Plays the three's celebration on the local seat, for looking at it on demand.
     func debugThree() {
         Task {
@@ -1357,7 +1409,7 @@ final class GameController {
                     continue
                 }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 let made = Rules.rollFreeThrow(state: &state)
                 aiFreeThrow = AIFreeThrow(trip: trip, made: made)
@@ -1369,7 +1421,7 @@ final class GameController {
             if case .awaitingClearOut(let seat, _) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // Worth it for what is about to land on him, and nothing otherwise: the
                 // card is a way out of the defenders, not a way of moving the ball.
@@ -1380,7 +1432,7 @@ final class GameController {
             if case .awaitingTarget(let seat, _, let choices) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // Whoever holds the most is the man worth finding — and the man worth
                 // taking from. One rule, because the AI has no reason to prefer another.
@@ -1391,7 +1443,7 @@ final class GameController {
             if case .awaitingNaming(let seat, _, let named) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // Everyone but the leader. The SHOT is worth having; handing the man in
                 // front an assist is not.
@@ -1406,7 +1458,7 @@ final class GameController {
             if case .awaitingToll(let seat, let victim) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // A passive is worth more than a card off a hand nobody can read.
                 let pick: CardPick = state[victim].intangibles.first.map { .named($0.id) }
@@ -1417,7 +1469,7 @@ final class GameController {
             if case .awaitingIntangibleDrop(let seat, let offered) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // A passive that only hurts is the one to give up; failing that, the
                 // oldest, which is what the rule used to do on its own.
@@ -1430,7 +1482,7 @@ final class GameController {
             if case .awaitingInjuryPick(let seat, _) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // Whatever is face up and mildest; failing that, whatever is on offer.
                 let offered = state.injuriesOffered
@@ -1442,7 +1494,7 @@ final class GameController {
             if case .awaitingCardFrom(let seat, _, let victim) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // Face down to everybody, so there is nothing to be clever about.
                 // An empty hand is answerable: nothing is taken, and the question closes.
@@ -1454,7 +1506,7 @@ final class GameController {
             if case .awaitingMode(let seat, let card) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 await present(Rules.resolveMode(ai.mode(of: card, state, for: seat),
                                                 state: &state), playedCard: true)
@@ -1472,7 +1524,7 @@ final class GameController {
                     await present(Rules.resolveInjuryDiscard(chosen, state: &state))
                     continue
                 }
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 // Nothing clever to decide yet: the cheapest card is a judgement the AI
                 // does not make anywhere else either.
@@ -1496,7 +1548,7 @@ final class GameController {
                     continue
                 }
                 gate = .thinking
-                try? await Task.sleep(for: .seconds(Pacing.think()))
+                await think()
                 if Task.isCancelled { return }
                 let chosen = ai.discardForShot(state, for: seat)
                 let defenders = defenderCount(on: seat)
@@ -1634,7 +1686,24 @@ final class GameController {
             try? await Task.sleep(for: .seconds(seconds))
             return
         }
+        // **A card nobody has put down stops the game.** The chain waiting here is one
+        // thread of it and the run loop is another, and the loop went on taking turns
+        // behind a first sighting the player had not dismissed yet. Never in a live
+        // match — `pause` refuses when there is anybody else at the table.
+        pause()
+        defer { resume() }
         while alive() != nil { try? await Task.sleep(for: .milliseconds(60)) }
+    }
+
+    /// The beat a player takes before acting — and, on a single-player table, however
+    /// much longer the screen is busy.
+    ///
+    /// A move landing behind a card that is still on its way off is the game carrying on
+    /// without the player. The loop only checks between decisions, which is too coarse:
+    /// the check has to be after the thinking, not before it.
+    private func think() async {
+        try? await Task.sleep(for: .seconds(Pacing.think()))
+        while isPaused, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(80)) }
     }
 
     /// Holds up whatever was just played, so everyone can read it.
@@ -1834,7 +1903,8 @@ final class GameController {
         if Task.isCancelled { return }
         catchUp()
 
-        if let scene = ShotCutscene(events: events, defenders: defenders) {
+        if let scene = ShotCutscene(events: events, defenders: defenders,
+                                    lastPlay: state.lastPlayThisPossession) {
             cutscene = scene
             try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
             // The board goes up **behind** the shot before the shot comes down. Clearing

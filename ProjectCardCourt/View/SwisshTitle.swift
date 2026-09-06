@@ -146,7 +146,7 @@ struct SwisshLine: Equatable {
         // No lamp emoji reads as a genie's, so this one takes the genie and the second
         // genie line goes, per the rule set when they were written.
         SwisshLine(before: "As you", emoji: ["🧞‍♂️"]),
-        SwisshLine(after: "a ninja would!", emoji: ["🥷"]),
+        SwisshLine(after: "a ninja would!", emoji: ["🥷", "🪵"]),
         SwisshLine(before: "Going", after: "-ing!", emoji: ["🎣"]),
 
         // Seasonal, and disarmed until the calendar is wired up. Written now so the

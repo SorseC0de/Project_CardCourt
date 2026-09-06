@@ -95,6 +95,14 @@ final class DeckStage {
     /// routine, or it would be snapped home between steps.
     private(set) var travelling = false
 
+    /// **How big the pile is, decided by the court and applied only here.**
+    ///
+    /// `move(to:)` animates a whole transform, scale included — so every routine that
+    /// snapshotted `pile.transform` was carrying an old size along with it and animating
+    /// back to it, dragging against whatever the court had just measured. That is a pile
+    /// that resizes for no reason, and a size slider that appears to do nothing.
+    var wantedScale: Float?
+
     /// Where the court says the pile belongs. The idle orbits this rather than replacing
     /// it, so moving the deck on the bench still moves it while it is floating.
     var ground: SIMD3<Float> = .zero
@@ -102,6 +110,20 @@ final class DeckStage {
     /// Where in the drift this pile is, as a share of a lap. The spent pile runs half a
     /// lap behind the live one so the two never breathe in step.
     var phase: Double = 0
+
+    /// **The pile's transform has one writer at a time.**
+    ///
+    /// Reading `pile.transform` while a `move` is running gives a snapshot of the middle
+    /// of that move, and starting a second one over the top leaves two animations driving
+    /// the same entity. Between them that is a deck that turns about an axis nobody asked
+    /// for and changes size on the way — the idle's leg and a deal's bow overlapping, a
+    /// few times a possession. Every routine stops what is running before it reads.
+    private func begin() -> Transform {
+        pile.stopAllAnimations()
+        var now = pile.transform
+        if let wantedScale { now.scale = .one * wantedScale }
+        return now
+    }
 
     // MARK: - Setup
 
@@ -171,7 +193,7 @@ final class DeckStage {
         // as far as a run across the court.
         let lean = Timing.lean
             * min(1, length(away) / Float(seconds) / Timing.leanSpeed)
-        var banked = pile.transform
+        var banked = begin()
         banked.rotation = simd_quatf(angle: atan2(away.x, away.z), axis: [0, 1, 0])
             * simd_quatf(angle: lean, axis: [1, 0, 0])
         pile.move(to: banked, relativeTo: pile.parent,
@@ -191,7 +213,9 @@ final class DeckStage {
     /// Puts it somewhere with no travel at all, for starting a routine off screen.
     func place(at point: SIMD3<Float>) {
         travelling = true
-        pile.transform.translation = point
+        var put = begin()
+        put.translation = point
+        pile.transform = put
     }
 
     /// Floats off the floor and drifts counter-clockwise in a tight circle, for as long
@@ -209,7 +233,7 @@ final class DeckStage {
             // the deck rejoins the circle where it would have been rather than where it
             // left it.
             if !performing && !travelling {
-                var drifted = pile.transform
+                var drifted = begin()
                 // Aimed a leg ahead, since that is where it will be when it arrives —
                 // otherwise the pile runs one leg behind its own shadow.
                 drifted.translation = ground
@@ -266,7 +290,7 @@ final class DeckStage {
         let away = point - pile.position
         // Yaw to face them, then tip about the axis it is now facing along — the order
         // matters, since the second rotation is taken in the frame the first leaves.
-        var turned = pile.transform
+        var turned = begin()
         turned.rotation = simd_quatf(angle: atan2(away.x, away.z), axis: [0, 1, 0])
             * simd_quatf(angle: Timing.bow, axis: [1, 0, 0])
         pile.move(to: turned, relativeTo: pile.parent,
@@ -277,7 +301,7 @@ final class DeckStage {
     /// Straightens up. Stays under its own power — the caller says when it is done.
     func straighten(seconds: TimeInterval = 0.24) async {
         travelling = true
-        var square = pile.transform
+        var square = begin()
         square.rotation = simd_quatf(angle: 0, axis: [0, 1, 0])
         pile.move(to: square, relativeTo: pile.parent,
                   duration: seconds, timingFunction: .easeInOut)
@@ -336,7 +360,7 @@ final class DeckStage {
 
     private func lift(to height: Float, seconds: TimeInterval,
                       curve: AnimationTimingFunction) async {
-        var raised = pile.transform
+        var raised = begin()
         raised.translation.y = height
         pile.move(to: raised, relativeTo: pile.parent,
                   duration: seconds, timingFunction: curve)

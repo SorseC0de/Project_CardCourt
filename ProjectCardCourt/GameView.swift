@@ -644,7 +644,10 @@ struct GameView: View {
             VStack(spacing: 14) {
                 HStack(spacing: 22) {
                     ForEach(winners, id: \.self) { seat in
-                        PlayerFigure(seat: seat, mirrored: false)
+                        // Facing the room, not jogging upcourt. The game is over; there
+                        // is nowhere left for him to be running.
+                        PlayerFigure(seat: seat, sprite: .front, spriteFrame: 0,
+                                     mirrored: false)
                             .scaleEffect(2.1, anchor: .bottom)
                             .frame(width: Theme.Figure.headDiameter * 2.1,
                                    height: Theme.Figure.height * 2.1, alignment: .bottom)
@@ -659,7 +662,8 @@ struct GameView: View {
                     .lineLimit(2)
                     .padding(.horizontal, 20)
 
-                ScoreboardView(state: controller.shown, highlighted: Set(winners))
+                ScoreboardView(state: controller.shown, highlighted: Set(winners),
+                               totalLabel: "SCORE")
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .padding(.horizontal, 26)
                     .padding(.top, 4)

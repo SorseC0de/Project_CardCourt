@@ -9,6 +9,11 @@ struct EmojiBurst: View {
     var count = 20
     var reach: CGFloat = 190
     var size: CGFloat = 30
+    /// Lettering mixed in with the pieces, for a burst that is symbols as much as emoji.
+    /// Emoji are colour glyphs and ignore a foreground colour, so this only shows on the
+    /// pieces that are actually text — which is the point of mixing them.
+    var ink: Color?
+    var drop: Color?
 
     private enum Burst {
         /// The throw, and then the long slow drift after it. Two flips rather than one
@@ -19,6 +24,16 @@ struct EmojiBurst: View {
         /// How long they hold at full before any of them starts to go.
         static let solid: Double = 2.2
         static let fade: Double = 0.9
+    }
+
+    /// One mark, before it is thrown anywhere. Its own function because a ternary over a
+    /// font plus two optional styles is more than the type checker will do inline.
+    private func piece(_ text: String, side: CGFloat) -> some View {
+        Text(text)
+            .font(ink == nil ? .system(size: side)
+                  : .system(size: side, weight: .black, design: .rounded))
+            .foregroundStyle(ink ?? .primary)
+            .shadow(color: drop ?? .clear, radius: 0, x: side * 0.09, y: side * 0.09)
     }
 
     @State private var fired = false
@@ -37,8 +52,8 @@ struct EmojiBurst: View {
                 let roll = StreakStyle.scatter(index, 8) * Double(emoji.count)
                 let which = min(emoji.count - 1, Int(roll))
 
-                Text(emoji[which])
-                    .font(.system(size: size * (0.7 + CGFloat(StreakStyle.scatter(index, 4)) * 0.6)))
+                let side = size * (0.7 + CGFloat(StreakStyle.scatter(index, 4)) * 0.6)
+                piece(emoji[which], side: side)
                     .rotationEffect(.degrees(fired ? Double(StreakStyle.scatter(index, 5)) * 720 - 360 : 0))
                     .offset(x: fired ? cos(angle) * distance * carry : 0,
                             y: fired ? sin(angle) * distance * carry + drop : 0)

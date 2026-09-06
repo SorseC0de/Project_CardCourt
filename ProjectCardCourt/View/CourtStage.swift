@@ -167,13 +167,13 @@ struct CourtStage: View {
                 // The idle owns where the deck actually is — it is never sitting
                 // still — so the court hands it a home point rather than a position.
                 deck.ground = floorPoint(deckAt, in: geo.size)
-                if !deck.travelling { fit(deck.pile, in: geo.size) }
+                if !deck.travelling { fit(deck, in: geo.size) }
                 // The same for the spent pile, now that it drifts too. Setting its
                 // position outright while `idle` was also writing one left the drift
                 // reading a home point of zero — so the pile flew off to the middle of
                 // the world and only its shadow was left on the floor.
                 discard.ground = floorPoint(discardAt, in: geo.size)
-                if !discard.travelling { fit(discard.pile, in: geo.size) }
+                if !discard.travelling { fit(discard, in: geo.size) }
             }
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
             // Runs for as long as the court is on screen. Cancelled with the view, and
@@ -197,11 +197,15 @@ struct CourtStage: View {
                 // never home is a pile whose size and place are always being re-measured,
                 // which is why it stayed big for the length of a deal. Its own rotation
                 // and pitch are the neutral it returns to; the bow is the whole gesture.
+                // **Given back however this ends.** A deal cancelled mid-bow — a new
+                // one arriving, the view going away — used to leave the pile held, and a
+                // held pile is one the court stops sizing and the idle stops drifting for
+                // the rest of the game.
+                defer { deck.settle() }
                 await deck.bow(toward: to, seconds: Pacing.deckLean)
                 await dealer.fly(from: home + SIMD3(0, Stage.hover, 0),
                                  to: to, seconds: flight.seconds)
                 await deck.straighten()
-                deck.settle()
             }
             .task(id: spend?.id) {
                 guard let spend else { return }
@@ -209,10 +213,10 @@ struct CourtStage: View {
                 // rather than the card being posted into a stack that never looks round.
                 let to = floorPoint(spend.to, in: geo.size)
                 let from = floorPoint(spend.from, in: geo.size)
+                defer { discard.settle() }
                 await discard.bow(toward: from, seconds: 0.14)
                 await spender.fly(from: from, to: to, seconds: spend.seconds)
                 await discard.straighten()
-                discard.settle()
             }
             .task(id: opening?.id) {
                 guard let opening else { return }
@@ -299,7 +303,8 @@ struct CourtStage: View {
     /// court point can unproject anywhere on the floor — the deck's landed well forward,
     /// which is why it came out enormous. Normalising against its own distance keeps a
     /// pile the size the court drew it before this scene existed.
-    private func fit(_ pile: Entity, in size: CGSize) {
+    private func fit(_ stage: DeckStage, in size: CGSize) {
+        let pile = stage.pile
         let eye = Self.cameraTransform(for: size).translation
         let away = distance(eye, pile.position)
         let aspect = Float(size.width / max(size.height, 1))
@@ -309,6 +314,7 @@ struct CourtStage: View {
         // and the pile comes out infinitely large. Nothing is drawn until there is a size.
         guard scale.isFinite, scale > 0 else { return }
         pile.scale = .one * scale
+        stage.wantedScale = scale
 
         // Reported once per change, not per frame: the arithmetic says this lands at the
         // court's own 138 of 390, so if the pile is not that size on screen the number

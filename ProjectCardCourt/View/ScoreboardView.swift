@@ -6,6 +6,10 @@ struct ScoreboardView: View {
     var withheld: (seat: Seat, amount: Int)?
     /// Rows to call out — the winners, on the results screen.
     var highlighted: Set<Seat> = []
+    /// What the last column is called. Blank in play, where the board is glanced at and
+    /// the big number on the right needs no telling; named on the results screen, which
+    /// is read rather than glanced at.
+    var totalLabel = ""
 
     /// Ordered by the score on screen, not the one in state — so a three that is still
     /// flying has not reordered the board yet either.
@@ -26,7 +30,7 @@ struct ScoreboardView: View {
                 ForEach(["PTS", "AST", "REB", "TOV"], id: \.self) { column in
                     Text(column).frame(maxWidth: .infinity)
                 }
-                Text("").frame(width: 34, alignment: .trailing)
+                Text(totalLabel).frame(width: 34, alignment: .trailing)
             }
             .font(.system(size: 8, weight: .bold))
             .tracking(0.8)
