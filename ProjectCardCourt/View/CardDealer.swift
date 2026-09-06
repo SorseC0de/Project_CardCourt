@@ -79,8 +79,11 @@ final class CardDealer {
         // Turned to face him, the way the pile it came off is. One yaw, held for the
         // whole trip — the card does not steer.
         let yaw = simd_quatf(angle: atan2(end.x - start.x, end.z - start.z), axis: [0, 1, 0])
+        // **Negative about X.** The pile's bow is positive in the frame the pile hangs
+        // in; the dealt card hangs off a root of its own, where the same sign tips it the
+        // other way — it started face up and curled down into the floor.
         func lean(_ t: Float) -> simd_quatf {
-            yaw * simd_quatf(angle: Throw.bowed + (Throw.upright - Throw.bowed) * t,
+            yaw * simd_quatf(angle: -(Throw.bowed + (Throw.upright - Throw.bowed) * t),
                              axis: [1, 0, 0])
         }
 

@@ -71,12 +71,12 @@ struct ThreeCelebrationView: View {
                 .position(centre)
 
                 if let sparkleAt {
-                    // Two art pixels down: the sheet is centred on its own frame and the
+                    // Four art pixels down: the sheet is centred on its own frame and the
                     // hand is not centred on the burst.
                     SpriteAnimation(sprite: .sparkleBurst, scale: sparkleScale,
                                     fps: Theme.Figure.playerFPS,
                                     playsOnce: true, startedAt: sparkleAt)
-                        .position(x: centre.x, y: centre.y + 2 * sparkleScale)
+                        .position(x: centre.x, y: centre.y + 4 * sparkleScale)
                         .allowsHitTesting(false)
                 }
 
