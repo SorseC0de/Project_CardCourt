@@ -199,7 +199,27 @@ final class GameCenterMatch: NSObject, MatchTransport {
         seats = Dictionary(uniqueKeysWithValues:
             zip(ids, Seat.allCases.prefix(ids.count)))
 
-        guard isHost else { return }
+        // **Everybody seats themselves.** The sorted list is the same on every device, so
+        // a guest knows its own chair without being told — and a device waiting to be
+        // told is a device playing as South while the host has it down as East, which is
+        // two games rather than one. The host's `seated` still follows and refines this
+        // with the real names and whichever chairs the house is taking.
+        let me = GKLocalPlayer.local.gamePlayerID
+        if !isHost {
+            var provisional: [Seat: Table.Chair] = [:]
+            for (id, seat) in seats {
+                let name = ([GKLocalPlayer.local] + match.players)
+                    .first { $0.gamePlayerID == id }?.displayName ?? seat.houseName
+                provisional[seat] = Table.Chair(
+                    occupant: id == me ? .local : .remote(playerID: id), name: name)
+            }
+            for seat in Seat.allCases where provisional[seat] == nil {
+                provisional[seat] = Table.Chair(occupant: .computer, name: seat.houseName)
+            }
+            Table.shared.seat(provisional, asLocal: seats[me] ?? .south)
+            DevLog.say(.net, "seated myself at \(seats[me]?.name ?? "?") — host is them")
+            return
+        }
         var chairs: [Seat: Table.Chair] = [:]
         for player in [GKLocalPlayer.local] + match.players {
             guard let seat = seats[player.gamePlayerID] else { continue }
@@ -212,7 +232,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
         for seat in Seat.allCases where chairs[seat] == nil {
             chairs[seat] = Table.Chair(occupant: .computer, name: seat.houseName)
         }
-        Table.shared.seat(chairs, asLocal: seats[GKLocalPlayer.local.gamePlayerID] ?? .south)
+        Table.shared.seat(chairs, asLocal: seats[me] ?? .south)
 
         self.chairs = chairs
         for player in match.players {

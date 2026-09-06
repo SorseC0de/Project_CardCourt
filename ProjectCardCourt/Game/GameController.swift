@@ -38,6 +38,10 @@ enum Pacing {
     /// How long a card takes to reach the pile from a hand.
     static let spendFlight = 0.34
     static let dealFlight = 0.15
+    /// How long the host holds the opening deal waiting for the other devices to say they
+    /// are on screen. Long enough for a slow join, short enough that a phone that never
+    /// answers does not hold the game up.
+    static let tableWait = 6.0
     /// The whole of a defender's swipe: arrive, take, drift off.
     /// The whole of a defender's swipe: arrive, hold, drift off, fade. Must outlast
     /// `DefenderSwipe`'s own timings or the scene is cut while he is still walking.
@@ -625,6 +629,9 @@ final class GameController {
     private var movesFromWire: [Seat: Move] = [:]
     private var discardsFromWire: [Seat: [Card.ID]] = [:]
     private var freeThrowsFromWire: [Seat: Bool] = [:]
+    /// Seats whose device has said it is on screen and ready to be dealt to. The host
+    /// holds the opening deal until they all have — see `waitForTheTable`.
+    private var readySeats: Set<Seat> = []
 
     /// Attaches the transport. Safe to call before there is a match: nothing changes
     /// until `isActive`, and doing it early is the point — a handler wired after the
@@ -643,12 +650,28 @@ final class GameController {
         }
     }
 
+    /// **One line that says what board this device is looking at.**
+    ///
+    /// Printed by the host as it sends and by every guest as it receives, so two phones
+    /// side by side either read the same thing or say exactly where they parted. Only
+    /// what both devices are entitled to know — hand *sizes*, not hands — since a guest
+    /// cannot check what it is not allowed to see.
+    private func fingerprint(_ state: GameState) -> String {
+        let hands = Seat.allCases.map { "\(state[$0].bag.count)" }.joined(separator: "/")
+        let scores = Seat.allCases.map { "\(state[$0].score)" }.joined(separator: "/")
+        return "R\(state.round) \(state.phase.label)"
+            + " ball=\(state.ball?.name ?? "-")"
+            + " shot=\(state.shot) deck=\(state.deck.count) discard=\(state.discard.count)"
+            + " hands=\(hands) score=\(scores)"
+    }
+
     /// Hands every other device the game as it is allowed to see it.
     ///
     /// One snapshot each, redacted for its own seat — the host holds the only complete
     /// state and never sends it anywhere.
     private func broadcast(_ events: [GameEvent]) {
         guard let match, match.isHost else { return }
+        DevLog.say(.net, "host → \(fingerprint(state))  [\(events.count) event(s)]")
         try? match.broadcast { seat in
             .turn(state: state.redacted(for: seat), events: events)
         }
@@ -706,6 +729,7 @@ final class GameController {
         guard let match, match.isHost else { return }
         switch message {
         case .ready:
+            readySeats.insert(seat)
             // Seated again before the state, because the first seating goes out the
             // instant the match is adopted — before the other device has a handler to
             // catch it. A guest that missed it is sitting in the wrong chair and does not
@@ -743,8 +767,8 @@ final class GameController {
             DevLog.say(.net, "the host started the game")
             begin()
         case .turn(let state, let events):
-            DevLog.say(.net, "board arrived — \(events.count) event(s), "
-                       + "phase \(String(describing: state.phase))")
+            DevLog.say(.net, "guest ← \(fingerprint(state))  [\(events.count) event(s)]"
+                       + "  seat=\(GameRules.localSeat.name)")
             loop?.cancel()
             self.state = state
             drive {
@@ -837,6 +861,7 @@ final class GameController {
         // A guest has no game of its own to open. It says it is on screen and waits to be
         // dealt to, which is what a player does at a table.
         if isGuest {
+            forgetTheSoloGame()
             gate = .thinking
             try? match?.send(.ready)
             return
@@ -844,7 +869,15 @@ final class GameController {
         DevLog.say(.deck, "piles drawn "
                    + (RenderDebug.shared.courtStage ? "by the 3D stage" : "flat"))
         drive {
+            // **Nobody is dealt to until everybody is looking.** The opening deal is the
+            // one thing that happens before anyone can act, and a guest still building
+            // its view when it goes out never sees it — it ends up holding a hand it did
+            // not watch arrive, with a log that starts in the middle.
+            await waitForTheTable()
             DevLog.say(.input, "begin: dealing \(openingDraws.count) cards out")
+            // Told to the other devices before it is shown here, so the cards fly on
+            // every screen rather than only on the one running the rules.
+            broadcast(openingDraws)
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
             openingDraws = []
@@ -852,6 +885,35 @@ final class GameController {
             await run()
             DevLog.say(.input, "begin: the loop handed back at \(state.phase.label)")
         }
+    }
+
+    /// **A guest has no game of its own.**
+    ///
+    /// The initialiser deals one — it must, since a controller cannot know yet whether it
+    /// is about to be a solo game — and on a guest every bit of that is wrong: a hand
+    /// nobody dealt, an opening deal waiting to fly, and a log narrating a game that will
+    /// never be played. All of it goes before the host's first board arrives, or the two
+    /// devices are looking at different matches from the first line.
+    private func forgetTheSoloGame() {
+        openingDraws = []
+        log.removeAll()
+        undelivered.removeAll()
+        unrevealed.removeAll()
+        boundSeats.removeAll()
+        playedCard = nil
+        flashed = nil
+        DevLog.say(.net, "guest: cleared the solo game, waiting to be dealt to")
+    }
+
+    /// Holds the deal until every other device has said it is on screen.
+    private func waitForTheTable() async {
+        let remotes = Set(Table.shared.remotes)
+        guard !remotes.isEmpty else { return }
+        let deadline = Date().addingTimeInterval(Pacing.tableWait)
+        while !Task.isCancelled, Date() < deadline, !remotes.isSubset(of: readySeats) {
+            try? await Task.sleep(for: .milliseconds(80))
+        }
+        DevLog.say(.net, "table ready: \(readySeats.count)/\(remotes.count) answered")
     }
 
     /// Waits on one seat's device for one decision, and gives up when its clock runs out.
