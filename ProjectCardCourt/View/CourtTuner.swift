@@ -73,6 +73,20 @@ final class DeckTuning {
 
 /// Where the two lines of the inbound prompt sit, while that is being eyeballed. Freeze
 /// into `CourtView.inboundPrompt` once they land.
+/// Where a dealt card finishes turning.
+///
+/// **Only the far end is a dial.** The near end is not a choice — a card comes off the
+/// top of a pile at that pile's own lean, which `DeckStage.bowAngle` already says — and
+/// the tween is the whole of what happens in between. So there is one number here.
+@Observable
+@MainActor
+final class DealTuning {
+    static let shared = DealTuning()
+    /// Degrees from lying flat, about the axis it is travelling along. Ninety is standing
+    /// straight up; the sign is which way it turns over.
+    var endAngle: Double = 90
+}
+
 @Observable
 final class InboundTextTuning {
     static let shared = InboundTextTuning()
@@ -199,6 +213,11 @@ struct DebugActionsView: View {
             slider("slabs", bind(\.slabs), 1...20)
             slider("x", bind(\.x), -0.25...0.25)
             slider("y", bind(\.y), -0.25...0.25)
+            // The far end of a dealt card's turn. Whole turn either way, so the answer
+            // is reachable whichever direction it wants to go.
+            slider("deal°", Binding(get: { DealTuning.shared.endAngle },
+                                    set: { DealTuning.shared.endAngle = $0 }),
+                   -180...180)
         }
         .frame(width: 150)
     }

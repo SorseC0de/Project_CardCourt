@@ -39,9 +39,6 @@ final class CardDealer {
         /// Where it starts leaning: wherever the deck is leaning. It comes off the top of
         /// a pile that has already bowed toward him.
         static let bowed = DeckStage.bowAngle
-        /// And where it finishes — straight up, facing him. It curls the difference on
-        /// the way over and does nothing else.
-        static let upright = Float.pi / 2
         /// **The turn happens, and then the shrink.** Run together they were a card
         /// vanishing while it happened to be rotating — the face never came round,
         /// because by the time it was pointing at you there was nothing left of it to
@@ -105,8 +102,12 @@ final class CardDealer {
         // Turned to face him, the way the pile it came off is. One yaw, held for the
         // whole trip — the card does not steer.
         let yaw = simd_quatf(angle: atan2(end.x - start.x, end.z - start.z), axis: [0, 1, 0])
+        // Where it finishes. On a dial — see `DealTuning` — because which way a card
+        // turns over is the one thing here nobody works out from first principles; the
+        // near end is not a choice at all. Read once per throw, on the actor that owns it.
+        let upright = Float(DealTuning.shared.endAngle) * .pi / 180
         func lean(_ t: Float) -> simd_quatf {
-            yaw * simd_quatf(angle: Throw.bowed + (Throw.upright - Throw.bowed) * t,
+            yaw * simd_quatf(angle: Throw.bowed + (upright - Throw.bowed) * t,
                              axis: [1, 0, 0])
         }
 
