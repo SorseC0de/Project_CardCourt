@@ -108,8 +108,13 @@ struct PlayerFigure: View {
         static let side: CGFloat = 34
         static let gap: CGFloat = 3
         /// How big it goes when a card lands in it, and how long it stays there.
-        static let swell: CGFloat = 1.35
-        static let swellHolds: Double = 0.16
+        ///
+        /// **The hold has to outlast the spring.** At a sixth of a second against a
+        /// spring that takes a quarter to arrive, it was told to come back before it had
+        /// finished going — which is a bag that does not swell so much as flinch.
+        static let swell: CGFloat = 1.45
+        static let swellHolds: Double = 0.26
+        static let swellSpring: Double = 0.16
     }
 
     /// The rate this sprite runs at. The catch has its own, and the hold that keeps
@@ -329,7 +334,7 @@ struct PlayerFigure: View {
                         // Its own animation, keyed to its own flag. Raised inside a
                         // `withAnimation` on a hopped task it was being swallowed by the
                         // implicit animations further out, which are keyed to the count.
-                        .animation(.spring(response: 0.26, dampingFraction: 0.45),
+                        .animation(.spring(response: Bag.swellSpring, dampingFraction: 0.5),
                                    value: bagTook)
                         .foregroundStyle(.white)
                         // One drop for the pair. Without this SwiftUI casts one per child and

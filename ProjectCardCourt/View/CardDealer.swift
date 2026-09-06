@@ -143,10 +143,9 @@ final class CardDealer {
         // costs a dropped step under load and finishes on time regardless.
         let step = seconds / Double(Throw.steps)
         let began = Date()
-        var t: Float = 0
-        while t < 1 {
+        while true {
             if Task.isCancelled { break }
-            t = min(1, Float(Date().timeIntervalSince(began) / seconds))
+            let t = min(1, Float(Date().timeIntervalSince(began) / seconds))
             var next = Transform()
             next.translation = start + (end - start) * t
                 + SIMD3(0, lift * sin(t * .pi), 0)
@@ -155,8 +154,12 @@ final class CardDealer {
             next.scale = SIMD3(repeating: Throw.leaves
                                + (Throw.arrives - Throw.leaves) * gone)
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
-            if t >= 1 { break }
+            // **The last step is given its time like every other one.** Breaking the
+            // moment the target was issued meant the final move — the one that takes it
+            // from a quarter of its size to nothing — was ordered and then cancelled a
+            // line later, so the card went out at whatever the step before had left it.
             try? await Task.sleep(for: .seconds(step))
+            if t >= 1 { break }
         }
         card.stopAllAnimations()
         card.isEnabled = false
