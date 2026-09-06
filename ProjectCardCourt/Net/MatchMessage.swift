@@ -26,8 +26,10 @@ enum Decision: Codable {
 }
 
 enum ClientMessage: Codable {
-    /// Sent once the client is on screen and ready to be dealt to.
-    case ready
+    /// Sent once the client is on screen and ready to be dealt to, carrying the man this
+    /// player built. It is the one thing about a client the host takes at its word —
+    /// nothing reads it but the sprites.
+    case ready(Table.Look)
     case move(Move)
     /// The cards fed into a rebound bid.
     case reboundBid([UUID])
@@ -42,8 +44,15 @@ enum ClientMessage: Codable {
 
 /// What the host sends back to a player's device.
 enum HostMessage: Codable {
-    /// Where you are sitting, and who else is at the table. Sent once, before play.
-    case seated(seat: Seat, chairs: [Seat: Table.Chair])
+    /// Where you are sitting, who else is at the table, and the roll that decides how
+    /// everybody nobody is playing looks. Sent when the table is seated, and again
+    /// whenever somebody's own look arrives.
+    ///
+    /// `crew` is the appearance seed, and it travels for the same reason the chairs do:
+    /// the house seats, the men who come out to guard, and the referees were all rolled
+    /// with `Int.random` on each device, so the same defender was two different people on
+    /// the two screens. One number, and every device rolls the same crew.
+    case seated(seat: Seat, chairs: [Seat: Table.Chair], crew: UInt64)
     /// The game as this player is allowed to see it, and what just happened to get there.
     ///
     /// State and events travel together on purpose: the state is what the court draws

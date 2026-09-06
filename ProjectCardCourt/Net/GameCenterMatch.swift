@@ -43,15 +43,28 @@ final class GameCenterMatch: NSObject, MatchTransport {
     /// every device falls back to comparing ids and the whole thing turns on two phones
     /// agreeing about a string — which is the fault this replaced.
     private(set) var chosenByGameKit = "?"
-    /// Kept so the table can be sent again. The first `seated` goes out the moment the
-    /// match is adopted, which can be before the other device has anywhere to put it.
-    private var chairs: [Seat: Table.Chair] = [:]
+    /// The roll that decides how everybody nobody is playing looks. Made by the host and
+    /// sent with the table — see `HostMessage.seated`.
+    private var crew: UInt64 = 0
 
-    /// Tells one seat where it is sitting, again. Harmless to repeat, and it is the only
-    /// thing standing between a guest and playing a solo game by mistake.
-    func reseat(_ seat: Seat) {
-        guard isHost, !chairs.isEmpty else { return }
-        try? send(.seated(seat: seat, chairs: chairs), to: seat)
+    /// Tells the table where everybody is sitting, again.
+    ///
+    /// Harmless to repeat, and it is what stands between a guest and playing a solo game
+    /// by mistake. Sent to everybody rather than to one seat, because the thing that
+    /// usually prompts it is somebody's own look arriving — and the other guests have to
+    /// draw that man too.
+    func reseatEveryone() {
+        guard isHost, !seats.isEmpty else { return }
+        // Straight off the table rather than from a copy kept here. The looks land on
+        // `Table.shared` as they arrive, and a second record of who is sitting where is a
+        // second answer to a question with one.
+        var chairs = Table.shared.chairs
+        // Named by id on the way out, own chair included — see `Table.seat(_:asLocal:)`.
+        chairs[GameRules.localSeat]?.occupant =
+            .remote(playerID: GKLocalPlayer.local.gamePlayerID)
+        for seat in Table.shared.remotes {
+            try? send(.seated(seat: seat, chairs: chairs, crew: crew), to: seat)
+        }
     }
 
     var onClientMessage: ((Seat, ClientMessage) -> Void)?
@@ -199,7 +212,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
         hostID = nil
         settled = false
         seats = [:]
-        chairs = [:]
+        held.removeAll()
         Table.shared.seatSolo()
         status = GKLocalPlayer.local.isAuthenticated
             ? .ready(player: GKLocalPlayer.local.displayName)
@@ -282,7 +295,8 @@ final class GameCenterMatch: NSObject, MatchTransport {
                 let name = ([GKLocalPlayer.local] + match.players)
                     .first { $0.gamePlayerID == id }?.displayName ?? seat.houseName
                 provisional[seat] = Table.Chair(
-                    occupant: id == me ? .local : .remote(playerID: id), name: name)
+                    occupant: .remote(playerID: id), name: name,
+                    look: id == me ? HooperKit.shared.look : nil)
             }
             for seat in Seat.allCases where provisional[seat] == nil {
                 provisional[seat] = Table.Chair(occupant: .computer, name: seat.houseName)
@@ -293,29 +307,97 @@ final class GameCenterMatch: NSObject, MatchTransport {
             // sitting somewhere rather than silently playing as South.
             Table.shared.seat(provisional, asLocal: seats[me] ?? .south)
             DevLog.say(.net, "provisionally at \(seats[me]?.name ?? "?") — host is them")
+            // Anything the host said while this device was still working out who it was.
+            flushHeldMessages()
             return
         }
+        // Made here and sent with the table: the host decides once what everybody nobody
+        // is playing looks like, and every device draws the same crew off it.
+        crew = UInt64.random(in: 1...9_999_999)
+        PlayerLook.shared.setCrew(crew)
         var chairs: [Seat: Table.Chair] = [:]
         for player in [GKLocalPlayer.local] + match.players {
             guard let seat = seats[player.gamePlayerID] else { continue }
+            let mine = player == GKLocalPlayer.local
             chairs[seat] = Table.Chair(
-                occupant: player == GKLocalPlayer.local
-                    ? .local : .remote(playerID: player.gamePlayerID),
-                name: player.displayName)
+                // Everybody by id; `seat(_:asLocal:)` promotes this device's own.
+                occupant: .remote(playerID: player.gamePlayerID),
+                name: player.displayName,
+                // The host's own man goes out with the table. Everybody else's arrives
+                // with their `ready`, which is the first thing their device says.
+                look: mine ? HooperKit.shared.look : nil)
         }
-        // Anybody who did not turn up is played by the house.
+        // Anybody who did not turn up is played by the house, and the house has no look.
         for seat in Seat.allCases where chairs[seat] == nil {
             chairs[seat] = Table.Chair(occupant: .computer, name: seat.houseName)
         }
         Table.shared.seat(chairs, asLocal: seats[me] ?? .south)
-
-        self.chairs = chairs
-        for player in match.players {
-            guard let seat = seats[player.gamePlayerID] else { continue }
-            // Each device is told its own chair, and the same table.
-            try? send(.seated(seat: seat, chairs: chairs), to: seat)
-        }
+        reseatEveryone()
         DevLog.say(.net, "seated \(chairs.count) — host is \(isHost ? "me" : "them")")
+        // Anything anybody said while this device was still working out who it was.
+        flushHeldMessages()
+    }
+
+    /// **Messages that arrived before this device knew who the host was.**
+    ///
+    /// `chooseBestHostingPlayer` answers when it answers, and the other phone's may come
+    /// back first — so the host's `seated` can land while `hostID` is still nil, and a
+    /// message from nobody-in-particular is dropped. A guest that drops that one plays
+    /// the whole match in a chair it worked out for itself. Held instead, and read the
+    /// moment there is somebody to check them against.
+    private var held: [(id: String, data: Data)] = []
+
+    private func flushHeldMessages() {
+        let waiting = held
+        held.removeAll()
+        for message in waiting { read(message.data, from: message.id) }
+    }
+
+    /// One message off the wire, read the only way this device can read it.
+    ///
+    /// **Which way depends entirely on who this device turns out to be**, and until the
+    /// election has answered it is neither — so a message that lands in that gap is held
+    /// rather than guessed at. The gap is real: `chooseBestHostingPlayer` answers when it
+    /// answers, and the other phone's can come back first.
+    private func read(_ data: Data, from id: String) {
+        guard hostID != nil else {
+            held.append((id: id, data: data))
+            DevLog.say(.net, "held a message — no host elected yet")
+            return
+        }
+        // The host hears choices; everybody else hears the game.
+        guard isHost else { return readAsGuest(data, from: id) }
+        guard let seat = seats[id],
+              let message = try? MatchCoder.decode(ClientMessage.self, from: data)
+        else { return }
+        onClientMessage?(seat, message)
+    }
+
+    /// One message, as somebody who is not running the rules.
+    ///
+    /// **Read here as well as passed on.** Until the game starts there is no controller to
+    /// pass anything to — one is not made until there is a match to play, or opening the
+    /// lobby deals a game behind it — so the messages that arrive before that point are
+    /// acted on by the wire itself.
+    private func readAsGuest(_ data: Data, from id: String) {
+        guard id == hostID,
+              let message = try? MatchCoder.decode(HostMessage.self, from: data)
+        else { return }
+        switch message {
+        case .start:
+            status = .playing
+        case .seated(let seat, let chairs, let crew):
+            Table.shared.seat(chairs, asLocal: seat)
+            // Your own man is the one thing you already know, and the host's copy of the
+            // table is a beat behind on it until your `ready` gets there.
+            Table.shared.setLook(HooperKit.shared.look, at: seat)
+            PlayerLook.shared.setCrew(crew)
+            self.crew = crew
+            DevLog.say(.net, "seated at \(seat.name) by the host")
+        default:
+            break
+        }
+        onHostMessage?(message)
     }
 
     // MARK: - Talking
@@ -346,32 +428,7 @@ extension GameCenterMatch: GKMatchDelegate {
                            fromRemotePlayer player: GKPlayer) {
         let id = player.gamePlayerID
         Task { @MainActor in
-            // Which way a message is read depends only on who this device is. The host
-            // hears choices; everybody else hears the game.
-            if self.isHost {
-                guard let seat = self.seats[id],
-                      let message = try? MatchCoder.decode(ClientMessage.self, from: data)
-                else { return }
-                self.onClientMessage?(seat, message)
-            } else {
-                guard id == self.hostID,
-                      let message = try? MatchCoder.decode(HostMessage.self, from: data)
-                else { return }
-                // **Read here as well as passed on.** Until the game starts there is no
-                // controller to pass anything to — one is not made until there is a match
-                // to play, or opening the lobby deals a game behind it — so the two
-                // messages that arrive before that point are acted on by the wire itself.
-                switch message {
-                case .start:
-                    self.status = .playing
-                case .seated(let seat, let chairs):
-                    Table.shared.seat(chairs, asLocal: seat)
-                    DevLog.say(.net, "seated at \(seat.name) by the host")
-                default:
-                    break
-                }
-                self.onHostMessage?(message)
-            }
+            self.read(data, from: id)
         }
     }
 

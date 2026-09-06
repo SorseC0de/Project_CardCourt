@@ -93,9 +93,24 @@ struct NetReadout: View {
         return session.summary
     }
 
+    /// **Who everybody is looking at.** The appearance roll both devices are supposed to
+    /// share, and a mark per chair: `•` a man somebody built, `-` the house, `?` a person
+    /// whose look has not arrived. Two phones reading different crews, or a `?` that never
+    /// turns into a `•`, is the court drawing two different sets of men.
+    private var crew: String {
+        let seed = PlayerLook.shared.crew % 1_000_000
+        let chairs = Seat.allCases.map { seat -> String in
+            let chair = Table.shared.chairs[seat]
+            let mark = chair?.look != nil ? "•" : (chair?.occupant == .computer ? "-" : "?")
+            return "\(seat.abbreviation)\(mark)"
+        }.joined()
+        return "crew=\(seed) \(chairs)"
+    }
+
     var body: some View {
         VStack(alignment: .trailing, spacing: 1) {
             Text(wiring)
+            Text(crew)
             Text("seat=\(GameRules.localSeat.name) \(controller.lastBoard)")
         }
         .font(.system(size: 8, weight: .medium, design: .monospaced))

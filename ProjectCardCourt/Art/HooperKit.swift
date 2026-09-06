@@ -3,9 +3,10 @@ import SwiftUI
 
 /// Everything the player has chosen about the man they play as.
 ///
-/// Client-side only, like `PlayerLook`: an appearance never travels with a match, and
-/// nothing about the rules reads any of it. Kept in `UserDefaults` because it is the one
-/// thing on this device that should outlive a game.
+/// Nothing about the rules reads any of it, and it is kept in `UserDefaults` because it
+/// is the one thing on this device that should outlive a game. What it is **not** is
+/// private to this device: `look` crosses with the table so the other players see the man
+/// you built rather than a stranger in the seat's colours — see `Table.Look`.
 @Observable
 final class HooperKit {
     static let shared = HooperKit()
@@ -24,12 +25,14 @@ final class HooperKit {
     /// A card off the pool they have actually met. Nil until they pick one.
     var favourite: String? { didSet { save() } }
 
-    /// What the sprite wears, ready to hand to `paletteSwap`.
-    var swaps: [PaletteSwap] {
-        PixelPalette.kit(Kit.colours[safe: jersey] ?? Kit.colours[0])
-            + PixelPalette.trim(Kit.colours[safe: belt] ?? Kit.colours[0])
-            + PixelPalette.skin(tone: tone)
+    /// The four things about him that anybody else can see, ready to travel.
+    var look: Table.Look {
+        Table.Look(tone: tone, face: face, jersey: jersey, belt: belt)
     }
+
+    /// What the sprite wears, ready to hand to `paletteSwap`. Dressed by the same line
+    /// that dresses everybody else's man — see `PlayerLook.swaps(of:)`.
+    var swaps: [PaletteSwap] { PlayerLook.swaps(of: look) }
 
     /// How the name reads wherever it is shown whole.
     var billing: String { "#\(Kit.numbers[safe: number] ?? "0") \(name)" }

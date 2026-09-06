@@ -54,13 +54,20 @@ struct RootView: View {
     }
 
     /// The match is on. Now there is something to deal for.
+    ///
+    /// **It does not begin the game.** `GameView` does that when it appears, the way it
+    /// always has for a solo one — the opening deal has to fly across a court that
+    /// exists. Beginning it here as well dealt the table twice: two shuffles, two seeds,
+    /// and the second one cancelling the first mid-broadcast.
     private func startMatch() {
-        guard let session else { return }
+        // **One controller per match.** The lobby says the game has started twice — the
+        // status changing, and the button that changes it — and a second controller here
+        // is a second game dealt against the same wire.
+        guard let session, game == nil else { return }
         let controller = GameController()
         controller.join(session)
         game = controller
         screen = .game
-        controller.begin()
     }
 
     /// Ends it and unloads it. Coming back means dealing again.

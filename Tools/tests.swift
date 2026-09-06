@@ -965,16 +965,32 @@ func runTests() {
             Check.that(same == move, "\(move) survives the wire")
         }
 
-        let chairs: [Seat: Table.Chair] = [.south: .init(occupant: .local, name: "Me"),
+        // A built man on one chair and the house on the other: what everybody looks like
+        // travels with the table, and a chair with no look is the house.
+        let look = Table.Look(tone: 4, face: 3, jersey: 7, belt: 2)
+        let chairs: [Seat: Table.Chair] = [.south: .init(occupant: .local, name: "Me",
+                                                         look: look),
                                            .north: .init(occupant: .remote(playerID: "A"),
-                                                         name: "Them")]
+                                                         name: "Them"),
+                                           .east: .init(occupant: .computer, name: "House")]
         let seated = try! MatchCoder.decode(
             HostMessage.self,
-            from: try! MatchCoder.encode(HostMessage.seated(seat: .south, chairs: chairs)))
-        guard case .seated(let mine, let table) = seated else {
+            from: try! MatchCoder.encode(
+                HostMessage.seated(seat: .south, chairs: chairs, crew: 8_675_309)))
+        guard case .seated(let mine, let table, let crew) = seated else {
             Check.that(false, "the table survives the wire"); return
         }
-        Check.that(mine == .south && table == chairs, "the table survives the wire")
+        Check.that(mine == .south && table == chairs && crew == 8_675_309,
+                   "the table survives the wire")
+        Check.that(table[.south]?.look == look, "a built man survives the wire")
+        Check.that(table[.east]?.look == nil, "the house travels with no look")
+
+        let ready = try! MatchCoder.decode(
+            ClientMessage.self, from: try! MatchCoder.encode(ClientMessage.ready(look)))
+        guard case .ready(let sent) = ready else {
+            Check.that(false, "a look survives the wire"); return
+        }
+        Check.that(sent == look, "a look survives the wire")
     }
 
     print(Check.failures == 0 ? "\nALL PASS" : "\n\(Check.failures) FAILED")

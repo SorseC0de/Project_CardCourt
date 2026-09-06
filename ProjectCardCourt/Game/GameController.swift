@@ -644,6 +644,11 @@ final class GameController {
     /// Seats whose device has said it is on screen and ready to be dealt to. The host
     /// holds the opening deal until they all have — see `waitForTheTable`.
     private var readySeats: Set<Seat> = []
+    /// Whether the game has been started. See `begin`.
+    private var hasBegun = false
+    /// Whether the opening deal has gone out to the other devices yet. Until it has, a
+    /// board sent to anybody is a hand that arrives without being dealt.
+    private var dealtTheTable = false
 
     /// Attaches the transport. Safe to call before there is a match: nothing changes
     /// until `isActive`, and doing it early is the point — a handler wired after the
@@ -741,15 +746,27 @@ final class GameController {
     private func receive(_ message: ClientMessage, from seat: Seat) {
         guard let match, match.isHost else { return }
         switch message {
-        case .ready:
+        case .ready(let look):
             readySeats.insert(seat)
+            // What they built, so everybody's court has the same men on it. Sent back to
+            // the whole table rather than kept here — the other guests have to draw him
+            // too.
+            Table.shared.setLook(look, at: seat)
             // Seated again before the state, because the first seating goes out the
             // instant the match is adopted — before the other device has a handler to
             // catch it. A guest that missed it is sitting in the wrong chair and does not
             // know it.
-            (match as? GameCenterMatch)?.reseat(seat)
-            try? match.send(.turn(state: state.redacted(for: seat), events: []), to: seat)
-            DevLog.say(.net, "\(seat.name) is ready — sent the table and the board")
+            (match as? GameCenterMatch)?.reseatEveryone()
+            // **Not before the deal.** The opening board sent here is the same one
+            // `begin` is about to broadcast with the deal events attached, and a guest
+            // given it first watched its whole hand appear, vanish, and fly in again —
+            // with a gate open on a possession it could act in before a card had landed.
+            // A late arrival still needs catching up, so this stands once the deal is out.
+            if dealtTheTable {
+                try? match.send(.turn(state: state.redacted(for: seat), events: []), to: seat)
+            }
+            DevLog.say(.net, "\(seat.name) is ready"
+                       + (dealtTheTable ? " — sent the table and the board" : " — waiting on the deal"))
         // Posted rather than played. The loop is already standing at this seat waiting
         // for exactly this, and cancelling it to apply the move from here is how a client
         // that answers a moment late ends up racing the seat's own clock.
@@ -778,8 +795,12 @@ final class GameController {
     /// A guest, hearing what happened.
     private func receive(_ message: HostMessage) {
         switch message {
-        case .seated(let seat, let chairs):
+        // Acted on by the wire before it gets here — see `GameCenterMatch.readAsGuest`.
+        // Repeated rather than skipped: a loopback has no wire to do it, and seating the
+        // same table twice is seating the same table.
+        case .seated(let seat, let chairs, let crew):
             Table.shared.seat(chairs, asLocal: seat)
+            PlayerLook.shared.setCrew(crew)
             DevLog.say(.net, "seated at \(seat.name)")
         case .start:
             DevLog.say(.net, "the host started the game")
@@ -894,11 +915,21 @@ final class GameController {
     }
 
     func begin() {
+        // **Once, whoever asks.** A game that is begun twice is dealt twice: two
+        // shuffles, two seeds, and the second cancelling the first somewhere in the
+        // middle of telling the other devices about it. Both callers were real — the
+        // view when it appeared, and the match when it started — and either alone is
+        // right, so the second one is simply refused.
+        guard !hasBegun else {
+            DevLog.say(.input, "begin: already under way, ignored")
+            return
+        }
+        hasBegun = true
         // Rolled here rather than in `init`. SwiftUI re-creates a View struct on every
         // state change, so `@State private var controller = GameController()` runs that
         // initialiser every time and throws all but the first result away — but any side
         // effect in it has already happened. Faces were being re-rolled on every inbound.
-        PlayerLook.shared.randomiseOpponents(except: GameRules.localSeat)
+        PlayerLook.shared.randomiseTheCrew()
         watchTheLoop()
         loop?.cancel()
         // A guest has no game of its own to open. It says it is on screen and waits to be
@@ -906,7 +937,7 @@ final class GameController {
         if isGuest {
             forgetTheSoloGame()
             gate = .thinking
-            try? match?.send(.ready)
+            try? match?.send(.ready(HooperKit.shared.look))
             return
         }
         // **A match deals for the table that turned up.** The initialiser had to deal
@@ -925,6 +956,7 @@ final class GameController {
             DevLog.say(.input, "begin: dealing \(openingDraws.count) cards out")
             // Told to the other devices before it is shown here, so the cards fly on
             // every screen rather than only on the one running the rules.
+            dealtTheTable = true
             broadcast(openingDraws)
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
@@ -2070,6 +2102,14 @@ final class GameController {
         // was last asked for. Left alone, the rebound board sits behind every cutscene
         // that follows a bid and flashes back the moment one clears.
         gate = .thinking
+        // **Whatever the last batch never got to show has been shown by events.** A
+        // presentation that is cancelled part-way — and on a guest that is most of them,
+        // since the next board off the wire cancels the one being played — leaves its
+        // remaining cards marked as still in the air. Nothing ever unmarks them, so the
+        // hand is one card short for the rest of the game and a passive slot stays empty
+        // for good. The board they belong to is already on the table by now.
+        undelivered.removeAll()
+        unrevealed.removeAll()
         // Marked before a single beat plays: the rules dealt these on the way in, and the
         // hand must not have them until their flight says so.
         for case .drew(_, _, let card) in events { undelivered.insert(card) }
