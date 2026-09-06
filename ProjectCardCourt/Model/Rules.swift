@@ -232,12 +232,30 @@ enum Rules {
     /// the air, whether or not the card says it must be played first. One card, picked in
     /// order: stepping out of the play entirely beats breaking what is coming.
     static func counterOnOffer(to seat: Seat, in state: GameState) -> Card? {
-        if clearsTo(seat, in: state) != nil,
+        // Offered on any pass, not only one with a through-line: stepping out of a ball
+        // aimed at you is a real choice, it just costs the man who threw it rather than
+        // sending the ball on.
+        if let passer = state.lastPasser, passer != seat,
            let out = state[seat].bag.first(where: { $0.descriptor.clearsOut }) {
             return out
         }
         guard !clampsArriving(on: seat, in: state).isEmpty else { return nil }
         return state[seat].bag.first { $0.descriptor.clearsClamps }
+    }
+
+    /// **The out, drawn into.**
+    ///
+    /// A second offer, made after the possession's own draw rather than at its arrival —
+    /// and a different question from the first one, because by now the Clamp is standing
+    /// on him rather than still in the air. The card that just landed is an answer to it,
+    /// and a hand is not worth much if the answer in it has to wait for a turn that the
+    /// thing it answers is spoiling. Taking it simply plays the card.
+    static func drawnCounter(for seat: Seat, in state: GameState) -> Card? {
+        guard !state[seat].clamps.isEmpty else { return nil }
+        let locked = lockedCards(state, for: seat)
+        return state[seat].bag.first {
+            $0.descriptor.clearsClamps && !locked.contains($0.id)
+        }
     }
 
     /// Taken, or turned down.
@@ -248,8 +266,15 @@ enum Rules {
     /// rather than on his turn.
     @discardableResult
     static func resolveCounter(_ taken: Bool, state: inout GameState) -> [GameEvent] {
-        guard case .awaitingCounter(let seat, _) = state.phase,
-              let held = state.heldPossession else { return [] }
+        guard case .awaitingCounter(let seat, _) = state.phase else { return [] }
+        // **The drawn one.** No possession is being held here — it has already begun, and
+        // the Clamp is standing rather than arriving — so taking it is nothing more than
+        // playing the card, which is what the card does.
+        guard let held = state.heldPossession else {
+            state.phase = .possession(holder: seat)
+            guard taken, let card = drawnCounter(for: seat, in: state) else { return [] }
+            return apply(.play(card.id), by: seat, to: &state)
+        }
         var events: [GameEvent] = []
         state.heldPossession = nil
 
@@ -329,7 +354,17 @@ enum Rules {
     /// pass with the risk taken off it.
     private static func clearOut(from seat: Seat, state: inout GameState,
                                  events: inout [GameEvent]) {
-        guard let onward = clearsTo(seat, in: state) else { return }
+        // **Nowhere to carry on to is a ball on the floor.** A pass thrown *at* him and
+        // stepped out of is not a play that continues — it is a pass to nobody, and it
+        // belongs to whoever threw it.
+        guard let onward = clearsTo(seat, in: state) else {
+            guard let passer = state.lastPasser else { return }
+            events.append(.clearedOut(seat: seat, to: nil))
+            state[passer].turnovers += 1
+            events.append(.turnover(passer, cause: CardLibrary.clearOut.name))
+            reinbound(by: passer, state: &state, events: &events)
+            return
+        }
         // Whatever was about to land on him lands on the man the ball went to. Asked
         // before they bit, so there is nothing on him to carry — only a pile still in the
         // air, and gravity takes it wherever the ball ends up.
@@ -349,6 +384,10 @@ enum Rules {
     /// reads this too, so the card greys out rather than being played into nothing.
     static func clearsTo(_ seat: Seat, in state: GameState) -> Seat? {
         guard let passer = state.lastPasser, passer != seat else { return nil }
+        // **The card has to have been going somewhere.** Geometry alone said a Lob had a
+        // through-line whenever it happened to land on a neighbour, and the ball carried
+        // on past a man it had been aimed at.
+        guard state.arrivedBy?.movesInADirection == true else { return nil }
         if passer.left == seat { return seat.left }
         if passer.right == seat { return seat.right }
         return nil
@@ -870,6 +909,7 @@ enum Rules {
         }
         if descriptor.upgradesToThree { state.pendingBonusPoint = 1 }
         state.lastPasser = seat
+        state.arrivedBy = descriptor
         credit(seat, helping: receiver, state: &state, events: &events)
         events.append(.passed(card: descriptor, from: seat, to: receiver,
                               shot: state.shot, returning: returning))
@@ -1275,6 +1315,7 @@ enum Rules {
         state[winner].rebounds += 1
         // A rebound is not a pass, so it carries no assist credit forward.
         state.lastPasser = nil
+        state.arrivedBy = nil
         events.append(.rebounded(winner))
         // SHOT carries over — only an inbound resets it.
         beginPossession(winner, tickClock: true, fromRebound: true,
@@ -1590,6 +1631,7 @@ enum Rules {
         // ball is worth and how long is left on it. Only `beginRound` starts either over.
         state.ball = nil
         state.lastPasser = nil
+        state.arrivedBy = nil
         state.lastPlayThisPossession = nil
         state.pendingClamps = []
         // **Clamps are not cleared here.** `beginPossession` is the one place that ends
@@ -1608,6 +1650,7 @@ enum Rules {
         state.shotClock = nil
         state.ball = nil
         state.lastPasser = nil
+        state.arrivedBy = nil
         state.lastPlayThisPossession = nil
         state.pendingShotOverride = nil
         state.whistlesSilenced = false
@@ -1772,6 +1815,14 @@ enum Rules {
         let toll = state[seat].injuries.reduce(0) { $0 + ($1.gameBreak?.discardsEachTurn ?? 0) }
         if toll > 0, !state[seat].bag.isEmpty {
             state.phase = .awaitingInjuryDiscard(seat: seat, count: min(toll, state[seat].bag.count))
+            return
+        }
+        // **Asked again, now that he has drawn.** See `drawnCounter`: the Clamp is on him
+        // by this point, so this is the card in his hand being an answer to what is
+        // already standing there rather than a way of avoiding it.
+        if drawnCounter(for: seat, in: state) != nil, state.pendingFreeThrows == nil,
+           state.pendingInbound == nil {
+            state.phase = .awaitingCounter(seat: seat, card: drawnCounter(for: seat, in: state)!.descriptor)
             return
         }
         state.phase = .possession(holder: seat)
@@ -2327,6 +2378,8 @@ enum Rules {
             // Handed over, not taken away: whoever is benched decides where the ball
             // goes. Queued rather than set — see `pendingInbound`.
             state.lastPasser = nil
+            state.arrivedBy = nil
+        state.arrivedBy = nil
             state.pendingInbound = holder
         }
     }

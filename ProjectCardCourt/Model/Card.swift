@@ -524,6 +524,20 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         id == "shot-creator" ? 0.02 : 0
     }
 
+    /// Whether the card moves the ball **in a direction** rather than at somebody.
+    ///
+    /// This is the whole of what a Clear Out can carry on: he steps out of a ball's path
+    /// and it runs past him to the next man along. A pass aimed at *him* — a Lob, a Dime,
+    /// anything of choice — has nowhere to run on to; it was thrown to a place he is no
+    /// longer standing in, and that is a turnover for whoever threw it. Across is aimed
+    /// too: it names the man opposite rather than a way round the floor.
+    var movesInADirection: Bool {
+        switch passTarget {
+        case .left, .right, .leftOrRight: return true
+        default:                          return false
+        }
+    }
+
     /// Cards that put the shot up say so with a mark rather than the words.
     var takesShot: Bool { special?.shootsImmediately == true }
 

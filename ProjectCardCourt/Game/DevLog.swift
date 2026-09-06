@@ -95,7 +95,7 @@ enum DevLog {
             case .movePlayed(let seat, let card, let shot):
                 say(.card, "\(seat.dev) plays \(card.name)  (Ball \(shot)%)")
             case .clearedOut(let seat, let to):
-                say(.card, "\(seat.dev) clears out ➜ \(to.dev)")
+                say(.card, "\(seat.dev) clears out ➜ \(to?.dev ?? "nobody")")
             case .clampSet(let seat, let card):
                 say(.card, "\(seat.dev) sets \(card.name)")
             case .drew(let seat, let card, _):

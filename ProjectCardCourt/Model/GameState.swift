@@ -270,6 +270,9 @@ struct GameState: Codable {
     /// somebody else's brick is still a rebound, and the cards that pay for one say "your
     /// own" on their face — Board-Crasher and Lethal Shooter both.
     var possessionFromOwnRebound = false
+    /// The card that delivered the ball, if a pass did. A Clear Out asks it which way the
+    /// ball was going — see `CardDescriptor.movesInADirection`.
+    var arrivedBy: CardDescriptor?
     var lastPasser: Seat?
     /// Descriptor id of the last card played in the current possession; arms combos.
     var lastPlayThisPossession: String?
