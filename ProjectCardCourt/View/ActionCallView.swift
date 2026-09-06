@@ -23,7 +23,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
     var blurb: String {
         switch self {
         case .inbound:   return "Put the ball back in play"
-        case .gameBreak: return ""//"Nobody played this"
+        case .gameBreak: return "Nobody played this"
         // The whistle says it with the whistle. See `emblem`.
         case .whistle:   return ""
         case .clamped:   return "Defenders are guarding you closely"

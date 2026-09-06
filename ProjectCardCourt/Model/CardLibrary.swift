@@ -7,15 +7,15 @@ enum CardLibrary {
 
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "Pass Left. SHOT +5%", numberInDeck: 31, passTarget: .left)
+        effect: "Pass Left. SHOT +5%", numberInDeck: 32, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "Pass Right. SHOT +5%", numberInDeck: 31, passTarget: .right)
+        effect: "Pass Right. SHOT +5%", numberInDeck: 32, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,
-        effect: "Pass Across. SHOT +5%", numberInDeck: 20, passTarget: .across)
+        effect: "Pass Across. SHOT +5%", numberInDeck: 21, passTarget: .across)
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
@@ -456,7 +456,7 @@ enum CardLibrary {
 
     static let rockFight = CardDescriptor(
         id: "rock-fight", name: "Rock Fight", type: .gameBreak,
-        effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 4,
+        effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 3,
         gameBreak: GameBreakEffect(blocksShotAtOrAbove: 50))
 
     static let floorCleanup = CardDescriptor(
@@ -468,7 +468,7 @@ enum CardLibrary {
     static let officialTimeout = CardDescriptor(
         id: "official-timeout", name: "Official Timeout", type: .gameBreak,
         effect: "With a referee out: every #[Injury] comes off and the crew leaves. Otherwise all #[Draw] 1",
-        numberInDeck: 2,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(healsAllInjuries: true, requiresReferee: true,
                                    clearsReferees: true, everyoneDrawsInstead: 1))
 
@@ -490,24 +490,24 @@ enum CardLibrary {
 
     static let wetSpot = CardDescriptor(
         id: "wet-spot", name: "Wet Spot", type: .gameBreak,
-        effect: "Every #[Injury] in the pile and the deck. Take one", numberInDeck: 2,
+        effect: "Every #[Injury] in the pile and the deck. Take one", numberInDeck: 3,
         gameBreak: GameBreakEffect(offersInjuries: true))
 
     static let iceWrap = CardDescriptor(
         id: "ice-wrap", name: "Ice Wrap", type: .gameBreak,
         effect: "#[Draw] 1. #[Clear] all #[Injuries] — or #[Draw] 1 more if there were none",
-        numberInDeck: 5,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, drawIfUninjured: 1))
 
     static let hitTheBike = CardDescriptor(
         id: "hit-the-bike", name: "Hit the Bike", type: .gameBreak,
         effect: "#[Clear] all #[Injuries]. #[Draw] 1. Hand the ball to another player",
-        numberInDeck: 5,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(draws: 1, healsInjuries: true, givesBallAway: true))
 
     static let allStarSelection = CardDescriptor(
         id: "all-star-selection", name: "All Star Selection", type: .gameBreak,
-        effect: "#[Draw|2]", numberInDeck: 5,
+        effect: "#[Draw|2]", numberInDeck: 3,
         gameBreak: GameBreakEffect(draws: 2))
 
     static let allSwisshSelection = CardDescriptor(
@@ -549,17 +549,17 @@ enum CardLibrary {
 
     static let crowdNoise = CardDescriptor(
         id: "crowd-noise", name: "Crowd Noise", type: .gameBreak,
-        effect: "#[Discard|1]", numberInDeck: 14,
+        effect: "#[Discard|1]", numberInDeck: 3,
         gameBreak: GameBreakEffect(discard: 1))
 
     static let twoMinuteWarning = CardDescriptor(
         id: "two-minute-warning", name: "2-Minute Warning", type: .gameBreak,
-        effect: "All, down to 2 #[Discard|?]", numberInDeck: 2,
+        effect: "All, down to 2 #[Discard|?]", numberInDeck: 3,
         gameBreak: GameBreakEffect(everyoneDiscardsTo: 2))
 
     static let designedPlay = CardDescriptor(
         id: "designed-play", name: "Designed Play", type: .gameBreak,
-        effect: "Up to 5 #[Draw|?]", numberInDeck: 10,
+        effect: "Up to 5 #[Draw|?]", numberInDeck: 3,
         gameBreak: GameBreakEffect(drawUpTo: 5))
 
     static let mvpVote = CardDescriptor(
@@ -574,23 +574,23 @@ enum CardLibrary {
 
     static let benched = CardDescriptor(
         id: "benched", name: "Benched", type: .gameBreak,
-        effect: "Give up the ball. You choose who to", numberInDeck: 5,
+        effect: "Give up the ball. You choose who to", numberInDeck: 3,
         gameBreak: GameBreakEffect(givesBallAway: true))
 
     static let salaryCapIncrease = CardDescriptor(
         id: "salary-cap-increase", name: "Salary Cap Increase", type: .gameBreak,
-        effect: "All Players #[Draw|2]", numberInDeck: 4,
+        effect: "All Players #[Draw|2]", numberInDeck: 3,
         gameBreak: GameBreakEffect(everyoneDraws: 2))
 
     static let swallowedWhistle = CardDescriptor(
         id: "swallowed-whistle", name: "Swallowed Whistle", type: .gameBreak,
         effect: "#[Whistles] cannot be called for the rest of the round",
-        numberInDeck: 5,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(silencesWhistles: true))
 
     static let foul = CardDescriptor(
         id: "foul", name: "Foul", type: .gameBreak,
-        effect: "Take 1 #[FT]", numberInDeck: 5,
+        effect: "Take 1 #[FT]", numberInDeck: 3,
         gameBreak: GameBreakEffect(freeThrows: 1))
 
     // ── Special Moves ─────────────────────────────────────────────────
@@ -686,7 +686,7 @@ enum CardLibrary {
     static let altercation = CardDescriptor(
         id: "altercation", name: "Altercation", type: .gameBreak,
         effect: "Select another player: you and they each #[Discard] 1 at random. Inbound to anybody else",
-        numberInDeck: 2,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(fightsChosenPlayer: true))
 
     static let hugeAltercation = CardDescriptor(
@@ -698,29 +698,29 @@ enum CardLibrary {
 
     static let homeCourtAdvantage = CardDescriptor(
         id: "home-court-advantage", name: "Home Court Advantage", type: .gameBreak,
-        effect: "SHOT + 10%", numberInDeck: 5,
+        effect: "SHOT + 10%", numberInDeck: 3,
         gameBreak: GameBreakEffect(shotThisPossession: 10))
 
     static let awayGame = CardDescriptor(
         id: "away-game", name: "Away Game", type: .gameBreak,
-        effect: "SHOT - 10%", numberInDeck: 5,
+        effect: "SHOT - 10%", numberInDeck: 3,
         gameBreak: GameBreakEffect(shotThisPossession: -10))
 
     static let micdUp = CardDescriptor(
         id: "micd-up", name: "Mic'd Up", type: .gameBreak,
         effect: "SHOT + 10% until passed or shot",
-        numberInDeck: 7,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(shotForHolder: 10))
 
     static let inTheZone = CardDescriptor(
         id: "in-the-zone", name: "In The Zone", type: .gameBreak,
         effect: "#[Draw] 1 card for each 10% SHOT on the ball, rounded down. Minimum 1",
-        numberInDeck: 4,
+        numberInDeck: 3,
         gameBreak: GameBreakEffect(drawsPerTenPercentShot: true))
 
     static let rolePlayer = CardDescriptor(
         id: "role-player", name: "Role Player", type: .gameBreak,
-        effect: "All Others #[Draw|1]", numberInDeck: 4,
+        effect: "All Others #[Draw|1]", numberInDeck: 3,
         gameBreak: GameBreakEffect(othersDraw: 1))
 
     static let backAndForthGame = CardDescriptor(

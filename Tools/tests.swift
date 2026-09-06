@@ -498,6 +498,10 @@ func runTests() {
             [.left, .right, .across].contains($0.descriptor.passTarget)
         }!
         Rules.apply(.play(onward.id), by: receiver, to: &state)
+        // The next man may be offered something as it arrives, and a possession held on
+        // that question has not cleared the last one's Clamps yet — it does that on the
+        // answer. See `Rules.beginPossession`.
+        declineCounter(&state)
         Check.that(state[receiver].clamps.isEmpty, "and clear once the possession ends")
     }
 
