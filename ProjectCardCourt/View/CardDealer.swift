@@ -42,17 +42,25 @@ final class CardDealer {
         static let steps = 30
     }
 
-    /// The slab, and the picture printed on its top face.
+    /// The slab, and the picture printed on the face **away** from you.
     ///
     /// The slab's own mesh carries no texture coordinates, so what a card wears is a thin
     /// plane sitting just clear of it — the same arrangement the piles use, and it rides
     /// along because it is a child.
+    ///
+    /// **Underneath, not on top.** A card leaves the pile lying face down, and the curl
+    /// is what turns it over: printed on the upper face it was face up on the deck and
+    /// blank by the time it reached anybody, which is the whole thing backwards. The
+    /// plane is single-sided and looks along +Y, so it is turned right over to be seen
+    /// from below — about Z, which mirrors it left to right rather than standing the name
+    /// plate on its head.
     func build(mesh: MeshResource, material: some RealityKit.Material,
                face: Entity? = nil, thickness: Float = 0) {
         let card = ModelEntity(mesh: mesh, materials: [material])
         card.isEnabled = false
         if let face {
-            face.position = SIMD3(0, thickness / 2 + 0.00005, 0)
+            face.position = SIMD3(0, -(thickness / 2 + 0.00005), 0)
+            face.orientation = simd_quatf(angle: .pi, axis: [0, 0, 1])
             card.addChild(face)
         }
         root.addChild(card)
@@ -79,11 +87,8 @@ final class CardDealer {
         // Turned to face him, the way the pile it came off is. One yaw, held for the
         // whole trip — the card does not steer.
         let yaw = simd_quatf(angle: atan2(end.x - start.x, end.z - start.z), axis: [0, 1, 0])
-        // **Negative about X.** The pile's bow is positive in the frame the pile hangs
-        // in; the dealt card hangs off a root of its own, where the same sign tips it the
-        // other way — it started face up and curled down into the floor.
         func lean(_ t: Float) -> simd_quatf {
-            yaw * simd_quatf(angle: -(Throw.bowed + (Throw.upright - Throw.bowed) * t),
+            yaw * simd_quatf(angle: Throw.bowed + (Throw.upright - Throw.bowed) * t,
                              axis: [1, 0, 0])
         }
 
