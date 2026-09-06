@@ -100,18 +100,21 @@ struct ShotCutsceneView: View {
 
                 // Held until the ball is actually at the rim.
                 if let burst, showBurst {
-                    EmojiBurst(emoji: burst.emoji, count: burst.count)
+                    EmojiBurst(emoji: burst.emoji, count: burst.count,
+                               ink: scene.signature == .understood ? .white : nil,
+                               drop: scene.signature == .understood ? CardPalette.blue : nil)
                         .position(rimPoint(in: geo.size))
                 }
 
                 Group {
                     if scene.made {
+                        // **The plain word for a Lethal Shooter make.** A sentence set
+                        // across the screen shrinks to fit and stops being readable, and
+                        // the line's own joke — a genie, a fishing rod — is not the story
+                        // on this one. The burst says the rest.
                         if showResult {
-                            if scene.signature == .understood {
-                                understood
-                            } else {
-                                SwisshTitle(line: scene.line)
-                            }
+                            SwisshTitle(line: scene.signature == .understood
+                                        ? .plain : scene.line)
                         }
                     } else if scene.drama == .robbery {
                         // It counts, right up until it doesn't. The make's word holds
@@ -236,6 +239,11 @@ struct ShotCutsceneView: View {
     /// What the hoop throws back. Deliberately gapped — an ordinary make or a
     /// respectable miss gets nothing, so the burst always means something.
     private var burst: (emoji: [String], count: Int)? {
+        // He knew, so it is arithmetic rather than confetti — and it is the only burst:
+        // the line's own emoji would otherwise arrive alongside it.
+        if scene.signature == .understood, scene.made {
+            return (Understood.marks, Understood.count)
+        }
         if let banked = scene.drama.burst { return banked }
         if scene.made {
             // A line brings its own — the emoji is part of the joke, so it beats both the
@@ -281,28 +289,11 @@ struct ShotCutsceneView: View {
             : CGPoint(x: rim.x + size.width * 0.9 * scene.caromSide, y: -size.height * 0.35)
     }
 
-    /// Lethal Shooter's make. He is not celebrating — he is being told he was right.
-    ///
-    /// The burst is arithmetic rather than confetti: the operators, a target, a brain,
-    /// and the ones and noughts underneath all of it. Lettered white over a hard blue
-    /// drop, which the emoji among them pick up as well.
-    private var understood: some View {
-        ZStack {
-            EmojiBurst(emoji: ["🧠", "🎯", "✖️", "➕", "➗", "♾️",
-                               "√", "√", "1", "0", "1", "0"],
-                       count: 26, reach: 210, size: 30,
-                       ink: .white, drop: CardPalette.blue)
-            ActionText(understoodLine, size: 30, ink: .white,
-                       drop: CardPalette.blue, taper: 0, tracking: 0.02)
-                .fixedSize()
-                .minimumScaleFactor(0.5)
-        }
-    }
-
-    /// "Raheem understands it now.", and "You understand it now."
-    private var understoodLine: String {
-        let seat = scene.shooter
-        return "\(seat.playerName) \(seat.verb("understands", "understand")) it now."
+    /// What a Lethal Shooter make throws instead of confetti: the operators, a target, a
+    /// brain, and the ones and noughts under all of it.
+    private enum Understood {
+        static let marks = ["🧠", "🎯", "✖️", "➕", "➗", "♾️", "√", "√", "1", "0", "1", "0"]
+        static let count = 26
     }
 
     private func run() async {

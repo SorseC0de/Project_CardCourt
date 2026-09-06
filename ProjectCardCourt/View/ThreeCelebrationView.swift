@@ -26,6 +26,12 @@ struct ThreeCelebrationView: View {
     /// inside the hand rather than swallowing it.
     private let sparkleScale: CGFloat = 3
 
+    private enum Beat {
+        /// Between the palm and each finger. Three fingers landing inside a third of a
+        /// second read as one shape appearing rather than as three arriving.
+        static let between: Double = 0.20
+    }
+
     var body: some View {
         GeometryReader { geo in
             let centre = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.42)
@@ -84,12 +90,12 @@ struct ThreeCelebrationView: View {
     private func run() async {
         // The palm lands first and the burst goes off with it, not before it — the sparkle
         // was firing against an empty screen.
-        withAnimation(.spring(response: 0.28, dampingFraction: 1)) { arrived[0] = true }
+        withAnimation(.spring(response: 0.34, dampingFraction: 1)) { arrived[0] = true }
         sparkleAt = Date()
-        try? await Task.sleep(for: .seconds(0.11))
+        try? await Task.sleep(for: .seconds(Beat.between))
         for finger in 1..<4 {
-            withAnimation(.spring(response: 0.26, dampingFraction: 0.42)) { arrived[finger] = true }
-            try? await Task.sleep(for: .seconds(0.11))
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.42)) { arrived[finger] = true }
+            try? await Task.sleep(for: .seconds(Beat.between))
         }
         try? await Task.sleep(for: .seconds(0.25))
         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { numberShown = true }

@@ -25,6 +25,8 @@ struct GameView: View {
     /// Where the results card starts in `Winner.poses`. Rolled once per game, so the
     /// same win does not always end on the same picture.
     @State private var winnerPose = Int.random(in: 0..<Winner.poses.count)
+    /// Where each player's PTS cell is, read off the board rather than guessed at.
+    @State private var pointsCells: [Seat: CGPoint] = [:]
 
     var body: some View {
         ZStack {
@@ -36,6 +38,7 @@ struct GameView: View {
             VStack(spacing: 0) {
                 statusBar
                 ScoreboardView(state: controller.shown, withheld: controller.withheldPoints)
+                    .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                 logStrip
                     // **Where the name plate hangs from.** Measured rather than added up:
                     // the plate sits under the log, and the log's own top depends on the
@@ -194,7 +197,10 @@ struct GameView: View {
                     seat: seat,
                     // Roughly that player's PTS cell: the board sits under the status bar,
                     // rows are even, and PTS is the first stat column.
-                    scoreTarget: CGPoint(x: 78, y: 96 + 24 * CGFloat(scoreRow(of: seat))),
+                    // The cell itself, as laid out. Nought until the board's first
+                    // pass, which is long before anybody has scored.
+                    scoreTarget: pointsCells[seat]
+                        ?? CGPoint(x: 78, y: 96 + 24 * CGFloat(scoreRow(of: seat))),
                     onScoreLands: { controller.threeScoreLanded() },
                     onFinished: { controller.threeCelebrationFinished() })
                     .zIndex(13)

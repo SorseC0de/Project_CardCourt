@@ -1,5 +1,18 @@
 import SwiftUI
 
+/// Where each row's PTS cell sits, in the screen's own space.
+///
+/// Reported rather than worked out. The three's celebration flew its number to
+/// `(78, 96 + 24 × row)` — the board's rough shape written down as arithmetic — which
+/// lands near the right cell and not on it, and stops being true the moment a row's
+/// height or the board's place changes.
+struct PointsCells: PreferenceKey {
+    static let defaultValue: [Seat: CGPoint] = [:]
+    static func reduce(value: inout [Seat: CGPoint], nextValue: () -> [Seat: CGPoint]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
 struct ScoreboardView: View {
     let state: GameState
     /// Points already in the state but not yet shown — a three still flying to the board.
@@ -66,6 +79,19 @@ struct ScoreboardView: View {
                          accent: Self.accents[column],
                          rest: isCalledOut ? tint : Theme.ink,
                          isCalledOut: isCalledOut)
+                    // **Where the points actually are.** Anything flying to the board
+                    // aims at the cell it is going to change, rather than at a place the
+                    // cell is usually near — see `PointsCells`.
+                    .background {
+                        if column == 0 {
+                            GeometryReader { geo in
+                                let box = geo.frame(in: .named(Chrome.screen))
+                                Color.clear.preference(
+                                    key: PointsCells.self,
+                                    value: [player.seat: CGPoint(x: box.midX, y: box.midY)])
+                            }
+                        }
+                    }
             }
 
             Text("\(shownScore(player))")
