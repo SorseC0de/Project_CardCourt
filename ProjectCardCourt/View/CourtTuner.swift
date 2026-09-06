@@ -14,7 +14,12 @@ final class ShotTuning {
     var tempo: Double = 1
 
     /// Before the ball leaves the shooter's hands.
-    var releaseDelay: Double = 0.90
+    /// When the ball leaves his hand. **Read off the sheet**: the release happens on a
+    /// particular cell of the shot's thirteen, so this is that cell's own time and it
+    /// follows the rate rather than being retuned by hand. It was 0.90 at eight frames a
+    /// second, which is cell seven — and stayed 0.90 when the rate went to ten, which put
+    /// the ball in the air a fifth of a second after his hand had finished with it.
+    var releaseDelay: Double = ShotTiming.release
     /// How long it is in the air.
     var flightSeconds: Double = 0.75
 
@@ -226,3 +231,11 @@ struct DebugActionsView: View {
 }
 
 #endif
+
+
+/// Where the shot's beats fall on its own sheet.
+enum ShotTiming {
+    /// The cell the ball leaves on, of `Sprite.shoot`'s thirteen.
+    static let releaseCell: Double = 7
+    static var release: Double { releaseCell / Theme.Figure.shootFPS }
+}

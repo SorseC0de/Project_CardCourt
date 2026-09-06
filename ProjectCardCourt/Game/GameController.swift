@@ -1348,7 +1348,7 @@ final class GameController {
             for case .rebounded(let winner) in events {
                 catchUp()
                 reboundLeap = ReboundLeap(seat: winner)
-                try? await Task.sleep(for: .seconds(Theme.Figure.reboundSeconds))
+                try? await Task.sleep(for: .seconds(ReboundTuning.shared.whole))
                 reboundLeap = nil
             }
             await playDrawsAndReveals(in: events)
@@ -1525,6 +1525,16 @@ final class GameController {
         Task {
             try? await Task.sleep(for: .seconds(Pacing.cutscene))
             cutscene = nil
+        }
+    }
+
+    /// Sends the local seat up for a board, for tuning the leap without waiting for a
+    /// miss and a bid — see `ReboundBench`.
+    func debugRebound() {
+        reboundLeap = ReboundLeap(seat: GameRules.localSeat)
+        Task {
+            try? await Task.sleep(for: .seconds(ReboundTuning.shared.whole))
+            reboundLeap = nil
         }
     }
 

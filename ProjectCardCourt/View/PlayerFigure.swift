@@ -78,6 +78,7 @@ struct PlayerFigure: View {
     /// than the sprite's. Unlike the lift this one is a ramp: a shadow is a soft blob and
     /// has nothing to snap to.
     @State private var airborne: CGFloat = 0
+    @State private var leapTune = ReboundTuning.shared
 
     private enum Leap: Equatable {
         case none
@@ -139,8 +140,8 @@ struct PlayerFigure: View {
     /// cell to hold on at the top.
     private var leapRate: Double? {
         switch leap {
-        case .rising, .hanging: return Theme.Figure.reboundFPS
-        case .landing:          return Theme.Figure.landFPS
+        case .rising, .hanging: return leapTune.riseFPS
+        case .landing:          return leapTune.landFPS
         case .none:             return nil
         }
     }
@@ -181,22 +182,21 @@ struct PlayerFigure: View {
         leapFrom = Date()
         lifted = false
         leap = .rising
-        withAnimation(.easeOut(duration: Theme.Figure.reboundRise)) { airborne = 1 }
+        withAnimation(.easeOut(duration: leapTune.rise)) { airborne = 1 }
 
         // The lift comes in where the sheet runs out of frame, not at the start: the
         // first cells are him leaving the floor, which the drawing already says.
-        let toLift = Double(Theme.Figure.reboundLiftFrom) / Theme.Figure.reboundFPS
+        let toLift = Double(Theme.Figure.reboundLiftFrom) / leapTune.riseFPS
         try? await Task.sleep(for: .seconds(toLift))
-        lifted = true
-        try? await Task.sleep(for: .seconds(max(0, Theme.Figure.reboundRise - toLift)))
+        withAnimation(.easeOut(duration: max(0, leapTune.rise - toLift))) { lifted = true }
+        try? await Task.sleep(for: .seconds(max(0, leapTune.rise - toLift)))
 
         // It is in his hands. Held there on the last cell.
         leap = .hanging
-        try? await Task.sleep(for: .seconds(Theme.Figure.reboundHang))
+        try? await Task.sleep(for: .seconds(leapTune.hang))
 
         // Down: the two pixels go first, then the landing plays out under him.
-        lifted = false
-        withAnimation(.easeIn(duration: Theme.Figure.landSeconds)) { airborne = 0 }
+        withAnimation(.easeIn(duration: leapTune.landing)) { lifted = false; airborne = 0 }
         await comeDown()
     }
 
@@ -204,7 +204,7 @@ struct PlayerFigure: View {
     private func comeDown() async {
         leapFrom = Date()
         leap = .landing
-        try? await Task.sleep(for: .seconds(Theme.Figure.landSeconds))
+        try? await Task.sleep(for: .seconds(leapTune.landing))
         leap = .none
     }
 
@@ -275,7 +275,7 @@ struct PlayerFigure: View {
                             stopAtFrame: leaping ? nil : stopAtFrame)
                 // **The sprite goes up; the shadow stays on the floor.** Which is why it
                 // is here and not around the pair of them.
-                .offset(y: lifted ? -Theme.Figure.reboundLift * scale : 0)
+                .offset(y: lifted ? -leapTune.lift * scale : 0)
                 .scaleEffect(x: isMirrored ? -1 : 1)
                 // Never animated. Interpolating a flip runs the sprite through zero width,
                 // which reads as a sheet of cardboard turning rather than a player facing

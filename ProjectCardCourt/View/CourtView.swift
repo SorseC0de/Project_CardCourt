@@ -149,6 +149,11 @@ struct CourtView: View {
     /// The board's ball, from the hoop on the horizon to his hands at the top.
     @State private var reboundFlight: CGFloat = 0
     @State private var reboundBall = false
+    /// How far into his descent the ball is. **It comes down with him**: from the moment
+    /// he has it, it is a ball in a pair of hands, and a ball that stayed where it met
+    /// them was a ball he had jumped away from.
+    @State private var reboundCarry: CGFloat = 0
+    @State private var rebounding = ReboundTuning.shared
 
     private var selectableSeats: Set<Seat> {
         if case .awaitingInbound(let inbounder) = gate {
@@ -346,11 +351,13 @@ struct CourtView: View {
                     let from = hoopPoint(on: court, in: geo.size)
                     let to = reboundPoint(of: rebound.seat, on: court)
                     let end = court.scale(of: rebound.seat)
+                    let drop = rebounding.lift * Theme.Figure.playerScale
+                        * court.scale(of: rebound.seat) * reboundCarry
                     PixelBallView()
-                        .scaleEffect(Court.ballFromHoop
-                                     + (end - Court.ballFromHoop) * reboundFlight)
+                        .scaleEffect(rebounding.fromHoop
+                                     + (end - rebounding.fromHoop) * reboundFlight)
                         .position(x: from.x + (to.x - from.x) * reboundFlight,
-                                  y: from.y + (to.y - from.y) * reboundFlight)
+                                  y: from.y + (to.y - from.y) * reboundFlight + drop)
                         .transition(.identity)
                         .zIndex(280)
                 }
@@ -389,18 +396,17 @@ struct CourtView: View {
             .task(id: rebound?.id) {
                 guard rebound != nil else { reboundBall = false; return }
                 var appear = Transaction(); appear.disablesAnimations = true
-                withTransaction(appear) { reboundFlight = 0; reboundBall = true }
-                // Timed to reach his hands on the last cell of the leap — both ends read
-                // `reboundRise`, so the catch cannot land a frame either side of it.
-                withAnimation(.easeIn(duration: Theme.Figure.reboundRise)) {
-                    reboundFlight = 1
+                withTransaction(appear) {
+                    reboundFlight = 0; reboundCarry = 0; reboundBall = true
                 }
-                try? await Task.sleep(for: .seconds(Theme.Figure.reboundRise
-                                                    + Theme.Figure.reboundHang))
-                // The sprite is holding it by now; two balls in one pair of hands is one
-                // too many.
-                var vanish = Transaction(); vanish.disablesAnimations = true
-                withTransaction(vanish) { reboundBall = false }
+                // Thrown to arrive on the last cell of the leap.
+                withAnimation(.easeIn(duration: rebounding.flight)) { reboundFlight = 1 }
+                try? await Task.sleep(for: .seconds(rebounding.flight + rebounding.hang))
+                // Caught. It rides his descent rather than hanging in the air he has
+                // left, and only then does the sprite's own ball take over.
+                withAnimation(.easeIn(duration: rebounding.landing)) { reboundCarry = 1 }
+                try? await Task.sleep(for: .seconds(rebounding.landing))
+                withAnimation(.easeOut(duration: rebounding.fade)) { reboundBall = false }
             }
             .task(id: settledAt) {
                 guard let settledAt, passer != nil, flewAt != settledAt else { return }
@@ -546,16 +552,23 @@ struct CourtView: View {
 
     /// The rim on the horizon, which is where a board comes from.
     private func hoopPoint(on court: CourtGeometry, in size: CGSize) -> CGPoint {
-        CGPoint(x: court.centreX, y: court.horizonY - 18 - size.height * 0.05)
+        CGPoint(x: court.centreX + rebounding.spawnX,
+                y: court.horizonY - 18 - size.height * 0.05 + rebounding.spawnY)
     }
 
     /// Where the ball meets him at the top of the leap: both hands over his head, plus
     /// the two pixels the jump adds beyond what the sheet can draw.
     private func reboundPoint(of seat: Seat, on court: CourtGeometry) -> CGPoint {
         let footing = court.footing(of: seat, inbounding: thrower)
-        let side = Theme.Figure.height * court.scale(of: seat, inbounding: thrower)
-        return CGPoint(x: footing.x + side * Theme.Pass.reboundHandX,
-                       y: footing.y - side * Theme.Pass.reboundHandY)
+        let row = court.scale(of: seat, inbounding: thrower)
+        let side = Theme.Figure.height * row
+        return CGPoint(x: footing.x + side * rebounding.handX,
+                       // Where his hands actually are at the top: the sheet's own reach,
+                       // plus the lift the jump adds beyond what it can draw. Measured
+                       // the way the figure spends it — art pixels through the sprite's
+                       // scale and then the row's — or the two drift apart with distance.
+                       y: footing.y - side * rebounding.handY
+                          - rebounding.lift * Theme.Figure.playerScale * row)
     }
 
     /// Both ends of the throw, so the flight is drawn and timed off the same two points.
