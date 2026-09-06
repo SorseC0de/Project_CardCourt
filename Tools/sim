@@ -18,9 +18,12 @@ newest=$(find "$ROOT/ProjectCardCourt/Model" "$ROOT/ProjectCardCourt/GameRules.s
          "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" "$ROOT/ProjectCardCourt/Net" "$HERE" \
          -name '*.swift' -newer "$BIN" 2>/dev/null | head -1 || true)
 if [[ ! -x "$BIN" || -n "$newest" ]]; then
-  # Globbed, so a new tool file just needs dropping in here.
+  # Globbed, so a new tool file just needs dropping in here — minus the two that are
+  # their own programs. `main.swift` is this one's entry point and `eyes.swift` is the
+  # eye table's, and a second file of top-level statements will not compile alongside it.
   helpers=("$HERE"/*.swift(N))
   helpers=("${(@)helpers:#$HERE/main.swift}")
+  helpers=("${(@)helpers:#$HERE/eyes.swift}")
   # Net, minus the Game Center half — that one needs GameKit and a device to talk to.
   net=("$ROOT/ProjectCardCourt/Net"/*.swift(N))
   net=("${(@)net:#*GameCenterMatch.swift}")
