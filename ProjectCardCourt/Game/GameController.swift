@@ -582,7 +582,9 @@ final class GameController {
     private var passLeftAt: Date?
     var bidSelection: Set<Card.ID> = []
 
-    let seed: UInt64
+    /// The shuffle this game came from. Rolled again when a match starts — see
+    /// `dealForTheTable`.
+    private(set) var seed: UInt64
     private var ai: AITable
     /// Held back from `init` so the deal can be animated once the view is up.
     private var openingDraws: [GameEvent] = []
@@ -871,6 +873,11 @@ final class GameController {
             try? match?.send(.ready)
             return
         }
+        // **A match deals for the table that turned up.** The initialiser had to deal
+        // one — a controller has to have a game — but that deck was shuffled when the
+        // screen appeared, before anybody had joined, for a table that did not exist.
+        // Handing it to a match makes the match somebody's pre-rolled solo game.
+        if match?.isActive == true { dealForTheTable() }
         DevLog.say(.deck, "piles drawn "
                    + (RenderDebug.shared.courtStage ? "by the 3D stage" : "flat"))
         drive {
@@ -890,6 +897,25 @@ final class GameController {
             await run()
             DevLog.say(.input, "begin: the loop handed back at \(state.phase.label)")
         }
+    }
+
+    /// A fresh game, for the people actually at the table.
+    ///
+    /// Everything the old one left behind goes with it: the log of a deal nobody watched,
+    /// the cards still owed to a hand, and the shuffle itself.
+    private func dealForTheTable() {
+        seed = UInt64.random(in: 1...9_999_999)
+        ai = AITable(seed: seed)
+        let (fresh, events) = Rules.newGame(seed: seed, rules: mode)
+        state = fresh
+        shown = fresh
+        openingDraws = events
+        log.removeAll()
+        undelivered.removeAll()
+        unrevealed.removeAll()
+        boundSeats.removeAll()
+        record(events)
+        DevLog.say(.net, "host: dealt a fresh game for the table — seed \(seed)")
     }
 
     /// **A guest has no game of its own.**
