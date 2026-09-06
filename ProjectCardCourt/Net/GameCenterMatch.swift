@@ -35,6 +35,10 @@ final class GameCenterMatch: NSObject, MatchTransport {
 
     private var match: GKMatch?
     private var hostID: String?
+    /// Whether GameKit picked the host or whether it was sorted for. If it never picks,
+    /// every device falls back to comparing ids and the whole thing turns on two phones
+    /// agreeing about a string — which is the fault this replaced.
+    private(set) var chosenByGameKit = "?"
     /// Kept so the table can be sent again. The first `seated` goes out the moment the
     /// match is adopted, which can be before the other device has anywhere to put it.
     private var chairs: [Seat: Table.Chair] = [:]
@@ -66,8 +70,9 @@ final class GameCenterMatch: NSObject, MatchTransport {
             .sorted { $0.value.rawValue < $1.value.rawValue }
             .map { "\($0.value.name.prefix(1))=\(tail($0.key))\($0.key == mine ? "*" : "")" }
             .joined(separator: " ")
-        return "\(isHost ? "HOST" : "guest") me=\(tail(mine)) "
-            + "host=\(hostID.map(tail) ?? "-") | \(peers)"
+        return "\(isHost ? "HOST" : "guest") peers=\(match?.players.count ?? 0)"
+            + " me=\(tail(mine)) host=\(hostID.map(tail) ?? "-")"
+            + " chose=\(chosenByGameKit) | \(peers)"
     }
     /// How many people are in the match, the local player included.
     var seated: Int { seats.count }
@@ -226,7 +231,9 @@ final class GameCenterMatch: NSObject, MatchTransport {
         // Its own id as this device sees it, which is the same view the delegate reads
         // incoming messages against.
         hostID = amHost ? GKLocalPlayer.local.gamePlayerID : host?.gamePlayerID
+        chosenByGameKit = chosen == nil ? "no" : "yes"
         DevLog.say(.net, "elected \(amHost ? "me" : "them") as host"
+                   + " — \(match.players.count) peer(s)"
                    + (chosen == nil ? " (sorted — GameKit would not choose)" : ""))
         let ids = everyone.map(\.gamePlayerID).sorted()
 

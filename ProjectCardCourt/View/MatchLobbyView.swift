@@ -42,6 +42,19 @@ struct MatchLobbyView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                         chairs.padding(.horizontal, 22)
+                        #if DEBUG
+                        // Two phones side by side: if both say HOST, or either says
+                        // `peers=0`, the match never actually joined the two of them.
+                        Text(session.summary)
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(RoundedRectangle(cornerRadius: 5)
+                                .fill(.black.opacity(0.55)))
+                            .padding(.horizontal, 22)
+                            .textSelection(.enabled)
+                        #endif
                     }
                     .padding(.bottom, 20)
                 }
