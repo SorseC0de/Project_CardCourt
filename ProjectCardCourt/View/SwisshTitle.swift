@@ -21,6 +21,11 @@ struct SwisshTitle: View {
     @State private var landed = false
     @State private var pulsing = false
 
+    /// The faces the two sizes resolve to, so the split can be placed against their
+    /// capitals rather than against a frame that is mostly air.
+    private var face: UIFont { Chrome.systemFace(size: size, weight: .black) }
+    private var flourishFace: UIFont { Chrome.systemFace(size: size * 0.38, weight: .black) }
+
     private var letters: [(offset: Int, element: Character)] {
         Array(text.enumerated()).map { (offset: $0.offset, element: $0.element) }
     }
@@ -48,7 +53,7 @@ struct SwisshTitle: View {
     private func flourish(_ text: String) -> some View {
         Text(text)
             .font(.system(size: size * 0.38, weight: .black, design: .rounded))
-            .foregroundStyle(LinearGradient.hardSplit(top, bottom))
+            .foregroundStyle(LinearGradient.hardSplit(top, bottom, in: flourishFace))
             .shadow(color: .black.opacity(0.6), radius: 2, y: 2)
             .fixedSize()
             .opacity(landed ? 1 : 0)
@@ -63,6 +68,7 @@ struct SwisshTitle: View {
             ForEach(letters, id: \.offset) { index, character in
                 Text(String(character))
                     .font(.system(size: size, weight: .black, design: .rounded))
+                    .foregroundStyle(LinearGradient.hardSplit(top, bottom, in: face))
                     .rotationEffect(.degrees(landed ? tilt(index) : -35))
                     .offset(y: landed ? arc(index) : size * 1.6)
                     .scaleEffect(landed ? 1 : 0.2)
@@ -73,16 +79,17 @@ struct SwisshTitle: View {
         }
     }
 
-    /// **One fill over the whole word, not one per letter.**
+    /// **One fill per letter, and the line placed against the letters.**
     ///
-    /// The letters sit on an arc at alternating tilts, so a gradient given to each of them
-    /// puts the colour change at a different height on every one — the word comes out
-    /// looking mis-set. Drawn once for its shape and once again as the fill masked to that
-    /// shape, which is the treatment `SwisshWordmark` has always worn.
+    /// These sit on an arc at alternating tilts and are all one size, so a single fill
+    /// across the word would cross each letter somewhere different — the one at the
+    /// bottom of the arc nearly all orange and the one at the top nearly none of it.
+    /// Given to each letter it is the same inner shadow on every one, following the arc.
+    ///
+    /// The share is of the cap band rather than of the frame; see `Chrome.splitInFrame`,
+    /// which is why this looked like a single colour before.
     private var word: some View {
         letterRow
-            .foregroundStyle(top)
-            .overlay { LinearGradient.hardSplit(top, bottom).mask(letterRow) }
         // Flattened before either shadow: on a stack SwiftUI casts one per letter, and a
         // hard offset copy of every glyph reads as a second, badly-set word.
         .compositingGroup()

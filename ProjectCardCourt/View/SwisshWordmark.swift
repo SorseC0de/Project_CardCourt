@@ -114,23 +114,9 @@ struct SwisshWordmark: View {
     /// So `split` is read against the cap band, baseline to cap height, and mapped back
     /// onto the frame here. Measured off the face rather than guessed, because a
     /// different font moves it.
-    private var splitInFrame: CGFloat {
-        guard let font = UIFont(name: Chrome.display, size: size) else { return split }
-        let line = font.ascender - font.descender
-        guard line > 0 else { return split }
-        let capTop = (font.ascender - font.capHeight) / line
-        let baseline = font.ascender / line
-        return capTop + (baseline - capTop) * split
-    }
-
     private var fill: LinearGradient {
-        let at = splitInFrame
-        return LinearGradient(stops: [
-            .init(color: .white, location: 0),
-            .init(color: .white, location: at),
-            .init(color: CardPalette.lightBlue, location: at),
-            .init(color: CardPalette.lightBlue, location: 1),
-        ], startPoint: .top, endPoint: .bottom)
+        .hardSplit(.white, CardPalette.lightBlue, at: split,
+                   in: UIFont(name: Chrome.display, size: size))
     }
 
     var body: some View {

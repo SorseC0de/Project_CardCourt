@@ -25,6 +25,17 @@ func openPossession(seed: UInt64, cards: [CardDescriptor]) -> (GameState, Seat, 
     return (state, receiver, dealt)
 }
 
+/// Turns down whatever the arriving possession offered.
+///
+/// A hand dealt at random holds a Clamp-breaker often enough that any test which moves
+/// the ball into a pile of Clamps now stops on the question first — see
+/// `Rules.counterOnOffer`. Declining puts the possession back exactly where it was, which
+/// is the state these tests were written against.
+func declineCounter(_ state: inout GameState) {
+    guard case .awaitingCounter = state.phase else { return }
+    Rules.resolveCounter(false, state: &state)
+}
+
 func runTests() {
     print("Behind-the-Back")
     do {
@@ -452,6 +463,7 @@ func runTests() {
         Check.that(state[seat].clamps.isEmpty, "and never lands on the player who set it")
 
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        declineCounter(&state)
         let receiver = seat.left
         Check.that(state[receiver].clamps.count == 1, "it lands on whoever receives the ball")
         let debuffs = state.shotModifiers(for: receiver).debuffs
@@ -468,6 +480,7 @@ func runTests() {
         let receiver = seat.left
         let before = state[receiver].bag.count
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        declineCounter(&state)
         // Draws one on the possession, then the press takes two.
         Check.that(state[receiver].bag.count == before + 1 - 2,
                    "Full-Court Press takes two cards at the start of the turn")
@@ -486,6 +499,50 @@ func runTests() {
         }!
         Rules.apply(.play(onward.id), by: receiver, to: &state)
         Check.that(state[receiver].clamps.isEmpty, "and clear once the possession ends")
+    }
+
+    print("Breaking a Clamp before it lands")
+    do {
+        var (state, seat, cards) = openPossession(
+            seed: 77, cards: [CardLibrary.doubleTeam, CardLibrary.swingLeft])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let receiver = seat.left
+        // A Spin Move in the receiver's hand, and nothing else that could be offered.
+        state[receiver].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+        let spin = matchCard(CardLibrary.spinMove, state.rules)
+        state[receiver].bag.append(spin)
+
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        guard case .awaitingCounter(let asked, let offered) = state.phase else {
+            Check.that(false, "the ball's arrival asks about the Clamp-breaker")
+            return
+        }
+        Check.that(asked == receiver && offered.id == "spin-move",
+                   "the ball's arrival asks about the Clamp-breaker")
+
+        let shotBefore = state.shot
+        Rules.resolveCounter(true, state: &state)
+        Check.that(state[receiver].clamps.isEmpty && state.pendingClamps.isEmpty,
+                   "taking it breaks them before they land")
+        Check.that(Rules.lockedCards(state, for: receiver).isEmpty,
+                   "so a Clamp that locks cards never locks any")
+        // Its own ten per cent, and ten more for the one Clamp it broke.
+        Check.that(state.shot == shotBefore + 20, "and it is paid as though they had landed")
+        Check.that(!state[receiver].bag.contains { $0.id == spin.id }, "the card is spent")
+        Check.that(state.ball == receiver, "and the possession is his")
+    }
+    do {
+        var (state, seat, cards) = openPossession(
+            seed: 78, cards: [CardLibrary.doubleTeam, CardLibrary.swingLeft])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let receiver = seat.left
+        state[receiver].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+        state[receiver].bag.append(matchCard(CardLibrary.spinMove, state.rules))
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        Rules.resolveCounter(false, state: &state)
+        Check.that(state[receiver].clamps.count == 1, "turning it down lets them land")
+        Check.that(!Rules.lockedCards(state, for: receiver).isEmpty,
+                   "and lock what they came to lock")
     }
 
     print("Viewer-relative seating")

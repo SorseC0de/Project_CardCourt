@@ -251,21 +251,56 @@ struct ScreenTitle: View {
 #endif
 
 
-extension LinearGradient {
-    /// **Two colours, not a blend.** Both stops sit on top of one another at `point`, so
-    /// the colour changes at a line rather than walking between the two — a real gradient
-    /// across lettering reads as a lighting effect, and this reads as a mark that was
-    /// drawn in two inks.
+extension Chrome {
+    /// Where a split written against the **letters** falls in the **frame**.
     ///
-    /// `SwisshWordmark` has worn this since it was built; everything else that letters in
-    /// two colours takes it from here. Apply it to the whole word by masking, never to
-    /// each letter — per letter the line lands at a different height on every one.
+    /// A line of text is taller than its capitals: nothing at all above them, and a
+    /// descender's worth of nothing below the baseline. So four-fifths of the frame lands
+    /// well under the ink, and a second colour placed there is painted on empty space —
+    /// which is how the wordmark came out white the first time. `split` is read
+    /// baseline-to-cap and mapped back on to the frame here, measured off the face itself
+    /// because a different font moves it.
+    static func splitInFrame(_ split: CGFloat, of font: UIFont?) -> CGFloat {
+        guard let font else { return split }
+        let line = font.ascender - font.descender
+        guard line > 0 else { return split }
+        let capTop = (font.ascender - font.capHeight) / line
+        let baseline = font.ascender / line
+        return capTop + (baseline - capTop) * split
+    }
+
+    /// The face `.system(size:weight:design:)` actually resolves to, so its metrics can
+    /// be asked for. SwiftUI will not say; UIKit will, given the same description.
+    static func systemFace(size: CGFloat, weight: UIFont.Weight,
+                           rounded: Bool = true) -> UIFont {
+        let plain = UIFont.systemFont(ofSize: size, weight: weight)
+        guard rounded, let design = plain.fontDescriptor.withDesign(.rounded) else { return plain }
+        return UIFont(descriptor: design, size: size)
+    }
+}
+
+extension LinearGradient {
+    /// **A hard inner shadow, contained by the lettering.**
+    ///
+    /// Two colours meeting at a line rather than walking between: laid into the word as
+    /// an overlay, so the letters are the clipping mask and the second colour is only
+    /// ever inside them. A real gradient across lettering reads as a lighting effect;
+    /// this reads as a mark drawn in two inks.
+    ///
+    /// **Pass the face.** `at` is a share of the cap band, not of the frame — see
+    /// `Chrome.splitInFrame`, without which the line lands under the letters entirely.
+    /// Whether it goes on the whole word or on each letter is a question about the
+    /// lettering: one gradient for letters that share a baseline and a size, and one
+    /// apiece for a word that tapers or sits on an arc, where a shared line would cross
+    /// every letter somewhere different.
     static func hardSplit(_ top: Color, _ bottom: Color,
-                          at point: CGFloat = Chrome.split) -> LinearGradient {
-        LinearGradient(stops: [.init(color: top, location: 0),
-                               .init(color: top, location: point),
-                               .init(color: bottom, location: point),
-                               .init(color: bottom, location: 1)],
-                       startPoint: .top, endPoint: .bottom)
+                          at split: CGFloat = Chrome.split,
+                          in font: UIFont? = nil) -> LinearGradient {
+        let point = Chrome.splitInFrame(split, of: font)
+        return LinearGradient(stops: [.init(color: top, location: 0),
+                                      .init(color: top, location: point),
+                                      .init(color: bottom, location: point),
+                                      .init(color: bottom, location: 1)],
+                              startPoint: .top, endPoint: .bottom)
     }
 }

@@ -214,10 +214,30 @@ enum Rules {
         return live.kind
     }
 
-    /// The Clear Out in his hand, if he holds one and there is anywhere for the ball to go.
-    static func clearOutOnOffer(to seat: Seat, in state: GameState) -> Card? {
-        guard clearsTo(seat, in: state) != nil else { return nil }
-        return state[seat].bag.first { $0.descriptor.clearsOut }
+    /// Where a pile of Clamps still in the air is going to come down.
+    static func clampLanding(_ seat: Seat, in state: GameState) -> Seat {
+        state.clampMagnet ?? seat
+    }
+
+    /// The Clamps about to land on him, which is not the same question as the ones on him.
+    static func clampsArriving(on seat: Seat, in state: GameState) -> [ActiveClamp] {
+        clampLanding(seat, in: state) == seat ? state.pendingClamps : []
+    }
+
+    /// The card he is offered as the possession arrives, before the defenders land.
+    ///
+    /// **Counterplay has to come before the thing it counters, or it does not come at
+    /// all.** A Clamp that locks cards can lock the very card that would have shaken it
+    /// off — so a hand's answer to being guarded is asked for while the pile is still in
+    /// the air, whether or not the card says it must be played first. One card, picked in
+    /// order: stepping out of the play entirely beats breaking what is coming.
+    static func counterOnOffer(to seat: Seat, in state: GameState) -> Card? {
+        if clearsTo(seat, in: state) != nil,
+           let out = state[seat].bag.first(where: { $0.descriptor.clearsOut }) {
+            return out
+        }
+        guard !clampsArriving(on: seat, in: state).isEmpty else { return nil }
+        return state[seat].bag.first { $0.descriptor.clearsClamps }
     }
 
     /// Taken, or turned down.
@@ -227,13 +247,13 @@ enum Rules {
     /// land on the next man instead — which is the whole reason the question is asked here
     /// rather than on his turn.
     @discardableResult
-    static func resolveClearOut(_ taken: Bool, state: inout GameState) -> [GameEvent] {
-        guard case .awaitingClearOut(let seat, _) = state.phase,
+    static func resolveCounter(_ taken: Bool, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingCounter(let seat, _) = state.phase,
               let held = state.heldPossession else { return [] }
         var events: [GameEvent] = []
         state.heldPossession = nil
 
-        guard taken, let card = clearOutOnOffer(to: seat, in: state) else {
+        guard taken, let card = counterOnOffer(to: seat, in: state) else {
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
                             offering: false, state: &state, events: &events)
             return events
@@ -242,9 +262,54 @@ enum Rules {
         state[seat].bag.removeAll { $0.id == card.id }
         state.discard.append(card)
         events.append(.movePlayed(seat: seat, card: card.descriptor, shot: state.shot))
-        clearOut(from: seat, state: &state, events: &events)
+        if card.descriptor.clearsOut {
+            clearOut(from: seat, state: &state, events: &events)
+        } else {
+            // **Taken out of the air, not off the player.** They never land, so they
+            // never get to lock anything — and the possession opens on a clean board
+            // before the card pays out on to it.
+            let arriving = clampsArriving(on: seat, in: state)
+            state.pendingClamps = []
+            beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
+                            offering: false, state: &state, events: &events)
+            pay(card.descriptor, breaking: arriving, for: seat, state: &state, events: &events)
+        }
         settleHands(state: &state, events: &events)
         return events
+    }
+
+    /// What a Clamp-breaker pays when it is played at the arrival rather than on a turn.
+    ///
+    /// The same reckoning `apply` does for Clamps already standing — see there — against
+    /// the ones that were on their way instead. Its own printed effect is paid too: the
+    /// card was played, and half a card is not what it says on it.
+    private static func pay(_ descriptor: CardDescriptor, breaking arriving: [ActiveClamp],
+                            for seat: Seat, state: inout GameState,
+                            events: inout [GameEvent]) {
+        adjustShot(by: descriptor.baseShotDelta, state: &state)
+        drawBatch(seat, count: descriptor.drawCount, state: &state, events: &events)
+
+        guard !arriving.isEmpty else { return }
+        let shaken = arriving.count
+        if descriptor.freeThrowsPerClamp > 0, let first = arriving.first {
+            awardFreeThrows(descriptor.freeThrowsPerClamp * shaken, to: seat,
+                            offender: first.from, source: descriptor.name,
+                            state: &state, events: &events)
+        }
+        if descriptor.shotPerClamp != 0 {
+            adjustShot(by: descriptor.shotPerClamp * shaken, state: &state)
+        }
+        for _ in 0..<(descriptor.drawPerClamp * shaken) {
+            draw(seat, state: &state, events: &events)
+        }
+        if descriptor.clamperDiscardsPerClamp > 0 {
+            for clamp in arriving {
+                for _ in 0..<descriptor.clamperDiscardsPerClamp {
+                    discardAtRandom(from: clamp.from, state: &state)
+                }
+            }
+        }
+        events.append(.clampsShaken(seat: seat, card: descriptor, count: shaken))
     }
 
     /// Clear Out: he steps out of the play and the ball carries on the way it was going.
@@ -1549,10 +1614,10 @@ enum Rules {
         // there for the defenders either, and they land four lines below this — so the
         // question has to come while the possession is still only arriving. Nothing has
         // been touched yet, so the whole call is simply held and run again on the answer.
-        if offering, let card = clearOutOnOffer(to: seat, in: state) {
+        if offering, let card = counterOnOffer(to: seat, in: state) {
             state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
                                                             fromRebound: fromRebound)
-            state.phase = .awaitingClearOut(seat: seat, card: card.descriptor)
+            state.phase = .awaitingCounter(seat: seat, card: card.descriptor)
             return
         }
         state.ball = seat
@@ -1570,7 +1635,7 @@ enum Rules {
         // pending ones land. Without the clear they stay on a player forever.
         for other in Seat.allCases { state[other].clamps = [] }
         // Gravity takes them all, wherever they were sent.
-        let landing = state.clampMagnet ?? seat
+        let landing = clampLanding(seat, in: state)
         state[landing].clamps = state.pendingClamps
         state.clampMagnet = nil
         state.pendingClamps = []

@@ -91,9 +91,9 @@ func probeClearOut() {
     print("phase on arrival:", state.phase.label,
           "| pending clamps", state.pendingClamps.count,
           "| on him", state[catcher].clamps.count)
-    guard case .awaitingClearOut = state.phase else { print("not asked"); return }
+    guard case .awaitingCounter = state.phase else { print("not asked"); return }
 
-    let events = Rules.resolveClearOut(true, state: &state)
+    let events = Rules.resolveCounter(true, state: &state)
     print("TAKEN:", events.map { "\($0)".prefix(while: { $0 != "(" }) })
     guard case .possession(let onward) = state.phase else {
         print("no onward:", state.phase.label); return }

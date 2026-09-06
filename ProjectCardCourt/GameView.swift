@@ -243,15 +243,19 @@ struct GameView: View {
                 // the player opened for themselves.
                 .zIndex(11)
             }
-            if case .awaitingClearOut(let card) = controller.gate {
-                CardChoiceView(title: "Clear Out?",
-                               note: "Step aside and the ball carries on",
+            if case .awaitingCounter(let card) = controller.gate {
+                // Two cards can be offered here and they do two different things, so the
+                // question is asked in the card's own words rather than Clear Out's.
+                CardChoiceView(title: "\(card.name)?",
+                               note: card.clearsOut
+                                   ? "Step aside and the ball carries on"
+                                   : "Break the clamps before they land",
                                offered: [card],
                                tint: CardPalette.orange,
                                taking: "Play it!",
                                declining: "No thanks",
-                               onDecline: { controller.choose(clearOut: false) },
-                               onPick: { _ in controller.choose(clearOut: true) })
+                               onDecline: { controller.choose(counter: false) },
+                               onPick: { _ in controller.choose(counter: true) })
                     .zIndex(11)
             }
             if browsingDiscard {

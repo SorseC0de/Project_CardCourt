@@ -149,6 +149,13 @@ struct PlayerFigure: View {
         leap == .hanging ? Sprite.rebound.frames - 1 : nil
     }
 
+    /// **A leap owns the sheet while it runs.**
+    ///
+    /// The pose a stoppage holds him in is a `spriteFrame`, and a sheet handed a rest
+    /// frame does not play — so a man relocating for an inbound was landing on a single
+    /// still cell of the landing sheet, which is no animation at all.
+    private var leaping: Bool { leap != .none }
+
     /// Idle opponents jog and glance back every few seconds. The human never does —
     /// they are at the near edge facing upcourt, with nothing behind them to look at.
     private var glance: Sprite? {
@@ -246,24 +253,26 @@ struct PlayerFigure: View {
             SpriteAnimation(sprite: action, scale: scale,
                             fps: leapRate ?? frameRate,
                             // A pose rather than a loop: held on one cell, not played.
-                            isPlaying: leapFrame == nil && poseFrame == nil,
-                            restFrame: leapFrame ?? poseFrame ?? 0,
+                            isPlaying: leaping ? leap != .hanging : poseFrame == nil,
+                            restFrame: leaping ? (leapFrame ?? 0) : (poseFrame ?? 0),
                             // A catch is a one-shot like the shot is. Looping it meant its
                             // frame came from `timeIntervalSinceReferenceDate % frames` — the
                             // wall clock — so every catch began on whatever frame the world
                             // happened to be on, and no two played the same.
                             playsOnce: leap == .rising || leap == .landing
                                 || playsOnce || action == .catchBall,
-                            alternate: playsOnce ? nil : glance,
-                            alternateOr: playsOnce ? nil : glanceOr,
-                            alternateRare: playsOnce ? nil : glanceRare,
+                            // Nothing cuts away mid-jump, and nothing else says where it
+                            // stops: a leap plays its own sheet through.
+                            alternate: playsOnce || leaping ? nil : glance,
+                            alternateOr: playsOnce || leaping ? nil : glanceOr,
+                            alternateRare: playsOnce || leaping ? nil : glanceRare,
                             phase: Double(seat.rawValue) * 1.3,
                             // A catch on the court counts from when the ball landed; one a
                             // cutscene asks for directly counts from when it appeared.
                             startedAt: leap == .none
                                 ? (action == .catchBall ? (caughtFrom ?? startedAt) : startedAt)
                                 : leapFrom,
-                            stopAtFrame: stopAtFrame)
+                            stopAtFrame: leaping ? nil : stopAtFrame)
                 // **The sprite goes up; the shadow stays on the floor.** Which is why it
                 // is here and not around the pair of them.
                 .offset(y: lifted ? -Theme.Figure.reboundLift * scale : 0)
@@ -348,7 +357,14 @@ struct PlayerFigure: View {
                 // anywhere; he is still going, and a landing would stop him dead.
                 .onChange(of: warp) { was, now in
                     guard was > 0, now == 0, landsFromWarp, leap == .none else { return }
-                    Task { await comeDown() }
+                    Task {
+                        // The value flips the instant the trip home starts — the columns
+                        // are animated from it — so wait out the arrival. Landing while
+                        // he is still in pieces is a landing nobody can see.
+                        try? await Task.sleep(for: .seconds(Pacing.warp))
+                        guard leap == .none else { return }
+                        await comeDown()
+                    }
                 }
                 .task(id: caughtAt) {
                     // The court decides who catches — it is the only thing that stamps

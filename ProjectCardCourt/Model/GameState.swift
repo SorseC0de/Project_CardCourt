@@ -104,7 +104,7 @@ enum Phase: Hashable, Codable {
     /// Clear Out: asked the moment the ball arrives, before the defenders land on him.
     /// Answering no puts the card down for the possession; answering yes spends it and the
     /// ball carries on without him.
-    case awaitingClearOut(seat: Seat, card: CardDescriptor)
+    case awaitingCounter(seat: Seat, card: CardDescriptor)
     /// At the line. One attempt at a time until the trip runs out.
     case freeThrows(trip: FreeThrowTrip)
     case gameOver
@@ -147,7 +147,7 @@ enum Phase: Hashable, Codable {
         case .awaitingInjuryPick(let seat, _): return seat
         case .awaitingIntangibleDrop(let seat, _): return seat
         case .awaitingToll(let seat, _): return seat
-        case .awaitingClearOut(let seat, _): return seat
+        case .awaitingCounter(let seat, _): return seat
         case .awaitingNaming(let seat, _, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
