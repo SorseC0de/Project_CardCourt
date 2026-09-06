@@ -139,6 +139,10 @@ struct MatchLobbyView: View {
             ForEach(Seat.allCases, id: \.self) { chair($0) }
         } else if case .searching = session.status {
             waiting
+        } else if case .connecting = session.status {
+            // Still the spinner: found is not joined, and the chairs have nothing in
+            // them to show until everybody has actually arrived.
+            waiting
         }
     }
 
@@ -223,7 +227,7 @@ struct MatchLobbyView: View {
             ChunkyButton(title: "Signing in…", fill: CardPalette.gray, isEnabled: false) {}
         case .ready:
             ChunkyButton(title: "Find a game") { Task { await session.findMatch() } }
-        case .searching:
+        case .searching, .connecting:
             ChunkyButton(title: "Cancel", fill: CardPalette.red) { session.stop() }
         case .seated:
             VStack(spacing: 12) {
@@ -252,6 +256,7 @@ struct MatchLobbyView: View {
         case .signingIn:          return "Signing in…"
         case .ready:              return "Two makes a game. Any empty chair is played by the house."
         case .searching:          return "Looking for somebody else who is looking."
+        case .connecting:         return "Found somebody. Waiting for them to connect."
         case .seated:
             return session.isHost
                 ? "Start when you are ready. Empty chairs go to the house."

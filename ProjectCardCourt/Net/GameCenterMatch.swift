@@ -22,6 +22,10 @@ final class GameCenterMatch: NSObject, MatchTransport {
         case ready(player: String)
         /// In the queue, waiting to be paired.
         case searching
+        /// Paired, and waiting for everybody to actually connect. **Not the same as
+        /// seated**: GameKit hands back a match the moment it has found people for it,
+        /// and they arrive one connection at a time after that.
+        case connecting
         /// Paired and seated, but the game has not been started yet.
         case seated
         case playing
@@ -193,6 +197,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
         match?.disconnect()
         match = nil
         hostID = nil
+        settled = false
         seats = [:]
         chairs = [:]
         Table.shared.seatSolo()
@@ -204,6 +209,28 @@ final class GameCenterMatch: NSObject, MatchTransport {
     private func adopt(_ match: GKMatch) {
         self.match = match
         match.delegate = self
+        settled = false
+        status = .connecting
+        // **Matched is not connected.** `findMatch` returns as soon as GameKit has found
+        // people for the match; they connect afterwards, one at a time, and until
+        // `expectedPlayerCount` reaches nought `match.players` is empty. Seating here
+        // gave every device a table of one — itself — so every device elected itself
+        // host, and two hosts is two games that never agree about anything again.
+        settleIfEveryoneIsHere()
+    }
+
+    /// True once the table has been elected and seated, so a later connection does not
+    /// do it a second time.
+    private var settled = false
+
+    /// Seats the table, once and only once everybody has actually arrived.
+    private func settleIfEveryoneIsHere() {
+        guard let match, !settled else { return }
+        guard match.expectedPlayerCount == 0 else {
+            DevLog.say(.net, "matched — waiting on \(match.expectedPlayerCount) more")
+            return
+        }
+        settled = true
         // Seated, not playing. The host still has to say go.
         status = .seated
         // **Asked, not worked out.** GameKit picks one player and gives every device the
@@ -340,11 +367,21 @@ extension GameCenterMatch: GKMatchDelegate {
 
     nonisolated func match(_ match: GKMatch, player: GKPlayer,
                            didChange state: GKPlayerConnectionState) {
-        guard state == .disconnected else { return }
         let id = player.gamePlayerID
+        let name = player.displayName
         Task { @MainActor in
-            guard let seat = self.seats[id] else { return }
-            self.onSeatLost?(seat)
+            switch state {
+            case .connected:
+                // The other half of the handshake, and it was being thrown away.
+                DevLog.say(.net, "\(name) connected")
+                self.settleIfEveryoneIsHere()
+            case .disconnected:
+                DevLog.say(.net, "\(name) dropped")
+                guard let seat = self.seats[id] else { return }
+                self.onSeatLost?(seat)
+            default:
+                break
+            }
         }
     }
 
