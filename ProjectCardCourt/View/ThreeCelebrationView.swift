@@ -14,7 +14,10 @@ struct ThreeCelebrationView: View {
 
     @State private var arrived: [Bool] = Array(repeating: false, count: 4)
     @State private var sparkleAt: Date?
-    @State private var numberShown = false
+    /// **The count, not the answer.** It comes up with the first finger and follows the
+    /// other two, so the number on screen is however many are up — and three arrives when
+    /// the third one does rather than after the hand is already made.
+    @State private var counted = 0
     @State private var numberFlying = false
     @State private var fading = false
 
@@ -75,11 +78,14 @@ struct ThreeCelebrationView: View {
                         .allowsHitTesting(false)
                 }
 
-                if numberShown {
-                    Text("3")
+                if counted > 0 {
+                    Text("\(counted)")
                         .font(.custom("AvenirNextCondensed-Heavy", size: numberFlying ? 22 : 120))
                         .foregroundStyle(.white)
                         .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
+                        // Ticks over rather than being replaced — one number counting up,
+                        // not three numbers taking turns.
+                        .contentTransition(.numericText())
                         .position(numberFlying ? scoreTarget : centre)
                 }
             }
@@ -107,12 +113,13 @@ struct ThreeCelebrationView: View {
         }
         try? await Task.sleep(for: .seconds(Beat.fistHolds))
         for finger in 1..<4 {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.42)) { arrived[finger] = true }
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.42)) {
+                arrived[finger] = true
+                counted = finger
+            }
             try? await Task.sleep(for: .seconds(Beat.between))
         }
-        try? await Task.sleep(for: .seconds(0.25))
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { numberShown = true }
-
+        // Held on three for a beat before it goes to the board.
         try? await Task.sleep(for: .seconds(0.55))
         withAnimation(.easeInOut(duration: 0.5)) { numberFlying = true }
         try? await Task.sleep(for: .seconds(0.5))
