@@ -1,27 +1,33 @@
 import SwiftUI
+import UIKit
 
 #if DEBUG
-/// **Every sheet the player is drawn from, with the face on it.**
+/// **Every eye on every sheet, placed by hand.**
 ///
-/// One place to check the one thing that cannot be checked anywhere else: whether the
-/// eyes land where they should, on every sheet, at every frame. The face is composed
-/// exactly as the game composes it — `Sprite.face` decides whether it is both eyes, one,
-/// or none, and `Sprite.headOrigin` decides where they go — so what is wrong here is
-/// wrong in the game.
+/// The one thing that cannot be checked anywhere else: whether the eyes land where they
+/// should, on every sheet, at every frame. What is drawn here is what the game draws —
+/// both go through `FaceOnSheet` — so a placement fixed here is fixed everywhere.
 ///
-/// Playing rather than posed: a misplacement that only happens on the fourth cell of a
-/// run is the kind this is for.
+/// Per eye, per frame, per sheet, because that is how the drawing varies. Most sheets
+/// want one answer for all their frames, which is what **All frames** is for; the ones
+/// where the head turns or bobs get walked a cell at a time.
+///
+/// Press **Print** when the pass is done: it puts the whole table on the pasteboard as
+/// Swift, ready to be pasted in as the baked-in answer.
 struct SpriteGallery: View {
     var onDismiss: () -> Void = {}
 
     @State private var kit = HooperKit.shared
-    @State private var scale: CGFloat = 5
-    @State private var wearsFace = true
-    @State private var playing = true
-    @State private var grid = true
+    @State private var eyes = EyeTuning.shared
+    @State private var sheet: Sprite = .front
+    @State private var frame = 0
+    @State private var scale: CGFloat = 10
+    @State private var playing = false
+    @State private var showsDump = false
+    @State private var dump = ""
 
     /// Every sheet a man is drawn from. The strips that are not figures — the heads and
-    /// faces themselves, the ball, the dust — are left out; there is nothing to check.
+    /// faces themselves, the dust — are left out; there is nothing to place on them.
     private var sheets: [Sprite] {
         Sprite.allCases.filter { !Self.notFigures.contains($0) }
     }
@@ -31,155 +37,249 @@ struct SpriteGallery: View {
     var body: some View {
         ZStack {
             Chrome.ground.ignoresSafeArea()
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 bar
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: grid ? 132 : 320),
-                                                 spacing: 10)],
-                              spacing: 10) {
-                        ForEach(sheets, id: \.self) { cell($0) }
-                    }
-                    .padding(12)
-                }
+                sheetStrip
+                preview
+                frameStrip
+                controls
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
         }
-    }
-
-    // MARK: - One sheet
-
-    private func cell(_ sheet: Sprite) -> some View {
-        VStack(spacing: 4) {
-            ZStack {
-                SpriteAnimation(sprite: sheet, scale: scale,
-                                fps: Theme.Figure.playerFPS, isPlaying: playing)
-                    .paletteSwap(kit.swaps)
-                if wearsFace, let build = sheet.face {
-                    FaceOnSheet(sheet: sheet, build: build, kit: kit, scale: scale,
-                                playing: playing)
-                }
-            }
-            .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
-            .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.28)))
-
-            Text(sheet.rawValue)
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(reading(sheet))
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundStyle(tint(sheet))
-        }
-        .padding(6)
-        .frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 8).fill(CardPalette.navy.opacity(0.6)))
-    }
-
-    /// What the code says about this sheet, in the words the audit needs.
-    private func reading(_ sheet: Sprite) -> String {
-        let face: String
-        switch sheet.face {
-        case .whole:            face = "two eyes"
-        case .profile:          face = "one eye"
-        case .glancing(let up): face = "glancing \(Int(up))"
-        case nil:               face = "no face"
-        }
-        return "\(sheet.frames)f · \(face)"
-    }
-
-    private func tint(_ sheet: Sprite) -> Color {
-        sheet.face == nil ? .white.opacity(0.45) : CardPalette.gold
+        .sheet(isPresented: $showsDump) { dumpSheet }
     }
 
     // MARK: - The bar
 
     private var bar: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 10) {
-                SmallCapsText(text: "Sprites", font: Chrome.display, size: 22, tracking: 1)
-                    .foregroundStyle(.white)
-                Spacer()
-                toggle("face", $wearsFace)
-                toggle("play", $playing)
-                toggle("grid", $grid)
-                Button(action: onDismiss) {
-                    Chip(fill: CardPalette.red, stroke: CardPalette.gold,
-                         shade: CardPalette.orange, side: 30) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .heavy))
-                            .foregroundStyle(.white)
-                    }
+        HStack(spacing: 8) {
+            SmallCapsText(text: "Eyes", font: Chrome.display, size: 20, tracking: 1)
+                .foregroundStyle(.white)
+            Text(sheet.rawValue)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(eyes.isTuned(sheet) ? CardPalette.gold : CardPalette.gray)
+            Spacer()
+            chip("play", on: playing) { playing.toggle() }
+            chip("reset", on: false) { eyes.forget(sheet) }
+            chip("print", on: false) {
+                dump = eyes.dump
+                UIPasteboard.general.string = dump
+                showsDump = true
+            }
+            Button(action: onDismiss) {
+                Chip(fill: CardPalette.red, stroke: CardPalette.gold,
+                     shade: CardPalette.orange, side: 28) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .heavy))
+                        .foregroundStyle(.white)
                 }
-                .buttonStyle(.plain)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Which sheet. Gold means somebody has been at it.
+    private var sheetStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(sheets, id: \.self) { option in
+                    let on = option == sheet
+                    Text(option.rawValue.replacingOccurrences(of: "Player_", with: ""))
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(on ? CardPalette.navy
+                                         : (eyes.isTuned(option) ? CardPalette.gold : .white))
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(Capsule().fill(on ? CardPalette.gold
+                                                      : CardPalette.navy))
+                        .onTapGesture { sheet = option; frame = 0 }
+                }
+            }
+        }
+    }
+
+    // MARK: - Him, large
+
+    private var preview: some View {
+        ZStack {
+            // A grid at art-pixel pitch, so a placement can be read off rather than
+            // squinted at.
+            PixelGrid(pitch: scale)
+            SpriteAnimation(sprite: sheet, scale: scale, fps: Theme.Figure.playerFPS,
+                            isPlaying: playing, restFrame: frame)
+                .paletteSwap(kit.swaps)
+            FaceOnSheet(sheet: sheet, face: kit.face, tone: kit.tone, scale: scale,
+                        frame: playing ? nil : frame, playing: playing)
+        }
+        .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
+        .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.35)))
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Every cell of this sheet, small. Tap one to work on it.
+    private var frameStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 3) {
+                ForEach(0..<sheet.frames, id: \.self) { cell in
+                    let on = cell == frame
+                    ZStack {
+                        SpriteAnimation(sprite: sheet, scale: 2, isPlaying: false,
+                                        restFrame: cell)
+                            .paletteSwap(kit.swaps)
+                        FaceOnSheet(sheet: sheet, face: kit.face, tone: kit.tone,
+                                    scale: 2, frame: cell, playing: false)
+                    }
+                    .frame(width: sheet.frameSize * 2, height: sheet.frameSize * 2)
+                    .background(RoundedRectangle(cornerRadius: 4)
+                        .fill(on ? CardPalette.gold.opacity(0.35) : .black.opacity(0.3)))
+                    .overlay(RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(on ? CardPalette.gold : .clear, lineWidth: 2))
+                    .overlay(alignment: .topLeading) {
+                        Text("\(cell)")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white)
+                            .padding(2)
+                    }
+                    .onTapGesture { frame = cell; playing = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - The dials
+
+    private var controls: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                ForEach(Eye.allCases, id: \.self) { which in eyeBox(which) }
             }
             HStack(spacing: 8) {
-                Text("scale \(Int(scale))")
+                Text("zoom")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.white)
-                    .frame(width: 56, alignment: .leading)
-                Slider(value: $scale, in: 2...12, step: 1)
+                Slider(value: $scale, in: 4...16, step: 1)
                 Text("face \(kit.face)")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.white)
-                Stepper("") { kit.face = (kit.face + 1) % Sprite.faces.frames }
-                    onDecrement: { kit.face = (kit.face + Sprite.faces.frames - 1)
-                        % Sprite.faces.frames }
-                    .labelsHidden()
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Chrome.ground)
-    }
-
-    private func toggle(_ name: String, _ value: Binding<Bool>) -> some View {
-        Button { value.wrappedValue.toggle() } label: {
-            SmallCapsText(text: name, font: Chrome.display, size: 12, tracking: 0.5)
-                .foregroundStyle(value.wrappedValue ? CardPalette.navy : .white)
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Capsule().fill(value.wrappedValue ? CardPalette.gold
-                                                              : CardPalette.navy))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-/// The face, composed on one sheet the way the game composes it.
-///
-/// Its own view so the gallery and the portrait cannot drift: both ask `Sprite.face` what
-/// to draw and `Sprite.headOrigin` where, and neither knows anything else about eyes.
-struct FaceOnSheet: View {
-    let sheet: Sprite
-    let build: Kit.FaceBuild
-    let kit: HooperKit
-    var scale: CGFloat
-    var playing = true
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / Theme.Figure.playerFPS,
-                                paused: !playing)) { tick in
-            let cell = playing
-                ? SpriteAnimation.cell(of: sheet, at: tick.date,
-                                       fps: Theme.Figure.playerFPS)
-                : 0
-            ZStack {
-                eye(shift: .zero, cell: cell)
-                if let mirror = build.mirror {
-                    eye(shift: mirror, cell: cell).scaleEffect(x: -1)
+                chip("next", on: false) {
+                    kit.face = (kit.face + 1) % Sprite.faces.frames
                 }
             }
         }
     }
 
-    private func eye(shift: CGPoint, cell: Int) -> some View {
-        OnSheet(rect: CGRect(origin: sheet.headOrigin,
-                             size: CGSize(width: 8, height: 8)),
-                shift: shift, scale: scale) {
-            SpriteAnimation(sprite: .faces, scale: scale, isPlaying: false,
-                            restFrame: kit.face)
-                .paletteSwap(PixelPalette.skin(tone: kit.tone))
+    /// One eye's answer for this frame: whether it shows, where it goes, and a way to
+    /// give the same answer to the whole sheet at once.
+    private func eyeBox(_ which: Eye) -> some View {
+        let spot = eyes.spot(sheet, frame: frame, eye: which)
+        return VStack(spacing: 5) {
+            HStack(spacing: 6) {
+                SmallCapsText(text: which.title, font: Chrome.display, size: 13,
+                              tracking: 0.5)
+                    .foregroundStyle(.white)
+                Spacer()
+                chip(spot.shown ? "on" : "off", on: spot.shown) {
+                    var next = spot; next.shown.toggle()
+                    eyes.set(next, on: sheet, frame: frame, eye: which)
+                }
+            }
+            HStack(spacing: 4) {
+                nudge("←") { move(which, by: CGPoint(x: -1, y: 0)) }
+                nudge("→") { move(which, by: CGPoint(x: 1, y: 0)) }
+                Text("x \(Int(spot.x))")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(CardPalette.gold)
+                    .frame(width: 34)
+            }
+            HStack(spacing: 4) {
+                nudge("↑") { move(which, by: CGPoint(x: 0, y: -1)) }
+                nudge("↓") { move(which, by: CGPoint(x: 0, y: 1)) }
+                Text("y \(Int(spot.y))")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(CardPalette.gold)
+                    .frame(width: 34)
+            }
+            chip("all frames", on: false) { eyes.spread(from: frame, on: sheet, eye: which) }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 8).fill(CardPalette.navy.opacity(0.7)))
+    }
+
+    private func move(_ which: Eye, by step: CGPoint) {
+        var spot = eyes.spot(sheet, frame: frame, eye: which)
+        spot.x += step.x
+        spot.y += step.y
+        spot.shown = true
+        eyes.set(spot, on: sheet, frame: frame, eye: which)
+    }
+
+    private func nudge(_ glyph: String, _ run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            Text(glyph)
+                .font(.system(size: 15, weight: .black))
+                .foregroundStyle(CardPalette.navy)
+                .frame(width: 32, height: 26)
+                .background(RoundedRectangle(cornerRadius: 5).fill(CardPalette.gold))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func chip(_ name: String, on: Bool, _ run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            SmallCapsText(text: name, font: Chrome.display, size: 11, tracking: 0.5)
+                .foregroundStyle(on ? CardPalette.navy : .white)
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .background(Capsule().fill(on ? CardPalette.gold : CardPalette.navy))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Out
+
+    private var dumpSheet: some View {
+        ZStack {
+            Chrome.ground.ignoresSafeArea()
+            VStack(spacing: 10) {
+                SmallCapsText(text: "Copied to the clipboard", font: Chrome.display,
+                              size: 18, tracking: 1)
+                    .foregroundStyle(.white)
+                ScrollView {
+                    Text(dump)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                ChunkyButton(title: "Done", fill: CardPalette.blue, size: 16) {
+                    showsDump = false
+                }
+            }
+            .padding(16)
         }
     }
 }
 
-#Preview("Sprites") { SpriteGallery() }
+/// A grid at art-pixel pitch, so a placement can be counted rather than guessed.
+private struct PixelGrid: View {
+    let pitch: CGFloat
+
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            for x in stride(from: 0, through: size.width, by: pitch) {
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+            }
+            for y in stride(from: 0, through: size.height, by: pitch) {
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            context.stroke(path, with: .color(.white.opacity(0.08)), lineWidth: 0.5)
+        }
+    }
+}
+
+#Preview("Eyes") { SpriteGallery() }
 #endif

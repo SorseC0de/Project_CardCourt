@@ -336,28 +336,12 @@ enum Kit {
         /// question that has one.
         var isSideline: Bool { self == .holding }
 
-        /// Whether the sheet has a face printed on it that the chosen one has to cover.
-        /// The three front views do; nothing else is drawn looking at you.
-        var hasBakedFace: Bool {
-            switch self {
-            case .front, .spinning, .bouncing, .gooseneck, .praised: return true
-            default: return false
-            }
-        }
+        /// Whether the sheet has a face printed on it that the chosen one has to cover —
+        /// the sheet's own answer, like everything else about how it is drawn.
+        var hasBakedFace: Bool { sprite.hasBakedFace }
 
-        /// Where this sheet's head sits, in art pixels against the one on `Player_front`.
-        ///
-        /// The two ball sheets are drawn a pixel to the right of it, and the bounce lifts
-        /// him a pixel for the second half of the toss — so whatever is laid on his face
-        /// has to move with him rather than sitting where the still pose left it.
-        func headShift(atFrame frame: Int) -> CGPoint {
-            switch self {
-            case .spinning: return CGPoint(x: 1, y: 0)
-            case .bouncing: return CGPoint(x: 1, y: frame >= 3 ? -1 : 0)
-            // Head thrown back a pixel with the arms out.
-            case .praised:  return CGPoint(x: 0, y: -1)
-            default:        return .zero
-            }
-        }
+        /// Where this sheet's head sits on a given frame — the sheet's own answer, since
+        /// the court draws sheets no pose has a name for.
+        func headShift(atFrame frame: Int) -> CGPoint { sprite.headShift(atFrame: frame) }
     }
 }

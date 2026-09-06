@@ -108,6 +108,37 @@ enum Sprite: String, CaseIterable {
         }
     }
 
+    /// Whether a face is printed on this sheet already, and so has to be painted out in
+    /// skin before the chosen one goes on — see `Kit.faceMask`.
+    ///
+    /// Goes when every sheet has been re-exported faceless, which is what the TODO on the
+    /// mask is about.
+    var hasBakedFace: Bool {
+        switch self {
+        case .front, .spinBall, .bounceBall, .gooseneck, .praised: return true
+        default: return false
+        }
+    }
+
+    /// Where this sheet's head sits on a given frame, in art pixels against the one on
+    /// `Player_front`.
+    ///
+    /// The two ball sheets are drawn a pixel to the right of it, and the bounce lifts him
+    /// a pixel for the second half of the toss — so whatever is laid on his face has to
+    /// move with him rather than sitting where the still pose left it.
+    ///
+    /// **The floor of the eye table, not the whole of it.** `EyeTuning` starts from this
+    /// and anything hand-placed overrides it.
+    func headShift(atFrame frame: Int) -> CGPoint {
+        switch self {
+        case .spinBall:   return CGPoint(x: 1, y: 0)
+        case .bounceBall: return CGPoint(x: 1, y: frame >= 3 ? -1 : 0)
+        // Head thrown back a pixel with the arms out.
+        case .praised:    return CGPoint(x: 0, y: -1)
+        default:          return .zero
+        }
+    }
+
     /// Where an 8×8 head sits on this sheet, in art pixels from the cell's top-left.
     /// Measured off `Player_front` and shared by every 32-frame; the shot is drawn in a
     /// bigger frame and sits lower in it.

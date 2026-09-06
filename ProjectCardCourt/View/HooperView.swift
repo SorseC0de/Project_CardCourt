@@ -436,58 +436,16 @@ struct HooperPortrait: View {
                 // he is dressed on the floor. Not the sheet's blue — that is the human's
                 // colour, and it put every winner in it.
                 .paletteSwap(kit?.swaps ?? PlayerLook.shared.kit(for: seat))
-            if let kit, showing.facesYou { face(kit, on: showing) }
+            // Every eye in the game is placed by one table — see `FaceOnSheet`.
+            if let kit, showing.sprite.face != nil {
+                FaceOnSheet(sheet: showing.sprite, face: kit.face, tone: kit.tone,
+                            scale: scale, frame: showing.plays ? nil : showing.frame,
+                            fps: showing.fps, playing: showing.plays)
+            }
         }
         .scaleEffect(x: mirrored ? -1 : 1)
     }
 
-    /// One eye, on the head the body already has.
-    private func eye(_ kit: HooperKit, shift: CGPoint) -> some View {
-        OnSheet(rect: CGRect(origin: SpriteMetrics.headOrigin,
-                             size: CGSize(width: 8, height: 8)),
-                shift: shift, scale: scale) {
-            SpriteAnimation(sprite: .faces, scale: scale, isPlaying: false,
-                            restFrame: kit.face)
-                .paletteSwap(PixelPalette.skin(tone: kit.tone))
-        }
-    }
-
-    /// The face, following the head from frame to frame.
-    ///
-    /// **The face sheet, not the heads sheet.** The bodies already have a head drawn on
-    /// them — they are simply faceless — so what goes on is the features and nothing
-    /// else. A whole 8×8 head laid at the same origin covered his hair and a slice of his
-    /// shoulders with a second head. `InbounderFigure` has always had this right.
-    ///
-    /// Its own clock rather than the sprite's: `SpriteAnimation.cell` is a pure function
-    /// of the wall clock, so two views asking it at the same instant get the same cell
-    /// without either having to be inside the other.
-    private func face(_ kit: HooperKit, on showing: Kit.Pose) -> some View {
-        TimelineView(.animation(minimumInterval: 1 / showing.fps,
-                                paused: !showing.plays)) { tick in
-            let cell = showing.plays
-                ? SpriteAnimation.cell(of: showing.sprite, at: tick.date, fps: showing.fps)
-                : showing.frame
-            let shift = showing.headShift(atFrame: cell)
-            ZStack {
-                if showing.hasBakedFace {
-                    OnSheet(rect: Kit.faceMask, shift: shift, scale: scale) {
-                        Rectangle().fill(PixelPalette.skinColour(tone: kit.tone))
-                    }
-                }
-                // The features ride on the head the body already has — see `SpriteMetrics`.
-                // **One eye, and its reflection.** The sheet holds a single eye per cell,
-                // so a face is that cell plus a flipped copy of it over the same 8-wide
-                // box — mirrored about the box's own centre, which is where the head is
-                // centred. A view in profile takes the one eye and no copy.
-                eye(kit, shift: shift)
-                if let mirror = showing.face.mirror {
-                    eye(kit, shift: CGPoint(x: shift.x + mirror.x, y: shift.y + mirror.y))
-                        .scaleEffect(x: -1)
-                }
-            }
-        }
-    }
 }
 
 /// What the results card catches a winner standing in.
