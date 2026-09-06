@@ -524,17 +524,24 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         id == "shot-creator" ? 0.02 : 0
     }
 
-    /// Whether the card moves the ball **in a direction** rather than at somebody.
+    /// Whether the card sends the ball **a way** rather than **at somebody**.
     ///
-    /// This is the whole of what a Clear Out can carry on: he steps out of a ball's path
-    /// and it runs past him to the next man along. A pass aimed at *him* — a Lob, a Dime,
-    /// anything of choice — has nowhere to run on to; it was thrown to a place he is no
-    /// longer standing in, and that is a turnover for whoever threw it. Across is aimed
-    /// too: it names the man opposite rather than a way round the floor.
+    /// Left, right and straight over are all directions: the ball is thrown that way and
+    /// whoever is standing there catches it. A pass of choice is aimed — it names a man,
+    /// and the direction is only wherever he happens to be sitting.
+    ///
+    /// The line matters twice over. A Clear Out can only carry on a ball that was going
+    /// somewhere, and stepping out of one thrown *at* you is a pass to nobody and a
+    /// turnover for whoever threw it. And Floor General names every target on the floor —
+    /// which is a card about aiming, and has no business renaming a Skip Pass.
+    ///
+    /// **Across is a direction with nobody past it.** Straight over from the man opposite
+    /// ends at you; there is no further seat for a Clear Out to send it on to. So it is
+    /// still a turnover — for want of anywhere to go, not for having been aimed.
     var movesInADirection: Bool {
         switch passTarget {
-        case .left, .right, .leftOrRight: return true
-        default:                          return false
+        case .left, .right, .leftOrRight, .across: return true
+        default:                                   return false
         }
     }
 

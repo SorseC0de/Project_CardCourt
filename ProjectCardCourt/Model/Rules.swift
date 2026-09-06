@@ -390,6 +390,8 @@ enum Rules {
         guard state.arrivedBy?.movesInADirection == true else { return nil }
         if passer.left == seat { return seat.left }
         if passer.right == seat { return seat.right }
+        // Straight over, and nobody past him. A direction all the same — see
+        // `movesInADirection` — but one that runs out of floor.
         return nil
     }
 
