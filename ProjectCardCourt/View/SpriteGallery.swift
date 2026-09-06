@@ -69,6 +69,11 @@ struct SpriteGallery: View {
             chip("print", on: false) {
                 dump = eyes.dump
                 UIPasteboard.general.string = dump
+                // **And to the console, always.** Three ways out for one table: a sheet
+                // that has to present, a clipboard that has to reach the Mac, and this,
+                // which needs neither. The button itself was unreachable for a while and
+                // the cheapest of the three would have saved the pass.
+                print(dump)
                 showsDump = true
             }
             Button(action: onDismiss) {
@@ -105,17 +110,28 @@ struct SpriteGallery: View {
     // MARK: - Him, large
 
     private var preview: some View {
-        ZStack {
+        let side = sheet.frameSize * scale
+        return ZStack {
             // A grid at art-pixel pitch, so a placement can be read off rather than
             // squinted at.
+            //
+            // **Sized, and deaf.** `Canvas` takes whatever space it is offered, so in a
+            // stack with no size of its own it grew to the whole screen — drawn inside
+            // the frame but hit-tested well outside it, which put an invisible sheet of
+            // glass over the bar and the sheet strip. Nothing above it could be pressed.
             PixelGrid(pitch: scale)
+                .frame(width: side, height: side)
+                .allowsHitTesting(false)
             SpriteAnimation(sprite: sheet, scale: scale, fps: Theme.Figure.playerFPS,
                             isPlaying: playing, restFrame: frame)
                 .paletteSwap(kit.swaps)
             FaceOnSheet(sheet: sheet, face: kit.face, tone: kit.tone, scale: scale,
                         frame: playing ? nil : frame, playing: playing)
         }
-        .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
+        .frame(width: side, height: side)
+        // Belt and braces: whatever a sheet's own size turns out to be, it is drawn
+        // inside the box and cannot reach past it.
+        .clipped()
         .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.35)))
         .frame(maxWidth: .infinity)
     }
