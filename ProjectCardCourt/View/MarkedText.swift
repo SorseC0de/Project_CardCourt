@@ -21,19 +21,24 @@ enum Marked {
         /// A mechanic the rules name: Discard, Draw, Injury, Clear.
         case keyword = "#"
 
-        var colour: Color {
+        /// What this reads as on a given card. **Asked of the card, not of the marker**:
+        /// a keyword inked the body's own colour is a keyword nobody can see, and which
+        /// colour that is depends entirely on what the card is. See `CardInk`.
+        func colour(on type: CardType) -> Color {
+            let ink = CardInk.of(type)
             switch self {
-            case .name:    return CardPalette.gold
-            case .keyword: return CardPalette.orange
+            case .name:    return ink.name
+            case .keyword: return ink.keyword
             }
         }
 
         /// The hard drop under it. A colour needs the one under it as much as itself —
         /// gold on orange and orange on navy are two different signals, not one twice.
-        var shade: Color {
+        func shade(on type: CardType) -> Color {
+            let ink = CardInk.of(type)
             switch self {
-            case .name:    return CardPalette.orange
-            case .keyword: return CardPalette.navy
+            case .name:    return ink.nameShade
+            case .keyword: return ink.keywordShade
             }
         }
     }
@@ -43,8 +48,8 @@ enum Marked {
         var text: String
         var ink: Ink?
         /// What the keyword is worth, when it is written as one: `#[Draw|2]` is a Draw of
-        /// two, `#[Draw|?]` is a Draw of however many. A run carrying a value is drawn as
-        /// a picture with the value on it rather than as words — see `Marked.badge(of:)`.
+        /// two, `#[Draw|?]` is a Draw of however many. Kept alongside the run's text,
+        /// which already reads "Draw 2" — see `Marked.runs(of:)`.
         var value: String?
     }
 
@@ -88,8 +93,16 @@ enum Marked {
                 let inside = String(text[start..<close]).split(separator: "|",
                                                                maxSplits: 1,
                                                                omittingEmptySubsequences: false)
-                runs.append(Run(text: String(inside[0]), ink: ink,
-                                value: inside.count > 1 ? String(inside[1]) : nil))
+                let word = String(inside[0])
+                let value = inside.count > 1 ? String(inside[1]) : nil
+                // **The number joins the word.** It used to be printed on the face of a
+                // picture standing in for the word; now the word is printed, so its
+                // number belongs beside it and everything that measures or wraps the
+                // line counts it without being told. A `?` is not a number — the
+                // sentence around it already says how many, as in "Up to 5 Draw".
+                runs.append(Run(text: value == nil || value == "?" ? word
+                                : "\(word) \(value!)",
+                                ink: ink, value: value))
                 index = text.index(after: close)
                 continue
             }

@@ -29,11 +29,10 @@ struct TightText: View {
     /// On a card in the hand the picture stands in for the word — the number beside it is
     /// the whole message. Raised to be read, the word comes back and the picture leads it.
     var glyphs: [String: String] = [:]
-    /// How tall a drawn keyword is against the line it sits on. Over one, because a
-    /// picture reads smaller than a capital of the same height.
-    var glyphShare: CGFloat = 1.25
-    /// Whether a drawn keyword keeps its word. A card being read has room for both.
-    var spellsGlyphs = false
+    /// How tall a drawn keyword is against the line it sits on.
+    var glyphShare: CGFloat = CardLayout.keywordGlyphShare
+    /// Which card this is printed on, so a marked run can be inked for it. See `CardInk`.
+    var type: CardType = .pass
 
     /// The size actually used, after the fit search.
     private var chosenSize: CGFloat {
@@ -70,14 +69,17 @@ struct TightText: View {
                                     .frame(height: points * glyphShare)
                                 Text(" ").font(.custom(font, size: points))
                             }
-                            Text(drawn == nil || spellsGlyphs ? run.text
-                                 : String(run.text.drop(while: { $0 != " " })))
+                            // **The word always prints.** A picture instead of it was
+                            // the experiment: a card that says nothing in words is a card
+                            // you have to have been told about. The picture leads it and
+                            // is drawn under the cap height — a mark beside the writing.
+                            Text(run.text)
                                 .font(.custom(font, size: points))
                                 .tracking(tracking)
                         }
-                        .foregroundStyle(run.ink.map { AnyShapeStyle($0.colour) }
+                        .foregroundStyle(run.ink.map { AnyShapeStyle($0.colour(on: type)) }
                                          ?? AnyShapeStyle(.foreground))
-                        .shadow(color: run.ink?.shade ?? .clear, radius: 0,
+                        .shadow(color: run.ink?.shade(on: type) ?? .clear, radius: 0,
                                 x: markShadowOffset, y: markShadowOffset)
                     }
                 }

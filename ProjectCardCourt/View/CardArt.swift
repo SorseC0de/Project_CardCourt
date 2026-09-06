@@ -42,12 +42,62 @@ enum CardPalette {
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
         case .gameBreak:   return purple
-        case .intangible:  return navy
+        // The not-black black rather than navy. Navy is what the ring is drawn in, so an
+        // Intangible was a navy card with a navy border around it.
+        case .intangible:  return black
         }
     }
 
 
     static func isStriped(_ type: CardType) -> Bool { type == .whistle }
+}
+
+/// **Every colour the printing of a card turns on, per type, in one place.**
+///
+/// The rules have to be per type because the bodies are: what reads on orange does not
+/// read on navy, and a keyword inked orange on a blue card disappears on an orange one.
+/// They were spread across five different views and two enums, each answering for the
+/// case in front of it, which is how a card ended up with a keyword the same colour as
+/// the card.
+///
+/// Everything here is a printing decision and nothing reads it but the drawing.
+struct CardInk {
+    /// The card's own words, and the picture that leads them.
+    var text: Color
+    /// The hard drop under the big icon.
+    var iconShade: Color
+    /// A card named inside the effect — `@[Rhythm Dribble]` — and its drop.
+    var name: Color
+    var nameShade: Color
+    /// A mechanic the rules name — `#[Draw]` — its drop, and the small picture that goes
+    /// in front of it. The picture takes the word's colour: they are one thing said twice.
+    var keyword: Color
+    var keywordShade: Color
+    /// The inner ring, and the drop under the name plate.
+    var ring: Color
+    var plate: Color
+
+    static func of(_ type: CardType) -> CardInk {
+        // The two dark bodies. Navy lettering on either is lettering nobody can find, and
+        // navy is also what the ring is drawn in — so both turn over together.
+        let dark = type == .intangible || type == .gameBreak
+        return CardInk(
+            // A Whistle's stripes are black and white and its body is nearly white, so
+            // navy sits between the two rather than on either side of them.
+            text: type == .whistle ? .black : (dark ? .white : CardPalette.navy),
+            iconShade: type == .whistle ? CardPalette.blue : CardPalette.navy,
+            name: CardPalette.gold,
+            nameShade: CardPalette.orange,
+            // **Blue on a Move card.** Orange keywords on an orange body were the card
+            // saying its own mechanic in its own colour, which is the same as not saying
+            // it. Everywhere else orange is the accent that is not the body.
+            keyword: type == .move ? CardPalette.blue : CardPalette.orange,
+            keywordShade: CardPalette.navy,
+            ring: type == .intangible ? CardPalette.gold : CardPalette.navy,
+            // Blue is what the artwork used to carry baked in; only the dark bodies
+            // change it, because blue on either would not read at all.
+            plate: dark ? CardPalette.gold : CardPalette.blue)
+    }
 }
 
 /// A card body: a flat colour, plus a striped band across the top for Whistles.
@@ -118,11 +168,14 @@ enum CardMetrics {
 /// Values are written over the card's own dimensions, so `21 / across` is the 21 that was
 /// dialled in rather than 0.0355. The calibrator is archived in Tools/calibration.
 enum CardLayout {
-    /// The keywords the card draws instead of spelling, and what it draws them as. The
-    /// word comes back when the card is raised to be read — see `TightText.spellsGlyphs`.
-    /// The keyword badge at the foot of the card: bigger than the shoot mark, because it
-    /// carries a value on its face rather than only saying what happens.
+    /// The keywords the card draws a mark for, and what it draws. **Beside the word, not
+    /// instead of it** — a card that says its mechanic only in pictures is a card you have
+    /// to have been told about, which is what the experiment turned out to mean.
     static let badgeFraction: CGFloat = 0.26
+    /// How tall the picture in front of a keyword is against the line it sits on. **Under
+    /// one**: it goes with the word now rather than instead of it, so it is a mark
+    /// beside the writing and not the writing itself.
+    static let keywordGlyphShare: CGFloat = 0.85
     /// And the whole middle of the card, when the badge is all the card says.
     static let badgeAloneFraction: CGFloat = 0.42
     /// How big the value on its face is, against the badge itself.
@@ -193,9 +246,7 @@ enum CardLayout {
         type == .whistle ? PixelPalette.midnight : .white
     }
 
-    static func iconShadow(for type: CardType) -> Color {
-        type == .whistle ? CardPalette.blue : CardPalette.navy
-    }
+    static func iconShadow(for type: CardType) -> Color { CardInk.of(type).iconShade }
 
     /// The mark a Dribble card wears at its foot, and the one that goes before the word
     /// wherever another card names it.
