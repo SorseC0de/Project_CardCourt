@@ -95,6 +95,11 @@ final class DeckStage {
     /// routine, or it would be snapped home between steps.
     private(set) var travelling = false
 
+    /// How far it tips toward whoever it is dealing to. About seventeen degrees — a nod,
+    /// not a stoop. **Not private**: a card comes off the top of a bowed pile, so it
+    /// starts at the pile's own lean. See `CardDealer`.
+    static let bowAngle: Float = 0.30
+
     /// **How big the pile is, decided by the court and applied only here.**
     ///
     /// `move(to:)` animates a whole transform, scale included — so every routine that
@@ -292,7 +297,7 @@ final class DeckStage {
         // matters, since the second rotation is taken in the frame the first leaves.
         var turned = begin()
         turned.rotation = simd_quatf(angle: atan2(away.x, away.z), axis: [0, 1, 0])
-            * simd_quatf(angle: Timing.bow, axis: [1, 0, 0])
+            * simd_quatf(angle: Self.bowAngle, axis: [1, 0, 0])
         pile.move(to: turned, relativeTo: pile.parent,
                   duration: seconds, timingFunction: .easeOut)
         try? await Task.sleep(for: .seconds(seconds))
@@ -406,9 +411,7 @@ final class DeckStage {
         static let nudge: Float = 0.003
         static let nudgeTurn: Float = 0.10
         static let chunk = 6
-        /// How far it tips toward whoever it is dealing to. About seventeen degrees —
-        /// a nod, not a stoop.
-        static let bow: Float = 0.30
+        /// See `DeckStage.bowAngle`, which a card leaving the top of it starts at.
         /// How far it leans into a flight at full tilt, and the speed that counts as full
         /// tilt — a court's width every second.
         static let lean: Float = 0.45

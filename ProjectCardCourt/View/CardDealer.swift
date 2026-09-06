@@ -10,11 +10,11 @@ extension SIMD3 where Scalar == Float {
 
 /// One card at a time, thrown across the court.
 ///
-/// **A card leaving a deck, and nothing more.** It starts on top of the pile at the size
-/// of the pile's own top card, rises a little on the way over, grows as it comes towards
-/// you, and pitches from lying flat to facing you. It does not spin, tumble or bow off the
-/// line — that was a card being thrown by somebody showing off, and what it read as was a
-/// card having a fit.
+/// **A card leaving a deck, and nothing more.** It starts on top of the pile, leaning the
+/// way the pile leans, at the size of the pile's own top card. On the way over it curls up
+/// until it is standing straight, and shrinks until it is not there. That is the whole of
+/// it — no arc, no spin, no tumble. Everything else this has ever done read as a card
+/// having a fit rather than as a card being dealt.
 ///
 /// Not `@Observable`, for the same reason as `DeckStage` — see the note there.
 @MainActor
@@ -24,20 +24,21 @@ final class CardDealer {
     private var card: ModelEntity?
 
     /// How the throw is shaped. Metres and turns.
+    /// How the throw is shaped. Metres, radians and turns.
     private enum Throw {
-        /// How high the card rides at the top of its arc, against the distance covered.
-        /// Barely: a card sliding off a pile leaves the table, it does not lob.
-        static let lift: Float = 0.05
-        /// How big it is leaving the pile and how big it is arriving. **The same, and the
-        /// same as the slab it came off.** It is a card the whole way over; the only
-        /// thing that changes on the trip is which way it faces.
+        /// **It leaves at the size of the slab it came off and shrinks the whole way.**
+        /// Not to nothing — a scale of zero is a matrix that cannot be inverted, and
+        /// RealityKit will not have it — but to near enough that it is gone by the time
+        /// it reaches him.
         static let leaves: Float = 1.0
-        static let arrives: Float = 1.0
-        /// How far it turns out of the floor's plane on the way, in turns. The pile lies
-        /// flat and the camera looks down at it from thirty-four degrees, so this is what
-        /// takes the card the rest of the way to facing you.
-        static let pitch: Float = (90 - 34) / 360
-        /// Steps the arc is walked in. Enough to read as a curve, few enough to be free.
+        static let arrives: Float = 0.01
+        /// Where it starts leaning: wherever the deck is leaning. It comes off the top of
+        /// a pile that has already bowed toward him.
+        static let bowed = DeckStage.bowAngle
+        /// And where it finishes — straight up, facing him. It curls the difference on
+        /// the way over and does nothing else.
+        static let upright = Float.pi / 2
+        /// Steps the trip is walked in. Enough to read as a curl, few enough to be free.
         static let steps = 30
     }
 
@@ -75,24 +76,29 @@ final class CardDealer {
         // write: it keeps what it had, and the pile stretches and shudders.
         guard start.isFinite, end.isFinite, distance(start, end) > .ulpOfOne else { return }
 
-        let lift = distance(start, end) * Throw.lift
+        // Turned to face him, the way the pile it came off is. One yaw, held for the
+        // whole trip — the card does not steer.
+        let yaw = simd_quatf(angle: atan2(end.x - start.x, end.z - start.z), axis: [0, 1, 0])
+        func lean(_ t: Float) -> simd_quatf {
+            yaw * simd_quatf(angle: Throw.bowed + (Throw.upright - Throw.bowed) * t,
+                             axis: [1, 0, 0])
+        }
+
         card.isEnabled = true
         card.transform = Transform(scale: SIMD3(repeating: Throw.leaves),
-                                   rotation: .init(angle: 0, axis: [1, 0, 0]),
-                                   translation: start)
+                                   rotation: lean(0), translation: start)
 
-        // Walked rather than tweened: `move(to:)` interpolates between two transforms in
-        // a straight line, which is the one shape a thrown card never travels in.
+        // Walked rather than tweened: `move(to:)` slerps between two rotations, and a
+        // quarter turn slerped in one go swings the card out of the line it is meant to
+        // be travelling along.
         let step = seconds / Double(Throw.steps)
         for i in 1...Throw.steps {
             let t = Float(i) / Float(Throw.steps)
-
             var next = Transform()
-            next.translation = start + (end - start) * t + SIMD3(0, lift * sin(t * .pi), 0)
-            next.rotation = simd_quatf(angle: -Throw.pitch * 2 * .pi * t, axis: [1, 0, 0])
+            next.translation = start + (end - start) * t
+            next.rotation = lean(t)
             next.scale = SIMD3(repeating: Throw.leaves
                                + (Throw.arrives - Throw.leaves) * t)
-
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
             try? await Task.sleep(for: .seconds(step))
             if Task.isCancelled { break }

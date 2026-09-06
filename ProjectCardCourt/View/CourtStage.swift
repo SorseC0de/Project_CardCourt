@@ -141,7 +141,7 @@ struct CourtStage: View {
                     width: Stage.cardWidth * Stage.dealtCard,
                     depth: Stage.cardDepth * Stage.dealtCard)
                 let black = UnlitMaterial(color: UIColor(CardPalette.black))
-                let thickness = Stage.slab * Stage.dealtCard
+                let thickness = Stage.slab * Stage.dealtCard * 0.5
                 dealer.build(mesh: dealtMesh(), material: black,
                              face: ModelEntity(mesh: blank, materials: [blankFacing]),
                              thickness: thickness)
@@ -231,7 +231,8 @@ struct CourtStage: View {
     private func dealtMesh() -> MeshResource {
         RoundedSlab.mesh(width: Stage.cardWidth * Stage.dealtCard,
                          depth: Stage.cardDepth * Stage.dealtCard,
-                         thickness: Stage.slab * Stage.dealtCard,
+                         // Half a slab: one card off a pile, not a pile of one.
+                         thickness: Stage.slab * Stage.dealtCard * 0.5,
                          radius: Stage.cardWidth * Stage.dealtCard * 0.08)
     }
 

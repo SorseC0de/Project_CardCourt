@@ -77,52 +77,90 @@ enum ReboundStyle {
 // MARK: - Bench
 
 #if DEBUG
+/// The leap, on a court that is the real one.
+///
+/// **`GameView` at full height, not a court in a box.** The floor's geometry is worked
+/// out from the space it is given — the horizon, the rows, how big a man at the far end
+/// is — so a court sharing the screen with a stack of sliders is a different court, and
+/// numbers found against it are numbers for a court nobody plays on. The dials sit over
+/// the top instead, and fold away.
+///
+/// Nothing is dealt: `begin` is never called, so there is no opening deal to sit through
+/// and no deck working away behind the thing being looked at.
 struct ReboundBench: View {
     @State private var tune = ReboundTuning.shared
     @State private var controller = GameController()
+    @State private var open = true
 
     /// The rates a sheet may play at — see `Theme.Figure`. Stepped rather than dragged,
     /// because everything between them judders.
     private let rates: [Double] = [4, 7.5, 10, 12, 15, 20, 30]
 
     var body: some View {
-        VStack(spacing: 10) {
-            GameView(controller: controller)
-                .frame(maxHeight: .infinity)
-            HStack(spacing: 10) {
-                ChunkyButton(title: "Go up for it", fill: CardPalette.gold) {
-                    controller.debugRebound()
-                }
-                Button("Reset") { tune.reset() }
-                    .foregroundStyle(CardPalette.red)
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("The ball").font(.system(size: 11, weight: .black))
-                    dial("spawn x", $tune.spawnX, -160...160)
-                    dial("spawn y", $tune.spawnY, -160...160)
-                    dial("hand x", $tune.handX, -1...1)
-                    dial("hand y", $tune.handY, 0...1.6)
-                    dial("leaves at", $tune.fromHoop, 0.01...1)
-                    time("flight", $tune.flight, 0.1...2)
-                    time("fade", $tune.fade, 0.05...1.5)
+        GameView(controller: controller)
+            .overlay(alignment: .bottom) { panel }
+    }
 
-                    Text("The leap").font(.system(size: 11, weight: .black)).padding(.top, 4)
-                    rate("rise fps", $tune.riseFPS)
-                    rate("land fps", $tune.landFPS)
-                    time("hang", $tune.hang, 0...1.5)
-                    dial("lift (px)", $tune.lift, 0...40)
-                    Text(String(format: "rise %.2fs · land %.2fs · whole %.2fs",
-                                tune.rise, tune.landing, tune.whole))
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.7))
+    private var panel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Button {
+                    controller.debugRebound()
+                } label: {
+                    Text("GO UP FOR IT")
+                        .font(.system(size: 11, weight: .black)).tracking(0.8)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Capsule().fill(CardPalette.gold))
                 }
-                .padding(.horizontal, 14)
+                Button("reset") { tune.reset() }
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(CardPalette.red)
+                Spacer()
+                Text(String(format: "%.2f + %.2f + %.2f", tune.rise, tune.hang, tune.landing))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.6))
+                Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
+                    Image(systemName: open ? "chevron.down" : "chevron.up")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                }
             }
-            .frame(height: 300)
+            .padding(.horizontal, 10).padding(.vertical, 6)
+
+            if open {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 5) {
+                        heading("the ball")
+                        dial("spawn x", $tune.spawnX, -160...160)
+                        dial("spawn y", $tune.spawnY, -160...160)
+                        dial("hand x", $tune.handX, -1...1)
+                        dial("hand y", $tune.handY, 0...1.6)
+                        dial("leaves at", $tune.fromHoop, 0.01...1)
+                        time("flight", $tune.flight, 0.1...2)
+                        time("fade", $tune.fade, 0.05...1.5)
+                        heading("the leap")
+                        rate("rise fps", $tune.riseFPS)
+                        rate("land fps", $tune.landFPS)
+                        time("hang", $tune.hang, 0...1.5)
+                        dial("lift (px)", $tune.lift, 0...40)
+                    }
+                    .padding(.horizontal, 10).padding(.bottom, 8)
+                }
+                .frame(height: 210)
+            }
         }
-        .background(Theme.panel)
-        .preferredColorScheme(.dark)
+        .background(.black.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 8)
+        .padding(.bottom, 6)
+    }
+
+    private func heading(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.system(size: 9, weight: .black)).tracking(1)
+            .foregroundStyle(CardPalette.gold)
+            .padding(.top, 4)
     }
 
     private func dial(_ name: String, _ value: Binding<CGFloat>,
@@ -141,14 +179,15 @@ struct ReboundBench: View {
 
     /// Stepped through the legal rates rather than dragged across them.
     private func rate(_ name: String, _ value: Binding<Double>) -> some View {
-        row(name, value.wrappedValue == 7.5 ? "7.5" : String(Int(value.wrappedValue))) {
-            HStack(spacing: 4) {
+        row(name, "") {
+            HStack(spacing: 3) {
                 ForEach(rates, id: \.self) { fps in
                     Button(fps == 7.5 ? "7.5" : String(Int(fps))) { value.wrappedValue = fps }
-                        .font(.system(size: 10, weight: .bold))
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 4)
-                            .fill(value.wrappedValue == fps ? CardPalette.blue : .white.opacity(0.12)))
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 3)
+                            .fill(value.wrappedValue == fps
+                                  ? CardPalette.blue : .white.opacity(0.12)))
                         .foregroundStyle(.white)
                 }
             }
@@ -157,12 +196,12 @@ struct ReboundBench: View {
 
     private func row(_ name: String, _ reading: String,
                      @ViewBuilder _ control: () -> some View) -> some View {
-        HStack(spacing: 8) {
-            Text(name).font(.system(size: 11, weight: .semibold))
-                .frame(width: 74, alignment: .leading)
+        HStack(spacing: 6) {
+            Text(name).font(.system(size: 10, weight: .semibold))
+                .frame(width: 62, alignment: .leading)
             control()
-            Text(reading).font(.system(size: 10, design: .monospaced))
-                .frame(width: 54, alignment: .trailing)
+            Text(reading).font(.system(size: 9, design: .monospaced))
+                .frame(width: 44, alignment: .trailing)
         }
         .foregroundStyle(.white)
     }
