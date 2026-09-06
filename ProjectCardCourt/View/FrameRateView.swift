@@ -77,3 +77,32 @@ private final class FrameWindow {
 }
 
 #endif
+
+#if DEBUG
+/// **What this device thinks the match is**, for standing two phones side by side.
+///
+/// A desync is impossible to chase from a log you cannot see, so the two facts that
+/// decide everything are put on the screen: who this device believes the host is, and
+/// what board it is looking at. Two phones either read the same second line or say
+/// exactly where they parted — and if both first lines say HOST, that is the whole bug.
+struct NetReadout: View {
+    var controller: GameController
+
+    private var wiring: String {
+        guard let session = controller.match as? GameCenterMatch else { return "solo" }
+        return session.summary
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 1) {
+            Text(wiring)
+            Text("seat=\(GameRules.localSeat.name) \(controller.lastBoard)")
+        }
+        .font(.system(size: 8, weight: .medium, design: .monospaced))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5).padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 4).fill(.black.opacity(0.65)))
+        .allowsHitTesting(false)
+    }
+}
+#endif

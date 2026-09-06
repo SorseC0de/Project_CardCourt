@@ -407,7 +407,14 @@ struct GameView: View {
                 VStack {
                     HStack {
                         Spacer()
-                        FrameRateView().padding(.trailing, 8)
+                        VStack(alignment: .trailing, spacing: 3) {
+                            FrameRateView()
+                            // Only while there is a match to be wrong about.
+                            if controller.match != nil {
+                                NetReadout(controller: controller)
+                            }
+                        }
+                        .padding(.trailing, 8)
                     }
                     Spacer()
                 }

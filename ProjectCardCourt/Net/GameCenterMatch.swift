@@ -51,6 +51,24 @@ final class GameCenterMatch: NSObject, MatchTransport {
     var onSeatLost: ((Seat) -> Void)?
 
     var isActive: Bool { match != nil && !seats.isEmpty }
+
+    /// **What this device thinks the match is**, short enough to read off a screen.
+    ///
+    /// The election turns entirely on whether two phones see the same string for the same
+    /// person. If they do not, both sort themselves to the front and both decide they are
+    /// the host — and two hosts is two games. Printed as the tail of each id, which is
+    /// the part that differs.
+    var summary: String {
+        guard match != nil else { return "no match" }
+        let tail = { (id: String) in String(id.suffix(6)) }
+        let mine = GKLocalPlayer.local.gamePlayerID
+        let peers = seats
+            .sorted { $0.value.rawValue < $1.value.rawValue }
+            .map { "\($0.value.name.prefix(1))=\(tail($0.key))\($0.key == mine ? "*" : "")" }
+            .joined(separator: " ")
+        return "\(isHost ? "HOST" : "guest") me=\(tail(mine)) "
+            + "host=\(hostID.map(tail) ?? "-") | \(peers)"
+    }
     /// How many people are in the match, the local player included.
     var seated: Int { seats.count }
     var isHost: Bool { hostID != nil && hostID == GKLocalPlayer.local.gamePlayerID }
@@ -183,15 +201,34 @@ final class GameCenterMatch: NSObject, MatchTransport {
         match.delegate = self
         // Seated, not playing. The host still has to say go.
         status = .seated
-        elect(among: match)
+        // **Asked, not worked out.** GameKit picks one player and gives every device the
+        // same answer; it is the only way to elect a host that does not turn on two
+        // phones agreeing about a string. Nil means it could not decide, and then there
+        // is nothing left but to sort.
+        match.chooseBestHostingPlayer { [weak self] best in
+            Task { @MainActor in self?.elect(among: match, host: best) }
+        }
     }
 
     /// Everybody runs this and everybody gets the same answer.
-    private func elect(among match: GKMatch) {
-        let ids = ([GKLocalPlayer.local] + match.players)
-            .map(\.gamePlayerID)
-            .sorted()
-        hostID = ids.first
+    ///
+    /// **The host is compared as a player, never as a string.** `gamePlayerID` is the id
+    /// *this* device has for somebody, and it is not guaranteed to be the string that
+    /// person's own device reports for themselves. When the two disagree, every device
+    /// sorts itself to the front of the list and every device decides it is the host —
+    /// and two hosts is two games running side by side with nothing in common, which is
+    /// exactly what it looked like: both players holding a Start button, and no two
+    /// numbers on the two screens ever matching again.
+    private func elect(among match: GKMatch, host chosen: GKPlayer? = nil) {
+        let everyone = [GKLocalPlayer.local] + match.players
+        let host = chosen ?? everyone.min { $0.gamePlayerID < $1.gamePlayerID }
+        let amHost = host.map { $0 == GKLocalPlayer.local } ?? false
+        // Its own id as this device sees it, which is the same view the delegate reads
+        // incoming messages against.
+        hostID = amHost ? GKLocalPlayer.local.gamePlayerID : host?.gamePlayerID
+        DevLog.say(.net, "elected \(amHost ? "me" : "them") as host"
+                   + (chosen == nil ? " (sorted — GameKit would not choose)" : ""))
+        let ids = everyone.map(\.gamePlayerID).sorted()
 
         // Seats go out in the same sorted order, so a device can work out its own chair
         // without being told — but the host tells it anyway, since only the host knows
@@ -216,8 +253,12 @@ final class GameCenterMatch: NSObject, MatchTransport {
             for seat in Seat.allCases where provisional[seat] == nil {
                 provisional[seat] = Table.Chair(occupant: .computer, name: seat.houseName)
             }
+            // **Provisional.** Worked out from this device's own view of who is here, so
+            // it is a guess at best — the host's `seated` is the answer and always
+            // overrides it. It is here so a guest that never hears that message is
+            // sitting somewhere rather than silently playing as South.
             Table.shared.seat(provisional, asLocal: seats[me] ?? .south)
-            DevLog.say(.net, "seated myself at \(seats[me]?.name ?? "?") — host is them")
+            DevLog.say(.net, "provisionally at \(seats[me]?.name ?? "?") — host is them")
             return
         }
         var chairs: [Seat: Table.Chair] = [:]

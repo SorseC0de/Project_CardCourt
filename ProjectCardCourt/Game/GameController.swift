@@ -574,6 +574,9 @@ final class GameController {
     private(set) var revealedBids: [Seat: Int]?
     /// Who is going up for the board right now, if anybody.
     private(set) var reboundLeap: ReboundLeap?
+    /// The last board this device sent or was sent, for reading off a screen beside
+    /// another phone — see `fingerprint`.
+    private(set) var lastBoard = "—"
     /// When the last pass left the passer's hands, so the beat can wait out the catch
     /// without waiting for what has already been spent — see `settleTheCatch`.
     private var passLeftAt: Date?
@@ -671,7 +674,8 @@ final class GameController {
     /// state and never sends it anywhere.
     private func broadcast(_ events: [GameEvent]) {
         guard let match, match.isHost else { return }
-        DevLog.say(.net, "host → \(fingerprint(state))  [\(events.count) event(s)]")
+        lastBoard = fingerprint(state)
+        DevLog.say(.net, "host → \(lastBoard)  [\(events.count) event(s)]")
         try? match.broadcast { seat in
             .turn(state: state.redacted(for: seat), events: events)
         }
@@ -767,7 +771,8 @@ final class GameController {
             DevLog.say(.net, "the host started the game")
             begin()
         case .turn(let state, let events):
-            DevLog.say(.net, "guest ← \(fingerprint(state))  [\(events.count) event(s)]"
+            lastBoard = fingerprint(state)
+            DevLog.say(.net, "guest ← \(lastBoard)  [\(events.count) event(s)]"
                        + "  seat=\(GameRules.localSeat.name)")
             loop?.cancel()
             self.state = state
