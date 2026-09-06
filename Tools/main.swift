@@ -228,7 +228,7 @@ if args.contains("--text") {
                 if case .comboLanded = e { combos += 1 }
                 if case .failedReturn = e { failedReturns += 1 }
                 if case .freeThrowsAwarded = e { ftTrips += 1 }
-                if case .passed(let c, _, _, _) = e, c.id == "behind-the-back" { backPasses += 1 }
+                if case .passed(let c, _, _, _, _) = e, c.id == "behind-the-back" { backPasses += 1 }
                 if case .shotClockTicked(let v) = e { maxShot = max(maxShot, state.shot); _ = v }
             }
         }

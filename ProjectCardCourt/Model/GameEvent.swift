@@ -9,7 +9,7 @@ enum GameEvent: Hashable, Codable {
     case drew(seat: Seat, card: CardDescriptor, id: UUID)
     case shotClockSet(Int)
     case shotClockTicked(Int)
-    case passed(card: CardDescriptor, from: Seat, to: Seat, shot: Int)
+    case passed(card: CardDescriptor, from: Seat, to: Seat, shot: Int, returning: Bool = false)
     case movePlayed(seat: Seat, card: CardDescriptor, shot: Int)
     case comboLanded(seat: Seat, card: CardDescriptor, bonus: Int)
     case coinRun(seat: Seat, card: CardDescriptor, heads: Int)
@@ -94,7 +94,14 @@ enum GameEvent: Hashable, Codable {
         case .clearedOut(let seat, let to):
             return "\(seat.playerName) \(seat.verb("clears", "clear")) out. "
                 + "The ball carries on to \(to.playerName)."
-        case .passed(let card, let from, let to, let shot):
+        case .passed(let card, let from, let to, let shot, let returning):
+            // Nobody played anything on the way home. The card was played once, at the
+            // other end, and this leg is the ball being handed straight back — saying
+            // the receiver played it credits them with somebody else's card.
+            guard !returning else {
+                return "\(from.playerName) \(from.verb("gives", "give")) it right back → "
+                    + "\(to.playerName). SHOT \(shot)%."
+            }
             return "\(from.playerName) \(from.verb("plays", "play")) \(card.name) → \(to.playerName). SHOT \(shot)%."
         case .movePlayed(let seat, let card, let shot):
             return "\(seat.playerName) \(seat.verb("plays", "play")) \(card.name). SHOT \(shot)%."

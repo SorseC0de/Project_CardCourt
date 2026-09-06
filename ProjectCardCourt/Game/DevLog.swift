@@ -90,7 +90,7 @@ enum DevLog {
             // What the ball is worth afterwards closes both lines. The same number under
             // the same name either way — a Move and a Pass both leave the ball somewhere,
             // and two vocabularies for one figure is one to keep translating.
-            case .passed(let card, let from, let to, let shot):
+            case .passed(let card, let from, let to, let shot, _):
                 say(.card, "\(from.dev) passes to ➜ \(to.dev)  \(card.name)  (Ball \(shot)%)")
             case .movePlayed(let seat, let card, let shot):
                 say(.card, "\(seat.dev) plays \(card.name)  (Ball \(shot)%)")

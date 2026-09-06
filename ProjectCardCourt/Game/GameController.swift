@@ -233,7 +233,7 @@ struct TurnoverCutscene: Identifiable, Equatable {
             case .failedReturn:                 kind = .badReturn
             case .whistleBlew(_, let card, _, _, _): kind = .whistle(card.name)
             case .turnover(let who, _):         seat = who
-            case .passed(_, let from, _, _):    thrower = from
+            case .passed(_, let from, _, _, _):    thrower = from
             default: break
             }
         }
@@ -259,7 +259,7 @@ struct PlayedCard: Identifiable, Equatable {
     static func first(in events: [GameEvent]) -> PlayedCard? {
         for event in events {
             switch event {
-            case .passed(let card, let from, _, _):
+            case .passed(let card, let from, _, _, _):
                 return PlayedCard(seat: from, descriptor: card, faceDown: false)
             case .movePlayed(let seat, let card, _):
                 return PlayedCard(seat: seat, descriptor: card, faceDown: false)

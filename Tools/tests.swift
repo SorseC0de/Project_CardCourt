@@ -577,6 +577,48 @@ func runTests() {
         Check.that(hot.override?.amount == 100, "and everything off his own")
     }
 
+    print("Right Back and the clock")
+    do {
+        var (state, seat, cards) = openPossession(seed: 55, cards: [CardLibrary.rightBack])
+        state.shotClock = 5
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        guard case .awaitingTarget(_, _, let choices) = state.phase else {
+            Check.that(false, "Right Back asks who to give it to")
+            return
+        }
+        Rules.resolveTarget(choices[0], state: &state)
+        declineCounter(&state)
+        print("   → clock \(state.shotClock.map(String.init) ?? "nil")"
+              + "  phase \(state.phase.label)  ball \(state.ball?.name ?? "-")")
+        Check.that(state.ball == seat, "it comes straight back")
+        Check.that(state.shotClock == 3, "and costs two ticks of five, not all of them")
+    }
+    do {
+        // The same trip, with a toll at the far end: Bone Bruise takes a card the moment
+        // he catches it. The clock must not care.
+        var (state, seat, cards) = openPossession(seed: 56, cards: [CardLibrary.rightBack])
+        state.shotClock = 5
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        guard case .awaitingTarget(_, _, let choices) = state.phase else { return }
+        let victim = choices[0]
+        state[victim].injuries.append(CardLibrary.boneBruise)
+        Rules.resolveTarget(victim, state: &state)
+        declineCounter(&state)
+        Check.that(state.ball == victim, "a toll at the far end holds the ball there")
+        // Answering it lets the trip finish. The return is owed, not thrown away.
+        guard case .awaitingInjuryDiscard = state.phase else {
+            Check.that(false, "the toll is asked")
+            return
+        }
+        let give = state[victim].bag.first.map { [$0.id] } ?? []
+        Rules.resolveInjuryDiscard(give, state: &state)
+        declineCounter(&state)
+        print("   → clock \(state.shotClock.map(String.init) ?? "nil")"
+              + "  phase \(state.phase.label)  ball \(state.ball?.name ?? "-")")
+        Check.that(state.ball == seat, "and then it comes home")
+        Check.that((state.shotClock ?? 0) > 0, "with time still on the clock")
+    }
+
     print("Viewer-relative seating")
     for viewer in Seat.allCases {
         Check.that(viewer.slot(viewedFrom: viewer) == .south, "\(viewer.playerName) sees themselves nearest")

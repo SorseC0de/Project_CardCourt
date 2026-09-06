@@ -860,7 +860,7 @@ enum Rules {
     /// Shared, because a pass that names its target geometrically and one that had to be
     /// asked about are the same pass — only the question in front of them differs.
     private static func completePass(_ descriptor: CardDescriptor, from seat: Seat,
-                                     to receiver: Seat,
+                                     to receiver: Seat, returning: Bool = false,
                                      state: inout GameState, events: inout [GameEvent]) {
         // Outlet Pass runs the clock the other way: it hands a tick back instead of
         // costing one, so the possession must not take its own.
@@ -871,7 +871,8 @@ enum Rules {
         if descriptor.upgradesToThree { state.pendingBonusPoint = 1 }
         state.lastPasser = seat
         credit(seat, helping: receiver, state: &state, events: &events)
-        events.append(.passed(card: descriptor, from: seat, to: receiver, shot: state.shot))
+        events.append(.passed(card: descriptor, from: seat, to: receiver,
+                              shot: state.shot, returning: returning))
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
         if descriptor.forcesImmediateShot { state.shootsAtOnce = receiver }
@@ -1987,13 +1988,22 @@ enum Rules {
 
         // Right Back: home again, and paying its SHOT a second time. After the toll and
         // whatever else the trip cost him — that is the point of the card.
-        if let home = state.returnsTo, let leg = state.returnLeg {
+        // **Only once there is a possession to send it back from.** A toll at the far
+        // end — Bone Bruise taking its card, a Game Break emptying a hand — leaves the
+        // phase on a question rather than on a possession, and this used to find that,
+        // throw the return away and clear it. The ball simply never came home: it sat
+        // with the receiver until the clock ran out on him, which arrives as a shot-clock
+        // violation nobody could see coming. Left owed instead, and `settleHands` runs
+        // again at the edge of whatever answered the question.
+        if let home = state.returnsTo, let leg = state.returnLeg,
+           case .possession(let holder) = state.phase {
             state.returnsTo = nil
-            if case .possession(let holder) = state.phase, holder != home {
-                adjustShot(by: leg.baseShotDelta, state: &state)
-                completePass(leg, from: holder, to: home, state: &state, events: &events)
-            }
             state.returnLeg = nil
+            if holder != home {
+                adjustShot(by: leg.baseShotDelta, state: &state)
+                completePass(leg, from: holder, to: home, returning: true,
+                             state: &state, events: &events)
+            }
         }
 
         // Alley-Oop: it goes up now, with whatever he drew still in his hands. Before the
