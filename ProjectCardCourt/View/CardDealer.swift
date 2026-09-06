@@ -42,6 +42,13 @@ final class CardDealer {
         /// And where it finishes — straight up, facing him. It curls the difference on
         /// the way over and does nothing else.
         static let upright = Float.pi / 2
+        /// **The turn happens, and then the shrink.** Run together they were a card
+        /// vanishing while it happened to be rotating — the face never came round,
+        /// because by the time it was pointing at you there was nothing left of it to
+        /// see. Picked up off a table, a card is turned over at full size and only then
+        /// put away.
+        static let turnsBy: Float = 0.55
+        static let shrinksFrom: Float = 0.60
         /// Steps the trip is walked in. Enough to read as a curl, few enough to be free.
         static let steps = 30
     }
@@ -117,9 +124,10 @@ final class CardDealer {
             var next = Transform()
             next.translation = start + (end - start) * t
                 + SIMD3(0, lift * sin(t * .pi), 0)
-            next.rotation = lean(t)
+            next.rotation = lean(min(1, t / Throw.turnsBy))
+            let gone = max(0, (t - Throw.shrinksFrom) / (1 - Throw.shrinksFrom))
             next.scale = SIMD3(repeating: Throw.leaves
-                               + (Throw.arrives - Throw.leaves) * t)
+                               + (Throw.arrives - Throw.leaves) * gone)
             card.move(to: next, relativeTo: root, duration: step, timingFunction: .linear)
             try? await Task.sleep(for: .seconds(step))
             if Task.isCancelled { break }
