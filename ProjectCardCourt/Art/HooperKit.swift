@@ -49,7 +49,7 @@ final class HooperKit {
 
     /// The four things about him that anybody else can see, ready to travel.
     var look: Table.Look {
-        Table.Look(tone: tone, face: face, jersey: jersey, belt: belt)
+        Table.Look(tone: tone, face: face, jersey: jersey, belt: belt, number: number)
     }
 
     /// What the sprite wears, ready to hand to `paletteSwap`. Dressed by the same line
@@ -169,7 +169,7 @@ enum Kit {
     enum Pose: String, CaseIterable, Identifiable {
         /// The three idle ones lead, because they are the ones worth watching — a kit is
         /// judged on a player standing there with the ball, not mid-stride.
-        case stand, spinning, bouncing, holding, gooseneck, praised, fierce, defending,
+        case stand, spinning, bouncing, holdBall, holding, gooseneck, praised, fierce, defending,
              running, dribbling, receiving, shooting, oneHand, reverse, whirlwind
         /// The three views `stand` turns through. Not stances anybody picks — they are
         /// frames of one that is — so they are never offered on their own.
@@ -212,7 +212,9 @@ enum Kit {
             case .whirlwind: return "Whirlwind"
             case .spinning:  return "Spin"
             case .bouncing:  return "Bounce"
-            case .holding:   return "Hold"
+            case .holdBall:  return "Hold"
+            // The wind-up, which is a different thing from standing there holding one.
+            case .holding:   return "Throw-In"
             case .front:     return "Front"
             case .right:     return "Side"
             case .gooseneck: return "Gooseneck"
@@ -232,6 +234,7 @@ enum Kit {
             // The view the turn opens on. Anything drawing a `stand` walks `Pose.turn`
             // rather than asking for one sheet — see `HooperPortrait`.
             case .stand:     return .front
+            case .holdBall:  return .holdBall
             case .oneHand:   return .dunkOneHand
             case .reverse:   return .dunkReverse
             case .whirlwind: return .dunkWhirlwind
@@ -264,7 +267,7 @@ enum Kit {
         var plays: Bool {
             switch self {
             case .front, .back, .right, .fierce,
-                 .receiving, .holding, .gooseneck, .praised: return false
+                 .holdBall, .receiving, .holding, .gooseneck, .praised: return false
             default: return true
             }
         }

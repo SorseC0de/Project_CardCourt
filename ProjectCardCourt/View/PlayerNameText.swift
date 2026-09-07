@@ -16,7 +16,7 @@ struct PlayerNameText: View {
     private var drop: CGFloat { max(1, (size / 9).rounded()) }
 
     var body: some View {
-        SmallCapsText(text: seat.playerName,
+        SmallCapsText(text: PlayerLook.shared.billing(for: seat),
                       font: "AvenirNextCondensed-Heavy",
                       size: size,
                       tracking: size * tracking)

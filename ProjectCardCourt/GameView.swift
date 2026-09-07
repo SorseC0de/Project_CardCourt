@@ -774,6 +774,20 @@ struct GameView: View {
         return ZStack {
             Color.black.opacity(0.88).ignoresSafeArea()
 
+            // **The number, once and large.** Everywhere else a man is written "#12 John";
+            // here the name carries the sentence and the number goes in the corner at the
+            // size a shirt would wear it. A tie has no one number, so it goes unwritten.
+            if winners.count == 1 {
+                Text("#\(Kit.numbers[safe: PlayerLook.shared.number(for: winners[0])] ?? "0")")
+                    .font(.system(size: 96, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.color(for: winners[0]).opacity(0.22))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: .bottomTrailing)
+                    .padding(.trailing, 14)
+                    .padding(.bottom, 10)
+                    .allowsHitTesting(false)
+            }
+
             VStack(spacing: 14) {
                 HStack(spacing: 22) {
                     ForEach(Array(winners.enumerated()), id: \.element) { place, seat in

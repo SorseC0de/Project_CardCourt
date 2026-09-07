@@ -122,6 +122,20 @@ final class PlayerLook {
         return roll(0x46_41 &+ UInt64(seat.rawValue), upTo: Sprite.heads.frames)
     }
 
+    /// The number on this man's back. Yours is the one you chose, theirs comes with the
+    /// table, and the house is rolled off the crew like everything else about it.
+    func number(for seat: Seat) -> Int {
+        if seat.isLocal { return HooperKit.shared.number }
+        if let look = look(seat) { return look.number }
+        return roll(0x4E_4F &+ UInt64(seat.rawValue), upTo: Kit.numbers.count)
+    }
+
+    /// **How a name is written wherever there is room for the whole of it**: the number,
+    /// then the man. A squad list reads this way and so does the back of a shirt.
+    func billing(for seat: Seat) -> String {
+        "#\(Kit.numbers[safe: number(for: seat)] ?? "0") \(seat.playerName)"
+    }
+
     /// The main colour of a seat's kit, for anything that wants the table's own palette
     /// rather than the UI's — see `SideStreaks`.
     func jersey(for seat: Seat) -> Color {

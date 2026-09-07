@@ -37,6 +37,9 @@ final class Table {
         /// Indices into `Kit.colours`.
         var jersey: Int
         var belt: Int
+        /// Index into `Kit.numbers` — 0 is "00" and the rest are 0 through 99. It is on
+        /// his back and in front of his name, so it travels with the rest of him.
+        var number: Int = 1
     }
 
     struct Chair: Hashable, Codable {

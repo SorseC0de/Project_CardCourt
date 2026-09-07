@@ -31,6 +31,9 @@ enum Sprite: String, CaseIterable {
     case sparkleBurst = "SparkleBurst"
     /// A player facing the camera. One frame — a pose, not a loop.
     case front = "Player_front"
+    /// Stood there with it, facing the room. What a man looks like holding a ball, as
+    /// opposed to winding up to throw one in — see `Sprite.inbounder`.
+    case holdBall = "Player_holdball"
     /// Turned away, watching the play. One frame, like `front` — it is what everybody who
     /// is not going up for the board is doing while somebody else is.
     case back = "Player_back"
@@ -73,7 +76,7 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
-        case .front, .back, .right, .akuma, .praised, .gooseneck: return 1
+        case .front, .back, .right, .akuma, .praised, .gooseneck, .holdBall: return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
         // Three ways of standing about waiting for a throw.
@@ -105,7 +108,7 @@ enum Sprite: String, CaseIterable {
     var face: Kit.FaceBuild? {
         switch self {
         // Drawn looking at you: both eyes, the sheet's one and its reflection.
-        case .front, .spinBall, .bounceBall, .gooseneck, .praised:
+        case .front, .spinBall, .bounceBall, .gooseneck, .praised, .holdBall:
             return .whole
         // Side on: the near eye, and the far one behind the nose.
         case .right:

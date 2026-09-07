@@ -68,7 +68,7 @@ struct ScoreboardView: View {
                 Circle()
                     .fill(tint)
                     .frame(width: 7, height: 7)
-                Text(player.seat.playerName)
+                Text(PlayerLook.shared.billing(for: player.seat))
                     .font(.system(size: 12, weight: isLocal || isCalledOut ? .bold : .regular))
                     .foregroundStyle(isLocal || isCalledOut ? Theme.ink : Theme.inkDim)
             }

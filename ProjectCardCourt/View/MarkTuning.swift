@@ -24,8 +24,16 @@ final class MarkTuning {
     ///
     /// One choice for the whole game rather than per sheet: it is the same shirt on the
     /// same man, and a number that changed face between frames would be two shirts.
-    var numberFont: String = PixelFont.fallback { didSet { saveNumberStyle() } }
-    var numberSize: CGFloat = 8 { didSet { saveNumberStyle() } }
+    var numberFont: String = NumberStyle.a.font { didSet { saveNumberStyle() } }
+    var numberSize: CGFloat = 3 { didSet { saveNumberStyle() } }
+
+    /// Which of the three the player picked. Named rather than described, because a
+    /// pixel face at three points is not something a name can tell you about — you look
+    /// at the three and choose one.
+    var numberStyle: NumberStyle {
+        get { NumberStyle.allCases.first { $0.font == numberFont } ?? .a }
+        set { numberFont = newValue.font }
+    }
 
     /// What is shown while placing. Four numbers rather than a hundred: a single digit, a
     /// pair of the same, a mixed pair and the widest there is — anything that fits those
@@ -60,7 +68,10 @@ final class MarkTuning {
     /// most sheets need, since a head that does not move wants one answer for sixteen
     /// frames.
     func spot(_ sheet: Sprite, frame: Int, eye: Mark) -> Spot {
+        // Three layers, narrowest first: what is being tuned right now, what was tuned
+        // and baked in, and — for a sheet nobody has been over — what the code guessed.
         MarkTable.spot(sheet.rawValue, frame: frame, eye: eye, in: tuned)
+            ?? MarkTable.spot(sheet.rawValue, frame: frame, eye: eye, in: MarkTable.baked)
             ?? Self.guessed(sheet, frame: frame, eye: eye)
     }
 

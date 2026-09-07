@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Player_holdball.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

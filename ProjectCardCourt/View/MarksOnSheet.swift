@@ -68,12 +68,15 @@ struct MarksOnSheet: View {
     /// the middle of the cell is where that is on every sheet — so the dials are a nudge
     /// off centre rather than a measurement from an edge nobody can see.
     private func digits(_ number: String, at spot: Spot) -> some View {
-        Text(number)
+        // **A single digit is not centred by being centred.** One glyph in a face built
+        // for pairs sits half a pixel left of where the eye wants it, so it is nudged.
+        let lone: CGFloat = number.count == 1 ? 0.5 : 0
+        return Text(number)
             .font(.custom(eyes.numberFont, fixedSize: eyes.numberSize * scale))
             .foregroundStyle(numberInk)
             .fixedSize()
             .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
-            .offset(x: spot.x * scale, y: spot.y * scale)
+            .offset(x: (spot.x + lone) * scale, y: spot.y * scale)
     }
 
     private func eye(at shift: CGPoint) -> some View {
