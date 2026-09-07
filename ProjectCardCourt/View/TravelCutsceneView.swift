@@ -2,22 +2,9 @@ import SwiftUI
 
 /// Travel gets a bit — one of three, picked at random, with the word arriving only once
 /// the joke has landed.
-struct TravelCutsceneView: View {
-    enum Bit: CaseIterable {
-        case footprints, roadTrip, flight
+extension TravelCutsceneView { typealias Bit = TravelBit }
 
-        /// How long the whole bit needs, word included.
-        ///
-        /// One hold for all three left the prints sitting there long after the joke had
-        /// landed — the number was set for the plane, which has a circuit to fly.
-        var hold: Double {
-            switch self {
-            case .footprints: return 4.2
-            case .roadTrip:   return 5.4
-            case .flight:     return 6.2
-            }
-        }
-    }
+struct TravelCutsceneView: View {
 
     let bit: Bit
     /// The word, once the animation has made its point.

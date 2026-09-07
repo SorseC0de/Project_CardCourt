@@ -63,17 +63,9 @@ enum DeckDrift {
 /// are the state, and SwiftUI only has to keep the object alive.
 @MainActor
 final class DeckStage {
+    typealias Routine = DeckRoutine
 
-    /// Something the deck can be asked to do.
-    enum Routine: Equatable {
-        case rest
-        /// Floats up, breaks apart, gathers, and does it again before settling.
-        case shuffle
-        /// Drops hard enough to knock itself out of true, then tidies up.
-        case landing
-        /// A shuffle that finishes by landing — what a fresh deal opens with.
-        case deal
-    }
+
 
     /// The whole pile, moved as one when the deck travels.
     let pile = Entity()

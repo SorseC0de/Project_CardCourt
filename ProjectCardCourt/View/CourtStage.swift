@@ -387,10 +387,4 @@ struct CardFlight: Identifiable, Equatable {
     var seconds: TimeInterval = 0.55
 }
 
-/// The opening deal: who gets cards, and how many each.
-struct OpeningDeal: Identifiable, Equatable {
-    let id: UUID
-    /// Dealt in this order, one player at a time.
-    let order: [Seat]
-    let each: Int
-}
+
