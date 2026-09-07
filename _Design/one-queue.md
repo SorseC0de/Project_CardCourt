@@ -45,6 +45,33 @@ step might need to wait for:
 owing something is pushing it. `settleHands` disappears: what it does is a step, queued
 where it belongs rather than swept up at the edges.
 
+## What it unlocks: "What just happened?"
+
+> "A button that walks back through the last few events for people failing to keep up with
+> all the stuff flying by on screen. Cause sometimes you can go a really long time not
+> being able to actually play."
+
+This is the case *for* the queue rather than a use of it, and it is the strongest one.
+
+The log already exists and does not answer this. It is **text, released a beat at a time**
+— it tells you a Clamp landed, not that a man walked out and swiped at your hand. What
+somebody who lost the thread wants back is the *scene*: the card held up, the name plate,
+the ball crossing, the referee arriving. None of that is recoverable from a line of prose,
+and none of it can be rebuilt from `GameState`, because the state is where things ended up
+rather than how they got there.
+
+With one queue it is close to free. The steps are already the scenes; keep the last
+however-many in a ring and replay them with the rules skipped. Nothing new has to be
+recorded, because recording is what the queue is.
+
+It also answers a real complaint about the game rather than about the code. Three other
+players take their turns and a lot happens that is *done to you*, and at four players the
+stretch where you cannot act is long enough to lose the thread entirely. A game where you
+spend that long watching owes you a way to catch up.
+
+Worth noting the same window would give a guest a way to *re-sync*: replay is the same
+mechanism as catch-up, which is what a device rejoining a match needs.
+
 ## What is genuinely hard
 
 1. **Presentation is already a second queue**, and a better one — `beat(of:)`, `release`,
