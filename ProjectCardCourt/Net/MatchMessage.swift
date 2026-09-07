@@ -64,6 +64,18 @@ enum HostMessage: Codable {
     /// `Digest`. The guest folds the same events into its own and compares: the states
     /// cannot be diffed because they are redacted differently, but the events cannot.
     case turn(state: GameState, events: [GameEvent], digest: Digest)
+    /// **The board as it stands, with no story attached.** Sent to a guest that arrived
+    /// late or re-announced itself, to catch it up.
+    ///
+    /// A separate case from `.turn` because it is *not a batch*, and the difference is
+    /// load-bearing. It used to be sent as `.turn` with no events — which the host never
+    /// folded, since nothing had happened, while the guest folded it unconditionally.
+    /// `Digest.fold` counts a batch and hashes the two bytes of an empty array, so the
+    /// guest came out one batch ahead with a different value and reported a desync that
+    /// had not happened — permanently, and on nearly every match, because a guest
+    /// re-announces every 500ms until it is dealt. A snapshot carries the host's
+    /// fingerprint to be **adopted**, not folded.
+    case board(state: GameState, digest: Digest)
     /// The host has started the game. Until this arrives a guest sits in the lobby
     /// watching the chairs fill.
     case start

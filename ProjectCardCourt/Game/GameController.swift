@@ -831,8 +831,8 @@ final class GameController {
             // with a gate open on a possession it could act in before a card had landed.
             // A late arrival still needs catching up, so this stands once the deal is out.
             if dealtTheTable {
-                try? match.send(.turn(state: state.redacted(for: seat), events: [],
-                                      digest: digest), to: seat)
+                try? match.send(.board(state: state.redacted(for: seat), digest: digest),
+                                to: seat)
             }
             DevLog.say(.net, "\(seat.name) is ready"
                        + (dealtTheTable ? " — sent the table and the board" : " — waiting on the deal"))
@@ -874,6 +874,18 @@ final class GameController {
         case .start:
             DevLog.say(.net, "the host started the game")
             begin()
+        // Caught up rather than told a story. **Adopted, not folded** — see
+        // `HostMessage.board`.
+        case .board(let state, let theirs):
+            dealtTheTable = true
+            digest = theirs
+            parted = false
+            lastBoard = fingerprint(state)
+            DevLog.say(.net, "guest ← caught up at batch \(theirs.batches)  \(lastBoard)")
+            loop?.cancel()
+            self.state = state
+            self.shown = state
+            gate = localGate
         case .turn(let state, let events, let theirs):
             // Dealt to. Whatever else this board is, it is proof the host can hear us.
             dealtTheTable = true
@@ -1094,6 +1106,11 @@ final class GameController {
     /// never be played. All of it goes before the host's first board arrives, or the two
     /// devices are looking at different matches from the first line.
     private func forgetTheSoloGame() {
+        // **The board itself, not just the trimmings.** Clearing the log and the opening
+        // draws left the hands, the deck and the discard exactly as this device dealt
+        // them, and those are what the court actually draws.
+        state = state.awaitingTheDeal()
+        shown = state
         openingDraws = []
         log.removeAll()
         undelivered.removeAll()

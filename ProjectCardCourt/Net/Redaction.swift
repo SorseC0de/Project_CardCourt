@@ -1,6 +1,32 @@
 import Foundation
 
 extension GameState {
+    /// The board with nothing dealt on it, for a guest that has not been dealt to yet.
+    ///
+    /// **A controller always deals in `init`** — it has to, since it cannot know yet
+    /// whether it is about to be a solo game or a seat at somebody else's table. On a
+    /// guest every card of that is wrong, and clearing the *presentation* around it was
+    /// not enough: the hands, the deck and the discard are drawn straight off the state,
+    /// so until the host's first board arrived the guest sat looking at a hand it had
+    /// dealt itself from its own seed. That is a desync you can watch, before a card has
+    /// been played.
+    ///
+    /// The seats, the mode and the phase stand — the court needs somewhere to draw four
+    /// men — and everything that was dealt goes.
+    func awaitingTheDeal() -> GameState {
+        var copy = self
+        copy.deck = []
+        copy.discard = []
+        for index in copy.players.indices {
+            copy.players[index].bag = []
+            copy.players[index].clamps = []
+            copy.players[index].intangibles = []
+            copy.players[index].injuries = []
+        }
+        copy.rng = SeededRNG(seed: 0)
+        return copy
+    }
+
     /// A copy of the state safe to hand to one seat.
     ///
     /// The host holds the only complete state and never sends it. What a player is

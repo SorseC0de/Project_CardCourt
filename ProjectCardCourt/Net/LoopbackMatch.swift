@@ -115,6 +115,7 @@ final class LoopbackMatch: MatchTransport {
         switch message {
         case .seated(let seat, _, _):     return "seated(\(seat.name))"
         case .turn(let state, let events, _): return "turn(\(state.phase.label), \(events.count))"
+        case .board(let state, let digest): return "board(\(state.phase.label), b\(digest.batches))"
         case .start:                       return "start"
         }
     }
