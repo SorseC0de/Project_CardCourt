@@ -241,19 +241,36 @@ struct GameView: View {
                     // the player opened for themselves.
                     .zIndex(11)
                 }
-                if case .awaitingCounter(let card) = controller.gate {
-                    // Two cards can be offered here and they do two different things, so the
-                    // question is asked in the card's own words rather than Clear Out's.
-                    CardChoiceView(title: "\(card.name)?",
-                                   note: card.clearsOut
-                                       ? "Step aside and the ball carries on"
-                                       : "Break the clamps before they land",
-                                   offered: [card],
+                if case .awaitingCounter(let cards) = controller.gate, !cards.isEmpty {
+                    // **Every answer the hand holds.** Two fields let a card answer here
+                    // and a hand can hold both, so the question is which one you spend —
+                    // and it is asked in the cards' own words rather than one of theirs.
+                    let mixed = Set(cards.map(\.descriptor.clearsOut)).count > 1
+                    CardChoiceView(title: cards.count == 1
+                                   ? "\(cards[0].descriptor.name)?" : "Answer it?",
+                                   note: mixed
+                                       ? "Step aside, or break them before they land"
+                                       : (cards[0].descriptor.clearsOut
+                                          ? "Step aside and the ball carries on"
+                                          : "Break the clamps before they land"),
+                                   offered: cards.map(\.descriptor),
                                    tint: CardPalette.orange,
                                    taking: "Play it!",
                                    declining: "No thanks",
-                                   onDecline: { controller.choose(counter: false) },
-                                   onPick: { _ in controller.choose(counter: true) })
+                                   onDecline: { controller.choose(counter: nil) },
+                                   onPick: { picked in
+                                       // `CardChoiceView` answers by name or by seat in
+                                       // the row it drew; either way it names one of the
+                                       // cards this hand was offered.
+                                       let taken: Card?
+                                       switch picked {
+                                       case .named(let id):
+                                           taken = cards.first { $0.descriptor.id == id }
+                                       case .position(let at):
+                                           taken = cards[safe: at]
+                                       }
+                                       controller.choose(counter: taken?.id)
+                                   })
                         .zIndex(11)
                 }
                 if browsingDiscard {

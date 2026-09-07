@@ -243,18 +243,39 @@ enum Rules {
     /// off — so a hand's answer to being guarded is asked for while the pile is still in
     /// the air, whether or not the card says it must be played first. One card, picked in
     /// order: stepping out of the play entirely beats breaking what is coming.
-    static func counterOnOffer(to seat: Seat, in state: GameState) -> Card? {
-        // Offered on any pass, not only one with a through-line: stepping out of a ball
-        // aimed at you is a real choice, it just costs the man who threw it rather than
-        // sending the ball on.
-        if let passer = state.lastPasser, passer != seat,
-           let out = state[seat].bag.first(where: { $0.descriptor.clearsOut }) {
-            return out
+    /// **Everything in the hand that answers this, not the first one found.**
+    ///
+    /// Two different fields let a card answer here — `clearsOut` steps away from a pass,
+    /// `clearsClamps` takes the defenders out of the air — and a hand can hold both at
+    /// once. It used to check for a clear-out first and return, so a man with Clear Out
+    /// *and* Spin Move against an arriving Clamp was shown one of them and never told the
+    /// other was possible. Which one you spend is the decision.
+    static func countersOnOffer(to seat: Seat, in state: GameState) -> [Card] {
+        var offered: [Card] = []
+        // Stepping out of a ball aimed at you is a real choice on any pass, not only one
+        // with a through-line — it just costs the man who threw it rather than sending
+        // the ball on.
+        if let passer = state.lastPasser, passer != seat {
+            offered += state[seat].bag.filter { $0.descriptor.clearsOut }
         }
-        guard !clampsArriving(on: seat, in: state).isEmpty else { return nil }
-        return state[seat].bag.first { $0.descriptor.clearsClamps }
+        if !clampsArriving(on: seat, in: state).isEmpty {
+            offered += state[seat].bag.filter { $0.descriptor.clearsClamps }
+        }
+        // A card that does both is still one card.
+        var seen: Set<Card.ID> = []
+        return offered.filter { seen.insert($0.id).inserted }
     }
 
+
+    /// Takes the first card on offer, or declines. **For callers with nothing to choose
+    /// with** — the harness, and the AI, which does not yet weigh one answer against
+    /// another. A player is asked properly; see `countersOnOffer`.
+    @discardableResult
+    static func resolveCounter(_ taken: Bool, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingCounter(let seat, _) = state.phase else { return [] }
+        let first = taken ? countersOnOffer(to: seat, in: state).first?.id : nil
+        return resolveCounter(first, state: &state)
+    }
 
     /// Taken, or turned down.
     ///
@@ -262,14 +283,20 @@ enum Rules {
     /// it spends the card and sends the ball on, and the defenders that were about to land
     /// land on the next man instead — which is the whole reason the question is asked here
     /// rather than on his turn.
+    ///
+    /// - Parameter chosen: which of the offered cards is being spent, or nil to decline.
     @discardableResult
-    static func resolveCounter(_ taken: Bool, state: inout GameState) -> [GameEvent] {
+    static func resolveCounter(_ chosen: Card.ID?, state: inout GameState) -> [GameEvent] {
         guard case .awaitingCounter(let seat, _) = state.phase,
               let held = state.heldPossession else { return [] }
         var events: [GameEvent] = []
         state.heldPossession = nil
 
-        guard taken, let card = counterOnOffer(to: seat, in: state) else {
+        // Only one of the cards actually on offer, and only if one was named.
+        let card = chosen.flatMap { id in
+            countersOnOffer(to: seat, in: state).first { $0.id == id }
+        }
+        guard let card else {
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
                             fromOwnMiss: held.fromOwnMiss, offering: false,
                             alreadyDrew: held.drew, state: &state, events: &events)
@@ -1395,7 +1422,13 @@ enum Rules {
         let roll = state.roll(0...999)
         // A card that calls for one gets any of the three; a plain possession gets what
         // the man's position throws down, and never a whirlwind.
-        if let special = card?.special, special.dunks {
+        if let special = card?.special {
+            // **A card that is plainly a jump shot never becomes a dunk.** A Special Move
+            // says whether it finishes at the rim; one that does not — a Turnaround
+            // Three, a Fadeaway, a heave from the logo — is the whole of what happened,
+            // and falling through to "what would this man throw down anyway" put a centre
+            // on the rim off a shot taken from the arc.
+            guard special.dunks else { return nil }
             // A card that names one gets that one; a card that only asks for a dunk gets
             // any of the three.
             return special.dunkKind ?? Dunk.allCases[roll % Dunk.allCases.count]
@@ -1816,12 +1849,13 @@ enum Rules {
         // of the play is not there for the defenders either, and they land immediately
         // below — so this is the last moment it can be asked. The whole opening is held
         // and run again on the answer, which is what `drew` is for.
-        if offering, let card = counterOnOffer(to: seat, in: state) {
+        let offers = offering ? countersOnOffer(to: seat, in: state) : []
+        if !offers.isEmpty {
             state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
                                                             fromRebound: fromRebound,
                                                             fromOwnMiss: fromOwnMiss,
                                                             drew: true)
-            state.phase = .awaitingCounter(seat: seat, card: card.descriptor)
+            state.phase = .awaitingCounter(seat: seat, cards: offers)
             return
         }
 

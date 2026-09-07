@@ -394,7 +394,7 @@ final class GameController {
         case awaitingBid(shooter: Seat)
         case awaitingDiscard(card: CardDescriptor, bonusEach: Int)
         /// Stepping out of the play, asked the moment the ball reaches you.
-        case awaitingCounter(card: CardDescriptor)
+        case awaitingCounter(cards: [Card])
         /// Bone Bruise's toll at the top of the turn. Its own case, because the shot
         /// discard resolves into a shot and this one resolves into a turn.
         case awaitingGiveUp(card: CardDescriptor, count: Int)
@@ -976,8 +976,8 @@ final class GameController {
             return trip.shooter.isLocal ? .awaitingFreeThrow(trip) : .thinking
         case .awaitingDiscard(let seat, let card, let bonus):
             return seat.isLocal ? .awaitingDiscard(card: card, bonusEach: bonus) : .thinking
-        case .awaitingCounter(let seat, let card):
-            return seat.isLocal ? .awaitingCounter(card: card) : .thinking
+        case .awaitingCounter(let seat, let cards):
+            return seat.isLocal ? .awaitingCounter(cards: cards) : .thinking
         case .awaitingTarget(let seat, let card, let choices):
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
@@ -1617,12 +1617,13 @@ final class GameController {
     }
 
     /// The card offered as the possession arrives — taken, or turned down.
-    func choose(counter taken: Bool) {
+    /// - Parameter chosen: which of the offered cards is being spent, nil to decline.
+    func choose(counter chosen: Card.ID?) {
         guard !isPaused else { return }
         guard case .awaitingCounter = gate else { return }
-        if sendUp(.counter(taken)) { return }
+        if sendUp(.counter(chosen)) { return }
         drive {
-            await present(Rules.resolveCounter(taken, state: &state), playedCard: true)
+            await present(Rules.resolveCounter(chosen, state: &state), playedCard: true)
             await run()
         }
     }
@@ -2077,15 +2078,18 @@ final class GameController {
                 if seat.isLocal { gate = localGate; return }
                 // Worth it for what is about to land on him, and nothing otherwise: the
                 // card is a way out of the defenders, not a way of moving the ball.
-                var taken = !state.pendingClamps.isEmpty
+                // The house does not weigh one answer against another yet — it takes the
+                // first on offer when there is anything to break, and nothing otherwise.
+                var chosen = state.pendingClamps.isEmpty ? nil
+                    : Rules.countersOnOffer(to: seat, in: state).first?.id
                 if case .counter(let said)? = await decision(from: seat) {
-                    taken = said
+                    chosen = said
                 } else if !Table.shared.isRemote(seat) {
                     gate = .thinking
                     await think()
                 }
                 if Task.isCancelled { return }
-                await present(Rules.resolveCounter(taken, state: &state), playedCard: true)
+                await present(Rules.resolveCounter(chosen, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingTarget(let seat, _, let choices) = state.phase {

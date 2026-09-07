@@ -472,8 +472,10 @@ enum CardLibrary {
 
     static let rockFight = CardDescriptor(
         id: "rock-fight", name: "Rock Fight", type: .gameBreak,
-        effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 3,
-        gameBreak: GameBreakEffect(blocksShotAtOrAbove: 50))
+        effect: "Nobody shoots above 50%. Rest of the round", numberInDeck: 3,
+        // Fifty is allowed; the block starts one over it — see `blocksShotAtOrAbove`,
+        // which is a floor rather than a limit.
+        gameBreak: GameBreakEffect(blocksShotAtOrAbove: 51))
 
     static let floorCleanup = CardDescriptor(
         id: "floor-cleanup", name: "Floor Cleanup", type: .gameBreak,

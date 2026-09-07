@@ -115,7 +115,10 @@ enum Phase: Hashable, Codable {
     /// Clear Out: asked the moment the ball arrives, before the defenders land on him.
     /// Answering no puts the card down for the possession; answering yes spends it and the
     /// ball carries on without him.
-    case awaitingCounter(seat: Seat, card: CardDescriptor)
+    /// **All of them, not the first that matched.** A hand can hold more than one answer
+    /// — a Clear Out to step away and a Spin Move to take the defenders out of the air —
+    /// and which one you spend is the decision.
+    case awaitingCounter(seat: Seat, cards: [Card])
     /// At the line. One attempt at a time until the trip runs out.
     case freeThrows(trip: FreeThrowTrip)
     case gameOver

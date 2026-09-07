@@ -557,8 +557,20 @@ func runTests() {
             Check.that(false, "the ball's arrival asks about the Clamp-breaker")
             return
         }
-        Check.that(asked == receiver && offered.id == "spin-move",
+        Check.that(asked == receiver && offered.contains { $0.descriptor.id == "spin-move" },
                    "the ball's arrival asks about the Clamp-breaker")
+
+        // **Every answer in the hand, not the first one found.** A man with a Clear Out
+        // to step away and a Spin Move to take the defenders out of the air was shown one
+        // of them and never told the other was possible.
+        var both = state
+        both[receiver].bag.append(matchCard(CardLibrary.clearOut, .standard))
+        // Somebody other than him threw it, or stepping out of the pass is not on offer.
+        both.lastPasser = Seat.allCases.first { $0 != receiver }
+        let offers = Set(Rules.countersOnOffer(to: receiver, in: both).map(\.descriptor.id))
+        Check.that(offers.isSuperset(of: ["spin-move", "clear-out"]),
+                   "every answer in the hand is offered, not the first one found")
+        Check.that(offers.count == Set(offers).count, "and none of them twice")
 
         let shotBefore = state.shot
         Rules.resolveCounter(true, state: &state)
