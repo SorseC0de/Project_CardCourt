@@ -100,7 +100,23 @@ final class GameCenterMatch: NSObject, MatchTransport {
     /// Game Center will not talk to an app that has not been authenticated, and it only
     /// authenticates once per launch however many times this is called.
     func signIn() {
-        guard case .signedOut = status else { return }
+        // **A failure is something to try again, not a state to be stuck in.** This
+        // refused anything but `signedOut`, and the button calling it is shown on
+        // `failed` too — so the one press that could recover a dropped session did
+        // nothing at all, and the only way back was killing the app from the switcher.
+        switch status {
+        // Already asking, or busy with a match. Neither wants interrupting.
+        case .signingIn, .searching, .connecting, .seated, .playing: return
+        default: break
+        }
+        // **Often there is nothing wrong but what we last wrote down.** Game Center drops
+        // a spurious failure now and then while the account is perfectly good, so the
+        // cheapest refresh is to look again before asking anybody to sign in.
+        if GKLocalPlayer.local.isAuthenticated {
+            status = .ready(player: GKLocalPlayer.local.displayName)
+            DevLog.say(.net, "already signed in — refreshed rather than re-asked")
+            return
+        }
         status = .signingIn
         GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
             guard let self else { return }
@@ -295,7 +311,9 @@ final class GameCenterMatch: NSObject, MatchTransport {
                 let name = ([GKLocalPlayer.local] + match.players)
                     .first { $0.gamePlayerID == id }?.displayName ?? seat.houseName
                 provisional[seat] = Table.Chair(
-                    occupant: .remote(playerID: id), name: name,
+                    occupant: .remote(playerID: id),
+                    name: id == me && !HooperKit.shared.name.isEmpty
+                        ? HooperKit.shared.name : name,
                     look: id == me ? HooperKit.shared.look : nil)
             }
             for seat in Seat.allCases where provisional[seat] == nil {
@@ -322,7 +340,8 @@ final class GameCenterMatch: NSObject, MatchTransport {
             chairs[seat] = Table.Chair(
                 // Everybody by id; `seat(_:asLocal:)` promotes this device's own.
                 occupant: .remote(playerID: player.gamePlayerID),
-                name: player.displayName,
+                name: mine && !HooperKit.shared.name.isEmpty
+                    ? HooperKit.shared.name : player.displayName,
                 // The host's own man goes out with the table. Everybody else's arrives
                 // with their `ready`, which is the first thing their device says.
                 look: mine ? HooperKit.shared.look : nil)

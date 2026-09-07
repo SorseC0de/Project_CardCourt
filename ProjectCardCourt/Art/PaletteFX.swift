@@ -85,6 +85,17 @@ enum PixelPalette {
     static let ball = orange
     static let ballShade = darkOrange
 
+    /// What a player the house has taken over is drawn in.
+    ///
+    /// **Not a skin tone.** `skinTones` is the warm ramp, and there is no grey anywhere in
+    /// it — metal is the palette's own 14, 13 and 12, which is a different ramp entirely.
+    /// So it is a swap rather than an index, and anything asking "which tone" cannot
+    /// answer this one.
+    static let metalSkin: [PaletteSwap] = [
+        PaletteSwap(skin, stone), PaletteSwap(skinShade, steel),
+        PaletteSwap(skinDeepShade, iron),
+    ]
+
     /// The skin ramps, darkest entry first — the palette's own indices 0 through 6.
     ///
     /// Every side-by-side pair in the warm ramp works as a skin tone, so the options are

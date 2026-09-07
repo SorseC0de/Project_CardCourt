@@ -49,7 +49,8 @@ final class HooperKit {
 
     /// The four things about him that anybody else can see, ready to travel.
     var look: Table.Look {
-        Table.Look(tone: tone, face: face, jersey: jersey, belt: belt, number: number)
+        Table.Look(tone: tone, face: face, jersey: jersey, belt: belt, number: number,
+                   name: name)
     }
 
     /// What the sprite wears, ready to hand to `paletteSwap`. Dressed by the same line

@@ -40,6 +40,10 @@ final class Table {
         /// Index into `Kit.numbers` — 0 is "00" and the rest are 0 through 99. It is on
         /// his back and in front of his name, so it travels with the rest of him.
         var number: Int = 1
+        /// What he called himself. **Not the Game Center name**: the account is who you
+        /// are to Apple, and this is who you are on the court — and it is the one a player
+        /// spent time choosing, so it is the one everybody should see.
+        var name: String = ""
     }
 
     struct Chair: Hashable, Codable {
@@ -73,16 +77,38 @@ final class Table {
         self.chairs = mine
     }
 
-    /// Somebody dropped. The house plays out their seat, in the house's colours — the
-    /// man who built that strip has gone.
+    /// Somebody dropped, and the house plays out their seat.
+    ///
+    /// **The man stays.** His hand, his turn, his strip and his face are all where he left
+    /// them — what changes is that nobody is choosing for him any more. So the look is
+    /// kept and his name is marked, and `PlayerLook` draws a kept look on a computer chair
+    /// in metal. A seat that emptied and came back as a stranger would read as a different
+    /// game rather than as the same one carrying on.
     func replaceWithComputer(at seat: Seat) {
-        chairs[seat] = Chair(occupant: .computer, name: chairs[seat]?.name ?? seat.houseName)
+        let was = chairs[seat]
+        let name = was?.name ?? seat.houseName
+        chairs[seat] = Chair(occupant: .computer,
+                             name: name.hasSuffix(Table.botSuffix) ? name
+                                 : name + Table.botSuffix,
+                             look: was?.look)
+    }
+
+    /// What is put on the end of a name the house has taken over.
+    static let botSuffix = "_bot"
+
+    /// True when this chair is a player the house is finishing for — a look nobody is
+    /// choosing with any more.
+    func isBot(_ seat: Seat) -> Bool {
+        occupant(at: seat) == .computer && chairs[seat]?.look != nil
     }
 
     /// What somebody at the table built. Arrives after the seating, since a device has to
     /// be asked before it can say.
     func setLook(_ look: Look, at seat: Seat) {
         chairs[seat]?.look = look
+        // The name he chose beats the name Apple has for him — see `Look.name`. Blank
+        // means he never set one, and then the account's name is the best there is.
+        if !look.name.isEmpty { chairs[seat]?.name = look.name }
     }
 
     func name(at seat: Seat) -> String {

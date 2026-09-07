@@ -52,7 +52,10 @@ struct GameView: View {
             prompts.zIndex(2)
             scenes.zIndex(3)
             calls.zIndex(4)
-            if paused { pauseMenu.zIndex(5) }
+            // **Somebody leaving outranks the pause menu.** It is not a thing you
+            // opened and can close; the game is stopped until it is answered.
+            if !controller.walkedOut.isEmpty { walkedOut.zIndex(6) }
+            else if paused { pauseMenu.zIndex(5) }
         }
         // What the log's foot and the name plate are both measured in.
         .coordinateSpace(name: Chrome.screen)
@@ -715,6 +718,43 @@ struct GameView: View {
     /// **Quitting unloads the game**, rather than walking away from one still running
     /// behind the front screen — see `RootView`. In a match it cannot stop the table, so
     /// the freeze is silently nothing there and the only real choice is to leave.
+    /// What the table is asked when one of them goes.
+    ///
+    /// **No way to dismiss it.** Tapping the dark resumes the pause menu because a pause
+    /// is yours to end; this is a question, and the game cannot go on either way until it
+    /// is answered.
+    private var walkedOut: some View {
+        let gone = controller.walkedOut.sorted { $0.rawValue < $1.rawValue }
+        let names = gone.map(\.playerName)
+        let who = names.count == 1 ? names[0]
+            : names.dropLast().joined(separator: ", ") + " and " + (names.last ?? "")
+        return ZStack {
+            Color.black.opacity(0.86).ignoresSafeArea()
+            VStack(spacing: 18) {
+                ScreenTitle(text: names.count == 1 ? "They Left" : "They Left",
+                            drop: CardPalette.red)
+                Text("\(who) \(names.count == 1 ? "has" : "have") gone."
+                     + " Carry on with the house playing "
+                     + (names.count == 1 ? "their" : "their") + " seat?")
+                    .font(.custom(Chrome.display, size: 16))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 30)
+                VStack(spacing: 12) {
+                    ChunkyButton(title: "Play On", fill: CardPalette.blue) {
+                        controller.keepPlaying()
+                    }
+                    ChunkyButton(title: "End Game", fill: CardPalette.red) {
+                        controller.stopHere()
+                        onQuit()
+                    }
+                }
+                .padding(.horizontal, 40)
+            }
+        }
+        .transition(.opacity)
+    }
+
     private var pauseMenu: some View {
         ZStack {
             Color.black.opacity(0.86).ignoresSafeArea()

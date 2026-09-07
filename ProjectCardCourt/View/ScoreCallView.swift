@@ -96,7 +96,7 @@ struct ScoreCallView: View {
             HStack(spacing: 3) {
                 SpriteAnimation(sprite: .heads, scale: Board.head, isPlaying: false,
                                 restFrame: PlayerLook.shared.face(for: seat))
-                    .paletteSwap(PixelPalette.skin(tone: PlayerLook.shared.tone(for: seat)))
+                    .paletteSwap(PlayerLook.shared.skin(for: seat))
                 SmallCapsText(text: PlayerLook.shared.billing(for: seat), font: Chrome.display, size: 12,
                               tracking: 0.6)
                     .foregroundStyle(.white)

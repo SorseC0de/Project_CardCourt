@@ -68,9 +68,25 @@ final class PlayerLook {
     /// they are not people. One question, asked in one place, so a figure cannot come out
     /// in the kit and the wrong skin.
     func kit(for seat: Seat) -> [PaletteSwap] {
-        if seat.isLocal { return HooperKit.shared.swaps }
-        if let look = look(seat) { return PlayerLook.swaps(of: look) }
-        return PixelPalette.uniform(for: seat) + PixelPalette.skin(tone: tone(for: seat))
+        if seat.isLocal, !Table.shared.isBot(seat) { return HooperKit.shared.swaps }
+        if let look = look(seat) {
+            // His strip and his trim as he left them; the skin is what changes.
+            return PixelPalette.kit(Kit.colours[safe: look.jersey] ?? Kit.colours[0])
+                + PixelPalette.trim(Kit.colours[safe: look.belt] ?? Kit.colours[0])
+                + skin(for: seat)
+        }
+        return PixelPalette.uniform(for: seat) + skin(for: seat)
+    }
+
+    /// What a seat's skin is drawn with.
+    ///
+    /// **A man the house took over goes grey.** Everything else about him is where he left
+    /// it — his strip, his number, his face — and the metal is the one thing that says
+    /// nobody is home. Asked in one place so a head drawn on its own and a body on the
+    /// floor cannot disagree about it.
+    func skin(for seat: Seat) -> [PaletteSwap] {
+        Table.shared.isBot(seat) ? PixelPalette.metalSkin
+                                 : PixelPalette.skin(tone: tone(for: seat))
     }
 
     /// A built man, dressed. The one place a `Look` turns into pixels — `HooperKit` goes

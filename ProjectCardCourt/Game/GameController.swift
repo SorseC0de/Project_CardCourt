@@ -547,7 +547,10 @@ final class GameController {
     }
 
     /// Whether this table can be paused at all.
-    var canPause: Bool { Table.shared.remotes.isEmpty }
+    /// Whether this table can be paused at all. **Somebody leaving pauses it regardless**:
+    /// the game cannot carry on until it is told whether to, and the people still here are
+    /// not waiting on the one who went.
+    var canPause: Bool { Table.shared.remotes.isEmpty || !walkedOut.isEmpty }
 
     /// Whether the floor can be read right now. Always, when nobody else is waiting; in a
     /// live match only during your own possession, since the game carries on without you.
@@ -641,6 +644,31 @@ final class GameController {
     private var discardsFromWire: [Seat: [Card.ID]] = [:]
     private var freeThrowsFromWire: [Seat: Bool] = [:]
     private var decisionsFromWire: [Seat: Decision] = [:]
+    /// Who has left and not yet been answered for. The floor holds while this is not
+    /// empty — see `keepPlaying` and `stopHere`.
+    private(set) var walkedOut: Set<Seat> = []
+
+    /// **Play on without them.** Their hand, their turn and their strip stay exactly where
+    /// they were; the house chooses from here, the name is marked, and the skin goes to
+    /// metal so nobody mistakes it for somebody still sitting there.
+    func keepPlaying() {
+        let gone = walkedOut
+        walkedOut.removeAll()
+        for seat in gone { Table.shared.replaceWithComputer(at: seat) }
+        resume()
+        guard !isGuest else { return }
+        loop?.cancel()
+        drive { await run() }
+    }
+
+    /// **Put it down.** A game two people started is not one game once one of them has
+    /// gone, and finishing it alone is not always what anybody wants.
+    func stopHere() {
+        walkedOut.removeAll()
+        resume()
+        quit()
+    }
+
     /// Seats whose device has said it is on screen and ready to be dealt to. The host
     /// holds the opening deal until they all have — see `waitForTheTable`.
     private var readySeats: Set<Seat> = []
@@ -661,11 +689,14 @@ final class GameController {
         transport.onClientMessage = { [weak self] in self?.receive($1, from: $0) }
         // A seat whose player has gone is played by the house for the rest of the game.
         // Pausing a four-handed game on one dropped phone would end it in practice.
+        // **Somebody walking out is the table's business, not the wire's.** It used to
+        // swap them for the house without a word, so a game quietly became a different
+        // one — you were beaten by a machine wearing a person's name and never told.
+        // Everybody left is asked instead; see `walkedOut`.
         transport.onSeatLost = { [weak self] seat in
-            guard let self, !self.isGuest else { return }
-            Table.shared.replaceWithComputer(at: seat)
-            self.loop?.cancel()
-            self.drive { await self.run() }
+            guard let self else { return }
+            self.walkedOut.insert(seat)
+            self.pause()
         }
     }
 

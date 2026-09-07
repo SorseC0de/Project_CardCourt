@@ -227,8 +227,12 @@ struct MatchLobbyView: View {
     @ViewBuilder
     private var actions: some View {
         switch session.status {
-        case .signedOut, .failed:
+        case .signedOut:
             ChunkyButton(title: "Sign in", fill: CardPalette.orange) { session.signIn() }
+        case .failed:
+            // Named for what it does. Game Center fails spuriously often enough that the
+            // first thing this tries is simply looking again.
+            ChunkyButton(title: "Try again", fill: CardPalette.orange) { session.signIn() }
         case .signingIn:
             ChunkyButton(title: "Signing in…", fill: CardPalette.gray, isEnabled: false) {}
         case .ready:
