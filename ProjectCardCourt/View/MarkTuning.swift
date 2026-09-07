@@ -46,6 +46,8 @@ final class MarkTuning {
     }
 
     private init() {
+        // Before anything can be drawn in the chosen face — see `PixelFont.register`.
+        PixelFont.register()
         let store = UserDefaults.standard
         if let face = store.string(forKey: Self.faceStore) { numberFont = face }
         if let size = store.object(forKey: Self.sizeStore) as? Double {

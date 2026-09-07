@@ -16,11 +16,17 @@ struct EmojiBurst: View {
     var drop: Color?
 
     private enum Burst {
-        /// The throw, and then the long slow drift after it. Two flips rather than one
-        /// curve: a single easeOut long enough to keep them up this long spends almost
-        /// all of it stationary, which reads as the burst having frozen.
-        static let creep: CGFloat = 1.35
-        static let creepSeconds: Double = 2.4
+        /// The throw, and then the drift after it. Two flips rather than one curve: a
+        /// single easeOut long enough to keep them up this long spends almost all of it
+        /// stationary, which reads as the burst having frozen.
+        ///
+        /// **And the drift never stops.** It was an easeOut of its own, which only moves
+        /// the freeze later — they still came to rest with seconds left on screen. It is
+        /// linear now, at a share of the throw per second, running far longer than
+        /// anything is ever up for: they are still going outward as they fade.
+        static let creepRate: CGFloat = 0.15
+        static let creepSeconds: Double = 12
+        static let creep: CGFloat = 1 + creepRate * CGFloat(creepSeconds)
         /// How long they hold at full before any of them starts to go.
         static let solid: Double = 2.2
         static let fade: Double = 0.9
@@ -63,7 +69,7 @@ struct EmojiBurst: View {
                         .delay(Double(StreakStyle.scatter(index, 7)) * 0.12), value: fired)
                     // Its own curve, keyed to its own flip, so the drift does not retime
                     // the throw it follows.
-                    .animation(.easeOut(duration: Burst.creepSeconds), value: drifted)
+                    .animation(.linear(duration: Burst.creepSeconds), value: drifted)
             }
         }
         .allowsHitTesting(false)

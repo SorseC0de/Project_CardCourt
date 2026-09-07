@@ -237,7 +237,6 @@ struct NameCallView: View {
 }
 
 /// The plate's proportions and pacing.
-@MainActor
 enum NameCallStyle {
     /// How tall it is and how long, against how far it flies. Exactly the trip: the plate
     /// spans the screen and no more.
@@ -251,6 +250,9 @@ enum NameCallStyle {
     /// three quarters of the trip and hung a quarter off the leading edge, this puts the
     /// dissolve across the first eighth of the screen, which is where it belongs.
 
+    /// `@MainActor` because it reads the live dials, unlike the constants around it —
+    /// those are numbers and the actor only got in their way.
+    @MainActor
     static func size(reaching reach: CGFloat) -> CGSize {
         CGSize(width: reach * NameCallTuning.shared.cardWidth,
                height: reach * NameCallTuning.shared.cardHeight)
@@ -287,6 +289,9 @@ enum NameCallStyle {
     ///
     /// **Soft** runs one slope end to end: no kinks anywhere, and the same alpha change
     /// spread over five times the pixels.
+    /// `@MainActor` because it reads the live dials, unlike the constants around it —
+    /// those are numbers and the actor only got in their way.
+    @MainActor
     static func taper(for seat: Seat) -> LinearGradient {
         let face = Theme.color(for: seat).opacity(ModeCardStyle.faceOpacity)
         let tuning = NameCallTuning.shared
@@ -317,6 +322,9 @@ enum NameCallStyle {
     static let drop: CGFloat = 7
 
     /// What the drop is drawn in, for the seat the plate belongs to.
+    /// `@MainActor` because it reads the live dials, unlike the constants around it —
+    /// those are numbers and the actor only got in their way.
+    @MainActor
     static func dropInk(for seat: Seat) -> Color {
         guard let mix = NameCallTuning.shared.dropInk.mix else { return .white }
         return Theme.color(for: seat).mix(with: CardPalette.black, by: mix)

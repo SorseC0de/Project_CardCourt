@@ -98,7 +98,9 @@ final class DeckStage {
     /// How far it tips toward whoever it is dealing to. About seventeen degrees — a nod,
     /// not a stoop. **Not private**: a card comes off the top of a bowed pile, so it
     /// starts at the pile's own lean. See `CardDealer`.
-    static let bowAngle: Float = 0.30
+    /// `nonisolated`: the stage needs the main actor for its entities, and a constant
+    /// angle does not — see `CardDealer`, which reads it as a default value.
+    nonisolated static let bowAngle: Float = 0.30
 
     /// **How big the pile is, decided by the court and applied only here.**
     ///

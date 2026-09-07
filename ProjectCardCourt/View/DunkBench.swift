@@ -35,17 +35,26 @@ enum DunkStyle {
         /// legal rate at the start it reads, and the cells after it can hurry.
         var leadCells: Int = 0
         var leadFPS: Double = 10
-        /// Which burst comes off the rim. **One each**: three finishes that land the same
-        /// way read as one animation with three wind-ups. All three point at the same
-        /// sheet until the other two are cut vertically and imported.
+        /// Which burst comes off the rim, and how fast it plays. **One each**: three
+        /// finishes that land the same way read as one animation with three wind-ups —
+        /// and the sheets are not the same length, so one rate does not suit all three.
         var burst: Sprite = .sparkleBurst
+        var burstFPS: Double = Theme.Figure.playerFPS
+        /// **How many of the burst's opening cells to cut.** A wind-up is time the rim
+        /// does not have: the bang has to land on the slam, so the cells before it are
+        /// dropped rather than led up to. Measured off the sheets — `SparkleBurst3` sits
+        /// under 220 lit pixels for eight frames and then jumps to 1124 on the ninth —
+        /// it opens on the last of those, so the bang has a frame to arrive on. The
+        /// other two are already at full on their first and cut nothing.
+        var burstSkip: Int = 0
     }
 
     static func trip(for dunk: Dunk) -> Trip {
         switch dunk {
         case .oneHand:
             return Trip(rise: 272, arrivesAt: 0.5, climb: 0.40,
-                        gatherFPS: 10, finishFPS: 10, sink: 4)
+                        gatherFPS: 10, finishFPS: 10, sink: 4,
+                        burst: .sparkleBurst2, burstFPS: 20)
         case .reverse:
             return Trip(rise: 272, arrivesAt: 0.5, climb: 0.50,
                         gatherFPS: 10, finishFPS: 10, sink: 4)
@@ -55,7 +64,8 @@ enum DunkStyle {
             // `lead cells` on the bench once it is on screen.
             return Trip(rise: 272, arrivesAt: 0.5, climb: 0.40,
                         gatherFPS: 10, finishFPS: 10, sink: 4,
-                        leadCells: 3, leadFPS: 10)
+                        leadCells: 3, leadFPS: 10,
+                        burst: .sparkleBurst3, burstFPS: 10, burstSkip: 8)
         }
     }
 
@@ -70,8 +80,6 @@ enum DunkStyle {
     /// **What the rim gives back.** The spring alone was the ring moving; this is the
     /// energy coming off it — a burst out of the net on the way up.
     static let burstScale: CGFloat = 3
-    /// A beat after the grab, so it reads as the rim answering rather than as the impact.
-    static let burstDelay: Double = 0.05
 
     /// **A swing is not the impact.** Two pixels is what arriving on the rim costs; a
     /// man already hanging on it moves less than that, and the ring moves less again —
@@ -163,6 +171,11 @@ final class DunkTuning {
         set { here.leadCells = Int(newValue) }
     }
     var leadFPS: Double { get { here.leadFPS } set { here.leadFPS = newValue } }
+    var burstFPS: Double { get { here.burstFPS } set { here.burstFPS = newValue } }
+    var burstSkip: Double {
+        get { Double(here.burstSkip) }
+        set { here.burstSkip = Int(newValue) }
+    }
 
     /// The swing, shared by all three — only a reverse uses it, and it is the rim's
     /// behaviour rather than a finish's.
@@ -200,7 +213,9 @@ final class DunkTuning {
             climb: \(g(trip.climb)),
                             gatherFPS: \(g(trip.gatherFPS)), \
             finishFPS: \(g(trip.finishFPS)), sink: \(trip.sink),
-                            leadCells: \(trip.leadCells), leadFPS: \(g(trip.leadFPS)))
+                            leadCells: \(trip.leadCells), leadFPS: \(g(trip.leadFPS)),
+                            burst: .\(trip.burst), burstFPS: \(g(trip.burstFPS)), \
+            burstSkip: \(trip.burstSkip))
             """
         }.joined(separator: "\n")
         + """
@@ -289,6 +304,11 @@ struct DunkBench: View {
                             Slider(value: $tune.leadCells, in: 0...9, step: 1)
                         }
                         rate("lead fps", $tune.leadFPS)
+                        rate("burst fps", $tune.burstFPS)
+                        // Opening cells of the burst to cut, so the bang is immediate.
+                        row("burst skip", String(Int(tune.burstSkip))) {
+                            Slider(value: $tune.burstSkip, in: 0...12, step: 1)
+                        }
                         // The swing on the rim. A reverse's, but kept out of the trips:
                         // it is what the rim does, not what a finish does.
                         heading("the swing")

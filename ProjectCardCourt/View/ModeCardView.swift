@@ -472,7 +472,6 @@ struct ModeCardView: View {
 /// slant is set by its own height, so every part of it has to scale together or
 /// the Z stops meeting. Tied to height instead, the same card would be a stripe
 /// on a short screen and a slab on a tall one.
-@MainActor
 enum ModeCardStyle {
 
     /// The face of both bars.

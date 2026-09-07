@@ -77,8 +77,13 @@ struct ShotCutsceneView: View {
     /// How hard the rim is being hung on, nought to one. Both halves read it, or the
     /// ring comes apart down the middle.
     @State private var rimPull: CGFloat = 0
-    /// When the rim gave, so the burst off it plays once from there.
+    /// When the rim gave, so the burst off it plays once from there — cleared when it
+    /// has finished, which is what takes it off the screen.
     @State private var rimGaveAt: Date?
+    /// Whether the rim has already answered. **Its own flag, not `rimGaveAt == nil`**:
+    /// that is cleared the moment the burst ends, so a reverse's next swing found it
+    /// empty and set the whole thing off again, once a second, for the rest of the scene.
+    @State private var rimAnswered = false
     /// Which burst this finish throws — see `DunkStyle.Trip.burst`.
     @State private var dunkTuning = DunkTuning.shared
 
@@ -221,8 +226,37 @@ struct ShotCutsceneView: View {
                                 }
                                 // The burst is the first grab only. One a swing would be
                                 // the rim throwing sparks for the rest of the scene.
-                                if amount == 1, rimGaveAt == nil {
-                                    rimGaveAt = Date().addingTimeInterval(DunkStyle.burstDelay)
+                                if amount == 1, !rimAnswered {
+                                    rimAnswered = true
+                                    let burst = dunkTuning.trip(for: scene.dunk ?? .oneHand)
+                                    let skipped = Double(burst.burstSkip) / burst.burstFPS
+                                    // **Started part-played.** Dating it back by the
+                                    // cells being cut puts the sheet straight into its
+                                    // bang — a wind-up here is a rim that gives half a
+                                    // second before anything comes off it.
+                                    let at = Date().addingTimeInterval(-skipped)
+                                    rimGaveAt = at
+                                    // **Taken away when it is done.** `playsOnce` holds
+                                    // the last cell rather than clearing it, so whatever
+                                    // the drawing ends on sat over the rim for the rest
+                                    // of the scene. Nothing else on the floor shows,
+                                    // because everything else that plays once is a man
+                                    // who is meant to still be standing there.
+                                    let over = Double(burst.burst.frames) / burst.burstFPS
+                                        - skipped
+                                    Task { @MainActor in
+                                        try? await Task.sleep(for: .seconds(over))
+                                        if rimGaveAt == at { rimGaveAt = nil }
+                                    }
+                                    // **And the emoji go now, with the slam.** They are
+                                    // timed off the ball reaching the rim everywhere
+                                    // else, and a dunk has no ball in the air — that
+                                    // clock counts a release cell off the shoot sheet
+                                    // and a flight neither of which happens here, so
+                                    // they were landing three quarters of a second after
+                                    // he had already put it in.
+                                    showBurst = true
+                                    if scene.made { struckAt = Date() }
                                 }
                             })
                         } else {
@@ -278,9 +312,10 @@ struct ShotCutsceneView: View {
                 // **What the rim gives back.** The ring springing on its own is a part
                 // moving; this is the energy coming off it, out of the net and upward.
                 if let rimGaveAt {
-                    SpriteAnimation(sprite: dunkTuning.trip(for: scene.dunk ?? .oneHand).burst,
+                    let finish = dunkTuning.trip(for: scene.dunk ?? .oneHand)
+                    SpriteAnimation(sprite: finish.burst,
                                     scale: DunkStyle.burstScale,
-                                    fps: Theme.Figure.playerFPS,
+                                    fps: finish.burstFPS,
                                     playsOnce: true, startedAt: rimGaveAt)
                         .position(rimPoint(in: geo.size))
                         .allowsHitTesting(false)
@@ -425,9 +460,12 @@ struct ShotCutsceneView: View {
         try? await Task.sleep(for: .seconds(tuning.flightSeconds / tempo))
         await playDrama(tempo: tempo)
 
-        showBurst = true
-        // Only a make disturbs the net; a miss never reaches it.
-        if scene.made { struckAt = Date() }
+        // A dunk has already done both of these, off the rim rather than off the ball.
+        if scene.dunk == nil {
+            showBurst = true
+            // Only a make disturbs the net; a miss never reaches it.
+            if scene.made { struckAt = Date() }
+        }
         // A make drops; a miss carries its speed off the top of the screen.
         withAnimation(.easeIn(duration: scene.made ? 0.55 : 0.6)) { flight = 2 }
         try? await Task.sleep(for: .seconds(0.42))

@@ -110,6 +110,15 @@ struct PlayerFigure: View {
     private var tint: Color { Theme.color(for: seat) }
 
     /// The bag and the count above a player's head.
+    /// The "you can pick this one" wedge over his head.
+    private enum Wedge {
+        static let width: CGFloat = 40
+        static let height: CGFloat = 20
+        /// Deeper than the two it had, and in the kit's blue rather than navy.
+        static let drop: CGFloat = 4
+        static let lift: CGFloat = -38
+    }
+
     private enum Bag {
         static let number: CGFloat = 34
         /// The art is trimmed to its own subject rather than squared off, so this is not
@@ -313,7 +322,15 @@ struct PlayerFigure: View {
                             startedAt: leap == .none
                                 ? (action == .catchBall ? (caughtFrom ?? startedAt) : startedAt)
                                 : leapFrom,
-                            stopAtFrame: leaping ? nil : stopAtFrame)
+                            stopAtFrame: leaping ? nil : stopAtFrame,
+                            // **The man on the floor has a face.** He never did: the
+                            // eye table was being read by the gallery and My Hooper and
+                            // by nothing anybody plays against.
+                            face: {
+                                var worn = PlayerLook.shared.faceOn(seat)
+                                worn.mirrored = isMirrored
+                                return worn
+                            }())
                 // **The sprite goes up; the shadow stays on the floor.** Which is why it
                 // is here and not around the pair of them.
                 .offset(y: lifted ? -leapTune.lift * scale : 0)
@@ -377,9 +394,13 @@ struct PlayerFigure: View {
                     if let marker {
                         MarkerTriangle()
                             .fill(marker)
-                            .frame(width: 28, height: 14)
-                            .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                            .offset(y: -35 + hop)
+                            .frame(width: Wedge.width, height: Wedge.height)
+                            .shadow(color: CardPalette.blue, radius: 0,
+                                    x: Wedge.drop, y: Wedge.drop)
+                            // Lifted by half of what it grew, so the bigger wedge keeps
+                            // the air it had over his head rather than reaching down
+                            // into it.
+                            .offset(y: Wedge.lift + hop)
                     }
                     }
                     .opacity(warp > 0 ? 0 : 1)

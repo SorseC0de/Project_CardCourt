@@ -60,4 +60,13 @@ enum PixelFont {
 
     /// The one to start on, and what a missing choice falls back to.
     static var fallback: String { all.first?.name ?? "Menlo" }
+
+    /// Registers the bundled faces, for anything that names one rather than picking it.
+    ///
+    /// **`all` is lazy, and lazy is the whole bug.** Nothing is registered until this
+    /// type is first touched — which the picker does, and a man on the floor wearing a
+    /// number does not. So the number came out in a chosen pixel face on the tuning
+    /// screen and in the system's fallback everywhere else, which is the one place it
+    /// matters. Anything that asks for a face by name calls this first.
+    static func register() { _ = all }
 }

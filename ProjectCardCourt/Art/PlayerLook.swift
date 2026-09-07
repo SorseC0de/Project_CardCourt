@@ -146,6 +146,29 @@ final class PlayerLook {
         return roll(0x4E_4F &+ UInt64(seat.rawValue), upTo: Kit.numbers.count)
     }
 
+    /// What this seat's number reads as, on his back and anywhere else.
+    func numberText(for seat: Seat) -> String {
+        Kit.numbers[safe: number(for: seat)] ?? "0"
+    }
+
+    /// The kit's second colour, which is what a number is set in — one in the shirt's own
+    /// colour is one nobody can read.
+    func trim(for seat: Seat) -> Color {
+        if seat.isLocal, !Table.shared.isBot(seat) {
+            return (Kit.colours[safe: HooperKit.shared.belt] ?? Kit.colours[0]).main
+        }
+        if let look = look(seat) {
+            return (Kit.colours[safe: look.belt] ?? Kit.colours[0]).main
+        }
+        return .white
+    }
+
+    /// Everything a sheet needs to wear this seat's face — see `SpriteAnimation.face`.
+    func faceOn(_ seat: Seat) -> SpriteFace {
+        SpriteFace(index: face(for: seat), tone: tone(for: seat),
+                   number: numberText(for: seat), numberInk: trim(for: seat))
+    }
+
     /// **How a name is written wherever there is room for the whole of it**: the number,
     /// then the man. A squad list reads this way and so does the back of a shirt.
     func billing(for seat: Seat) -> String {

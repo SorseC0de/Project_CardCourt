@@ -34,6 +34,10 @@ enum Sprite: String, CaseIterable {
     case defenderSwipe = "Defender_Swipe"
     case shoot = "Player_Shoot"
     case sparkleBurst = "SparkleBurst"
+    /// Two more of them, so three finishes at the rim do not all throw
+    /// the same light — see `DunkStyle.Trip.burst`.
+    case sparkleBurst2 = "SparkleBurst2"
+    case sparkleBurst3 = "SparkleBurst3"
     /// A player facing the camera. One frame — a pose, not a loop.
     case front = "Player_front"
     /// Stood there with it, facing the room. What a man looks like holding a ball, as
@@ -81,6 +85,9 @@ enum Sprite: String, CaseIterable {
         switch self {
         case .shoot:        return 13
         case .sparkleBurst: return 14
+        // Counted off the sheets, which are not the same length as each other.
+        case .sparkleBurst2: return 18
+        case .sparkleBurst3: return 17
         case .front, .back, .right, .akuma, .praised, .gooseneck, .holdBall: return 1
         case .refereeRight, .refereeCall, .refereeShot: return 1
         case .heads, .faces: return 9
@@ -176,7 +183,7 @@ enum Sprite: String, CaseIterable {
     var frameSize: CGFloat {
         switch self {
         case .shoot:        return 48
-        case .sparkleBurst: return 64
+        case .sparkleBurst, .sparkleBurst2, .sparkleBurst3: return 64
         case .heads, .faces: return 8
         default:            return 32
         }
@@ -225,6 +232,16 @@ struct SpriteAnimation: View {
     /// Holds here instead of on the last frame, so a run can be cut short and kept —
     /// the shot-clock turnover plays the first of the catch and stops on the reach.
     var stopAtFrame: Int?
+    /// The face this man wears, when he is a man who has one.
+    ///
+    /// **Composed here, not by the caller.** This view is the only thing that knows which
+    /// sheet it settled on — a glance over either shoulder or a wave, picked off the wall
+    /// clock — and which cell of it is up. A caller laying eyes on from outside has to
+    /// guess both, so it did not: the floor drew every player faceless while the gallery
+    /// and My Hooper, which hand `MarksOnSheet` a sheet and a cell directly, drew them
+    /// correctly. Handed the sheet and the cell this view actually chose, they cannot
+    /// disagree.
+    var face: SpriteFace?
 
     private var side: CGFloat { sprite.frameSize * scale }
 
@@ -239,6 +256,16 @@ struct SpriteAnimation: View {
                 .offset(y: -CGFloat(index) * side)
                 .frame(width: side, height: side, alignment: .top)
                 .clipped()
+                .overlay(alignment: .topLeading) {
+                    if let face {
+                        // Dressed by whoever is dressing the body: a figure on the floor
+                        // wears one palette bundle for the strip, the trim and the skin.
+                        MarksOnSheet(sheet: showing, face: face.index, tone: face.tone,
+                                     scale: scale, number: face.number,
+                                     numberInk: face.numberInk, frame: index,
+                                     dressed: true, mirrored: face.mirrored)
+                    }
+                }
         }
         .frame(width: side, height: side)
         // **A sheet is taller than the cell it shows.** Sixteen frames is sixteen times
@@ -309,6 +336,21 @@ struct SpriteAnimation: View {
 /// Sprite overlays are all measured in art pixels — see `SpriteMetrics` — and a point
 /// offset worked out from a centred frame is a number nobody can check against the
 /// drawing. This takes the rectangle straight off the sheet.
+/// Everything a sheet needs to wear a face. Built once by `PlayerLook.faceOn(_:)`, so a
+/// man's eyes, his skin and the number on his back are one answer rather than four.
+struct SpriteFace: Equatable {
+    /// Which of the nine off `Sprite.faces`.
+    var index: Int
+    var tone: Int
+    /// Nil draws none — a sheet nobody has placed a number on, or a portrait.
+    var number: String?
+    var numberInk: Color = .white
+    /// Whether the caller turns this figure around. **Digits are the one thing on him
+    /// that must never mirror**: his kit, his face and where the number sits all read
+    /// fine reversed, and a reversed 47 does not.
+    var mirrored = false
+}
+
 struct OnSheet<Content: View>: View {
     /// Where it goes on the cell, in art pixels from its top-left.
     var rect: CGRect

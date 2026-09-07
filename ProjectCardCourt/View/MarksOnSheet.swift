@@ -26,6 +26,14 @@ struct MarksOnSheet: View {
     var frame: Int?
     var fps: Double = Theme.Figure.playerFPS
     var playing = true
+    /// Whether the caller has already put a skin swap round this. **A figure on the floor
+    /// wears one bundle** — `PlayerLook.kit(for:)` carries the strip, the trim *and* the
+    /// skin — so a second swap here would remap what the first one just wrote.
+    var dressed = false
+    /// Whether something outside has turned this figure around, so the number can be
+    /// turned back. Where it *sits* still mirrors — it is printed on his back and goes
+    /// where his back goes — but the digits themselves are read left to right.
+    var mirrored = false
 
     @State private var eyes = MarkTuning.shared
 
@@ -85,6 +93,8 @@ struct MarksOnSheet: View {
             .font(.custom(eyes.numberFont, fixedSize: eyes.numberSize * scale))
             .foregroundStyle(numberInk)
             .fixedSize()
+            // Turned back about its own middle, so it undoes the flip without moving.
+            .scaleEffect(x: mirrored ? -1 : 1)
             .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
             .offset(x: (spot.x + lone) * scale, y: spot.y * scale)
     }
@@ -93,7 +103,7 @@ struct MarksOnSheet: View {
         OnSheet(rect: CGRect(origin: sheet.headOrigin, size: CGSize(width: 8, height: 8)),
                 shift: shift, scale: scale) {
             SpriteAnimation(sprite: .faces, scale: scale, isPlaying: false, restFrame: face)
-                .paletteSwap(PixelPalette.skin(tone: tone))
+                .paletteSwap(dressed ? [] : PixelPalette.skin(tone: tone))
         }
     }
 }
