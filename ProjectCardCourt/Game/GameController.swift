@@ -748,6 +748,30 @@ final class GameController {
     /// on every batch after it.
     private(set) var parted = false
 
+    /// One thing the host says happened, waiting its turn to be shown.
+    struct Batch {
+        let state: GameState
+        let events: [GameEvent]
+    }
+
+    /// **What a guest has been told and has not finished watching.**
+    ///
+    /// A batch used to cancel the one before it. The host broadcasts at the *top* of its
+    /// own presentation and then spends the animation budget locally, so the next batch
+    /// leaves it about when it finishes showing this one — one network hop ahead of a
+    /// guest that started later and is still going. Everything past the cancellation
+    /// point was simply lost, `record(ledger)` included, which is why a guest's game log
+    /// is missing lines a host's is not. `present`'s own comment concedes it: *"on a
+    /// guest that is most of them"*.
+    ///
+    /// The queue is the fix, and it is the small version of the one the whole engine is
+    /// headed for — see `_Design/one-queue.md`. Arrivals are added at the back and drained
+    /// one at a time, so a guest shows every beat in the order the host sent it and simply
+    /// runs behind when it has to.
+    private var watching: [Batch] = []
+    /// Whether the drain is already running. It feeds itself until the queue is empty.
+    private var watchingNow = false
+
     /// The guest saying it is here, until it is dealt to. See `announceUntilDealt`.
     private var ready: Task<Void, Never>?
     /// Whether the opening deal has gone out to the other devices yet. Until it has, a
@@ -779,6 +803,29 @@ final class GameController {
             if self.isGuest, seat == transport.hostSeat { self.hostGone = true }
             self.walkedOut.insert(seat)
             self.pause()
+        }
+    }
+
+    /// Shows what is waiting, one batch at a time, in the order it arrived.
+    ///
+    /// **Nothing here cancels anything.** The only reason to interrupt a guest mid-beat
+    /// is something that cannot wait — somebody leaving — and that pauses the floor
+    /// rather than cutting the story short.
+    private func drainTheWatch() {
+        guard !watchingNow, !watching.isEmpty else { return }
+        watchingNow = true
+        loop?.cancel()
+        drive { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled, !self.watching.isEmpty {
+                let next = self.watching.removeFirst()
+                self.state = next.state
+                await self.present(next.events,
+                                   defenders: self.defenderCount(
+                                    on: next.state.phase.actingSeat ?? GameRules.localSeat))
+            }
+            self.watchingNow = false
+            self.gate = self.localGate
         }
     }
 
@@ -945,6 +992,10 @@ final class GameController {
             parted = false
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← caught up at batch \(theirs.batches)  \(lastBoard)")
+            // A board with no story attached replaces the story. Anything still waiting
+            // to be watched is about a game that has moved on without it.
+            watching.removeAll()
+            watchingNow = false
             loop?.cancel()
             self.state = state
             self.shown = state
@@ -965,14 +1016,9 @@ final class GameController {
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← \(lastBoard)  [\(events.count) event(s)]"
                        + "  seat=\(GameRules.localSeat.name)")
-            loop?.cancel()
-            self.state = state
-            drive {
-                await self.present(events,
-                                   defenders: self.defenderCount(on: state.phase.actingSeat
-                                                                 ?? GameRules.localSeat))
-                self.gate = self.localGate
-            }
+            // **Queued, not cut in on.** See `watching`.
+            watching.append(Batch(state: state, events: events))
+            drainTheWatch()
         }
     }
 
