@@ -16,6 +16,8 @@ struct HooperView: View {
     var onDismiss: () -> Void = {}
 
     @State private var kit = HooperKit.shared
+    /// Where the number's face is kept — one choice for everybody. See `numberStyle`.
+    @State private var marks = MarkTuning.shared
     @State private var seen = SeenCards.shared
     @State private var pose: Kit.Pose = .front
     @State private var pickingFavourite = false
@@ -106,6 +108,7 @@ struct HooperView: View {
             }
             .frame(height: Sheet.stage)
 
+            numberStyle
             SmallCapsText(text: kit.billing, font: Chrome.display, size: 26, tracking: 1)
                 .foregroundStyle(.white)
                 .shadow(color: Chrome.shade, radius: 0, x: 4, y: 4)
@@ -132,6 +135,27 @@ struct HooperView: View {
             .offset(y: pose.sprite.footPadding * Sheet.scale)
             .frame(height: Sheet.stage, alignment: .bottom)
             .clipped()
+    }
+
+    /// **How the number on his back is set.** Three faces, named rather than described —
+    /// a pixel face at three points is not something a name can tell you about, so each
+    /// chip shows his own number in it. One choice for the whole court: it is the same
+    /// league, and a style per player would read as four different competitions.
+    private var numberStyle: some View {
+        HStack(spacing: 5) {
+            ForEach(NumberStyle.allCases) { style in
+                let on = style == marks.numberStyle
+                Text(Kit.numbers[safe: kit.number] ?? "0")
+                    .font(.custom(style.font, fixedSize: 13))
+                    .foregroundStyle(on ? CardPalette.navy : .white)
+                    .frame(minWidth: 26)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(Capsule().fill(on ? CardPalette.gold
+                                                  : CardPalette.navy.opacity(0.55)))
+                    .onTapGesture { marks.numberStyle = style }
+            }
+        }
+        .animation(.easeOut(duration: 0.18), value: marks.numberStyle)
     }
 
     /// The stances, as a row you push along.

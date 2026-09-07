@@ -56,7 +56,7 @@ struct ScoreCallView: View {
             let bar = ModeCardStyle.bar(across: geo.size.width)
             ZStack {
                 ModeCardView(title: "+\(call.points)pts",
-                             subtitle: call.assists.isEmpty ? "" : "Assisted",
+                             subtitle: "",
                              ink: .white,
                              subtitleInk: .white,
                              seat: call.seat,
@@ -90,7 +90,7 @@ struct ScoreCallView: View {
     /// One man's credit. His colour, his face, his name.
     private func star(_ seat: Seat) -> some View {
         VStack(spacing: 2) {
-            SmallCapsText(text: "+1 Ast", font: Chrome.display, size: 13, tracking: 0.8)
+            SmallCapsText(text: "+1 AST", font: Chrome.display, size: 18, tracking: 0.8)
                 .foregroundStyle(.white)
                 .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
             HStack(spacing: 3) {
@@ -110,7 +110,7 @@ struct ScoreCallView: View {
         .background {
             RadialStar()
                 .fill(Theme.color(for: seat))
-                .overlay { RadialStar().stroke(CardPalette.navy, lineWidth: 2) }
+                //.overlay { RadialStar().stroke(CardPalette.navy, lineWidth: 2) }
                 // Hard and south-east, like every other mark in the game.
                 .shadow(color: CardPalette.navy, radius: 0, x: Board.drop, y: Board.drop)
         }

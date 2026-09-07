@@ -68,10 +68,11 @@ enum Pacing {
     /// One number for every decision, because a player learning two different clocks is a
     /// worse game than one that is occasionally generous.
     ///
-    /// **nil turns the clocks off**, which is where they are for the first live tests: a
-    /// seat that never answers should hang where you can see it rather than be quietly
-    /// papered over by a fallback that looks like the game working. Put it back to 30.
-    static let actionClock: Double? = nil
+    /// **nil turns the clocks off**, which is where they were for the first live tests: a
+    /// seat that never answers hangs where you can see it rather than being papered over
+    /// by a fallback that looks like the game working. Off is a debugging setting — a real
+    /// table cannot wait on somebody who has put their phone down.
+    static let actionClock: Double? = 30
     /// One opponent attempt from the line, start to finish.
     static let freeThrow = 2.5
 
@@ -110,6 +111,10 @@ struct ShotCutscene: Identifiable, Equatable {
     let defenders: Int
     /// What the ball does at the rim before the result is admitted.
     let drama: ShotDrama
+    /// How this one is being finished, when it is finished at the rim. Nil is a jumper,
+    /// and a `var` so the memberwise initialiser defaults it — the bench builds scenes
+    /// that way and none of them is a dunk.
+    var dunk: Dunk?
     /// Picked once here rather than in the view, which re-evaluates.
     let spoils: String
     /// What the make says, if it says anything beyond the word.
@@ -141,7 +146,8 @@ struct ShotCutscene: Identifiable, Equatable {
             : ["NO GOOD", "A MISS", "MISSED", "NOPE"].randomElement()!
     }
 
-    init?(events: [GameEvent], defenders: Int = 0, lastPlay: String? = nil) {
+    init?(events: [GameEvent], defenders: Int = 0, lastPlay: String? = nil,
+          dunk: Dunk? = nil) {
         var shooter: Seat?
         var chance = 0
         var made: Bool?
@@ -156,6 +162,9 @@ struct ShotCutscene: Identifiable, Equatable {
             }
         }
         guard let shooter, let made else { return nil }
+        // Settled by the rules and carried in the state, so every device watches the same
+        // finish rather than four of them each rolling one — see `Rules.dunk(for:card:)`.
+        self.dunk = dunk
         // Read off the shot's own arithmetic rather than off the rules: whatever set the
         // number is named in the breakdown, which is the one place that already knows.
         if breakdown?.steps.contains(where: { $0.label == CardLibrary.lethalShooter.name }) == true {
@@ -2265,7 +2274,8 @@ final class GameController {
         catchUp()
 
         if let scene = ShotCutscene(events: events, defenders: defenders,
-                                    lastPlay: state.lastPlayThisPossession) {
+                                    lastPlay: state.lastPlayThisPossession,
+                                    dunk: state.dunking) {
             cutscene = scene
             try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
             // The board goes up **behind** the shot before the shot comes down. Clearing

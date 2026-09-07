@@ -99,6 +99,8 @@ struct PlayerFigure: View {
     @State private var hop: CGFloat = 0
     /// When he last came down on the floor, so the dust can be counted off it.
     @State private var dustAt: Date?
+    /// Whether this landing ends facing the room. Only a rebound does. See `action`.
+    @State private var facingYou = false
 
     /// This figure's offset into the sprite clock, so four players do not run in unison.
     /// Read by the dust as well as by the sheet — a puff on a different phase is a bounce
@@ -144,7 +146,10 @@ struct PlayerFigure: View {
         // the floor's own event, happening now.
         switch leap {
         case .rising, .hanging: return .rebound
-        case .landing:          return .land
+        // **A board turns him round to face the room; nothing else does.** Every other
+        // landing — warping into place for a throw-in, coming down off a dunk — ends with
+        // his back to you, which is the sheet the court is drawn from.
+        case .landing:          return facingYou ? .land : .landBack
         case .none:             break
         }
         if let pose { return pose }
@@ -196,6 +201,8 @@ struct PlayerFigure: View {
     /// off the one before — the ball is thrown to arrive on the sheet's last cell, and it
     /// is thrown by the court against the same numbers.
     private func goUpForIt() async {
+        // He comes down off a board holding it, turned to the room.
+        facingYou = true
         leapFrom = Date()
         lifted = false
         leap = .rising
@@ -414,6 +421,8 @@ struct PlayerFigure: View {
                         // he is still in pieces is a landing nobody can see.
                         try? await Task.sleep(for: .seconds(Pacing.warp))
                         guard leap == .none else { return }
+                        // Arriving for a throw-in, which he does facing upcourt.
+                        facingYou = false
                         await comeDown()
                     }
                 }

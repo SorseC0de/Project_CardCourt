@@ -90,7 +90,7 @@ enum CardLibrary {
 
     static let dribble = CardDescriptor(
         id: "dribble", name: "Dribble", type: .move,
-        effect: "#[Draw] 1. SHOT -10%", numberInDeck: 15,
+        effect: "#[Draw] 1. SHOT -10%", numberInDeck: 16,
         shotDelta: -10, drawCount: 1, isDribble: true)
 
     static let drive = CardDescriptor(
@@ -422,6 +422,12 @@ enum CardLibrary {
         effect: "Your #[Clamps] cost an injured man a card", numberInDeck: 1,
         intangible: IntangibleEffect(clampCostsInjured: 1))
 
+    /// **Out of the deck**, and kept only because everything it needs still works.
+    ///
+    /// Its whole play is "choose a hand and play a card out of it", and the button that
+    /// asks the first half throws the answer away — so it has been an unplayable card
+    /// sitting in the pool. It comes back when the borrow is wired to `Move.borrow`,
+    /// which is what the rules have always expected. See `Rules.borrow`.
     static let freeAgent = CardDescriptor(
         id: "free-agent", name: "Free Agent", type: .intangible,
         effect: "No bag. Play a card at random out of a player of your choosing",
@@ -552,7 +558,7 @@ enum CardLibrary {
         boardCrasher, roswellReach, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
         gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
         sixthMan, sniper, splashCousin, competitive, lethalShooter, ballPounder,
-        fundamentalist, freeAgent, villainousReputation, dirtyPlayer, franchisePlayer,
+        fundamentalist, villainousReputation, dirtyPlayer, franchisePlayer,
     ]
 
     // ── Game Breaks ───────────────────────────────────────────────────

@@ -178,6 +178,11 @@ struct ShotCutsceneView: View {
                             // The follow-through, held. He is watching it go in.
                             PlayerFigure(seat: scene.shooter, sprite: .gooseneck,
                                          spriteFrame: 0, mirrored: false)
+                        } else if let dunk = scene.dunk {
+                            // **He does not shoot it.** A finish at the rim is its own
+                            // trip — gather, climb, arrive — and it replaces the jumper
+                            // rather than dressing it up. See `DunkFigure`.
+                            DunkFigure(seat: scene.shooter, dunk: dunk)
                         } else {
                             PlayerFigure(seat: scene.shooter, sprite: .shoot,
                                          playsOnce: true, fps: Theme.Figure.shootFPS,
