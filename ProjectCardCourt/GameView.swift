@@ -739,6 +739,11 @@ struct GameView: View {
             who = names.dropLast().joined(separator: ", ") + " and " + last
         }
         let have = names.count == 1 ? "has" : "have"
+        // The rules were running on their device. There is no game here to carry on.
+        if controller.hostGone {
+            return "\(who) \(have) gone, and the game was running on their phone. "
+                + "There is nothing here to carry on with."
+        }
         return "\(who) \(have) gone. Carry on with the house playing their seat?"
     }
 
@@ -751,15 +756,19 @@ struct GameView: View {
         return ZStack {
             Color.black.opacity(0.86).ignoresSafeArea()
             VStack(spacing: 18) {
-                ScreenTitle(text: "They Left", drop: CardPalette.red)
+                ScreenTitle(text: controller.hostGone ? "Game Over" : "They Left",
+                            drop: CardPalette.red)
                 Text(leaversLine)
                     .font(.custom(Chrome.display, size: 16))
                     .foregroundStyle(.white.opacity(0.75))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
                 VStack(spacing: 12) {
-                    ChunkyButton(title: "Play On", fill: CardPalette.blue) {
-                        controller.keepPlaying()
+                    // Not offered when there is no game left to play on with.
+                    if !controller.hostGone {
+                        ChunkyButton(title: "Play On", fill: CardPalette.blue) {
+                            controller.keepPlaying()
+                        }
                     }
                     ChunkyButton(title: "End Game", fill: CardPalette.red) {
                         controller.stopHere()

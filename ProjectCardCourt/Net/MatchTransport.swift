@@ -27,6 +27,13 @@ protocol MatchTransport: AnyObject {
     var onHostMessage: ((HostMessage) -> Void)? { get set }
     /// Puts the match down for good. A game that has been quit is not a game somebody
     /// else is still waiting on.
+    /// Which chair the rules are running in.
+    ///
+    /// A guest needs this to tell one loss from the other: another player leaving is a
+    /// seat the host will cover, and the *host* leaving is the end of the game. Nil while
+    /// nobody has been elected yet.
+    var hostSeat: Seat? { get }
+
     /// Say the seating again, to everybody.
     ///
     /// **On the protocol rather than reached for by downcast.** The controller used to

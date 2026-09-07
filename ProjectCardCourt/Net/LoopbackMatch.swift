@@ -24,7 +24,7 @@ final class LoopbackMatch: MatchTransport {
     @MainActor
     final class Wire {
         fileprivate var devices: [Seat: LoopbackMatch] = [:]
-        fileprivate var hostSeat: Seat = .south
+        var hostSeat: Seat = .south
         /// Every message that has crossed, in order, for a test to read back.
         private(set) var traffic: [String] = []
 
@@ -37,6 +37,7 @@ final class LoopbackMatch: MatchTransport {
     let isHost: Bool
     /// True from the moment the table is wired. A loopback has no queue to sit in.
     var isActive: Bool { !wire.devices.isEmpty }
+    var hostSeat: Seat? { wire.hostSeat }
 
     var onClientMessage: ((Seat, ClientMessage) -> Void)?
     var onHostMessage: ((HostMessage) -> Void)?

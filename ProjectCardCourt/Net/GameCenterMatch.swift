@@ -95,6 +95,9 @@ final class GameCenterMatch: NSObject, MatchTransport {
     var seated: Int { seats.count }
     var isHost: Bool { hostID != nil && hostID == GKLocalPlayer.local.gamePlayerID }
 
+    /// The chair the rules are running in, off the same seating everybody else reads.
+    var hostSeat: Seat? { hostID.flatMap { seats[$0] } }
+
     // MARK: - Signing in
 
     /// Game Center will not talk to an app that has not been authenticated, and it only

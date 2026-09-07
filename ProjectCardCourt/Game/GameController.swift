@@ -705,10 +705,17 @@ final class GameController {
     /// empty — see `keepPlaying` and `stopHere`.
     private(set) var walkedOut: Set<Seat> = []
 
+    /// Whether the device the rules were running on has gone. There is nothing to play
+    /// on with — see `keepPlaying`, which will not pretend otherwise.
+    private(set) var hostGone = false
+
     /// **Play on without them.** Their hand, their turn and their strip stay exactly where
     /// they were; the house chooses from here, the name is marked, and the skin goes to
     /// metal so nobody mistakes it for somebody still sitting there.
     func keepPlaying() {
+        // Nothing to keep playing. Said here as well as in the view, so the answer does
+        // not depend on which button somebody was offered.
+        guard !hostGone else { stopHere(); return }
         let gone = walkedOut
         walkedOut.removeAll()
         for seat in gone { Table.shared.replaceWithComputer(at: seat) }
@@ -761,6 +768,12 @@ final class GameController {
         // Everybody left is asked instead; see `walkedOut`.
         transport.onSeatLost = { [weak self] seat in
             guard let self else { return }
+            // **The host leaving is not somebody leaving.** The rules were running on
+            // that device; there is no game here to play on without it, and offering to
+            // would strand this one — `keepPlaying` swaps the seat for a computer and
+            // then returns early on a guest, leaving it with no loop, no host, and a gate
+            // stuck on `.thinking` for good.
+            if self.isGuest, seat == transport.hostSeat { self.hostGone = true }
             self.walkedOut.insert(seat)
             self.pause()
         }
