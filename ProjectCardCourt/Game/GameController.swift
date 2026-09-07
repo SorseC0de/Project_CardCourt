@@ -646,6 +646,8 @@ final class GameController {
     private var readySeats: Set<Seat> = []
     /// Whether the game has been started. See `begin`.
     private var hasBegun = false
+    /// The guest saying it is here, until it is dealt to. See `announceUntilDealt`.
+    private var ready: Task<Void, Never>?
     /// Whether the opening deal has gone out to the other devices yet. Until it has, a
     /// board sent to anybody is a hand that arrives without being dealt.
     private var dealtTheTable = false
@@ -807,6 +809,8 @@ final class GameController {
             DevLog.say(.net, "the host started the game")
             begin()
         case .turn(let state, let events):
+            // Dealt to. Whatever else this board is, it is proof the host can hear us.
+            dealtTheTable = true
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← \(lastBoard)  [\(events.count) event(s)]"
                        + "  seat=\(GameRules.localSeat.name)")
@@ -938,7 +942,7 @@ final class GameController {
         if isGuest {
             forgetTheSoloGame()
             gate = .thinking
-            try? match?.send(.ready(HooperKit.shared.look))
+            announceUntilDealt()
             return
         }
         // **A match deals for the table that turned up.** The initialiser had to deal
@@ -965,6 +969,25 @@ final class GameController {
             DevLog.say(.input, "begin: dealt, entering the loop")
             await run()
             DevLog.say(.input, "begin: the loop handed back at \(state.phase.label)")
+        }
+    }
+
+    /// **Says it is here until somebody deals.**
+    ///
+    /// One `ready` is one packet, and a packet sent before the host has a controller to
+    /// hear it lands in a handler that does not exist yet — the host then waits out the
+    /// whole table clock and deals to a man it thinks never sat down. Saying so again
+    /// every half second costs nothing and closes that window whichever side is slow.
+    ///
+    /// It stops at the first board, which is the only acknowledgement there is.
+    private func announceUntilDealt() {
+        ready?.cancel()
+        ready = Task { [weak self] in
+            for _ in 0..<Int(Pacing.tableWait / 0.5) {
+                guard let self, self.isGuest, !self.dealtTheTable else { return }
+                try? self.match?.send(.ready(HooperKit.shared.look))
+                try? await Task.sleep(for: .milliseconds(500))
+            }
         }
     }
 
@@ -1027,6 +1050,8 @@ final class GameController {
         loop = nil
         watchdog?.cancel()
         watchdog = nil
+        ready?.cancel()
+        ready = nil
         match?.leave()
         match = nil
         gate = .thinking
