@@ -80,16 +80,22 @@ struct ModeCardView: View {
     /// what lets the digits carry the size without the whole string growing with them.
     var titlePrefix = ""
     var titleSuffix = ""
-    /// How big the affixes are against the title they sit beside.
+    /// How big the affixes are against the title they sit beside. The unit is smaller
+    /// than the sign: one is read *with* the number and the other is read after it.
     var affixScale: CGFloat = 0.56
-    /// Where the sign sits against the number, as shares of the title's size: level with
-    /// it, and tucked far enough over the first digit to touch it.
+    var suffixScale: CGFloat = 0.44
+    /// Where the sign sits against the number, as shares of the title's size: lifted back
+    /// to the middle of it, and tucked far enough over the first digit to touch it.
+    ///
+    /// The row is bottom-aligned, because a unit sits on the number's own line — so the
+    /// sign, which does not, is lifted. Half the difference in cap heights, which for
+    /// Avenir at these two sizes is about a sixth of the title.
     ///
     /// **A sign hung level and clear of the digits reads as part of a string**; one that
     /// leans into them reads as attached to the number. It sits over the digit rather than
     /// behind it — see the `zIndex` below, which stack order would otherwise decide the
     /// wrong way round.
-    var prefixNudge = CGPoint(x: 0.05, y: 0)
+    var prefixNudge = CGPoint(x: 0.05, y: -0.16)
     var prefixOverlap: CGFloat = 0.12
 
     /// One colour for the streaks, when the call has a colour of its own — a Game Break's
@@ -328,9 +334,12 @@ struct ModeCardView: View {
                 let size = ModeCardStyle.titleSize * bar.height * titleScale
                 // **Centred, not on the baseline.** A sign beside a number is read
                 // against the whole of it rather than sat on the line it stands on.
-                HStack(alignment: .center, spacing: size * 0.06) {
+                // **Bottom-aligned.** "pts" sits on the line the digits sit on; the sign
+                // is lifted off it by `prefixNudge` rather than the row being centred,
+                // because only one of the two belongs on the baseline.
+                HStack(alignment: .bottom, spacing: size * 0.06) {
                     if !titlePrefix.isEmpty {
-                        affix(titlePrefix, against: size)
+                        affix(titlePrefix, against: size, scale: affixScale)
                             .offset(x: size * prefixNudge.x, y: size * prefixNudge.y)
                             .padding(.trailing, -size * prefixOverlap)
                             // Over the digit, not under it. Stack order alone would put
@@ -344,7 +353,9 @@ struct ModeCardView: View {
                                tracking: ModeCardStyle.titleTracking)
                         .lineLimit(1)
                         .minimumScaleFactor(ModeCardStyle.textSqueeze)
-                    if !titleSuffix.isEmpty { affix(titleSuffix, against: size) }
+                    if !titleSuffix.isEmpty {
+                        affix(titleSuffix, against: size, scale: suffixScale)
+                    }
                 }
             }
         }
@@ -359,11 +370,12 @@ struct ModeCardView: View {
 
     /// A sign or a unit beside the title: the same ink and the same hard drop, in plain
     /// letters at a share of its size.
-    private func affix(_ text: String, against size: CGFloat) -> some View {
+    private func affix(_ text: String, against size: CGFloat,
+                       scale: CGFloat) -> some View {
         // The game's own face, which is what everything else beside a display word is set
         // in — the system's rounded belongs to readouts, not to a call.
         Text(text)
-            .font(.custom(Chrome.display, size: size * affixScale))
+            .font(.custom(Chrome.display, size: size * scale))
             .foregroundStyle(ink)
             .shadow(color: titleShade, radius: 0,
                     x: size * 0.04, y: size * 0.04)
