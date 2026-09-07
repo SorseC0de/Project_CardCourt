@@ -85,13 +85,34 @@ enum DunkMiss: String, CaseIterable, Codable, Hashable, Identifiable {
     /// off it and whether the ring has anything to give.
     var reachesTheRim: Bool { self == .ironOut }
 
-    /// How rarely the tumble comes up, in misses.
-    static let tumbleOdds = 8
+    /// How often each one comes up, against the others.
+    ///
+    /// **Not an even four.** Coming up short is what missing a dunk mostly is, and the
+    /// iron keeping one is the next most ordinary thing that can happen at a rim. Sailing
+    /// clear over it is a rarer sight, and coming apart in mid-air should be something you
+    /// tell somebody about.
+    var weight: Int {
+        switch self {
+        case .short:     return 10
+        case .ironOut:   return 6
+        case .fliesPast: return 3
+        case .tumbles:   return 1
+        }
+    }
 
     /// Which one this miss is. **Rolled per device, like `ShotDrama`**: it is how the
     /// thing looked, not what happened, and the rules have already said he missed.
+    ///
+    /// A whirlwind cannot tumble, so its weight leaves the pool entirely rather than
+    /// being rolled and rejected — the other three share it out between them.
     static func roll(for dunk: Dunk) -> DunkMiss {
-        if dunk.canTumble, Int.random(in: 0..<tumbleOdds) == 0 { return .tumbles }
-        return [.fliesPast, .short, .ironOut].randomElement() ?? .fliesPast
+        let pool = allCases.filter { $0 != .tumbles || dunk.canTumble }
+        let total = pool.reduce(0) { $0 + $1.weight }
+        var pick = Int.random(in: 0..<max(1, total))
+        for kind in pool {
+            pick -= kind.weight
+            if pick < 0 { return kind }
+        }
+        return .short
     }
 }

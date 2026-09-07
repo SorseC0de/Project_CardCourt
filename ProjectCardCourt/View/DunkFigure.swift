@@ -185,6 +185,10 @@ struct DunkFigure: View {
     private func comeUpShort() async {
         // A reverse falls on the last cell of its turn, which is the one facing you.
         if dunk == .reverse { cell = dunk.climb?.upperBound ?? 0 }
+        // Held at the top, so the peak is somewhere he got to rather than a corner the
+        // trip turns at — see `DunkStyle.shortHang`.
+        try? await Task.sleep(for: .seconds(DunkStyle.shortHang))
+        if Task.isCancelled { return }
         withAnimation(.easeIn(duration: DunkStyle.shortFall)) {
             risen = DunkStyle.shortLands
         }

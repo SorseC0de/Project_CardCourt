@@ -19,8 +19,9 @@ struct MarksOnSheet: View {
     /// The number on his back, when he is wearing one. Nil draws none — the court passes
     /// the man's own; the gallery passes whichever sample is being placed against.
     var number: String?
-    /// What the number is set in. The trim, since that is the kit's second colour and a
-    /// number in the shirt's own is a number nobody can read.
+    /// What the number is set in, when nothing outside is dressing this. The trim, since
+    /// that is the kit's second colour and a number in the shirt's own is a number nobody
+    /// can read — see `ink`, which is where a dressed one gets its colour instead.
     var numberInk: Color = .white
     /// The cell to draw for, or nil to follow the sheet's own clock.
     var frame: Int?
@@ -91,13 +92,26 @@ struct MarksOnSheet: View {
         let lone: CGFloat = number.count == 1 ? 0.5 : 0
         return Text(number)
             .font(.custom(eyes.numberFont, fixedSize: eyes.numberSize * scale))
-            .foregroundStyle(numberInk)
+            .foregroundStyle(ink)
             .fixedSize()
             // Turned back about its own middle, so it undoes the flip without moving.
             .scaleEffect(x: mirrored ? -1 : 1)
             .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
             .offset(x: (spot.x + lone) * scale, y: spot.y * scale)
     }
+
+    /// What the number is actually printed in.
+    ///
+    /// **The belt's own light tone, and by construction rather than by agreement.** A
+    /// dressed figure has `PixelPalette.trim` running over the whole of it, which turns
+    /// `slate` into the belt's light colour — so a number drawn in `slate` comes out of
+    /// that swap the same colour as the belt, whatever belt he picked. Handed the
+    /// resolved colour instead, it went through the swap a second time and landed
+    /// wherever *that* colour happened to map.
+    ///
+    /// Undressed — the gallery, My Hooper — no swap runs, so the caller's resolved
+    /// colour is the right answer there.
+    private var ink: Color { dressed ? PixelPalette.slate : numberInk }
 
     private func eye(at shift: CGPoint) -> some View {
         OnSheet(rect: CGRect(origin: sheet.headOrigin, size: CGSize(width: 8, height: 8)),

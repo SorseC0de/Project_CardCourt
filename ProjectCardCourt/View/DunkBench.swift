@@ -129,10 +129,17 @@ enum DunkStyle {
     /// climb: the shrink has to reach the *same* size it would at the rim — he is as far
     /// upcourt as anybody else, just lower — so the height and the size come apart here
     /// and are two values rather than one.
-    static let shortPeak: CGFloat = 252
+    static let shortPeak: CGFloat = 264
     /// Where the fall leaves him, as a share of that peak, and how long it takes.
     static let shortLands: CGFloat = 0.42
     static let shortFall: Double = 0.45
+    /// A beat at the top before he drops.
+    ///
+    /// **Without it the apex is not a moment, it is a corner.** The climb and the fall
+    /// used to meet on the same frame, so however high he actually got, the eye only ever
+    /// saw him rising and then falling — and read the height off where he ended rather
+    /// than where he turned. He has to hang for the peak to be seen at all.
+    static let shortHang: Double = 0.12
     /// The landing sheet's rate, and how long the turn-around holds its one profile cell.
     static let landFPS: Double = 7.5
     static let turnHold: Double = 0.16
