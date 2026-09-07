@@ -668,7 +668,7 @@ enum Rules {
                         return events
                     }
                     resolveShot(by: seat, bonusPoints: special.bonusPointOnMake,
-                                overClamps: special.ignoresClamps,
+                                overClamps: special.ignoresClamps, card: descriptor,
                                 state: &state, events: &events)
                 } else {
                     events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
@@ -1160,7 +1160,7 @@ enum Rules {
             return events
         }
         resolveShot(by: shooter, bonusPoints: special?.bonusPointOnMake ?? 0,
-                    overClamps: special?.ignoresClamps ?? false,
+                    overClamps: special?.ignoresClamps ?? false, card: descriptor,
                     state: &state, events: &events)
         state.namedForAssist = []
         settleHands(state: &state, events: &events)
@@ -1326,7 +1326,7 @@ enum Rules {
         }
         let roundBefore = state.round
         resolveShot(by: seat, bonusPoints: card.special?.bonusPointOnMake ?? 0,
-                    state: &state, events: &events)
+                    card: card, state: &state, events: &events)
         // Only when the round is still running. A round that turned over has already had
         // SHOT reset, and taking the bonus back out of a fresh number would go negative.
         if state.round == roundBefore { adjustShot(by: -bought, state: &state) }
@@ -1403,8 +1403,19 @@ enum Rules {
         return Dunk.ordinary(for: state[seat].position, roll: roll)
     }
 
+    /// - Parameter card: what put this shot up, when something did.
+    ///
+    ///   **Passed rather than looked up.** It used to be read back out of
+    ///   `lastPlayThisPossession`, which a Special Move that shoots the moment it is
+    ///   played never writes — only the branch for one that *doesn't* shoot does. So
+    ///   every dunk card resolved its shot with the card unknown and fell through to
+    ///   "what would this man throw down on an ordinary possession", which for a guard is
+    ///   nothing: Slam Dunk, 2-Hand Jam, Give-and-Go and Tomahawk never once played a
+    ///   dunk. Worse than nothing, in fact — where an earlier card *had* written that
+    ///   field, the finish was chosen off the wrong card.
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
                                     overClamps: Bool = false,
+                                    card: CardDescriptor? = nil,
                                     state: inout GameState, events: inout [GameEvent]) {
         // What the card in hand was worth, spent on this attempt and gone.
         let priced = state.pendingShotBonus
@@ -1412,7 +1423,8 @@ enum Rules {
         // **Settled here, once.** Which finish this is has to be in the state everybody
         // is told about, or four devices would each roll their own and watch four
         // different dunks. Nothing about the scoring reads it.
-        let played = state.lastPlayThisPossession.flatMap { CardLibrary.byID[$0] }
+        // Whatever put it up, or — for a plain shot — whatever was last played.
+        let played = card ?? state.lastPlayThisPossession.flatMap { CardLibrary.byID[$0] }
         state.dunking = dunk(for: seat, card: played, state: &state)
         if state.dunking != nil { state[seat].dunks += 1 }
         state.shotsThisRound += 1

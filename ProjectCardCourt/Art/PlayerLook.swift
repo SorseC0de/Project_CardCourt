@@ -126,9 +126,44 @@ final class PlayerLook {
     /// The number on this man's back. Yours is the one you chose, theirs comes with the
     /// table, and the house is rolled off the crew like everything else about it.
     func number(for seat: Seat) -> Int {
+        settledNumbers[seat] ?? chosenNumber(for: seat)
+    }
+
+    /// What this seat asked for, before anybody checks whether it is free.
+    private func chosenNumber(for seat: Seat) -> Int {
         if seat.isLocal { return HooperKit.shared.number }
         if let look = look(seat) { return look.number }
         return roll(0x4E_4F &+ UInt64(seat.rawValue), upTo: Kit.numbers.count)
+    }
+
+    /// **No two men on the floor wear the same number.**
+    ///
+    /// Two people can pick 23, and a house roll can land on one somebody chose. Whoever
+    /// comes later in seat order moves up until the number is free, wrapping past 99 to
+    /// 00 — so the first to claim it keeps it and the rest shift.
+    ///
+    /// **Seat order, and not join order, because it has to be an order every device
+    /// already agrees on.** The chairs travel in `.seated`; join order does not, and two
+    /// devices resolving the same collision differently would put a man in one shirt here
+    /// and another there — a desync you can see but the digest never would, since nothing
+    /// about it crosses the wire.
+    ///
+    /// Recomputed rather than cached: it is four seats, and a cache written from a getter
+    /// invalidates its own reader.
+    private var settledNumbers: [Seat: Int] {
+        var taken: Set<Int> = []
+        var settled: [Seat: Int] = [:]
+        for seat in Seat.allCases.sorted(by: { $0.rawValue < $1.rawValue }) {
+            var number = chosenNumber(for: seat)
+            var moved = 0
+            while taken.contains(number), moved < Kit.numbers.count {
+                number = (number + 1) % Kit.numbers.count
+                moved += 1
+            }
+            taken.insert(number)
+            settled[seat] = number
+        }
+        return settled
     }
 
     /// What this seat's number reads as, on his back and anywhere else.

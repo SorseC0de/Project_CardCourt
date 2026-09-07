@@ -998,6 +998,35 @@ func runTests() {
         Check.that(shape == events.map(\.kind), "and the shape of the batch")
         Check.that(!shape.contains { $0.isEmpty }, "every event kind has a name")
 
+        // **Every dunk card actually dunks.** The shot used to read the card that put it
+        // up out of `lastPlayThisPossession`, which a Special Move that shoots the moment
+        // it is played never writes — so all four fell through to "what would this man
+        // throw down anyway", which for a guard is nothing.
+        for (id, only) in [("slam-dunk", nil), ("two-hand-jam", Dunk.reverse),
+                           ("give-and-go-dunk", nil), ("tomahawk", Dunk.oneHand)]
+                          as [(String, Dunk?)] {
+            guard let card = CardLibrary.byID[id] else {
+                Check.that(false, "\(id) is in the library"); continue
+            }
+            var thrown = Set<Dunk>()
+            for seed in UInt64(1)...40 {
+                var (game, _) = Rules.newGame(seed: seed, rules: .standard)
+                game.phase = .possession(holder: .south)
+                game.ball = .south
+                game[.south].position = .pointGuard   // a guard never dunks on his own
+                let held = Card(card)
+                game[.south].bag = [held]
+                _ = Rules.apply(.play(held.id), by: .south, to: &game)
+                if let got = game.dunking { thrown.insert(got) }
+            }
+            Check.that(!thrown.isEmpty, "\(card.name) throws one down")
+            if let only {
+                Check.that(thrown == [only], "\(card.name) is always the \(only) dunk")
+            } else {
+                Check.that(thrown.count > 1, "\(card.name) can be any of them")
+            }
+        }
+
         // **The same batch has to write the same bytes on every device.** A dictionary
         // whose key is neither String nor Int encodes as a flat unkeyed array — the pairs
         // in iteration order — and Swift seeds its hasher per process. `.sortedKeys` sorts

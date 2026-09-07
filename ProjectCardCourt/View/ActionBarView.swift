@@ -105,6 +105,8 @@ struct ActionBarView: View {
             guard playableCards.contains(card.id) else { return }
             controller.play(card)
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
+            // Nothing moves once the bid is in.
+            guard !controller.bidPlaced else { return }
             if controller.bidSelection.contains(card.id) {
                 controller.bidSelection.remove(card.id)
             } else {
@@ -287,17 +289,24 @@ struct ActionBarView: View {
     }
 
     private var confirmBid: some View {
-        Button { controller.submitBid() } label: {
-            Text(controller.bidSelection.isEmpty
-                 ? "BID NOTHING"
-                 : "BID \(controller.bidSelection.count)")
+        // **In, and waiting on the rest of them.** The board asks all four at once, so
+        // answering does not close the question — it only settles your half of it.
+        let waiting = controller.bidPlaced
+        return Button { controller.submitBid() } label: {
+            Text(waiting ? "WAITING ON THE OTHERS"
+                 : (controller.bidSelection.isEmpty
+                    ? "BID NOTHING" : "BID \(controller.bidSelection.count)"))
                 .font(.system(size: 14, weight: .black))
                 .tracking(1.1)
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Capsule().fill(controller.bidSelection.isEmpty ? Theme.ink : Theme.live))
+                .background(Capsule().fill(waiting ? Theme.ink
+                                           : (controller.bidSelection.isEmpty
+                                              ? Theme.ink : Theme.live)))
         }
         .frame(width: 220)
+        .disabled(waiting)
+        .opacity(waiting ? 0.55 : 1)
     }
 }

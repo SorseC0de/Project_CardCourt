@@ -452,8 +452,18 @@ final class GameController {
     /// stands frozen on the pose he threw in.
     private(set) var throwing: ThrowIn?
     private(set) var log: [LogLine] = []
+    /// Whether this device has put its bid in and is waiting on the rest of the table.
+    ///
+    /// **The board asks everybody at once**, so the bar cannot simply close when you
+    /// answer — the gate is still `.awaitingBid` while the others think. Without this the
+    /// host could keep picking cards after bidding, and a guest's bar vanished instead of
+    /// saying it had been heard.
+    private(set) var bidPlaced = false
+
     private(set) var gate: Gate = .thinking {
         didSet {
+            // A bid belongs to the board that asked for it.
+            if case .awaitingBid = gate {} else { bidPlaced = false }
             guard gate.isThinking else { wentQuiet = nil; return }
             // Only the moment it *went* quiet, so a run of thinking gates does not keep
             // resetting the clock the watchdog is reading.
@@ -846,6 +856,18 @@ final class GameController {
         }
     }
 
+    /// Puts the lagging readouts where the board actually is.
+    ///
+    /// The ball, the pile and the SHOT are all drawn a beat behind the rules on purpose —
+    /// a card leaves the deck when it lands in a hand, not when the rules say so. That
+    /// lag is right while a batch is playing and wrong the moment the board is replaced
+    /// wholesale, which is what a catch-up is.
+    private func settleTheReadouts() {
+        shownBall = state.ball
+        shownDeck = state.deck.count
+        shownShot = state.shot + state.holderShot
+    }
+
     /// Takes whatever a cut-off presentation left on screen back off it.
     ///
     /// A catch-up board replaces the story, and a story stopped in the middle leaves its
@@ -1080,6 +1102,7 @@ final class GameController {
             watchingNow = false
             loop?.cancel()
             clearTheScene()
+            settleTheReadouts()
             self.state = state
             self.shown = state
             gate = localGate
@@ -1329,6 +1352,11 @@ final class GameController {
         // them, and those are what the court actually draws.
         state = state.awaitingTheDeal()
         shown = state
+        // **And the readouts that lag it.** `shownDeck` and its neighbours are only ever
+        // written by `record`, which ran in `init` for the solo deal — so a guest sat
+        // showing its own deck's count until the host's first board arrived and the
+        // number jumped. Nothing dealt is nothing to show.
+        settleTheReadouts()
         openingDraws = []
         log.removeAll()
         undelivered.removeAll()
@@ -1684,8 +1712,10 @@ final class GameController {
         loop?.cancel()
         let mine = Array(bidSelection)
         bidSelection.removeAll()
+        // **Placed, not closed.** The gate stays on the board — everybody bids at once —
+        // and this is what greys the bar out until the rest of the table has answered.
+        bidPlaced = true
         if isGuest {
-            gate = .thinking
             try? match?.send(.reboundBid(mine))
             return
         }
@@ -2347,7 +2377,12 @@ final class GameController {
     /// Waits out a scene: on a clock normally, on the player when the card is new to them.
     private func hold(_ untilTapped: Bool, seconds: Double,
                       while alive: @escaping () -> Any?) async {
-        guard untilTapped else {
+        // **Nobody holds a table up.** A first sighting is worth stopping a solo game
+        // for; at a table with other people on it, three of them are watching a card they
+        // have already met while one reads. `pause` already refuses in a live match — so
+        // this waited on a tap with the game running behind it, which is worse than
+        // either. Online every card takes its beat and goes.
+        guard untilTapped, Table.shared.remotes.isEmpty else {
             try? await Task.sleep(for: .seconds(seconds))
             return
         }

@@ -29,6 +29,11 @@ struct TapToContinue: View {
     @State private var breathing = false
 
     var body: some View {
+        // Not said to somebody it is not true for — online, the card leaves on its own.
+        if Table.shared.remotes.isEmpty { label } else { EmptyView() }
+    }
+
+    private var label: some View {
         Text("TAP TO CONTINUE")
             .font(.system(size: 10, weight: .heavy)).tracking(2)
             .foregroundStyle(Theme.inkDim)
