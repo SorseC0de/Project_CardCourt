@@ -854,6 +854,13 @@ enum Rules {
     private static func handOverBall(state: inout GameState, events: inout [GameEvent]) {
         guard let holder = state.pendingInbound, !state.isOver else { return }
         state.pendingInbound = nil
+        // **A break in the loop.** Something has taken the ball off the floor and put it
+        // back in — Benched hands it to whoever the benched man picks, and a Whistle can
+        // do the same — and a Right Back still owed a return would drag it out of his
+        // hands again the moment the possession opened. Whatever queued this outranks a
+        // leg that was owed to a play the break has already interrupted.
+        state.returnsTo = nil
+        state.returnLeg = nil
         state.inbounder = holder
         state.phase = .inbound(inbounder: holder)
     }
@@ -2499,7 +2506,6 @@ enum Rules {
             // goes. Queued rather than set — see `pendingInbound`.
             state.lastPasser = nil
             state.arrivedBy = nil
-        state.arrivedBy = nil
             state.pendingInbound = holder
         }
     }
