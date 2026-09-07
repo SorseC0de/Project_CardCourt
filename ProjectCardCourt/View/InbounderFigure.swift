@@ -2,13 +2,17 @@ import SwiftUI
 
 /// The player throwing it back in, stood on the sideline.
 ///
-/// Three sheets laid over one another: a body, a head, and a face. They are separate so a
-/// face can be chosen later without redrawing a body, and so the face can move a pixel on
-/// its own — which is the whole animation.
+/// A faceless body with `MarksOnSheet` over it, the same as everybody else on the court —
+/// **the face is never composed here.** It used to be: one cell of the faces sheet, laid
+/// on unmirrored, which was right while that sheet held a whole face and wrong the moment
+/// it went down to a single eye. It left the man on the sideline with one eye, and it was
+/// the only view in the game still drawing its own.
 ///
 /// **The loop is four frames and deliberately slow.** Neutral, face a pixel right,
 /// neutral, face a pixel left. Game & Watch rather than animation: two poses and a hold,
 /// so the eye reads a *state* rather than a motion. Anything faster looks like a fidget.
+/// The sway is the mark table's now — see `Player_Inbounder`'s rows, which carry the same
+/// pixel left and right on frames 1 and 3.
 struct InbounderFigure: View {
     var seat: Seat
     /// Which body. The thrower's four frames, or the receiver's one.
@@ -29,7 +33,7 @@ struct InbounderFigure: View {
     var swaps: [PaletteSwap]?
 
     private var side: CGFloat { sprite.frameSize * scale }
-    /// The face's shift per frame, in art pixels — the loop, written out.
+    /// The ball's shift per frame, in art pixels. The face's own is in the mark table.
     private static let sway: [CGFloat] = [0, 1, 0, -1]
 
     @State private var look = PlayerLook.shared
@@ -44,16 +48,20 @@ struct InbounderFigure: View {
                 ? Int(timeline.date.timeIntervalSinceReferenceDate * fps) % sprite.frames : 0
             ZStack(alignment: .topLeading) {
                 cell(sprite, index: step, size: sprite.frameSize)
+                    // **On the body, not on the pair.** The face is dressed in skin, not
+                    // in a kit — put the swap round both and the man's shirt colour lands
+                    // on his eyes. `HooperView` splits them the same way.
+                    .paletteSwap(swaps ?? look.kit(for: seat))
                 // **The face, and no head.** The body sheets have a head drawn on them
                 // already — they are simply faceless, which is what the face sheet is
                 // for. Laying a head on as well put a second head over the first, and
                 // since the heads sheet carries its own eyes, a second pair of those.
-                head(.faces, index: face, shift: Self.sway[step % Self.sway.count])
+                MarksOnSheet(sheet: sprite, face: face,
+                             tone: look.tone(for: seat), scale: scale, frame: step)
                 if holdsBall { ball(step: step) }
             }
             .frame(width: side, height: side)
         }
-        .paletteSwap(swaps ?? PlayerLook.shared.kit(for: seat))
         .scaleEffect(x: mirrored ? -1 : 1)
     }
 
@@ -81,13 +89,6 @@ struct InbounderFigure: View {
             .offset(y: -CGFloat(index) * size * scale)
             .frame(width: size * scale, height: size * scale, alignment: .top)
             .clipped()
-    }
-
-    /// A head or a face, placed on the body's shoulders and nudged by the loop.
-    private func head(_ sprite: Sprite, index: Int, shift: CGFloat) -> some View {
-        cell(sprite, index: index, size: sprite.frameSize)
-            .offset(x: (SpriteMetrics.headOrigin.x + shift) * scale,
-                    y: SpriteMetrics.headOrigin.y * scale)
     }
 }
 

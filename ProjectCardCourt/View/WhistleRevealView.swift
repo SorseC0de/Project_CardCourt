@@ -24,6 +24,8 @@ struct WhistleRevealView: View {
 
     @State private var dimmed = false
     @State private var whistleIn = false
+    /// Which end of the swing it is at. See `rock`.
+    @State private var rocked = false
     @State private var backIn = false
     @State private var flipped = false
     @State private var peel = WhistleRevealView.peelStart
@@ -33,6 +35,12 @@ struct WhistleRevealView: View {
     @State private var covered = true
 
     private var corner: CGFloat { width * 0.08 }
+
+    /// **It is being blown, not displayed.** The whistle swings either side of upright
+    /// for as long as the call is on screen — the same shudder the referee has out on the
+    /// floor, at the size a card can carry. See `RefereeFigure.Duty.calling`.
+    private static let rock: Double = 10
+    private static let rockSeconds: Double = 0.15
 
     var body: some View {
         ZStack {
@@ -73,7 +81,7 @@ struct WhistleRevealView: View {
             .drawingGroup()
             .shadow(color: CardPalette.gold.opacity(0.5), radius: 26)
             .scaleEffect(whistleIn ? 1 : 0.2)
-            .rotationEffect(.degrees(whistleIn ? 0 : -30))
+            .rotationEffect(.degrees(whistleIn ? (rocked ? Self.rock : -Self.rock) : -30))
             // Pushed back once the card is on top of it, rather than removed — it stays
             // behind the card as the thing that summoned it.
             .opacity(whistleIn ? (backIn ? 0.22 : 1) : 0)
@@ -148,6 +156,8 @@ struct WhistleRevealView: View {
         // whistle in place of a word. Playing it again here was the one thing said twice,
         // and a beat spent saying it. It stays behind the card as what summoned it.
         whistleIn = true
+        withAnimation(.easeInOut(duration: Self.rockSeconds)
+            .repeatForever(autoreverses: true)) { rocked = true }
 
         withAnimation(.easeOut(duration: 0.3)) { backIn = true }
         try? await Task.sleep(for: .seconds(0.42))

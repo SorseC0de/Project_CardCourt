@@ -15,6 +15,11 @@ enum Sprite: String, CaseIterable {
     /// The referee's own sheet. He jogs and looks about like everyone else — a referee
     /// standing dead still would read as a prop rather than a man watching you.
     case refereeRunLook = "Referee_Run_Look"
+    /// The three the referee holds rather than plays. He jogs the look-around loop while
+    /// the game runs and stands in one of these the rest of the time — see `RefereeFigure`.
+    case refereeRight = "Referee_Right"
+    case refereeCall = "Referee_Call"
+    case refereeShot = "Referee_Shot"
     /// Throwing it back in from the sideline. Four frames, and deliberately slow.
     case inbounder = "Player_Inbounder"
     /// What three of the four do during an inbound: turned upcourt toward the thrower.
@@ -77,6 +82,7 @@ enum Sprite: String, CaseIterable {
         case .shoot:        return 13
         case .sparkleBurst: return 14
         case .front, .back, .right, .akuma, .praised, .gooseneck, .holdBall: return 1
+        case .refereeRight, .refereeCall, .refereeShot: return 1
         case .heads, .faces: return 9
         case .inbounder:    return 4
         // Three ways of standing about waiting for a throw.

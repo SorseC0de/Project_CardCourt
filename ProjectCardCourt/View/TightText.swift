@@ -33,6 +33,14 @@ struct TightText: View {
     var glyphShare: CGFloat = CardLayout.keywordGlyphShare
     /// Which card this is printed on, so a marked run can be inked for it. See `CardInk`.
     var type: CardType = .pass
+    /// What the unmarked words are printed in.
+    ///
+    /// **Passed, not inherited.** These runs asked for `ShapeStyle.foreground`, which
+    /// resolves to the environment's default rather than to the `foregroundStyle` set
+    /// around this view — so every card's body text came out the primary colour. It
+    /// showed up only on the two dark bodies, where the ink is the one thing that has to
+    /// change: an Intangible's white text was printing black on near-black.
+    var ink: Color = CardPalette.navy
 
     /// The size actually used, after the fit search.
     private var chosenSize: CGFloat {
@@ -77,8 +85,7 @@ struct TightText: View {
                                 .font(.custom(font, size: points))
                                 .tracking(tracking)
                         }
-                        .foregroundStyle(run.ink.map { AnyShapeStyle($0.colour(on: type)) }
-                                         ?? AnyShapeStyle(.foreground))
+                        .foregroundStyle(run.ink?.colour(on: type) ?? ink)
                         .shadow(color: run.ink?.shade(on: type) ?? .clear, radius: 0,
                                 x: markShadowOffset, y: markShadowOffset)
                     }

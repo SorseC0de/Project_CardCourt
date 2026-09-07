@@ -35,8 +35,8 @@ def sourceColours(art):
 RAMPS = {
     "Swisshbone":        [15, 14, 13, 12],
     "SwisshboneGold":    [6, 26, 4, 1],
-    "SwisshboneGoldAlt": [6, 5, 4, 1],
-    "SwisshboneCrystal": [16, 17, 18, 19],
+    "SwisshboneCopper":  [6, 5, 4, 1],
+    "SwisshboneCrystal": [16, 17, 18, 22],
 }
 
 art = source.read_text()

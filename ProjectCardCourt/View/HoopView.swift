@@ -153,6 +153,10 @@ struct HoopBackdrop: View {
     /// What the board is lit with, if anything. Green for a make — and green then red
     /// when a shot is counted and then taken away.
     var light: Color?
+    /// How hard somebody is hanging on it, nought to one. **The board does not move** —
+    /// it is glass bolted to a wall; the ring comes down and the net goes with it. See
+    /// `DunkStyle.rimDrop`.
+    var pull: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -175,8 +179,10 @@ struct HoopBackdrop: View {
                 RimHalf(isNear: false, width: width * 0.54,
                         thickness: 8, tint: PixelPalette.darkRed)
                 NetView(width: width * 0.54, struckAt: struckAt)
+                    // The ring is iron and keeps its shape; the net is string and does not.
+                    .scaleEffect(y: 1 + pull * DunkStyle.netStretch, anchor: .top)
             }
-            .offset(y: -width * 0.04)
+            .offset(y: -width * 0.04 + pull * width * DunkStyle.rimDrop)
         }
     }
 }

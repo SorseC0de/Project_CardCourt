@@ -332,6 +332,12 @@ struct ModeCardView: View {
                 // quiet across the word, which is what makes a phase read as called out
                 // rather than labelled. See `ActionText`.
                 let size = ModeCardStyle.titleSize * bar.height * titleScale
+                // **Digits outrank their operators.** A sign or a unit set at the same
+                // size as the number it qualifies reads as amateur — the number is what
+                // is being announced, so where there are affixes beside it, it takes a
+                // step up on its own and they stay where they are.
+                let lead = titlePrefix.isEmpty && titleSuffix.isEmpty
+                         ? size : size * ModeCardStyle.digitStandout
                 // **Centred, not on the baseline.** A sign beside a number is read
                 // against the whole of it rather than sat on the line it stands on.
                 // **Bottom-aligned.** "pts" sits on the line the digits sit on; the sign
@@ -347,7 +353,7 @@ struct ModeCardView: View {
                             // paints over whatever it overlaps.
                             .zIndex(1)
                     }
-                    ActionText(title, size: size,
+                    ActionText(title, size: lead,
                                ink: ink, drop: titleShade,
                                taper: ModeCardStyle.titleTaper,
                                tracking: ModeCardStyle.titleTracking)
@@ -740,6 +746,9 @@ enum ModeCardStyle {
 
     /// The name's size, and the air between its letters.
     static let titleSize: CGFloat = 0.63
+    /// How much bigger the title runs when a sign or a unit stands beside it. The rule
+    /// is the number's, not this card's: operators never match the digits they qualify.
+    static let digitStandout: CGFloat = 1.25
     static let titleTracking: CGFloat = 0.046
 
     /// Where the name sits, measured down from the upper bar's middle.

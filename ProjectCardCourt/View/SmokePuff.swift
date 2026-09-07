@@ -12,6 +12,11 @@ private struct SmokeCell: View {
     /// Where it sits, in art pixels from the middle of the sprite's foot line — right
     /// and up positive.
     var at: CGPoint
+    /// The sheet's rate here, and how faint it has gone by its last cell. **Per puff, not
+    /// per sheet**: a body arriving and a ball glancing off share a drawing and nothing
+    /// else. See `SmokeTuning`.
+    var fps: Double
+    var fade: Double
 
     /// Half the frame, less the empty rows the sheets leave under a player's feet: how
     /// far a bottom-aligned puff has to come down for its middle to land on the floor.
@@ -20,16 +25,14 @@ private struct SmokeCell: View {
     }
 
     var body: some View {
-        if let since, since >= 0,
-           since < Double(Sprite.smoke.frames) / Theme.Figure.smokeFPS {
-            let cell = min(Sprite.smoke.frames - 1,
-                           Int(since * Theme.Figure.smokeFPS))
+        if let since, since >= 0, since < Double(Sprite.smoke.frames) / fps {
+            let cell = min(Sprite.smoke.frames - 1, Int(since * fps))
             // Thinning as it spreads, so what is left when the drawing runs out is
             // already faint. The sheet's last cell is empty; this reaches its floor on it.
-            let fade = 1 - (1 - Theme.Figure.smokeFade)
+            let thinned = 1 - (1 - fade)
                 * Double(cell) / Double(max(1, Sprite.smoke.frames - 1))
             SpriteAnimation(sprite: .smoke, scale: scale, isPlaying: false, restFrame: cell)
-                .opacity(fade)
+                .opacity(thinned)
                 .offset(x: at.x * scale, y: (footLift - at.y) * scale)
                 .allowsHitTesting(false)
         }
@@ -40,13 +43,18 @@ private struct SmokeCell: View {
 struct SmokePuff: View {
     var startedAt: Date?
     var scale: CGFloat = Theme.Figure.playerScale
-    var at: CGPoint = Theme.Figure.landingDust
+    /// Overrides where it sits. Nil takes the dial's, which is what the court wants.
+    var at: CGPoint?
+
+    @State private var dust = SmokeTuning.shared
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / Theme.Figure.smokeFPS,
+        TimelineView(.animation(minimumInterval: 1 / dust.landFPS,
                                 paused: startedAt == nil)) { timeline in
             SmokeCell(since: startedAt.map { timeline.date.timeIntervalSince($0) },
-                      scale: scale, at: at)
+                      scale: scale * dust.landScale,
+                      at: at ?? CGPoint(x: dust.landX, y: dust.landY),
+                      fps: dust.landFPS, fade: dust.landFade)
         }
     }
 }
@@ -62,11 +70,14 @@ struct DribbleDust: View {
     /// The figure's own offset into the sprite clock, so this lands on *his* bounce.
     var phase: TimeInterval
 
+    @State private var dust = SmokeTuning.shared
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / Theme.Figure.smokeFPS)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / dust.ballFPS)) { timeline in
             SmokeCell(since: sinceTheBounce(at: timeline.date),
-                      scale: scale * Theme.Figure.dribbleDustScale,
-                      at: Theme.Figure.dribbleDust)
+                      scale: scale * dust.ballScale,
+                      at: CGPoint(x: dust.ballX, y: dust.ballY),
+                      fps: dust.ballFPS, fade: dust.ballFade)
         }
     }
 
@@ -74,7 +85,7 @@ struct DribbleDust: View {
     private func sinceTheBounce(at date: Date) -> TimeInterval {
         let fps = Theme.Figure.playerFPS
         let cycle = Double(Sprite.dribble.frames) / fps
-        let strikes = Theme.Figure.dribbleStrikes.map { Double($0) / fps }
+        let strikes = dust.strikes.map { Double($0) / fps }
         let within = (date.timeIntervalSinceReferenceDate + phase)
             .truncatingRemainder(dividingBy: cycle)
         // The last strike at or before now — or the previous cycle's last, when the

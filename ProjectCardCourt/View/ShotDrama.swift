@@ -23,6 +23,10 @@ enum ShotDrama: Equatable {
     /// All the way in, the board lights, and then it comes back out. Reserved for the
     /// high-percentage misses that deserve to be resented.
     case robbery
+    /// Driven straight through. **A dunk has no rim drama** — the whole point of going up
+    /// and putting it in by hand is that the iron never gets a say, so it never rattles,
+    /// rolls or banks. Never chosen by `choose`: it is assigned to any scene carrying one.
+    case dunk
 
     /// Above this the shot is a formality and goes straight in.
     static let certainty = 75
@@ -63,6 +67,7 @@ enum ShotDrama: Equatable {
         case .bank:        return 0.55
         case .halfwayOut:  return 0.90
         case .robbery:     return 2.00
+        case .dunk:        return 0.40
         }
     }
 
@@ -110,6 +115,12 @@ struct DramaPath: GeometryEffect {
         switch drama {
         case .none:
             return .zero
+
+        case .dunk:
+            // Down through the ring and stopped. Fast off the top and settling, which is
+            // a ball being put somewhere rather than one finding its own way in.
+            let driven = 1 - (1 - p) * (1 - p)
+            return CGSize(width: 0, height: rim * 0.9 * driven)
 
         case .rattle:
             // Three knocks, each smaller than the last, damped to nothing.

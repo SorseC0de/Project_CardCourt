@@ -71,6 +71,31 @@ struct ShotCutsceneView: View {
     @State private var siiike = false
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var tuning = ShotTuning.shared
+    /// The ball a dunk leaves behind: whether it is out yet, and whether it has fallen.
+    @State private var dunkBallOut = false
+    @State private var dunkBallFell = false
+    /// How hard the rim is being hung on, nought to one. Both halves read it, or the
+    /// ring comes apart down the middle.
+    @State private var rimPull: CGFloat = 0
+    /// When the rim gave, so the burst off it plays once from there.
+    @State private var rimGaveAt: Date?
+    /// Which burst this finish throws — see `DunkStyle.Trip.burst`.
+    @State private var dunkTuning = DunkTuning.shared
+
+    /// What drops out of the net after one is thrown down.
+    private enum DunkBall {
+        /// How far it falls, against the rim's own width.
+        static let fall: CGFloat = 0.9
+        /// **Fast, and fast from the first frame.** It was easing *in* over two seconds,
+        /// which is a ball being lowered — a dunked one leaves the hand at speed and the
+        /// drop is the only thing carrying that. Out, not in, and a third of a second.
+        static let drop: Double = 0.35
+        static let curve = Animation.easeOut(duration: drop)
+        /// How long it sits before it goes: a ball that fades as it appears never reads
+        /// as having been there at all.
+        static let hold: Double = 0.25
+        static let fade: Double = 0.40
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -81,7 +106,7 @@ struct ShotCutsceneView: View {
                 // passes between the two halves rather than over the ring.
                 VStack {
                     HoopBackdrop(width: tuning.rimWidth, struckAt: struckAt,
-                                 light: boardLight)
+                                 light: boardLight, pull: rimPull)
                         .padding(.top, 46)
                     Spacer()
                 }
@@ -182,7 +207,24 @@ struct ShotCutsceneView: View {
                             // **He does not shoot it.** A finish at the rim is its own
                             // trip — gather, climb, arrive — and it replaces the jumper
                             // rather than dressing it up. See `DunkFigure`.
-                            DunkFigure(seat: scene.shooter, dunk: dunk)
+                            DunkFigure(seat: scene.shooter, dunk: dunk, onBallLoose: {
+                                dunkBallOut = true
+                                dunkBallFell = true
+                            }, onRimPull: { amount, spring in
+                                // Whatever he just did to it, on his curve. He calls this
+                                // at every change he makes, so nothing here has to guess
+                                // at his timing.
+                                if let spring {
+                                    withAnimation(spring) { rimPull = amount }
+                                } else {
+                                    rimPull = amount
+                                }
+                                // The burst is the first grab only. One a swing would be
+                                // the rim throwing sparks for the rest of the scene.
+                                if amount == 1, rimGaveAt == nil {
+                                    rimGaveAt = Date().addingTimeInterval(DunkStyle.burstDelay)
+                                }
+                            })
                         } else {
                             PlayerFigure(seat: scene.shooter, sprite: .shoot,
                                          playsOnce: true, fps: Theme.Figure.shootFPS,
@@ -195,10 +237,13 @@ struct ShotCutsceneView: View {
                         .foregroundStyle(Theme.ink)
                 }
                 .position(x: geo.size.width / 2, y: geo.size.height - 132)
+                // **Over the ring, not behind it.** A jumper is downcourt of the rim and
+                // reads right behind its near half; a man finishing at it is on top of it.
+                .zIndex(scene.dunk == nil ? 0 : 3)
 
                 PixelBallView(scale: tuning.ballScale
                               + (tuning.ballEndScale - tuning.ballScale) * min(flight, 1))
-                    .opacity(released && !ballGone ? 1 : 0)
+                    .opacity(scene.dunk == nil && released && !ballGone ? 1 : 0)
                     .animation(released ? .easeOut(duration: 0.25) : nil, value: ballGone)
                     // Spin the ball itself, then place it, then move it. Rotating after
                     // `.position` swings the whole layer around the container's centre
@@ -216,11 +261,38 @@ struct ShotCutsceneView: View {
                                          after: afterPoint(in: geo.size)))
                     .zIndex(1)
 
+                // **The one a dunk leaves.** It comes out of the net once he has let go
+                // of the one drawn in his hands, drops, and fades — a ball settling after
+                // the fact rather than a shot arriving.
+                if scene.dunk != nil, dunkBallOut {
+                    PixelBallView(scale: tuning.ballEndScale)
+                        .position(rimPoint(in: geo.size))
+                        .offset(y: dunkBallFell ? tuning.rimWidth * DunkBall.fall : 0)
+                        .animation(DunkBall.curve, value: dunkBallFell)
+                        .opacity(dunkBallFell ? 0 : 1)
+                        .animation(.easeOut(duration: DunkBall.fade).delay(DunkBall.hold),
+                                   value: dunkBallFell)
+                        .zIndex(1)
+                }
+
+                // **What the rim gives back.** The ring springing on its own is a part
+                // moving; this is the energy coming off it, out of the net and upward.
+                if let rimGaveAt {
+                    SpriteAnimation(sprite: dunkTuning.trip(for: scene.dunk ?? .oneHand).burst,
+                                    scale: DunkStyle.burstScale,
+                                    fps: Theme.Figure.playerFPS,
+                                    playsOnce: true, startedAt: rimGaveAt)
+                        .position(rimPoint(in: geo.size))
+                        .allowsHitTesting(false)
+                        .zIndex(4)
+                }
+
                 // Red and heavy while the layering is being sorted out.
                 RimHalf(isNear: true, width: tuning.rimWidth * 0.54,
                         thickness: 8, tint: PixelPalette.vermilion)
                     .position(x: rimPoint(in: geo.size).x,
                               y: rimPoint(in: geo.size).y + geo.size.height * tuning.rimNearY)
+                    .offset(y: rimPull * tuning.rimWidth * DunkStyle.rimDrop)
                     .zIndex(2)
             }
             .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))

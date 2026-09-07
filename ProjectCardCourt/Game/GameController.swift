@@ -135,13 +135,14 @@ struct ShotCutscene: Identifiable, Equatable {
 
     /// Built directly, for replaying the scene from the debug panel.
     init(shooter: Seat, chance: Int, made: Bool, defenders: Int,
-         signature: ShotSignature = .none) {
+         signature: ShotSignature = .none, dunk: Dunk? = nil) {
+        self.dunk = dunk
         self.signature = signature
         self.shooter = shooter
         self.chance = chance
         self.made = made
         self.defenders = defenders
-        self.drama = ShotDrama.choose(made: made, chance: chance)
+        self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance) : .dunk
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
         self.line = SwisshLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
@@ -183,7 +184,7 @@ struct ShotCutscene: Identifiable, Equatable {
         self.made = made
         self.defenders = defenders
         // A brick is its own announcement; everything else takes an even roll.
-        self.drama = ShotDrama.choose(made: made, chance: chance)
+        self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance) : .dunk
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
         self.line = SwisshLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
@@ -1625,6 +1626,19 @@ final class GameController {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
                                     chance: Int(ShotTuning.shared.debugChance),
                                     made: true, defenders: 0)
+            try? await Task.sleep(for: .seconds(Pacing.cutscene + (cutscene?.drama.seconds ?? 0)))
+            cutscene = nil
+            await run()
+        }
+    }
+
+    /// Throws one down on demand, for matching the climb to the sheet. See `DunkBench`.
+    func debugDunk(_ dunk: Dunk) {
+        loop?.cancel()
+        drive {
+            cutscene = ShotCutscene(shooter: GameRules.localSeat,
+                                    chance: Int(ShotTuning.shared.debugChance),
+                                    made: true, defenders: 0, dunk: dunk)
             try? await Task.sleep(for: .seconds(Pacing.cutscene + (cutscene?.drama.seconds ?? 0)))
             cutscene = nil
             await run()

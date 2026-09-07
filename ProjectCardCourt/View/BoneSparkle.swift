@@ -33,34 +33,48 @@ struct SparkleGlyph: Shape {
 struct BoneSparkles: View {
     /// The box they are scattered in — the bone's own side.
     var side: CGFloat
-    var tint: Color = PixelPalette.gold
-    var count: Int = 7
+    /// The one colour they all catch. Nil gives each its own off the wheel, which is
+    /// what glass does — see `rainbow`.
+    var tint: Color? = PixelPalette.gold
+    /// Seconds for a twinkle's own colour to come back round, when it has one.
+    var wheel: Double = 9
+    /// **A handful of big ones, not a field of small ones.** Many small twinkles read
+    /// as glitter on the whole frame; a few large ones read as light coming off an object.
+    var count: Int = 4
 
     private enum Twinkle {
         /// Seconds for a full breath, fastest and slowest.
         static let quickest: Double = 1.1
         static let slowest: Double = 2.9
         /// How big a twinkle is against the bone, smallest and largest.
-        static let smallest: CGFloat = 0.10
-        static let largest: CGFloat = 0.30
-        /// How far out they sit; over one puts them off the edges.
-        static let spread: CGFloat = 1.15
+        static let smallest: CGFloat = 0.22
+        static let largest: CGFloat = 0.46
+        /// How far out from the middle they sit, nearest and furthest, as a share of the
+        /// side. Past a half is off the edge of the bone, which is where most should be.
+        static let nearest: CGFloat = 0.34
+        static let furthest: CGFloat = 0.55
+        /// Where in its own sector a twinkle sits: how far in it starts, and how much of
+        /// the sector it may wander over. Under one, so no two can meet at a border.
+        static let sectorLead: CGFloat = 0.28
+        static let sectorPlay: CGFloat = 0.44
+        /// The stream every placement is drawn from, in order.
+        static let seed: UInt64 = 0x5F1E_2B77
         /// The soft halo under each, and how much of it there is.
         static let glowLayers = 2
         static let glow: Double = 0.5
     }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        let placed = scatter
+        return TimelineView(.animation) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
             ZStack {
-                ForEach(0..<count, id: \.self) { index in
-                    let seed = Self.spread(index)
+                ForEach(Array(placed.enumerated()), id: \.offset) { index, spot in
                     let size = side * (Twinkle.smallest
-                        + (Twinkle.largest - Twinkle.smallest) * seed.size)
-                    star(at: index, size: size, beat: Self.beat(index, at: now))
-                        .offset(x: (seed.x - 0.5) * side * Twinkle.spread,
-                                y: (seed.y - 0.5) * side * Twinkle.spread)
+                        + (Twinkle.largest - Twinkle.smallest) * spot.size)
+                    star(size: size, beat: Self.beat(spot.rate, at: now),
+                         ink: ink(at: now, seed: spot.turn))
+                        .offset(x: spot.x * side, y: spot.y * side)
                 }
             }
             .frame(width: side, height: side)
@@ -68,15 +82,58 @@ struct BoneSparkles: View {
         .allowsHitTesting(false)
     }
 
+    /// Where one twinkle sits and how it behaves.
+    private struct Place {
+        var turn: CGFloat
+        var x: CGFloat
+        var y: CGFloat
+        var size: CGFloat
+        var rate: CGFloat
+    }
+
+    /// The set, placed once.
+    ///
+    /// **A ring, not a box, and a sector each.** Four points scattered freely in a square
+    /// land wherever the numbers put them, and with only four that is regularly all on
+    /// one side — which is exactly what happened: every `x` for the first eight indices
+    /// came out under a half. Giving each twinkle its own arc and letting it wander
+    /// *within* that arc spreads them round the bone by construction rather than by luck.
+    ///
+    /// One stream drawn in order, too. Seeding per index off the index itself made each
+    /// one's numbers the previous one's shifted along by a place, which is a diagonal
+    /// wearing a different hat.
+    private var scatter: [Place] {
+        var rng = SeededRNG(seed: Twinkle.seed)
+        func roll() -> CGFloat { CGFloat(rng.next() % 1000) / 1000 }
+        return (0..<count).map { index in
+            let turn = (CGFloat(index) + Twinkle.sectorLead
+                        + Twinkle.sectorPlay * roll()) / CGFloat(count)
+            let reach = Twinkle.nearest + (Twinkle.furthest - Twinkle.nearest) * roll()
+            return Place(turn: turn,
+                         x: cos(turn * 2 * .pi) * reach,
+                         y: sin(turn * 2 * .pi) * reach,
+                         size: roll(), rate: roll())
+        }
+    }
+
     /// One twinkle: a white core with the tint blooming around it, breathing.
-    private func star(at index: Int, size: CGFloat, beat: CGFloat) -> some View {
+    /// What one twinkle is lit in. **Glass has no colour of its own** — each of its
+    /// twinkles takes a different place on the wheel and walks it, so the set reads as
+    /// light being split rather than as a set of coloured lamps.
+    private func ink(at now: TimeInterval, seed: CGFloat) -> Color {
+        guard tint == nil else { return tint ?? .white }
+        let turn = now / wheel + Double(seed)
+        return Color(hue: turn - turn.rounded(.down), saturation: 0.85, brightness: 1)
+    }
+
+    private func star(size: CGFloat, beat: CGFloat, ink: Color) -> some View {
         ZStack {
             // The colour lives in the soft copies, where the light is thin enough to keep
             // it — stacked additively they still brighten toward the middle, which is what
             // puts the white core underneath.
             ForEach(0..<Twinkle.glowLayers, id: \.self) { step in
                 SparkleGlyph()
-                    .fill(tint)
+                    .fill(ink)
                     .frame(width: size, height: size)
                     .blur(radius: size * 0.18 * (1 + CGFloat(step) * 0.9))
                     .opacity(Twinkle.glow / Double(step + 1))
@@ -93,23 +150,12 @@ struct BoneSparkles: View {
     }
 
     /// `0`…`1` on this twinkle's own period and offset.
-    private static func beat(_ index: Int, at now: TimeInterval) -> CGFloat {
-        let seed = spread(index)
-        let period = Twinkle.quickest
-            + (Twinkle.slowest - Twinkle.quickest) * Double(seed.rate)
-        let turns = now / period * 2 * .pi + Double(seed.rate) * 2 * .pi
+    private static func beat(_ rate: CGFloat, at now: TimeInterval) -> CGFloat {
+        let period = Twinkle.quickest + (Twinkle.slowest - Twinkle.quickest) * Double(rate)
+        let turns = now / period * 2 * .pi + Double(rate) * 2 * .pi
         return CGFloat(sin(turns) + 1) / 2
     }
 
-    /// A cheap hash of the number, so neighbours do not land on neighbouring rates or in
-    /// a line. Four values out of one multiply, which is enough scatter for seven marks.
-    private static func spread(_ index: Int) -> (x: CGFloat, y: CGFloat,
-                                                 size: CGFloat, rate: CGFloat) {
-        func slice(_ salt: Int) -> CGFloat {
-            CGFloat((index &* 2654435761 &+ salt &* 40503) % 1000) / 1000
-        }
-        return (slice(1), slice(7), slice(13), slice(29))
-    }
 }
 
 #if DEBUG

@@ -211,8 +211,8 @@ struct CardFrontView: View {
                          markShadowOffset: width * 0.014,
                          glyphs: CardLayout.keywordGlyphs,
                          glyphShare: CardLayout.keywordGlyphShare * icons.badgeScale,
-                         type: descriptor.type)
-            .foregroundStyle(effectColour)
+                         type: descriptor.type,
+                         ink: effectColour)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
                       y: height * (CardLayout.effectYFraction

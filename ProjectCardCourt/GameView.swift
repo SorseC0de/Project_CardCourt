@@ -616,6 +616,10 @@ struct GameView: View {
                   spend: controller.spend,
                   // Nothing on the floor moves while something else has the screen.
                   frozen: dim > 0 || onFloor != nil || beingRead != nil,
+                  // The crew's two moments. He is stood behind whatever is on screen for
+                  // both, which is the point — the floor is what the call is about.
+                  calling: controller.whistleReveal != nil,
+                  shooting: controller.cutscene != nil,
                   showingClamps: beingRead?.clamp != nil,
                   onInspectPlayer: { open(.player($0)) },
                   onInspectReferees: { open(.referees) })

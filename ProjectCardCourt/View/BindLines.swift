@@ -19,6 +19,9 @@ struct BindLines: View {
         /// How tall the zigzag is against the figure, and how wide one zag runs.
         static let length: CGFloat = 0.30
         static let zag: CGFloat = 0.038
+        /// How far up the figure the pair sits, from centred. A coil across his middle
+        /// reads as a belt; they belong on the chest.
+        static let lift: CGFloat = 0.08
         static let steps = 6
         static let line: CGFloat = 0.018
         static let glow: CGFloat = 0.04
@@ -51,7 +54,7 @@ struct BindLines: View {
         let travel = phase.truncatingRemainder(dividingBy: 2)
         return Path { path in
             let x = height / 2 + side * out
-            let top = height / 2 - run / 2
+            let top = height / 2 - run / 2 - height * Coil.lift
             path.move(to: CGPoint(x: x, y: top))
             for step in 1...Coil.steps {
                 let y = top + run * CGFloat(step) / CGFloat(Coil.steps)

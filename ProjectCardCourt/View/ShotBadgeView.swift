@@ -12,7 +12,21 @@ struct ShotBadgeView: View {
     @State private var flash: Color?
 
     private var numberSize: CGFloat { ballSize * 0.68 }
+    /// The sign never matches the digits — see `ModeCardStyle.digitStandout`.
+    private var signSize: CGFloat { numberSize * 0.5 }
     private var drop: CGFloat { ballSize * 0.06 }
+
+    /// The wordmark's two inks, meeting at a line inside the letters — see
+    /// `Chrome.hardSplit`. Per size, since the split is read against the cap band and the
+    /// sign is set smaller than the number it qualifies.
+    private func ink(_ size: CGFloat) -> AnyShapeStyle {
+        // A rise or a fall paints the whole reading for a beat; the split is what it
+        // wears the rest of the time.
+        if let flash { return AnyShapeStyle(flash) }
+        return AnyShapeStyle(LinearGradient.hardSplit(.white, CardPalette.lightBlue,
+                                                      in: UIFont(name: Chrome.display,
+                                                                 size: size)))
+    }
 
     var body: some View {
         ZStack {
@@ -29,14 +43,15 @@ struct ShotBadgeView: View {
 
             HStack(alignment: .center, spacing: 0) {
                 Text("\(shot)")
-                    .font(.custom("AvenirNextCondensed-Heavy", size: numberSize))
+                    .font(.custom(Chrome.display, size: numberSize))
                     .tracking(numberSize * CardLayout.badgeTracking)
                     .contentTransition(.numericText())
+                    .foregroundStyle(ink(numberSize))
                 Text("%")
-                    .font(.custom("AvenirNextCondensed-Heavy", size: numberSize * 0.5))
+                    .font(.custom(Chrome.display, size: signSize))
+                    .foregroundStyle(ink(signSize))
             }
-            .foregroundStyle(flash ?? .white)
-            .shadow(color: .black, radius: 0, x: drop * 0.7, y: drop * 0.7)
+            .shadow(color: .black, radius: 0, x: max(3, drop * 0.7), y: max(3, drop * 0.7))
         }
         .scaleEffect(pulse)
         .animation(.easeOut(duration: 0.25), value: shot)

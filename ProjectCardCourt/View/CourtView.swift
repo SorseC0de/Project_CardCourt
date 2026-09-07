@@ -46,6 +46,11 @@ struct CourtView: View {
     /// Held: the floor stops moving because something else has the screen.
     var frozen = false
 
+    /// A Whistle going off right now — see `GameController.whistleReveal`.
+    var calling = false
+    /// A shot in the air, from the moment it is taken — see `GameController.cutscene`.
+    var shooting = false
+
     /// True while a Clamp is being read, which is when who is already clamped matters.
     var showingClamps = false
     /// A tap on somebody who is not a legal target: read them instead of passing to them.
@@ -174,8 +179,8 @@ struct CourtView: View {
                 // Nobody is moving during an inbound, so nothing should be streaming
                 // past them. The court is a held breath.
                 CourtStreaks()
-                    .opacity(isStill ? 0 : 1)
-                    .animation(.easeOut(duration: 0.4), value: isStill)
+                    .opacity(courtIsRunning ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4), value: courtIsRunning)
 
                 room(court)
 
@@ -456,8 +461,8 @@ struct CourtView: View {
                 // mask, so the floor's own shape is what clips them and no streak can
                 // run off the edge onto the dark.
                 FloorStreaks()
-                    .opacity(isStill ? 0 : 1)
-                    .animation(.easeOut(duration: 0.4), value: isStill)
+                    .opacity(courtIsRunning ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4), value: courtIsRunning)
 
                 Rectangle()
                     .fill(LinearGradient(colors: [.clear, Theme.courtSweep, .clear],
@@ -471,8 +476,8 @@ struct CourtView: View {
                     // the floor away with it rather than stopping the thing moving over
                     // it — which is why everything standing on the floor looked far
                     // darker than the scrim over it could account for.
-                    .opacity(isStill ? 0 : 1)
-                    .animation(.easeOut(duration: 0.4), value: isStill)
+                    .opacity(courtIsRunning ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4), value: courtIsRunning)
             }
             .mask(CourtFloorShape())
         }
@@ -694,6 +699,24 @@ struct CourtView: View {
     /// scenes that were still playing. The controller says when.
     private var isStill: Bool { throwing != nil || inbounding != nil }
 
+    /// Whether the play is actually running, which is what the moving scenery asks.
+    ///
+    /// **The rule is the sprites'**: whenever the men are held in a still pose, nothing
+    /// behind or under them should be streaming past — a court racing by while four
+    /// players stand and watch a rebound reads as the camera moving rather than them
+    /// stopping. Not folded into `isStill`, which also dims the floor and re-orders the
+    /// stage; a rebound wants the scenery held and nothing else changed.
+    private var courtIsRunning: Bool { !isStill && rebound == nil }
+
+    /// What the crew is doing. **The call wins over the shot**: a Whistle during one is
+    /// the whole reason anybody is looking at him. Everything that holds the players in a
+    /// pose stands him still, which is the same rule the scenery follows.
+    private var refereeDuty: RefereeFigure.Duty {
+        if calling { return .calling }
+        if shooting { return .watching }
+        return courtIsRunning && !frozen ? .working : .waiting
+    }
+
     /// Whether this seat is watching somebody else go up for the board.
     ///
     /// The rebound is over when the leap is — `rebound` is put down at the end of it, on
@@ -796,7 +819,8 @@ struct CourtView: View {
             // on every post. Same trick the plates use; see `nameScale`.
             let nameScale = court.scale(at: Perspective.inboundLine)
                 / court.scale(at: post.depth)
-            RefereeFigure(mirrored: post.isLeft, phase: post.phase,
+            RefereeFigure(duty: refereeDuty,
+                          mirrored: post.isLeft, phase: post.phase,
                           tone: called.map { look.refereeTone(for: $0.id) }
                               ?? PixelPalette.drawnSkinTone,
                           frozen: frozen)

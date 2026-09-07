@@ -20,6 +20,23 @@ struct BoneAward: View {
     var blends: [BlendMode]?
 
     @State private var landed = false
+    /// How many characters of the count have arrived.
+    @State private var said = 0
+    /// Seconds for one full trip round the hue wheel.
+    static let breath: Double = 16
+
+    /// How far off the vertical the bone hangs.
+    static let lean: Double = -10
+
+    /// The count, as a share of `side`. **The digits stand out and the sign does not** —
+    /// an operator set at the digits' size is the mark of a menu rather than a scoreboard.
+    /// The same rule is written down in `ModeCardView`.
+    static let digitSize: CGFloat = 0.86
+    static let signSize: CGFloat = 0.48
+    /// The sign, lifted off the baseline the digits sit on and tucked into them.
+    static let signLift: CGFloat = -0.16
+    static let signTuck: CGFloat = 0.10
+
     /// Drives the shine down the bone. One long linear repeat rather than a timer: the
     /// strip spends most of its travel off the metal, and that gap **is** the wait.
     @State private var sweeping = false
@@ -53,49 +70,115 @@ struct BoneAward: View {
             .allowsHitTesting(false)
     }
 
-    var body: some View {
-        HStack(spacing: side * 0.18) {
+    /// The light behind the bone. **Crystal has no colour of its own** — it is lit by
+    /// whatever passes through it, so its halo walks the hue wheel and swells as it goes
+    /// rather than sitting on one tint. Everything else takes the one colour and holds it,
+    /// and the timeline is parked so it costs nothing.
+    private var halo: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !bone.breathes)) { pass in
+            let clock = pass.date.timeIntervalSinceReferenceDate / Self.breath
+            let hue = clock - clock.rounded(.down)
+            // Out of step with the hue, so the swell does not land on the same colour
+            // every cycle — the two together are what reads as breathing.
+            let swell = bone.breathes ? 0.78 + 0.22 * cos(clock * 2.6 * .pi) : 1
+            let tint = bone.breathes
+                     ? Color(hue: hue, saturation: 0.72, brightness: 1)
+                     : bone.glow
             ZStack {
                 Circle()
-                    .fill(bone.glow.opacity(0.38))
+                    .fill(tint.opacity(0.38 * bone.bloom * swell))
                     .frame(width: side * 1.15, height: side * 1.15)
                     .blur(radius: side * 0.30)
                 Circle()
-                    .fill(bone.glow.opacity(0.22))
+                    .fill(tint.opacity(0.22 * bone.bloom * swell))
                     .frame(width: side * 0.8, height: side * 0.8)
                     .blur(radius: side * 0.16)
+            }
+        }
+    }
+
+    /// One character of the count: the game's own face, in the wordmark's two inks.
+    ///
+    /// **The mark's fill, not a flat one.** White above and `lightBlue` below, meeting at
+    /// a line rather than blending — see `Chrome.hardSplit`, which reads the split against
+    /// the cap band, so it is passed this glyph's own font rather than the row's.
+    private func character(_ glyph: Character, shown: Bool) -> some View {
+        let sign: Bool = glyph == "+"
+        let digit: CGFloat = side * Self.digitSize
+        let face: CGFloat = sign ? side * Self.signSize : digit
+        // Keyed to the digits so the drop is one distance across the whole count rather
+        // than shrinking with the sign.
+        let drop: CGFloat = max(3, digit * 0.06)
+        let lift: CGFloat = sign ? digit * Self.signLift : 0
+        let tuck: CGFloat = sign ? -digit * Self.signTuck : 0
+        let ink = LinearGradient.hardSplit(.white, CardPalette.lightBlue,
+                                          in: UIFont(name: Chrome.display, size: face))
+        return Text(String(glyph))
+            .font(.custom(Chrome.display, size: face))
+            .foregroundStyle(ink)
+            .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+            .offset(y: lift)
+            .padding(.trailing, tuck)
+            .scaleEffect(shown ? 1 : 0.2)
+            .opacity(shown ? 1 : 0)
+    }
+
+    var body: some View {
+        HStack(spacing: side * 0.18) {
+            ZStack {
+                // Bone is the ordinary one and throws no light at all — see `Bone.bloom`.
+                if bone.bloom > 0 { halo }
                 // **One pass per blend.** Crystal is not painted on the dark, it is lit
                 // through — and one pass of a soft blend barely registers, so it is laid
                 // over itself. Two *different* ones stack differently again: the second
                 // works on what the first left rather than on the ground. See `Bone.blends`.
-                ForEach(Array((blends ?? bone.blends).enumerated()), id: \.offset) { pass in
-                    Image(bone.asset)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: side, height: side)
-                        .blendMode(pass.element)
+                // **Tipped off the vertical.** Dead upright reads as an icon in a list;
+                // a few degrees of lean makes it an object being handed over. The shine
+                // leans with it, since its mask is the bone.
+                Group {
+                    ForEach(Array((blends ?? bone.blends).enumerated()), id: \.offset) { pass in
+                        Image(bone.asset)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: side, height: side)
+                            .blendMode(pass.element)
+                    }
+                    if bone.shines { shine }
                 }
-                if bone.shines { shine }
+                .rotationEffect(.degrees(Self.lean))
                 // **Gold twinkles.** Drawn, not a sheet: the bone is a vector with its
                 // own shading, and a pixel-art burst over it reads as two different games
                 // in one frame. They sit around it rather than behind — behind is where
                 // the glow already is — and they carry on rather than playing once, since
                 // metal keeps catching the light.
                 if bone.sparkles {
-                    BoneSparkles(side: side, tint: bone.glow)
+                    // Gold's all catch the one colour; glass gives each its own.
+                    BoneSparkles(side: side,
+                                 tint: bone.breathes ? nil : bone.glow,
+                                 wheel: Self.breath)
                 }
             }
-            Text("+\(amount)")
-                .font(.system(size: side * 0.72, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .shadow(color: bone.glow.opacity(0.5), radius: side * 0.10)
-                .shadow(color: Chrome.shade, radius: 0, x: side * 0.05, y: side * 0.05)
+            // **The bone lands, then the number is spelled.** All of it at once is a
+            // label appearing; one character at a time is a count being read out.
+            HStack(alignment: .bottom, spacing: 0) {
+                ForEach(Array("+\(amount)".enumerated()), id: \.offset) { place, glyph in
+                    character(glyph, shown: place < said)
+                }
+            }
         }
         .scaleEffect(landed ? 1 : 0.25)
         .opacity(landed ? 1 : 0)
         .onChange(of: arrived, initial: true) { _, here in
-            guard here else { landed = false; return }
+            guard here else { landed = false; said = 0; return }
             withAnimation(pop) { landed = true }
+            Task {
+                // A beat for the bone to arrive, then the characters, one at a time.
+                try? await Task.sleep(for: .seconds(0.22))
+                for step in 1..."+\(amount)".count {
+                    withAnimation(pop) { said = step }
+                    try? await Task.sleep(for: .seconds(0.11))
+                }
+            }
             if bone.shines, !sweeping {
                 withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false)) {
                     sweeping = true
@@ -108,7 +191,7 @@ struct BoneAward: View {
 /// The strips a Swisshbone comes in. One drawing, four ramps — see `Tools/bones`, which
 /// writes the assets from the palette indices.
 enum Bone: String, CaseIterable, Identifiable {
-    case plain, gold, goldAlt, crystal
+    case plain, gold, copper, crystal
 
     var id: String { rawValue }
 
@@ -116,7 +199,7 @@ enum Bone: String, CaseIterable, Identifiable {
         switch self {
         case .plain:   return "Swisshbone"
         case .gold:    return "SwisshboneGold"
-        case .goldAlt: return "SwisshboneGoldAlt"
+        case .copper:  return "SwisshboneCopper"
         case .crystal: return "SwisshboneCrystal"
         }
     }
@@ -125,7 +208,7 @@ enum Bone: String, CaseIterable, Identifiable {
         switch self {
         case .plain:   return "bone"
         case .gold:    return "gold"
-        case .goldAlt: return "gold alt"
+        case .copper:  return "copper"
         case .crystal: return "crystal"
         }
     }
@@ -138,15 +221,30 @@ enum Bone: String, CaseIterable, Identifiable {
     /// works on what the first left rather than on the ground. Everything else is a single
     /// opaque pass.
     var blends: [BlendMode] {
-        self == .crystal ? [.softLight, .screen] : [.normal]
+        self == .crystal ? [.softLight, .softLight] : [.normal]
     }
 
-    /// Whether it throws light off itself. Gold does; a plain bone is a plain bone.
-    var sparkles: Bool { self == .gold || self == .goldAlt }
+    /// Whether it throws light off itself. Gold catches the room and glass splits it;
+    /// copper is a working metal and bone is bone.
+    var sparkles: Bool { self == .gold || self == .crystal }
+
+    /// Whether the glow cycles rather than holding one colour.
+    var breathes: Bool { self == .crystal }
 
     /// Whether a band of light walks down it now and then. Metal catches the room; bone
     /// and glass do not, or not this way.
-    var shines: Bool { self == .gold || self == .goldAlt }
+    var shines: Bool { self != .plain }
+
+    /// How much light it throws. **Bone is not a precious thing** — a plain one lit like
+    /// gold reads as the same reward in a different colour, when the whole point is that
+    /// it is the ordinary one.
+    var bloom: Double {
+        switch self {
+        case .plain:   return 0
+        case .copper:  return 0.75
+        default:       return 1
+        }
+    }
 
     /// What it lights the dark behind it with. The plain one is white; the rest borrow
     /// the lightest entry of their own ramp, so the glow is the bone's own colour rather
@@ -155,7 +253,7 @@ enum Bone: String, CaseIterable, Identifiable {
         switch self {
         case .plain:   return .white
         case .gold:    return PixelPalette.gold
-        case .goldAlt: return PixelPalette.khaki
+        case .copper:  return PixelPalette.khaki
         case .crystal: return PixelPalette.aqua
         }
     }

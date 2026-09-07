@@ -121,6 +121,7 @@ struct DebugActionsView: View {
     var controller: GameController
 
     @State private var deck = DeckTuning.shared
+    @State private var dunks = DunkTuning.shared
     @State private var cardFont = CardFont.shared
     /// Observed, or the switch's own label never changes and it reads as dead.
     @State private var render = RenderDebug.shared
@@ -179,6 +180,10 @@ struct DebugActionsView: View {
                     action("clock") { controller.debugTurnover(.shotClock) }
                     action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
                     action("shot") { controller.debugShot() }
+                    // Whichever `DunkBench` is set to, so the two do not disagree.
+                    action("dunk \(DunkBench.label(dunks.showing))") {
+                        controller.debugDunk(dunks.showing)
+                    }
                     action("name") { controller.debugNameCall() }
                     action("lethal") { controller.debugUnderstood() }
                     action("three") { controller.debugThree() }
