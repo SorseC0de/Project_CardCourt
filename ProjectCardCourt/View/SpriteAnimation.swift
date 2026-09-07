@@ -111,7 +111,7 @@ enum Sprite: String, CaseIterable {
     /// a pixel for the second half of the toss — so whatever is laid on his face has to
     /// move with him rather than sitting where the still pose left it.
     ///
-    /// **The floor of the eye table, not the whole of it.** `EyeTuning` starts from this
+    /// **The floor of the eye table, not the whole of it.** `MarkTuning` starts from this
     /// and anything hand-placed overrides it.
     func headShift(atFrame frame: Int) -> CGPoint {
         switch self {

@@ -6,7 +6,7 @@ import UIKit
 ///
 /// The one thing that cannot be checked anywhere else: whether the eyes land where they
 /// should, on every sheet, at every frame. What is drawn here is what the game draws —
-/// both go through `FaceOnSheet` — so a placement fixed here is fixed everywhere.
+/// both go through `MarksOnSheet` — so a placement fixed here is fixed everywhere.
 ///
 /// Per eye, per frame, per sheet, because that is how the drawing varies. Most sheets
 /// want one answer for all their frames, which is what **All frames** is for; the ones
@@ -18,7 +18,7 @@ struct SpriteGallery: View {
     var onDismiss: () -> Void = {}
 
     @State private var kit = HooperKit.shared
-    @State private var eyes = EyeTuning.shared
+    @State private var eyes = MarkTuning.shared
     @State private var sheet: Sprite = .front
     @State private var frame = 0
     @State private var scale: CGFloat = 10
@@ -27,6 +27,8 @@ struct SpriteGallery: View {
     @State private var dump = ""
     /// Whether a hand-off to another sheet turns the placement round.
     @State private var mirrors = true
+    /// Which of the sample numbers is being placed against.
+    @State private var sample = 1
 
     /// Every sheet a man is drawn from. The strips that are not figures — the heads and
     /// faces themselves, the dust — are left out; there is nothing to place on them.
@@ -127,8 +129,9 @@ struct SpriteGallery: View {
             SpriteAnimation(sprite: sheet, scale: scale, fps: Theme.Figure.playerFPS,
                             isPlaying: playing, restFrame: frame)
                 .paletteSwap(kit.swaps)
-            FaceOnSheet(sheet: sheet, face: kit.face, tone: kit.tone, scale: scale,
-                        frame: playing ? nil : frame, playing: playing)
+            MarksOnSheet(sheet: sheet, face: kit.face, tone: kit.tone, scale: scale,
+                         number: MarkTuning.sampleNumbers[sample], numberInk: trim,
+                         frame: playing ? nil : frame, playing: playing)
         }
         .frame(width: side, height: side)
         // Belt and braces: whatever a sheet's own size turns out to be, it is drawn
@@ -151,8 +154,9 @@ struct SpriteGallery: View {
                         SpriteAnimation(sprite: sheet, scale: 2, isPlaying: false,
                                         restFrame: cell)
                             .paletteSwap(kit.swaps)
-                        FaceOnSheet(sheet: sheet, face: kit.face, tone: kit.tone,
-                                    scale: 2, frame: cell, playing: false)
+                        MarksOnSheet(sheet: sheet, face: kit.face, tone: kit.tone,
+                                     scale: 2, number: MarkTuning.sampleNumbers[sample],
+                                     numberInk: trim, frame: cell, playing: false)
                     }
                     .frame(width: sheet.frameSize * 2, height: sheet.frameSize * 2)
                     .background(RoundedRectangle(cornerRadius: 4)
@@ -176,8 +180,9 @@ struct SpriteGallery: View {
     private var controls: some View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
-                ForEach(Eye.allCases, id: \.self) { which in eyeBox(which) }
+                ForEach(Mark.allCases, id: \.self) { which in eyeBox(which) }
             }
+            numberStyle
             // **Some sheets are the same drawing twice.** A glance over one shoulder is
             // the other one mirrored, and a wave can hold the same head — so the work is
             // handed over rather than done again.
@@ -219,7 +224,7 @@ struct SpriteGallery: View {
 
     /// One eye's answer for this frame: whether it shows, where it goes, and a way to
     /// give the same answer to the whole sheet at once.
-    private func eyeBox(_ which: Eye) -> some View {
+    private func eyeBox(_ which: Mark) -> some View {
         let spot = eyes.spot(sheet, frame: frame, eye: which)
         return VStack(spacing: 5) {
             HStack(spacing: 6) {
@@ -255,7 +260,56 @@ struct SpriteGallery: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(CardPalette.navy.opacity(0.7)))
     }
 
-    private func move(_ which: Eye, by step: CGPoint) {
+    /// The kit's second colour — what a number is set in, since one in the shirt's own
+    /// colour is one nobody can read.
+    private var trim: Color {
+        (Kit.colours[safe: kit.belt] ?? Kit.colours[0]).main
+    }
+
+    /// The face the numbers are set in, how tall they are, and which one is being placed
+    /// against. All three are the same for every sheet: it is one shirt.
+    private var numberStyle: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 6) {
+                SmallCapsText(text: "number", font: Chrome.display, size: 11, tracking: 0.5)
+                    .foregroundStyle(.white)
+                chip(MarkTuning.sampleNumbers[sample], on: true) {
+                    sample = (sample + 1) % MarkTuning.sampleNumbers.count
+                }
+                nudge("−") { eyes.numberSize = max(3, eyes.numberSize - 1) }
+                Text("\(Int(eyes.numberSize))px")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(CardPalette.gold)
+                    .frame(width: 36)
+                nudge("+") { eyes.numberSize = min(24, eyes.numberSize + 1) }
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(PixelFont.all) { face in
+                        let on = face.name == eyes.numberFont
+                        Text(MarkTuning.sampleNumbers[sample])
+                            .font(.custom(face.name, fixedSize: 17))
+                            .foregroundStyle(on ? CardPalette.navy : .white)
+                            .frame(minWidth: 30)
+                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .background(Capsule().fill(on ? CardPalette.gold
+                                                          : CardPalette.navy))
+                            .overlay(alignment: .bottom) {
+                                Text(face.label)
+                                    .font(.system(size: 6, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .lineLimit(1)
+                                    .offset(y: 7)
+                            }
+                            .onTapGesture { eyes.numberFont = face.name }
+                    }
+                }
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    private func move(_ which: Mark, by step: CGPoint) {
         var spot = eyes.spot(sheet, frame: frame, eye: which)
         spot.x += step.x
         spot.y += step.y

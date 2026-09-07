@@ -386,7 +386,7 @@ struct HooperView: View {
 /// — on his own screen, and on the results card.
 ///
 /// **The face is added, never painted over.** Every sheet is drawn faceless, so what
-/// goes on is the eyes and nothing else — where each one sits is `EyeTuning`'s answer,
+/// goes on is the eyes and nothing else — where each one sits is `MarkTuning`'s answer,
 /// placed by hand against the drawing rather than worked out from it.
 struct HooperPortrait: View {
     let pose: Kit.Pose
@@ -435,9 +435,9 @@ struct HooperPortrait: View {
                 // he is dressed on the floor. Not the sheet's blue — that is the human's
                 // colour, and it put every winner in it.
                 .paletteSwap(kit?.swaps ?? PlayerLook.shared.kit(for: seat))
-            // Every eye in the game is placed by one table — see `FaceOnSheet`.
+            // Every eye in the game is placed by one table — see `MarksOnSheet`.
             if let kit, showing.sprite.face != nil {
-                FaceOnSheet(sheet: showing.sprite, face: kit.face, tone: kit.tone,
+                MarksOnSheet(sheet: showing.sprite, face: kit.face, tone: kit.tone,
                             scale: scale, frame: showing.plays ? nil : showing.frame,
                             fps: showing.fps, playing: showing.plays)
             }

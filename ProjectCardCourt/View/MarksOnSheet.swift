@@ -9,19 +9,25 @@ import SwiftUI
 /// The sheet holds a single eye per cell. The far one is a flipped copy of it over the
 /// same 8-wide box, mirrored about the box's own centre, which is where the head is
 /// centred — so nothing here has to know where an eye sits inside its cell. Where each
-/// one goes, and whether it is drawn at all, is `EyeTuning`'s answer.
-struct FaceOnSheet: View {
+/// one goes, and whether it is drawn at all, is `MarkTuning`'s answer.
+struct MarksOnSheet: View {
     let sheet: Sprite
     /// Which face off the strip.
     let face: Int
     let tone: Int
     var scale: CGFloat = Theme.Figure.playerScale
+    /// The number on his back, when he is wearing one. Nil draws none — the court passes
+    /// the man's own; the gallery passes whichever sample is being placed against.
+    var number: String?
+    /// What the number is set in. The trim, since that is the kit's second colour and a
+    /// number in the shirt's own is a number nobody can read.
+    var numberInk: Color = .white
     /// The cell to draw for, or nil to follow the sheet's own clock.
     var frame: Int?
     var fps: Double = Theme.Figure.playerFPS
     var playing = true
 
-    @State private var eyes = EyeTuning.shared
+    @State private var eyes = MarkTuning.shared
 
     var body: some View {
         if let frame {
@@ -40,7 +46,7 @@ struct FaceOnSheet: View {
             // **Nothing to paint out.** Every sheet is drawn faceless now, so a face is
             // only ever added — no skin-coloured rectangle over a printed one, no mask to
             // keep in step with a head that moves.
-            ForEach(Eye.allCases, id: \.self) { which in
+            ForEach(Mark.eyes, id: \.self) { which in
                 let spot = eyes.spot(sheet, frame: cell, eye: which)
                 if spot.shown {
                     // The far eye is drawn flipped, so a nudge to the right has to be
@@ -49,7 +55,25 @@ struct FaceOnSheet: View {
                         .scaleEffect(x: which == .far ? -1 : 1)
                 }
             }
+            if let number {
+                let spot = eyes.spot(sheet, frame: cell, eye: .number)
+                if spot.shown { digits(number, at: spot) }
+            }
         }
+    }
+
+    /// The number, centred on the cell and moved from there.
+    ///
+    /// **From the middle, not from a corner.** A number sits between his shoulders, and
+    /// the middle of the cell is where that is on every sheet — so the dials are a nudge
+    /// off centre rather than a measurement from an edge nobody can see.
+    private func digits(_ number: String, at spot: Spot) -> some View {
+        Text(number)
+            .font(.custom(eyes.numberFont, fixedSize: eyes.numberSize * scale))
+            .foregroundStyle(numberInk)
+            .fixedSize()
+            .frame(width: sheet.frameSize * scale, height: sheet.frameSize * scale)
+            .offset(x: spot.x * scale, y: spot.y * scale)
     }
 
     private func eye(at shift: CGPoint) -> some View {

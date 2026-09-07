@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Round-trips the eye table: place, dump, parse, compare. See Tools/eyes.swift.
+# Round-trips the eye table: place, dump, parse, compare. See Tools/marks.swift.
 #
 # The driver is copied to main.swift first — Swift only allows top-level statements in a
 # file by that name, and calling the source `main.swift` would hide what it is.
@@ -8,6 +8,6 @@ HERE="${0:A:h}"
 ROOT="$HERE/.."
 BIN="$HERE/.build/eyes"
 mkdir -p "$HERE/.build"
-cp "$HERE/eyes.swift" "$HERE/.build/main.swift"
-swiftc -O -o "$BIN" "$ROOT/ProjectCardCourt/View/EyeTable.swift" "$HERE/.build/main.swift"
+cp "$HERE/marks.swift" "$HERE/.build/main.swift"
+swiftc -O -o "$BIN" "$ROOT/ProjectCardCourt/View/MarkTable.swift" "$HERE/.build/main.swift"
 exec "$BIN" "$@"
