@@ -610,12 +610,12 @@ func runTests() {
         declineCounter(&state)
         Check.that(state.ball == victim, "a toll at the far end holds the ball there")
         // Answering it lets the trip finish. The return is owed, not thrown away.
-        guard case .awaitingInjuryDiscard = state.phase else {
+        guard case .awaitingGiveUp = state.phase else {
             Check.that(false, "the toll is asked")
             return
         }
         let give = state[victim].bag.first.map { [$0.id] } ?? []
-        Rules.resolveInjuryDiscard(give, state: &state)
+        Rules.resolveGiveUp(give, state: &state)
         declineCounter(&state)
         print("   → clock \(state.shotClock.map(String.init) ?? "nil")"
               + "  phase \(state.phase.label)  ball \(state.ball?.name ?? "-")")

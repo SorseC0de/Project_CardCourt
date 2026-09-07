@@ -100,7 +100,10 @@ enum Phase: Hashable, Codable {
     /// Bone Bruise: the turn opens by giving one up, and the sheet says whose choice it
     /// is. Its own phase rather than `awaitingDiscard`, which is a price paid for a shot
     /// and resolves into one.
-    case awaitingInjuryDiscard(seat: Seat, count: Int)
+    /// Cards off your own hand, chosen by you, because some card said so. An Injury's
+    /// toll each turn asks this, and so does anything that says discard without saying
+    /// at random — which is most of them.
+    case awaitingGiveUp(seat: Seat, card: CardDescriptor, count: Int)
     /// Clear Out: asked the moment the ball arrives, before the defenders land on him.
     /// Answering no puts the card down for the possession; answering yes spends it and the
     /// ball carries on without him.
@@ -140,7 +143,7 @@ enum Phase: Hashable, Codable {
         case .inbound(let seat):    return seat
         case .possession(let seat): return seat
         case .awaitingDiscard(let seat, _, _): return seat
-        case .awaitingInjuryDiscard(let seat, _): return seat
+        case .awaitingGiveUp(let seat, _, _): return seat
         case .awaitingTarget(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat

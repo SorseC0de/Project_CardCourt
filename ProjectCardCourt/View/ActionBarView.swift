@@ -58,7 +58,7 @@ struct ActionBarView: View {
     /// Bids and Turnaround Three pick cards; a possession plays one.
     private var isSelecting: Bool {
         switch controller.gate {
-        case .awaitingBid, .awaitingDiscard, .awaitingInjuryDiscard: return true
+        case .awaitingBid, .awaitingDiscard, .awaitingGiveUp: return true
         default: return false
         }
     }
@@ -82,7 +82,7 @@ struct ActionBarView: View {
             asking
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
             if case .awaitingDiscard = controller.gate { confirmDiscard }
-            if case .awaitingInjuryDiscard(let card, let count) = controller.gate {
+            if case .awaitingGiveUp(let card, let count) = controller.gate {
                 confirmInjuryDiscard(card, count: count)
             }
             if case .awaitingMove = controller.gate, canShoot {
@@ -104,7 +104,7 @@ struct ActionBarView: View {
         case .awaitingMove:
             guard playableCards.contains(card.id) else { return }
             controller.play(card)
-        case .awaitingBid, .awaitingDiscard, .awaitingInjuryDiscard:
+        case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
             if controller.bidSelection.contains(card.id) {
                 controller.bidSelection.remove(card.id)
             } else {
@@ -139,7 +139,7 @@ struct ActionBarView: View {
             return most == 1
                 ? "\(card.name): discard 1 for +\(each)%?"
                 : "\(card.name): feed it as many as you like, +\(each)% each"
-        case .awaitingInjuryDiscard(let card, let count):
+        case .awaitingGiveUp(let card, let count):
             return "\(card.name): give up \(count)"
         case .awaitingBid:
             return "Crash the glass: bid what you dare"
@@ -272,7 +272,7 @@ struct ActionBarView: View {
     private func confirmInjuryDiscard(_ card: CardDescriptor, count: Int) -> some View {
         let chosen = controller.bidSelection.count
         let ready = chosen == count
-        return Button { controller.submitInjuryDiscard() } label: {
+        return Button { controller.submitGiveUp() } label: {
             Text(ready ? "\(card.name.uppercased()): GIVE UP \(chosen)"
                        : "\(card.name.uppercased()): PICK \(count - chosen)")
                 .font(.system(size: 14, weight: .black)).tracking(1.1)

@@ -13,12 +13,15 @@ struct RefereeFigure: View {
     /// Which of the ramp's skins he wears — see `PlayerLook.refereeTone(for:)`. A crew of
     /// four identical men is one man printed four times.
     var tone: Int = PixelPalette.drawnSkinTone
+    /// Held with everything else on the floor. A referee jogging on the spot behind a
+    /// dimmed court is the one man who did not notice the game had stopped.
+    var frozen = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             SpriteShadow(scale: scale)
             SpriteAnimation(sprite: .refereeRunLook, scale: scale,
-                            fps: Theme.Figure.playerFPS, phase: phase)
+                            fps: Theme.Figure.playerFPS, isPlaying: !frozen, phase: phase)
                 .scaleEffect(x: mirrored ? -1 : 1)
                 .paletteSwap(PixelPalette.skin(tone: tone))
         }

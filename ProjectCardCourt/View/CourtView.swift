@@ -798,7 +798,8 @@ struct CourtView: View {
                 / court.scale(at: post.depth)
             RefereeFigure(mirrored: post.isLeft, phase: post.phase,
                           tone: called.map { look.refereeTone(for: $0.id) }
-                              ?? PixelPalette.drawnSkinTone)
+                              ?? PixelPalette.drawnSkinTone,
+                          frozen: frozen)
                 // Whose call he is, over his head. Small and bracketed: it is an aside
                 // about a man standing there, not a name plate like the players wear.
                 .overlay(alignment: .top) {

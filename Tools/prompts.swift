@@ -68,9 +68,9 @@ enum Prompts {
             guard let pick = (seen.first ?? offered.first)?.id else { return false }
             Rules.resolveInjuryPick(pick, state: &state)
             return true
-        case .awaitingInjuryDiscard(let seat, let count):
+        case .awaitingGiveUp(let seat, _, let count):
             let chosen = Array(ai.discardForShot(state, for: seat).prefix(count))
-            Rules.resolveInjuryDiscard(chosen, state: &state)
+            Rules.resolveGiveUp(chosen, state: &state)
             return true
         default:
             return false

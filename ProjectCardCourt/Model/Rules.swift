@@ -43,7 +43,7 @@ enum Rules {
         case .inbound(let inbounder) where inbounder == seat:
             return Seat.allCases.filter { $0 != seat && $0 != state.inboundBarred }
                 .map { Move.inbound(to: $0) }
-        case .awaitingInjuryDiscard, .awaitingMode, .awaitingCardFrom,
+        case .awaitingGiveUp, .awaitingMode, .awaitingCardFrom,
              .awaitingInjuryPick, .awaitingIntangibleDrop, .awaitingToll:
             return []
         case .awaitingNaming(let asked, _, let named) where asked == seat:
@@ -173,8 +173,7 @@ enum Rules {
             // The hand goes down first, so what it is replaced with can include what it
             // just put there — a table would deal off the pile it is looking at.
             let wanted = state[seat].bag.count
-            state.discard.append(contentsOf: state[seat].bag)
-            state[seat].bag.removeAll()
+            spendHand(of: seat, state: &state, events: &events)
             var taken = 0
             for card in downloadable(from: state) where taken < wanted {
                 state.discard.removeAll { $0.id == card.id }
@@ -547,7 +546,6 @@ enum Rules {
                 }
             }
             drawBatch(seat, count: drawing, state: &state, events: &events)
-            for _ in 0..<descriptor.selfDiscard { discardAtRandom(from: seat, state: &state) }
 
             // Flop sells the contact: every Clamp on the player is a trip to the line,
             // and they all come off. Counted per Clamp card, so a Double-Team is one
@@ -747,6 +745,18 @@ enum Rules {
                 }
                 // Stepback: the extra look is bought, and buying it is optional. Asked
                 // with the same question Turnaround Three asks, capped at one card.
+                // **Chosen, not taken.** A card that says discard without saying at
+                // random means the player picks, and this was the one that did not ask.
+                // Here rather than where the draw happens, because the rest of the play
+                // has to land before the question can stand — a phase set mid-chain is a
+                // phase the next line overwrites.
+                if descriptor.selfDiscard > 0, !state[seat].bag.isEmpty,
+                   case .possession = state.phase {
+                    state.phase = .awaitingGiveUp(seat: seat, card: descriptor,
+                                                  count: min(descriptor.selfDiscard,
+                                                             state[seat].bag.count))
+                    return events
+                }
                 if descriptor.optionalDiscardForShot > 0, !state[seat].bag.isEmpty,
                    case .possession = state.phase {
                     state.phase = .awaitingDiscard(seat: seat, card: descriptor,
@@ -1143,7 +1153,8 @@ enum Rules {
             rehome(lost, from: victim, state: &state, events: &events)
         case .position(let slot):
             guard state[victim].bag.indices.contains(slot) else { return events }
-            state.discard.append(state[victim].bag.remove(at: slot))
+            spend([state[victim].bag.remove(at: slot)], from: victim,
+                  state: &state, events: &events)
         }
         settleHands(state: &state, events: &events)
         return events
@@ -1215,8 +1226,8 @@ enum Rules {
 
     /// The Injury's toll, paid. Whatever was chosen goes, and the turn starts properly.
     @discardableResult
-    static func resolveInjuryDiscard(_ ids: [Card.ID], state: inout GameState) -> [GameEvent] {
-        guard case .awaitingInjuryDiscard(let seat, let count) = state.phase else { return [] }
+    static func resolveGiveUp(_ ids: [Card.ID], state: inout GameState) -> [GameEvent] {
+        guard case .awaitingGiveUp(let seat, let asking, let count) = state.phase else { return [] }
         var events: [GameEvent] = []
 
         let chosen = Set(ids.prefix(count))
@@ -1229,8 +1240,13 @@ enum Rules {
         for _ in spent.count..<count where !state[seat].bag.isEmpty {
             discardAtRandom(from: seat, state: &state)
         }
-        if let injury = state[seat].injuries.first(where: { ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }) {
+        // An Injury's toll is the Injury biting, and reads as one. Anything else asking
+        // is just a hand losing cards, and says so.
+        if let injury = state[seat].injuries.first(where: { ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }),
+           injury.id == asking.id {
             events.append(.clampBit(seat: seat, card: injury, discarded: count))
+        } else {
+            events.append(.discarded(seat: seat, count: spent.count))
         }
         state.phase = .possession(holder: seat)
         settleHands(state: &state, events: &events)
@@ -1506,9 +1522,8 @@ enum Rules {
             drawBatch(offender, count: effect.offenderDraws, state: &state, events: &events)
             credit(whistle.owner, helping: offender, state: &state, events: &events)
         }
-        if effect.offenderDiscardsBag, !state[offender].bag.isEmpty {
-            state.discard.append(contentsOf: state[offender].bag)
-            state[offender].bag.removeAll()
+        if effect.offenderDiscardsBag {
+            spendHand(of: offender, state: &state, events: &events)
         }
         if effect.pointsToVictim > 0 {
             state[whistle.owner].points += effect.pointsToVictim
@@ -1603,6 +1618,28 @@ enum Rules {
         if effect.ownerInbounds {
             reinbound(by: seat, state: &state, events: &events)
         }
+    }
+
+    /// Cards off a hand and onto the pile, **said out loud**.
+    ///
+    /// Twenty-odd places put cards on the discard pile and exactly one of them said so,
+    /// which is why nothing a player gave up ever reached the log. This is the way a hand
+    /// loses cards that has no better word for itself — anything that already has its own
+    /// event keeps it and does not come through here: a card played is a play, cards fed
+    /// to a shot are the shot, a Clamp's bite is the Clamp, a bid is a bid.
+    private static func spend(_ cards: [Card], from seat: Seat,
+                              state: inout GameState, events: inout [GameEvent]) {
+        guard !cards.isEmpty else { return }
+        state.discard.append(contentsOf: cards)
+        events.append(.discarded(seat: seat, count: cards.count))
+    }
+
+    /// The whole hand, down.
+    private static func spendHand(of seat: Seat, state: inout GameState,
+                                  events: inout [GameEvent]) {
+        let hand = state[seat].bag
+        state[seat].bag.removeAll()
+        spend(hand, from: seat, state: &state, events: &events)
     }
 
     private static func discardAtRandom(from seat: Seat, state: inout GameState) {
@@ -1728,9 +1765,8 @@ enum Rules {
                                            cancelledCard: voidedClamp, against: culprit))
                 events.append(.clampVoided(seat: seat, card: whistle.card.descriptor, count: waved))
 
-                if let culprit, effect.offenderDiscardsBag, !state[culprit].bag.isEmpty {
-                    state.discard.append(contentsOf: state[culprit].bag)
-                    state[culprit].bag.removeAll()
+                if let culprit, effect.offenderDiscardsBag {
+                    spendHand(of: culprit, state: &state, events: &events)
                 }
                 if let culprit {
                     for _ in 0..<effect.offenderDiscards { discardAtRandom(from: culprit, state: &state) }
@@ -1820,8 +1856,10 @@ enum Rules {
         // Bone Bruise takes its card at the top of the turn, after the draw — so the turn
         // opens with a choice rather than with a hand already one short.
         let toll = state[seat].injuries.reduce(0) { $0 + ($1.gameBreak?.discardsEachTurn ?? 0) }
-        if toll > 0, !state[seat].bag.isEmpty {
-            state.phase = .awaitingInjuryDiscard(seat: seat, count: min(toll, state[seat].bag.count))
+        if toll > 0, let injury = state[seat].injuries.first(where: {
+            ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }), !state[seat].bag.isEmpty {
+            state.phase = .awaitingGiveUp(seat: seat, card: injury,
+                                          count: min(toll, state[seat].bag.count))
             return
         }
         state.phase = .possession(holder: seat)
@@ -2031,8 +2069,7 @@ enum Rules {
     /// because "discard your hand" has to mean the hand you end up with.
     static func settleHands(state: inout GameState, events: inout [GameEvent]) {
         for seat in state.handsOwed where !state[seat].bag.isEmpty {
-            state.discard.append(contentsOf: state[seat].bag)
-            state[seat].bag.removeAll()
+            spendHand(of: seat, state: &state, events: &events)
         }
         state.handsOwed.removeAll()
 

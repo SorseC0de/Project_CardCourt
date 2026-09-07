@@ -373,7 +373,7 @@ final class GameController {
         case awaitingCounter(card: CardDescriptor)
         /// Bone Bruise's toll at the top of the turn. Its own case, because the shot
         /// discard resolves into a shot and this one resolves into a turn.
-        case awaitingInjuryDiscard(card: CardDescriptor, count: Int)
+        case awaitingGiveUp(card: CardDescriptor, count: Int)
         /// A card that names a player, and the branches of one that names a mode.
         case awaitingTarget(card: CardDescriptor, choices: [Seat])
         case awaitingMode(card: CardDescriptor)
@@ -725,9 +725,10 @@ final class GameController {
             return seat.isLocal ? .awaitingToll(victim: victim) : .thinking
         case .awaitingNaming(let seat, let card, let named):
             return seat.isLocal ? .awaitingNaming(card: card, named: named) : .thinking
-        case .awaitingInjuryDiscard(let seat, let count):
-            guard seat.isLocal, let injury = injury(on: seat) else { return .thinking }
-            return .awaitingInjuryDiscard(card: injury, count: count)
+        case .awaitingGiveUp(let seat, let card, let count):
+            // The card that asked comes with the question now, so nothing has to go
+            // looking for an Injury that may not be what asked.
+            return seat.isLocal ? .awaitingGiveUp(card: card, count: count) : .thinking
         case .inbound(let seat):
             return seat.isLocal ? .awaitingInbound(seat) : .thinking
         case .possession(let seat):
@@ -1282,9 +1283,9 @@ final class GameController {
 
     /// The toll, paid by hand. Picked with the same selection the bid and the shot
     /// discard use — one way of choosing cards, whatever is being asked for.
-    func submitInjuryDiscard() {
+    func submitGiveUp() {
         guard !isPaused else { return }
-        guard case .awaitingInjuryDiscard = gate else { return }
+        guard case .awaitingGiveUp = gate else { return }
         loop?.cancel()
         let chosen = Array(bidSelection)
         bidSelection.removeAll()
@@ -1294,7 +1295,7 @@ final class GameController {
             return
         }
         drive {
-            await present(Rules.resolveInjuryDiscard(chosen, state: &state))
+            await present(Rules.resolveGiveUp(chosen, state: &state))
             await run()
         }
     }
@@ -1771,7 +1772,7 @@ final class GameController {
                 await present(Rules.resolveMode(mode, state: &state), playedCard: true)
                 continue
             }
-            if case .awaitingInjuryDiscard(let seat, let count) = state.phase {
+            if case .awaitingGiveUp(let seat, _, let count) = state.phase {
                 if seat.isLocal {
                     gate = localGate
                     return
@@ -1780,7 +1781,7 @@ final class GameController {
                 if Table.shared.isRemote(seat) {
                     let chosen = await waitOn(seat, for: \.discardsFromWire) ?? []
                     if Task.isCancelled { return }
-                    await present(Rules.resolveInjuryDiscard(chosen, state: &state))
+                    await present(Rules.resolveGiveUp(chosen, state: &state))
                     continue
                 }
                 await think()
@@ -1788,7 +1789,7 @@ final class GameController {
                 // Nothing clever to decide yet: the cheapest card is a judgement the AI
                 // does not make anywhere else either.
                 let chosen = Array(ai.discardForShot(state, for: seat).prefix(count))
-                await present(Rules.resolveInjuryDiscard(chosen, state: &state))
+                await present(Rules.resolveGiveUp(chosen, state: &state))
                 continue
             }
             if case .awaitingDiscard(let seat, let card, let bonusEach) = state.phase {

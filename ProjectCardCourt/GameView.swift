@@ -497,7 +497,7 @@ struct GameView: View {
     /// never the answer to one.
     private var standingAside: Bool {
         switch controller.gate {
-        case .awaitingDiscard, .awaitingInjuryDiscard, .awaitingBid,
+        case .awaitingDiscard, .awaitingGiveUp, .awaitingBid,
              .awaitingTarget, .awaitingNaming, .awaitingInbound:
             return true
         default: return false
@@ -509,7 +509,7 @@ struct GameView: View {
     /// game wants a card; the floor when it wants a player off it.
     private var handIsTheQuestion: Bool {
         switch controller.gate {
-        case .awaitingDiscard, .awaitingInjuryDiscard, .awaitingBid: return true
+        case .awaitingDiscard, .awaitingGiveUp, .awaitingBid: return true
         default: return false
         }
     }
@@ -526,7 +526,7 @@ struct GameView: View {
         // Your own hand being asked for cards is the same question somebody else's hand
         // gets a dimmed floor for.
         switch controller.gate {
-        case .awaitingDiscard, .awaitingInjuryDiscard: return Theme.dimBrowser
+        case .awaitingDiscard, .awaitingGiveUp: return Theme.dimBrowser
         // Picking a player off the floor is the same kind of question, and it was the one
         // asked with the screen left exactly as it was — nothing to say the game had
         // stopped and was waiting on you.
