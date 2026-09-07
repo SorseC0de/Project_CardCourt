@@ -2450,10 +2450,37 @@ final class GameController {
         }
         release(.shot, from: &ledger)
 
+        // **The board, for anybody who is only watching.**
+        //
+        // These two beats existed in one place — `submitBid`, which the host runs and a
+        // guest never reaches. So a guest was handed the rebound batch, folded it into
+        // its digest, agreed with the host about it, and drew none of it: no bids
+        // revealed, nobody going up. The whole scramble was a board that silently changed
+        // hands. `submitBid` still plays its own, because the host has to interleave them
+        // with a resolution it is performing; this is the same two beats for a device
+        // that is only being told.
+        if isGuest {
+            for case .reboundBids(let counts, _) in events {
+                revealedBids = counts
+                try? await Task.sleep(for: .seconds(Pacing.bidReveal))
+                revealedBids = nil
+            }
+            release(.bid, from: &ledger)
+        }
+
         if let scene = TurnoverCutscene(events: events) {
             turnover = scene
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil
+        }
+
+        if isGuest {
+            for case .rebounded(let winner) in events {
+                catchUp()
+                reboundLeap = ReboundLeap(seat: winner)
+                try? await Task.sleep(for: .seconds(ReboundTiming.run))
+                reboundLeap = nil
+            }
         }
         // **The turn does not start until the ball is in his hands.**
         //
