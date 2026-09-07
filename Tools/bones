@@ -1,0 +1,10 @@
+#!/bin/zsh
+# Recolours the Swisshbone from its own four fills.
+#
+# The drawing is four flat colours — palette 15, 14, 13, 12, light to dark — so a variant
+# is four hex values rather than a second drawing. Add a ramp below and run this; it
+# writes one imageset per variant, full colour and not template-rendered, because a bone
+# with its shading tinted flat is a silhouette.
+set -e
+HERE="${0:A:h}"
+exec python3 "$HERE/bones.py" "$HERE/.."
