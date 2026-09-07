@@ -1714,8 +1714,9 @@ final class GameController {
 
             // The bids are shown before they are read out, and who won the board is not
             // written until the numbers are on screen.
-            for case .reboundBids(let counts, _) in events {
-                revealedBids = counts
+            for case .reboundBids(let bids, _) in events {
+                revealedBids = Dictionary(uniqueKeysWithValues:
+                                            bids.map { ($0.seat, $0.count) })
                 try? await Task.sleep(for: .seconds(Pacing.bidReveal))
                 revealedBids = nil
             }
@@ -2563,8 +2564,9 @@ final class GameController {
             if case .reboundBids = $0 { return true } else { return false }
         }) {
             boardShown = true
-            for case .reboundBids(let counts, _) in events {
-                revealedBids = counts
+            for case .reboundBids(let bids, _) in events {
+                revealedBids = Dictionary(uniqueKeysWithValues:
+                                            bids.map { ($0.seat, $0.count) })
                 try? await Task.sleep(for: .seconds(Pacing.bidReveal))
                 revealedBids = nil
             }

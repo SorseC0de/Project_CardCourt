@@ -53,7 +53,16 @@ enum DevLog {
     static func say(_ tag: Tag, _ message: @autoclosure () -> String) {
 #if DEBUG
         guard channels.contains(tag) else { return }
-        print("\(stamp())  [\(tag.rawValue)] \(message())")
+        // **Every line carries the tag.** Xcode's console filter is the whole interface
+        // here, and it matches per line — so a multi-line message showed its first line
+        // under `[net]` and dropped the rest, which is exactly what happened to the first
+        // desync report anybody tried to read.
+        let head = stamp()
+        for (index, line) in message().split(separator: "\n", omittingEmptySubsequences: false)
+            .enumerated() {
+            print("\(index == 0 ? head : String(repeating: " ", count: head.count))"
+                  + "  [\(tag.rawValue)] \(line)")
+        }
 #endif
     }
 

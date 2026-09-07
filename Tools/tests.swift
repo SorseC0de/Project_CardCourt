@@ -998,6 +998,19 @@ func runTests() {
         Check.that(shape == events.map(\.kind), "and the shape of the batch")
         Check.that(!shape.contains { $0.isEmpty }, "every event kind has a name")
 
+        // **The same batch has to write the same bytes on every device.** A dictionary
+        // whose key is neither String nor Int encodes as a flat unkeyed array — the pairs
+        // in iteration order — and Swift seeds its hasher per process. `.sortedKeys` sorts
+        // JSON object keys, and there are none. Every rebound parted the digest.
+        let order = Seat.allCases
+        let onePhone = order.map { GameEvent.SeatBid(seat: $0, count: $0.rawValue) }
+        let another = order.reversed().map { GameEvent.SeatBid(seat: $0, count: $0.rawValue) }
+            .sorted { $0.seat.rawValue < $1.seat.rawValue }
+        var here = Digest(), there = Digest()
+        here.fold([.reboundBids(bids: onePhone, order: order)])
+        there.fold([.reboundBids(bids: another, order: order)])
+        Check.that(here == there, "two devices fold the same bids to the same number")
+
         // **`all` means all.** It used to be the twenty-eight passes and moves of the
         // Classic pool, and six places read it meaning every card there is — so the
         // gallery showed two of seven types, a collection could never hold a Whistle you

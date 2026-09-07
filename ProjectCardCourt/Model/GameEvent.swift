@@ -53,7 +53,14 @@ enum GameEvent: Hashable, Codable {
     case assisted(Seat)
     /// Traded Mid-Game: two men swapped hands where they stand.
     case handsTraded(seat: Seat, with: Seat)
-    case reboundBids(bids: [Seat: Int], order: [Seat])
+    /// **In the order they are read out, not in a dictionary.**
+    ///
+    /// This was `[Seat: Int]`, and a dictionary whose key is neither `String` nor `Int`
+    /// encodes as a flat unkeyed array — the pairs in *iteration* order. Swift seeds its
+    /// hasher per process, so two devices wrote the same bids as different bytes, and
+    /// `.sortedKeys` cannot help because there are no keys in the JSON to sort. Every
+    /// rebound parted the digest, and nothing else ever did.
+    case reboundBids(bids: [SeatBid], order: [Seat])
     case rebounded(Seat)
     /// `cause` is the card that took the ball away, or nil when the clock did. Without
     /// it every turnover in the log claimed to be a shot-clock violation, whatever had
@@ -167,7 +174,8 @@ enum GameEvent: Hashable, Codable {
         case .assisted(let seat):
             return "\(seat.playerName) +1 AST."
         case .reboundBids(let bids, let order):
-            let parts = order.map { "\($0.playerName) \(bids[$0] ?? 0)" }
+            let counts = Dictionary(uniqueKeysWithValues: bids.map { ($0.seat, $0.count) })
+            let parts = order.map { "\($0.playerName) \(counts[$0] ?? 0)" }
             return "Crash the glass: " + parts.joined(separator: " · ")
         case .rebounded(let seat):
             return "\(seat.playerName) \(seat.verb("grabs", "grab")) the board. +1 REB."
@@ -202,6 +210,12 @@ enum GameEvent: Hashable, Codable {
                 ? "FINAL. \(winners[0].playerName) \(winners[0].verb("wins", "win"))."
                 : "FINAL. Tie: " + winners.map(\.playerName).joined(separator: ", ") + "."
         }
+    }
+
+    /// What one seat put in, on a board.
+    struct SeatBid: Hashable, Codable {
+        let seat: Seat
+        let count: Int
     }
 
     /// What kind of thing this is, without any of what it says.

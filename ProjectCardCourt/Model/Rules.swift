@@ -1352,7 +1352,13 @@ enum Rules {
                 .compactMap(\.intangible).reduce(0) { $0 + $1.reboundBidBonus }
             counts[seat] = discarded.isEmpty ? 0 : discarded.count + reach
         }
-        events.append(.reboundBids(bids: counts, order: shooter.clockwiseOrderFromHere))
+        // Built in the order it is read out — see `GameEvent.reboundBids`, which is a
+        // list rather than a dictionary because a dictionary does not write the same
+        // bytes twice.
+        let order = shooter.clockwiseOrderFromHere
+        events.append(.reboundBids(bids: order.map {
+            GameEvent.SeatBid(seat: $0, count: counts[$0] ?? 0)
+        }, order: order))
 
         let highest = counts.values.max() ?? 0
         var contenders = highest == 0
