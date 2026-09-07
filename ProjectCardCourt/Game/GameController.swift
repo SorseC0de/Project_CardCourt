@@ -2491,19 +2491,31 @@ final class GameController {
         // turnover → leap → *then* the draw that opens the possession he won: put after
         // the draws, a guest watched the winner take his card before anybody had revealed
         // who won.
-        if isGuest {
+        //
+        // **Only on a batch that actually has a board in it.** `TurnoverCutscene` is built
+        // from any batch carrying a `.turnover` — a shot clock running out, a Travel, a
+        // failed Behind-the-Back — so running this on every batch played the loose-ball
+        // bit here *and* again at the end of `present`: two different rolls of it, back to
+        // back. And nothing is released here. `release` calls `record`, which is
+        // end-of-batch bookkeeping — it empties `unrevealed` and snaps the ball, the deck
+        // and the shot to where they ended up — so fired this early it showed a drawn
+        // passive before its own reveal scene and moved the ball before the turnover
+        // played. The events stay on the ledger and reach the log with the rest.
+        var boardShown = false
+        if isGuest, events.contains(where: {
+            if case .reboundBids = $0 { return true } else { return false }
+        }) {
+            boardShown = true
             for case .reboundBids(let counts, _) in events {
                 revealedBids = counts
                 try? await Task.sleep(for: .seconds(Pacing.bidReveal))
                 revealedBids = nil
             }
-            release(.bid, from: &ledger)
             if let scene = TurnoverCutscene(events: events) {
                 turnover = scene
                 try? await Task.sleep(for: .seconds(scene.hold))
                 turnover = nil
             }
-            release(.turnover, from: &ledger)
             for case .rebounded(let winner) in events {
                 catchUp()
                 reboundLeap = ReboundLeap(seat: winner)
@@ -2589,7 +2601,7 @@ final class GameController {
         }
         release(.shot, from: &ledger)
 
-        if let scene = TurnoverCutscene(events: events) {
+        if !boardShown, let scene = TurnoverCutscene(events: events) {
             turnover = scene
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil

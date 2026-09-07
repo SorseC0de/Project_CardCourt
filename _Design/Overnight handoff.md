@@ -78,6 +78,56 @@ unsupervised on top of everything else. **This is the single highest-value next 
 - **`Pacing.actionClock`.** Still nil, as instructed.
 - Anything visual.
 
+### I reviewed my own work and it had eight bugs in it
+
+**This is the part worth reading.** After the fixes were in, I ran an adversarial pass —
+five reviewers over the diff, each finding refuted by independent verifiers before it
+counted. It found **eight regressions I had introduced during the night**, and they are all
+fixed in `329686d`. Two of them were in the *rules*, which is where I had least business
+being casual. The pass cost more than the fixes did and was worth it several times over.
+
+The two that mattered most:
+
+- **I redacted three event cases when only one carries anything hidden.** `.discardedForShot`
+  names the shot card that asked — which crosses in the phase anyway — and `.clampBit`
+  names the Clamp doing the biting, read off `clamps`, which is public. Blanking them hid
+  nothing and broke two real things: `CardLibrary.faceDown` is typed `.gameBreak`, so
+  `showClampBite`'s `card.type == .clamp` filter stopped matching and **a guest never saw
+  the defender walk out and swipe**; and both events are loggable, so a guest's log read
+  *"East feeds 3 cards into ."* while the host's named the card — two devices disagreeing
+  about the log the digest exists to prove they agree about.
+- **My Alley-Oop fix opened a worse hole than it closed.** Moving the clear inside the
+  guard stopped the shot being dropped, but I guarded it on `holder == shooter` too — so
+  whenever the chain came to rest on somebody *else's* possession it stayed armed for the
+  rest of the round and fired on an unrelated one. The correct shape is the return leg's,
+  three lines above: clear on the possession, test the holder second.
+
+The other six: the per-seat digests were folded inside the loop that sends them (a throw
+part-way through would make the lost batch the one thing the digest can never report); a
+cancelled drain's tail ran over the top of the drain that replaced it, so every batch after
+a catch-up truncated the one before — the exact fault the queue was added to fix; a
+catch-up board left the scenery of the story it replaced standing; a guest was shown the
+rebound backwards, with the winner taking his card before anybody revealed who won;
+`Table.myLook` read the chair before what this device had said, so the host's own look went
+out as the all-zero default.
+
+Then I reviewed the fixes, and **the fix had two bugs of its own** — both in the block I
+moved. `TurnoverCutscene` is built from *any* batch carrying a `.turnover`, not just a
+rebound, so a guest played the loose-ball bit in my new block and again at the end of
+`present`: two different rolls of it, back to back. And the two `release` calls I moved
+with it call `record`, which is end-of-batch bookkeeping — it empties `unrevealed` and
+snaps the ball, the deck and the shot — so fired that early it showed a drawn passive
+before its own reveal scene and moved the ball before the turnover played. Both fixed.
+
+**One caveat the reviewer raised that I want you to see**, because it is about my
+reasoning rather than my code. I justified the Alley-Oop fix as "which is what the return
+leg above does, and why". That is a false analogy: the return leg's skipped branch is a
+no-op because the goal is already met, while the forced shot's skipped branch *discards an
+obligation*. The behaviour is right for every path that exists today — the reviewer walked
+all three shapes and could not break it — but the stated reason would not protect a second
+`forcesImmediateShot` card that could coexist with a pending `returnsTo`. Worth knowing if
+you ever add one.
+
 ### Also fixed, found by the survey rather than by you
 
 - **An Alley-Oop's forced shot was being dropped.** `settleHands` cleared `shootsAtOnce`
