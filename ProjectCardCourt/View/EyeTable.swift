@@ -30,6 +30,10 @@ enum Eye: String, CaseIterable, Codable {
     case far
 
     var title: String { self == .near ? "Near" : "Far" }
+
+    /// The other one. A sheet drawn facing the other way swaps them: the eye nearer the
+    /// camera on one is the far one on its mirror.
+    var other: Eye { self == .near ? .far : .near }
 }
 
 /// How the table is written down and read back.

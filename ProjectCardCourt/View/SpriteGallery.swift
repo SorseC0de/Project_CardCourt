@@ -25,6 +25,8 @@ struct SpriteGallery: View {
     @State private var playing = false
     @State private var showsDump = false
     @State private var dump = ""
+    /// Whether a hand-off to another sheet turns the placement round.
+    @State private var mirrors = true
 
     /// Every sheet a man is drawn from. The strips that are not figures — the heads and
     /// faces themselves, the dust — are left out; there is nothing to place on them.
@@ -172,6 +174,30 @@ struct SpriteGallery: View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
                 ForEach(Eye.allCases, id: \.self) { which in eyeBox(which) }
+            }
+            // **Some sheets are the same drawing twice.** A glance over one shoulder is
+            // the other one mirrored, and a wave can hold the same head — so the work is
+            // handed over rather than done again.
+            HStack(spacing: 6) {
+                SmallCapsText(text: "give to", font: Chrome.display, size: 11,
+                              tracking: 0.5)
+                    .foregroundStyle(.white)
+                chip(mirrors ? "mirrored" : "as is", on: mirrors) { mirrors.toggle() }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(sheets.filter { $0 != sheet }, id: \.self) { target in
+                            Text(target.rawValue
+                                .replacingOccurrences(of: "Player_", with: ""))
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(Capsule().fill(CardPalette.navy))
+                                .onTapGesture {
+                                    eyes.copy(from: sheet, to: target, mirrored: mirrors)
+                                }
+                        }
+                    }
+                }
             }
             HStack(spacing: 8) {
                 Text("zoom")

@@ -55,6 +55,25 @@ final class EyeTuning {
         save()
     }
 
+    /// One sheet's whole placement, given to another.
+    ///
+    /// **Some sheets are the same drawing twice.** A glance over one shoulder and the
+    /// same glance over the other are one pass of work, not two — and so is a wave that
+    /// holds the same head. Mirrored swaps the eyes and turns the offsets round: what was
+    /// nearer the camera is the far one now, and a nudge to the right is a nudge to the
+    /// left.
+    func copy(from source: Sprite, to target: Sprite, mirrored: Bool) {
+        guard source != target else { return }
+        for frame in 0..<min(source.frames, target.frames) {
+            for eye in Eye.allCases {
+                var taken = spot(source, frame: frame, eye: mirrored ? eye.other : eye)
+                if mirrored { taken.x = -taken.x }
+                tuned[Self.key(target, frame: frame, eye: eye)] = taken
+            }
+        }
+        save()
+    }
+
     /// Back to what the code guessed, for one sheet.
     func forget(_ sheet: Sprite) {
         for frame in 0..<sheet.frames {
