@@ -57,7 +57,17 @@ struct MarksOnSheet: View {
             }
             if let number {
                 let spot = eyes.spot(sheet, frame: cell, eye: .number)
-                if spot.shown { digits(number, at: spot) }
+                if spot.shown {
+                    // **Clipped to the man wearing it.** A number is printed on a shirt,
+                    // so the shirt is its shape — masking by the sheet's own cell cuts
+                    // whatever would spill past an arm or off onto the floor, on every
+                    // frame, without a rectangle having to be placed for each one.
+                    digits(number, at: spot)
+                        .mask {
+                            SpriteAnimation(sprite: sheet, scale: scale,
+                                            isPlaying: false, restFrame: cell)
+                        }
+                }
             }
         }
     }
@@ -87,3 +97,4 @@ struct MarksOnSheet: View {
         }
     }
 }
+
