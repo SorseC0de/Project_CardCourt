@@ -51,6 +51,16 @@ enum Sprite: String, CaseIterable {
     /// on to it. Neither loops: a jump happens once.
     case rebound = "Player_rebound"
     case land = "Player_land"
+    /// Coming down with his back to you, which is how he comes down everywhere but off a
+    /// board — a rebound turns him round to face the room and keeps `land`.
+    case landBack = "Player_land_back"
+
+    /// **The rim.** Two cells of gathering, then one of three finishes. They share the
+    /// wind-up and part company after it: see `Dunk`, which says how each one climbs.
+    case dunkPrepare = "Player_dunk_prepare"
+    case dunkOneHand = "Player_dunk_1hand"
+    case dunkReverse = "Player_dunk_reverse"
+    case dunkWhirlwind = "Player_dunk_whirlwind"
     case praised = "Player_praised"
     case gooseneck = "Player_gooseneck"
     /// Nine heads and nine faces on 8-pixel strips, worn rather than played: the frame is
@@ -69,7 +79,12 @@ enum Sprite: String, CaseIterable {
         // Three ways of standing about waiting for a throw.
         case .inboundReceiverBack: return 3
         case .rebound:      return 5
-        case .land:         return 3
+        case .land, .landBack: return 3
+        case .dunkPrepare:  return 2
+        // Five apiece. The whirlwind has no sheet yet — its `.ase` has never been
+        // exported — so this is what it will be, and the bench will draw nothing until
+        // the PNG lands.
+        case .dunkOneHand, .dunkReverse, .dunkWhirlwind: return 5
         case .smoke:        return 5
         case .spinBall:     return 4
         case .bounceBall:   return 6
@@ -94,6 +109,9 @@ enum Sprite: String, CaseIterable {
         // Side on: the near eye, and the far one behind the nose.
         case .right:
             return .profile
+        // The one finish that turns him back to the room on the way down.
+        case .dunkReverse:
+            return .whole
         // Glancing over a shoulder. His head is turned, so the eye nearer the edge of it
         // rides a pixel higher than the one still facing you.
         case .runLook, .runLook2, .wave:
@@ -296,6 +314,19 @@ struct OnSheet<Content: View>: View {
                 .frame(width: rect.width * scale, height: rect.height * scale)
                 .offset(x: (rect.minX + shift.x) * scale,
                         y: (rect.minY + shift.y) * scale)
+        }
+    }
+}
+
+extension Dunk {
+    /// The sheet this finish is drawn from. **Here rather than on `Dunk` itself**: which
+    /// dunk a man throws down is a rule, and which strip it is drawn from is not — the
+    /// model does not know sprites exist.
+    var sheet: Sprite {
+        switch self {
+        case .oneHand:   return .dunkOneHand
+        case .reverse:   return .dunkReverse
+        case .whirlwind: return .dunkWhirlwind
         }
     }
 }

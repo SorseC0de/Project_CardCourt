@@ -158,7 +158,7 @@ struct HooperView: View {
     /// Where he plays, stacked down the empty side of the box.
     private var positions: some View {
         VStack(spacing: 3) {
-            ForEach(Kit.Position.allCases) { spot in
+            ForEach(Position.allCases) { spot in
                 let on = spot == kit.position
                 SmallCapsText(text: spot.rawValue, font: Chrome.display, size: 13,
                               tracking: 0.5)

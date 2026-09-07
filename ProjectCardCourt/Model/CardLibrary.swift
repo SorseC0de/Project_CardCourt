@@ -665,7 +665,7 @@ enum CardLibrary {
         effect: "SHOT +10%. SHOT = 100% if it reaches 70%. Shoot the ball", numberInDeck: 4,
         shotDelta: 10,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100,
-                                   overrideRequiresAtLeast: 70))
+                                   overrideRequiresAtLeast: 70, dunks: true))
 
     static let euroStep = CardDescriptor(
         id: "euro-step", name: "Euro Step", type: .specialMove,

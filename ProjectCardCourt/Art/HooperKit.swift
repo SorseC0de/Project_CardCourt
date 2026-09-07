@@ -21,7 +21,7 @@ final class HooperKit {
     /// Indices into `Kit.colours`.
     var jersey: Int { didSet { save() } }
     var belt: Int { didSet { save() } }
-    var position: Kit.Position { didSet { save() } }
+    var position: Position { didSet { save() } }
     /// A card off the pool they have actually met. Nil until they pick one.
     var favourite: String? { didSet { save() } }
     /// The stances they are willing to be caught in when they win, by raw value.
@@ -67,7 +67,7 @@ final class HooperKit {
         tone = store.object(forKey: Key.tone) as? Int ?? PixelPalette.drawnSkinTone
         jersey = store.object(forKey: Key.jersey) as? Int ?? 0
         belt = store.object(forKey: Key.belt) as? Int ?? Kit.drawnTrim
-        position = Kit.Position(rawValue: store.string(forKey: Key.position) ?? "")
+        position = Position(rawValue: store.string(forKey: Key.position) ?? "")
             ?? .pointGuard
         favourite = store.string(forKey: Key.favourite)
         winPoses = Set(store.stringArray(forKey: Key.winPoses) ?? [])
@@ -135,25 +135,6 @@ enum Kit {
     /// "00" first, the way a squad list has it, then 0 through 99.
     static let numbers: [String] = ["00"] + (0...99).map(String.init)
 
-    enum Position: String, CaseIterable, Identifiable {
-        case pointGuard = "PG"
-        case shootingGuard = "SG"
-        case smallForward = "SF"
-        case powerForward = "PF"
-        case centre = "C"
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .pointGuard:     return "Point Guard"
-            case .shootingGuard:  return "Shooting Guard"
-            case .smallForward:   return "Small Forward"
-            case .powerForward:   return "Power Forward"
-            case .centre:         return "Centre"
-            }
-        }
-    }
 
     /// How a view wears the face sheet.
     ///
@@ -189,7 +170,7 @@ enum Kit {
         /// The three idle ones lead, because they are the ones worth watching — a kit is
         /// judged on a player standing there with the ball, not mid-stride.
         case stand, spinning, bouncing, holding, gooseneck, praised, fierce, defending,
-             running, dribbling, receiving, shooting
+             running, dribbling, receiving, shooting, oneHand, reverse, whirlwind
         /// The three views `stand` turns through. Not stances anybody picks — they are
         /// frames of one that is — so they are never offered on their own.
         case front, back, right
@@ -214,7 +195,8 @@ enum Kit {
         /// player mid-play, and the turn is how he stands when nothing is happening at
         /// all — none of them is a way of being looked at after the final whistle.
         var canWin: Bool {
-            ![.stand, .shooting, .receiving, .running].contains(self)
+            ![.stand, .shooting, .receiving, .running,
+              .oneHand, .reverse, .whirlwind].contains(self)
         }
 
         /// Every pose the results card may catch somebody in.
@@ -225,6 +207,9 @@ enum Kit {
         var title: String {
             switch self {
             case .stand:     return "Stand"
+            case .oneHand:   return "One-Hand"
+            case .reverse:   return "Reverse"
+            case .whirlwind: return "Whirlwind"
             case .spinning:  return "Spin"
             case .bouncing:  return "Bounce"
             case .holding:   return "Hold"
@@ -247,6 +232,9 @@ enum Kit {
             // The view the turn opens on. Anything drawing a `stand` walks `Pose.turn`
             // rather than asking for one sheet — see `HooperPortrait`.
             case .stand:     return .front
+            case .oneHand:   return .dunkOneHand
+            case .reverse:   return .dunkReverse
+            case .whirlwind: return .dunkWhirlwind
             case .spinning:  return .spinBall
             case .bouncing:  return .bounceBall
             // The throw-in wind-up, held on its first cell: hands up, facing the room.
@@ -286,6 +274,8 @@ enum Kit {
             switch self {
             // Half a second a view, so a full turn takes two.
             case .stand:               return Theme.Figure.turnFPS
+            // The rim runs at the shot's beat — it is the end of one.
+            case .oneHand, .reverse, .whirlwind: return Theme.Figure.shootFPS
             case .spinning, .bouncing: return Theme.Figure.idleBallFPS
             case .shooting:            return Theme.Figure.shootFPS
             // Two poses, braced. Four a second, like everything off the run of play.

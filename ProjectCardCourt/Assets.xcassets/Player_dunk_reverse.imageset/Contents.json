@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Player_dunk_reverse.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

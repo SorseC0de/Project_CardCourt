@@ -16,6 +16,12 @@ enum Rules {
         var events: [GameEvent] = []
         deal(to: Seat.allCases, count: rules.startingBagSize, state: &state, events: &events)
 
+        // Positions come off the same shuffle as everything else, so every device at the
+        // table agrees about who finishes at the rim. The local seat's own is written over
+        // this by whoever owns the kit — see `GameController.begin`.
+        for seat in Seat.allCases {
+            state[seat].position = Position.allCases[state.roll(0...(Position.allCases.count - 1))]
+        }
         state.inbounder = GameRules.debugFirstInbounder ?? state.pick(from: Seat.allCases)
         state.round = 1
 
@@ -1338,12 +1344,35 @@ enum Rules {
     }
 
     /// Takes the shot. Shared by the free Shoot action and by Special Moves that shoot.
+    /// Whether this attempt is finished at the rim, and how.
+    ///
+    /// **Cosmetic, and still the rules'.** Nothing about a dunk scores differently — it is
+    /// the same attempt — but which one happens has to be settled once, in the state
+    /// everybody is told about, or four devices would each roll their own.
+    static func dunk(for seat: Seat, card: CardDescriptor?, state: inout GameState) -> Dunk? {
+        let roll = state.roll(0...999)
+        // A card that calls for one gets any of the three; a plain possession gets what
+        // the man's position throws down, and never a whirlwind.
+        if card?.special?.dunks == true {
+            return Dunk.allCases[roll % Dunk.allCases.count]
+        }
+        return Dunk.ordinary(for: state[seat].position, roll: roll)
+    }
+
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
                                     overClamps: Bool = false,
                                     state: inout GameState, events: inout [GameEvent]) {
         // What the card in hand was worth, spent on this attempt and gone.
         let priced = state.pendingShotBonus
         state.pendingShotBonus = 0
+        // **Settled here, once.** Which finish this is has to be in the state everybody
+        // is told about, or four devices would each roll their own and watch four
+        // different dunks. Nothing about the scoring reads it.
+        let played = state.lastPlayThisPossession.flatMap { id in
+            CardLibrary.all.first { $0.id == id }
+        }
+        state.dunking = dunk(for: seat, card: played, state: &state)
+        if state.dunking != nil { state[seat].dunks += 1 }
         state.shotsThisRound += 1
         state.mustShootFirst = nil
         let upgraded = state.pendingBonusPoint

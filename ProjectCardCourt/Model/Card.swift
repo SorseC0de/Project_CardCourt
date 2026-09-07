@@ -246,6 +246,9 @@ struct SpecialMoveEffect: Hashable, Codable {
     var shotOverride: Int?
     /// Slam Dunk only. Read after the debuffs, against what survived.
     var overrideRequiresAtLeast: Int?
+    /// The attempt is finished at the rim, whoever is taking it. Any of the three, since
+    /// the card asked for a dunk rather than for the one this man usually throws down.
+    var dunks = false
     /// Buzzer Beater is unplayable unless the clock reads exactly this.
     var onlyAtShotClock: Int?
     /// `SHOT = x%`, but only off the glass. Putback Tip is a tip-in: from anywhere else

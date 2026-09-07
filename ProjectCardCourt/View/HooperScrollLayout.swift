@@ -53,7 +53,7 @@ struct HooperScrollLayout: View {
                                          choice: $kit.belt)
                         }
                         section("Position") {
-                            SlabPicker(options: Kit.Position.allCases,
+                            SlabPicker(options: Position.allCases,
                                        choice: $kit.position) { $0.rawValue }
                         }
                         number

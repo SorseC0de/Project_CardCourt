@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Player_dunk_1hand.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

@@ -67,6 +67,14 @@ struct PlayerState: Hashable, Identifiable, Codable {
     var assists = 0
     var rebounds = 0
     var turnovers = 0
+    /// **Kept, not shown.** The first of the quiet ones: nothing on the board reads it,
+    /// and it is here so the breakdown at the end of a game and the all-time page on My
+    /// Hooper have something to count when they arrive.
+    var dunks = 0
+
+    /// Where he plays. The local seat's is what he built; the rest are rolled with the
+    /// deal, so every device agrees on who finishes at the rim.
+    var position: Position = .pointGuard
 
     var id: Seat { seat }
     var score: Int { points + assists + rebounds - turnovers }
@@ -173,6 +181,9 @@ struct GameState: Codable {
     var pendingShotBonus = 0
     /// Attempts already taken this round, so Sixth Man can count to six.
     var shotsThisRound = 0
+    /// How the attempt on its way up is being finished, when it is finished at the rim.
+    /// Set as the shot goes up and read by the cutscene; nothing about scoring reads it.
+    var dunking: Dunk?
     /// Rock Fight: nobody shoots from a look this good, for the rest of the round.
     var shotCeilingThisRound: Int?
     /// Fundamentalist: which Moves have already been played this possession.
