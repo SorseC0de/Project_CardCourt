@@ -35,6 +35,14 @@ enum ClientMessage: Codable {
     case reboundBid([UUID])
     /// Turnaround Three: the cards fed into the shot.
     case discardForShot([UUID])
+    /// The toll, paid by hand — cards given up to an injury rather than to a shot.
+    ///
+    /// **Its own case, though the host drains both the same way.** It went as
+    /// `.discardForShot`, whose handler guards on `.awaitingDiscard`; a give-up is only
+    /// ever reachable from `.awaitingGiveUp`, so the host dropped it in silence while its
+    /// own loop sat on the inbox waiting for it. With no action clock that wait never
+    /// returns — a guest paying a Bone Bruise hung the whole table, for good.
+    case giveUp([UUID])
     /// Everything else the game stops to ask for. See `Decision`.
     case decision(Decision)
     /// The free-throw mini-game's own result. The trip it belongs to is in the phase, so

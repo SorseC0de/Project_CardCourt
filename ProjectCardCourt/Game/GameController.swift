@@ -663,11 +663,35 @@ final class GameController {
     /// What has arrived from the other devices and not been acted on yet. One slot per
     /// seat: a client that sends twice before the host looks has changed its mind, which
     /// is allowed — it is still only ever one decision.
-    private var bidsFromWire: [Seat: [Card.ID]] = [:]
-    private var movesFromWire: [Seat: Move] = [:]
-    private var discardsFromWire: [Seat: [Card.ID]] = [:]
-    private var freeThrowsFromWire: [Seat: Bool] = [:]
-    private var decisionsFromWire: [Seat: Decision] = [:]
+    private var bidsFromWire: [Seat: Posted<[Card.ID]>] = [:]
+    private var movesFromWire: [Seat: Posted<Move>] = [:]
+    private var discardsFromWire: [Seat: Posted<[Card.ID]>] = [:]
+    private var giveUpsFromWire: [Seat: Posted<[Card.ID]>] = [:]
+    private var freeThrowsFromWire: [Seat: Posted<Bool>] = [:]
+    private var decisionsFromWire: [Seat: Posted<Decision>] = [:]
+
+    /// An answer, and the question it was answering.
+    ///
+    /// **The stamp is the whole point.** Every one of these is accepted only while the
+    /// phase says this seat is the one being asked — but a message that arrived in time
+    /// and was never *consumed* used to sit in its slot until the next `waitOn` for that
+    /// seat spent it on something else. `.move` is the worst of them: it is accepted
+    /// whenever the seat is the acting one, which is every `awaiting*` phase, so a play
+    /// made a moment late could be parked and then handed over as the answer to the next
+    /// possession.
+    ///
+    /// Stamped with the batch that carried the question, and read back only while the
+    /// host is still on that batch. Sweeping on a phase change would have been the
+    /// obvious fix and is wrong: there is a window between the phase moving and the sweep
+    /// noticing in which a perfectly good answer arrives and is thrown away.
+    struct Posted<Value> {
+        let batch: Int
+        let value: Value
+    }
+
+    /// Which question is on the table, as the wire counts it — see `Digest`.
+    private var askedAt: Int { digest.batches }
+
     /// Who has left and not yet been answered for. The floor holds while this is not
     /// empty — see `keepPlaying` and `stopHere`.
     private(set) var walkedOut: Set<Seat> = []
@@ -841,23 +865,27 @@ final class GameController {
         // that answers a moment late ends up racing the seat's own clock.
         case .move(let move):
             guard state.phase.actingSeat == seat else { return }
-            movesFromWire[seat] = move
+            movesFromWire[seat] = Posted(batch: askedAt, value: move)
         case .reboundBid(let cards):
             guard case .awaitingRebound = state.phase else { return }
-            bidsFromWire[seat] = cards
+            bidsFromWire[seat] = Posted(batch: askedAt, value: cards)
         case .discardForShot(let cards):
             guard case .awaitingDiscard(let asked, _, _) = state.phase, asked == seat
             else { return }
-            discardsFromWire[seat] = cards
+            discardsFromWire[seat] = Posted(batch: askedAt, value: cards)
+        case .giveUp(let cards):
+            guard case .awaitingGiveUp(let asked, _, _) = state.phase, asked == seat
+            else { return }
+            giveUpsFromWire[seat] = Posted(batch: askedAt, value: cards)
         case .freeThrow(let made):
             guard case .freeThrows(let trip) = state.phase, trip.shooter == seat
             else { return }
-            freeThrowsFromWire[seat] = made
+            freeThrowsFromWire[seat] = Posted(batch: askedAt, value: made)
         // Refused unless the phase says this is the seat being asked, like everything
         // else here — which is the whole of the host's authority.
         case .decision(let decision):
             guard state.phase.actingSeat == seat else { return }
-            decisionsFromWire[seat] = decision
+            decisionsFromWire[seat] = Posted(batch: askedAt, value: decision)
         }
     }
 
@@ -1158,10 +1186,18 @@ final class GameController {
     /// has looked has simply made one decision, and a continuation would have fired on the
     /// first tap.
     private func waitOn<T>(_ seat: Seat,
-                           for inbox: ReferenceWritableKeyPath<GameController, [Seat: T]>) async -> T? {
+                           for inbox: ReferenceWritableKeyPath<GameController, [Seat: Posted<T>]>)
+    async -> T? {
+        let asked = askedAt
         let deadline = Pacing.actionClock.map { Date().addingTimeInterval($0) }
         while !Task.isCancelled, deadline.map({ Date() < $0 }) ?? true {
-            if let answer = self[keyPath: inbox].removeValue(forKey: seat) { return answer }
+            if let posted = self[keyPath: inbox].removeValue(forKey: seat) {
+                // An answer to a question that has already been settled. Dropped rather
+                // than spent on this one.
+                if posted.batch == asked { return posted.value }
+                DevLog.say(.net, "\(seat.name): dropped a stale answer from batch "
+                           + "\(posted.batch), asking at \(asked)")
+            }
             try? await Task.sleep(for: .milliseconds(80))
         }
         return nil
@@ -1407,7 +1443,7 @@ final class GameController {
         bidSelection.removeAll()
         if isGuest {
             gate = .thinking
-            try? match?.send(.discardForShot(chosen))
+            try? match?.send(.giveUp(chosen))
             return
         }
         drive {
@@ -1473,7 +1509,13 @@ final class GameController {
             // Everybody bids at once, so the board waits on the other devices rather than
             // asking them one at a time.
             await waitForBids()
-            for seat in Table.shared.remotes { bids[seat] = bidsFromWire[seat] ?? [] }
+            // Same rule as `waitOn`: a bid stamped against an older board is an answer
+            // to a rebound that has already been settled.
+            let asked = askedAt
+            for seat in Table.shared.remotes {
+                let posted = bidsFromWire[seat]
+                bids[seat] = posted?.batch == asked ? (posted?.value ?? []) : []
+            }
             bidsFromWire.removeAll()
 
             let events = Rules.resolveRebound(bids: bids, state: &state)
@@ -1911,7 +1953,7 @@ final class GameController {
                 }
                 gate = .thinking
                 if Table.shared.isRemote(seat) {
-                    let chosen = await waitOn(seat, for: \.discardsFromWire) ?? []
+                    let chosen = await waitOn(seat, for: \.giveUpsFromWire) ?? []
                     if Task.isCancelled { return }
                     await present(Rules.resolveGiveUp(chosen, state: &state))
                     continue
