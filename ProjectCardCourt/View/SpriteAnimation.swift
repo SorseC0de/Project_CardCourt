@@ -81,10 +81,11 @@ enum Sprite: String, CaseIterable {
         case .rebound:      return 5
         case .land, .landBack: return 3
         case .dunkPrepare:  return 2
-        // Five apiece. The whirlwind has no sheet yet — its `.ase` has never been
-        // exported — so this is what it will be, and the bench will draw nothing until
-        // the PNG lands.
-        case .dunkOneHand, .dunkReverse, .dunkWhirlwind: return 5
+        case .dunkOneHand, .dunkReverse: return 5
+        // Nine, counted off the sheet: five going up — he is at the rim on the last of
+        // them — and four finishing. It is the long one, which is why it is the only
+        // finish whose climb is its own animation rather than a held cell.
+        case .dunkWhirlwind: return 9
         case .smoke:        return 5
         case .spinBall:     return 4
         case .bounceBall:   return 6
