@@ -37,15 +37,15 @@ struct ScoreCallView: View {
     private enum Board {
         /// The score is a number and every other call is a phrase. A number wants to be
         /// bigger than a phrase.
-        static let titleScale: CGFloat = 1.35
-        static let star: CGFloat = 92
+        static let titleScale: CGFloat = 2.5
+        static let star: CGFloat = 112
         static let head: CGFloat = 3
-        static let drop: CGFloat = 4
+        static let drop: CGFloat = 6
         /// How far off the card's own corner the badge hangs, as shares of its own size.
         /// Off the edge on purpose — a badge tucked inside reads as part of the message
         /// rather than as something stuck on top of it.
-        static let overhangX: CGFloat = 0.30
-        static let overhangY: CGFloat = 0.45
+        static let overhangX: CGFloat = 0.33
+        static let overhangY: CGFloat = 0.66
         static let inset: CGFloat = 18
     }
 
@@ -55,12 +55,16 @@ struct ScoreCallView: View {
             // corner rather than the screen's.
             let bar = ModeCardStyle.bar(across: geo.size.width)
             ZStack {
-                ModeCardView(title: "+\(call.points)pts",
+                // The number is the call; the sign and the unit are not — plain letters
+                // at half its size, so the display face is spent on the digits alone. See
+                // `ModeCardView.titlePrefix`.
+                ModeCardView(title: "\(call.points)",
                              subtitle: "",
                              ink: .white,
                              subtitleInk: .white,
                              seat: call.seat,
                              titleScale: Board.titleScale,
+                             titlePrefix: "+", titleSuffix: "pts",
                              isLeaving: false,
                              onLanded: {},
                              onFinished: {})
@@ -90,17 +94,17 @@ struct ScoreCallView: View {
     /// One man's credit. His colour, his face, his name.
     private func star(_ seat: Seat) -> some View {
         VStack(spacing: 2) {
-            SmallCapsText(text: "+1 AST", font: Chrome.display, size: 18, tracking: 0.8)
+            SmallCapsText(text: "+1 AST", font: Chrome.display, size: 22, tracking: 0.8)
                 .foregroundStyle(.white)
-                .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+                .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
             HStack(spacing: 3) {
                 SpriteAnimation(sprite: .heads, scale: Board.head, isPlaying: false,
                                 restFrame: PlayerLook.shared.face(for: seat))
                     .paletteSwap(PlayerLook.shared.skin(for: seat))
-                SmallCapsText(text: PlayerLook.shared.billing(for: seat), font: Chrome.display, size: 12,
+                SmallCapsText(text: PlayerLook.shared.billing(for: seat), font: Chrome.display, size: 14,
                               tracking: 0.6)
                     .foregroundStyle(.white)
-                    .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+                    .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -114,6 +118,7 @@ struct ScoreCallView: View {
                 // Hard and south-east, like every other mark in the game.
                 .shadow(color: CardPalette.navy, radius: 0, x: Board.drop, y: Board.drop)
         }
+        .rotationEffect(Angle.degrees(5))
     }
 }
 

@@ -72,6 +72,17 @@ struct ModeCardView: View {
     /// else says a phrase, and a number wants to be bigger than a phrase.
     var titleScale: CGFloat = 1
 
+    /// Set either side of the title in plain type, and smaller.
+    ///
+    /// **A number is the word here; a sign and a unit are not.** "+" and "pts" qualify
+    /// what is being called out rather than being called out themselves, so they are
+    /// ordinary letters and the display face is spent on the digits alone — which is also
+    /// what lets the digits carry the size without the whole string growing with them.
+    var titlePrefix = ""
+    var titleSuffix = ""
+    /// How big the affixes are against the title they sit beside.
+    var affixScale: CGFloat = 0.46
+
     /// One colour for the streaks, when the call has a colour of its own — a Game Break's
     /// purple, a Clamp's red. Nil leaves them white on a card that belongs to a seat, and
     /// the table's kit colours on one that belongs to nobody.
@@ -305,12 +316,17 @@ struct ModeCardView: View {
                 // The game's own lettering rather than the port's: a ramp from loud to
                 // quiet across the word, which is what makes a phase read as called out
                 // rather than labelled. See `ActionText`.
-                ActionText(title, size: ModeCardStyle.titleSize * bar.height * titleScale,
-                           ink: ink, drop: titleShade,
-                           taper: ModeCardStyle.titleTaper,
-                           tracking: ModeCardStyle.titleTracking)
-                    .lineLimit(1)
-                    .minimumScaleFactor(ModeCardStyle.textSqueeze)
+                let size = ModeCardStyle.titleSize * bar.height * titleScale
+                HStack(alignment: .firstTextBaseline, spacing: size * 0.06) {
+                    if !titlePrefix.isEmpty { affix(titlePrefix, against: size) }
+                    ActionText(title, size: size,
+                               ink: ink, drop: titleShade,
+                               taper: ModeCardStyle.titleTaper,
+                               tracking: ModeCardStyle.titleTracking)
+                        .lineLimit(1)
+                        .minimumScaleFactor(ModeCardStyle.textSqueeze)
+                    if !titleSuffix.isEmpty { affix(titleSuffix, against: size) }
+                }
             }
         }
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)
@@ -320,6 +336,17 @@ struct ModeCardView: View {
             // with the card — they arrive on it — so they get a curve that
             // overshoots and settles rather than one built for a slide.
             .animation(wordPop, value: said)
+    }
+
+    /// A sign or a unit beside the title: the same ink and the same hard drop, in plain
+    /// letters at a share of its size.
+    private func affix(_ text: String, against size: CGFloat) -> some View {
+        Text(text)
+            .font(.system(size: size * affixScale, weight: .black, design: .rounded))
+            .foregroundStyle(ink)
+            .shadow(color: titleShade, radius: 0,
+                    x: size * 0.04, y: size * 0.04)
+            .fixedSize()
     }
 
     /// The one-line description, under the name on the lower bar.
