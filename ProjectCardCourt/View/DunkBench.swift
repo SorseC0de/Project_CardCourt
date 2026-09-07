@@ -29,6 +29,12 @@ enum DunkStyle {
         /// reverse spends only two cells at the rim, so a cell-per-pixel sink could never
         /// go past two on it. Past the last cell he keeps descending on the held frame.
         var sink: Int
+        /// **The climb does not have to be one rate.** How many of its opening cells
+        /// play at `leadFPS`, with the rest of them dividing whatever is left of `climb`.
+        /// A whirlwind's spin is unreadable spread evenly over a short climb; held at a
+        /// legal rate at the start it reads, and the cells after it can hurry.
+        var leadCells: Int = 0
+        var leadFPS: Double = 10
         /// Which burst comes off the rim. **One each**: three finishes that land the same
         /// way read as one animation with three wind-ups. All three point at the same
         /// sheet until the other two are cut vertically and imported.
@@ -44,8 +50,12 @@ enum DunkStyle {
             return Trip(rise: 272, arrivesAt: 0.5, climb: 0.50,
                         gatherFPS: 10, finishFPS: 10, sink: 4)
         case .whirlwind:
+            // Three of its five climb cells held at ten, which leaves the last two to
+            // share a tenth of a second. **Which cells are the spin is a guess** — set
+            // `lead cells` on the bench once it is on screen.
             return Trip(rise: 272, arrivesAt: 0.5, climb: 0.40,
-                        gatherFPS: 10, finishFPS: 10, sink: 4)
+                        gatherFPS: 10, finishFPS: 10, sink: 4,
+                        leadCells: 3, leadFPS: 10)
         }
     }
 
@@ -63,9 +73,23 @@ enum DunkStyle {
     /// A beat after the grab, so it reads as the rim answering rather than as the impact.
     static let burstDelay: Double = 0.05
 
-    /// A reverse hangs on and keeps swinging until the scene is done with him.
-    static let bounceSpring = Animation.spring(response: 0.42, dampingFraction: 0.30)
-    static let bounceEvery: Double = 0.55
+    /// **A swing is not the impact.** Two pixels is what arriving on the rim costs; a
+    /// man already hanging on it moves less than that, and the ring moves less again —
+    /// at two he was travelling 27 points against the ring's 11, which is him bouncing
+    /// on a rim that is barely giving. One art pixel is 14 points, which is as near the
+    /// ring's own travel as a whole pixel gets.
+    static let bounce: CGFloat = 1
+
+    /// A reverse hangs on and keeps swinging until the scene is done with him. **Slow
+    /// and heavy**: a loaded rim is a long piece of sprung steel, not a diving board.
+    ///
+    /// **The gap is twice the spring.** Each swing gets exactly its own response to come
+    /// back and exactly that again at rest, so every one starts from a settled rim and no
+    /// two can differ — which is why it locks at a half and a whole and reads as ringing
+    /// at anything else. Keep the pair in that ratio.
+    static let bounceResponse: Double = 0.50
+    static let bounceDamping: Double = 0.30
+    static let bounceEvery: Double = bounceResponse * 2
 
     /// The whirlwind keeps turning on the rim, slowly, either side of upright — pivoted
     /// on the hand holding it. **Measured off the sheet**: the topmost ink on its last
@@ -126,7 +150,26 @@ final class DunkTuning {
 
     /// The whole trip, so the timing can be read against the scene it plays inside.
     var whole: Double {
-        Double(Sprite.dunkPrepare.frames) / gatherFPS + climb + finishRun
+        Double(Sprite.dunkPrepare.frames) / gatherFPS + climbRun + finishRun
+    }
+
+    /// How long the climb actually takes. **The lead can outlast the budget**: hold four
+    /// cells at ten and the climb is four tenths whatever the dial says, so this reports
+    /// the longer of the two rather than the number that was asked for.
+    var climbRun: Double { max(climb, Double(here.leadCells) / here.leadFPS) }
+
+    var leadCells: Double {
+        get { Double(here.leadCells) }
+        set { here.leadCells = Int(newValue) }
+    }
+    var leadFPS: Double { get { here.leadFPS } set { here.leadFPS = newValue } }
+
+    /// The swing, shared by all three — only a reverse uses it, and it is the rim's
+    /// behaviour rather than a finish's.
+    var bounceResponse: Double = DunkStyle.bounceResponse
+    var bounceEvery: Double = DunkStyle.bounceEvery
+    var bounceSpring: Animation {
+        .spring(response: bounceResponse, dampingFraction: DunkStyle.bounceDamping)
     }
 
     /// How long he spends at the rim.
@@ -138,7 +181,11 @@ final class DunkTuning {
         Double(max(DunkStyle.finishCells(of: showing), Int(sink))) / finishFPS
     }
 
-    func reset() { trips[showing] = DunkStyle.trip(for: showing) }
+    func reset() {
+        trips[showing] = DunkStyle.trip(for: showing)
+        bounceResponse = DunkStyle.bounceResponse
+        bounceEvery = DunkStyle.bounceEvery
+    }
 
     /// The dials as `DunkStyle`, ready to paste over its `trip(for:)`.
     var source: String {
@@ -152,9 +199,15 @@ final class DunkTuning {
                 return Trip(rise: \(g(trip.rise)), arrivesAt: \(g(trip.arrivesAt)), \
             climb: \(g(trip.climb)),
                             gatherFPS: \(g(trip.gatherFPS)), \
-            finishFPS: \(g(trip.finishFPS)), sink: \(trip.sink))
+            finishFPS: \(g(trip.finishFPS)), sink: \(trip.sink),
+                            leadCells: \(trip.leadCells), leadFPS: \(g(trip.leadFPS)))
             """
         }.joined(separator: "\n")
+        + """
+        \n
+        static let bounceResponse: Double = \(g(bounceResponse))
+        static let bounceEvery: Double = \(g(bounceEvery))
+        """
     }
 }
 
@@ -231,6 +284,16 @@ struct DunkBench: View {
                         dial("rise (pt)", $tune.rise, 0...400)
                         dial("arrives at", $tune.arrivesAt, 0.2...1)
                         time("climb", $tune.climb, 0.1...2)
+                        // The opening cells of the climb, held at their own rate.
+                        row("lead cells", String(Int(tune.leadCells))) {
+                            Slider(value: $tune.leadCells, in: 0...9, step: 1)
+                        }
+                        rate("lead fps", $tune.leadFPS)
+                        // The swing on the rim. A reverse's, but kept out of the trips:
+                        // it is what the rim does, not what a finish does.
+                        heading("the swing")
+                        time("spring", $tune.bounceResponse, 0.2...1.5)
+                        time("every", $tune.bounceEvery, 0.2...2.5)
                         // Art pixels he comes back down at the end, one per frame.
                         row("sink (px)", String(Int(tune.sink))) {
                             Slider(value: $tune.sink, in: 0...10, step: 1)

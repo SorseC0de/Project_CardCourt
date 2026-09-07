@@ -41,8 +41,9 @@ struct DunkFigure: View {
     /// Art pixels he has come back down since the top. **Snapped, not tweened** — the
     /// sheet moves a pixel at a time and so does he.
     @State private var sunk: CGFloat = 0
-    /// Whether he is at the bottom of the grab, `DunkStyle.grab` pixels past his finish.
-    @State private var grabbing = false
+    /// How many art pixels past his finish he is being pulled — `DunkStyle.grab` on the
+    /// impact, the smaller `bounce` on every swing after it, nought when he is up.
+    @State private var pulled: CGFloat = 0
     /// Which way the whirlwind is turning on the rim, once it has started.
     @State private var turned: Double?
     @State private var cell = 0
@@ -59,7 +60,7 @@ struct DunkFigure: View {
             .animation(turned == nil ? nil
                        : .easeInOut(duration: DunkStyle.spinSeconds), value: turned)
             .offset(y: -tune.rise * climbed
-                    + (sunk + (grabbing ? DunkStyle.grab : 0)) * scale)
+                    + (sunk + pulled) * scale)
             .task { await throwItDown() }
     }
 
@@ -73,7 +74,7 @@ struct DunkFigure: View {
         gathering = false
         cell = 0
         // Up. The climb runs on its own clock so the cells can be walked beside it.
-        withAnimation(.easeOut(duration: tune.climb)) { climbed = 1 }
+        withAnimation(.easeOut(duration: climbRun)) { climbed = 1 }
         await walkTheClimb()
         if Task.isCancelled { return }
         // At the rim, and the rest of the sheet plays out there.
@@ -95,11 +96,11 @@ struct DunkFigure: View {
         }
         // And the rim gives. He pulls it past where he lands and it springs him back up
         // to the tuned finish — see `DunkStyle.grab`.
-        grabbing = true
+        pulled = DunkStyle.grab
         onRimPull(1, nil)
         try? await Task.sleep(for: .seconds(DunkStyle.grabHold))
         if Task.isCancelled { return }
-        withAnimation(DunkStyle.grabSpring) { grabbing = false }
+        withAnimation(DunkStyle.grabSpring) { pulled = 0 }
         onRimPull(0, DunkStyle.grabSpring)
         await hangOnIt()
     }
@@ -114,15 +115,20 @@ struct DunkFigure: View {
             return
         case .reverse:
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(DunkStyle.bounceEvery))
+                try? await Task.sleep(for: .seconds(tuning.bounceEvery))
                 if Task.isCancelled { return }
-                // **The ring swings with him**, on his curve and on his beat.
-                withAnimation(DunkStyle.bounceSpring) { grabbing = true }
-                onRimPull(1, DunkStyle.bounceSpring)
+                // **Snapped down, sprung back — the same shape as the impact.** Both
+                // halves of the swing used to be springs, and the beat between them is
+                // far shorter than either takes to run: each was cut off a seventh of the
+                // way through and its leftover speed carried into the next, so no two
+                // swings came out the same size and a replay never matched the last one.
+                // One spring per swing, given the whole cycle to settle in.
+                pulled = DunkStyle.bounce
+                onRimPull(1, nil)
                 try? await Task.sleep(for: .seconds(DunkStyle.grabHold))
                 if Task.isCancelled { return }
-                withAnimation(DunkStyle.bounceSpring) { grabbing = false }
-                onRimPull(0, DunkStyle.bounceSpring)
+                withAnimation(tuning.bounceSpring) { pulled = 0 }
+                onRimPull(0, tuning.bounceSpring)
             }
         case .whirlwind:
             try? await Task.sleep(for: .seconds(DunkStyle.spinAfter))
@@ -141,6 +147,24 @@ struct DunkFigure: View {
     /// How near the end he has to be before the ball is his no longer.
     private static let lastCells = 2
 
+    /// How long the rise actually takes. The lead cells are held at their own rate and
+    /// the dial is a budget, so a lead that outlasts it wins — see `DunkStyle.Trip`.
+    private var climbRun: Double {
+        max(tune.climb, Double(tune.leadCells) / tune.leadFPS)
+    }
+
+    /// How long one cell of the climb is held, given where it falls in the run.
+    ///
+    /// **Two rates, not one.** The opening cells are the drawing that has to be read —
+    /// a whirlwind's spin, spread evenly over a short climb, is a blur — so they are held
+    /// at a rate that divides the refresh and everything after them shares what is left.
+    private func hold(_ place: Int, of count: Int) -> Double {
+        guard place >= tune.leadCells else { return 1 / tune.leadFPS }
+        let after = count - tune.leadCells
+        guard after > 0 else { return 0 }
+        return max(0, climbRun - Double(tune.leadCells) / tune.leadFPS) / Double(after)
+    }
+
     /// The cells that play on the way up.
     ///
     /// A one-hand has one cell and holds it; a reverse has three and runs them three
@@ -151,19 +175,17 @@ struct DunkFigure: View {
         guard let loop = dunk.climb else {
             // The whirlwind: straight through, arriving on its own deadline.
             let cells = (dunk.arrivesBy ?? 0) + 1
-            let each = tune.climb / Double(cells)
             for step in 0..<cells {
                 cell = step
-                try? await Task.sleep(for: .seconds(each))
+                try? await Task.sleep(for: .seconds(hold(step, of: cells)))
                 if Task.isCancelled { return }
             }
             return
         }
         let cells = Array(loop) * dunk.climbRepeats
-        let each = tune.climb / Double(cells.count)
-        for step in cells {
+        for (place, step) in cells.enumerated() {
             cell = step
-            try? await Task.sleep(for: .seconds(each))
+            try? await Task.sleep(for: .seconds(hold(place, of: cells.count)))
             if Task.isCancelled { return }
         }
     }
