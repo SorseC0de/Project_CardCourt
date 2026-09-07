@@ -31,6 +31,39 @@ func openPossession(seed: UInt64, cards: [CardDescriptor]) -> (GameState, Seat, 
 /// the ball into a pile of Clamps now stops on the question first — see
 /// `Rules.counterOnOffer`. Declining puts the possession back exactly where it was, which
 /// is the state these tests were written against.
+/// Answers whatever a possession opens with, turning every offer down.
+///
+/// **Not just the counter.** A seeded test deals whatever the deck's composition happens
+/// to put in a hand, so changing any card's quantity can hand the receiver a question the
+/// test never anticipated — and a possession sitting on an unanswered question has not
+/// finished arriving. Three separate deck changes have broken these tests that way; this
+/// is the class of failure rather than the instance.
+///
+/// Everything here declines: nothing is taken, nothing is paid beyond what is owed. A test
+/// measuring what a card *does* wants the quietest possible answer to everything else.
+func answerArrival(_ state: inout GameState) {
+    for _ in 0..<8 {
+        switch state.phase {
+        case .awaitingCounter:
+            Rules.resolveCounter(false, state: &state)
+        case .awaitingToll:
+            Rules.resolveToll(nil, state: &state)
+        case .awaitingGiveUp(let seat, _, let count):
+            Rules.resolveGiveUp(state[seat].bag.prefix(count).map(\.id), state: &state)
+        case .awaitingIntangibleDrop(let seat, _):
+            guard let first = state[seat].intangibles.first?.id else { return }
+            Rules.resolveIntangibleDrop(first, state: &state)
+        default:
+            return
+        }
+    }
+}
+
+/// Turns down the offer a possession opens with, and nothing else.
+///
+/// **Deliberately narrow.** `answerArrival` answers every question, which is wrong for any
+/// test whose subject *is* one of those questions — the toll tests below want theirs still
+/// standing when they look.
 func declineCounter(_ state: inout GameState) {
     guard case .awaitingCounter = state.phase else { return }
     Rules.resolveCounter(false, state: &state)
@@ -491,6 +524,9 @@ func runTests() {
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         let receiver = seat.left
+        // He may be offered something on the way in, and the Clamp lands on the answer
+        // rather than on the pass — same reason as the decline further down.
+        declineCounter(&state)
         Check.that(state[receiver].clamps.count == 1, "clamped on arrival")
         // A pass that knows where it is going. The ones that ask set a phase instead of
         // ending the possession, which is the thing being measured here.

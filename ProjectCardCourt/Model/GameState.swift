@@ -297,6 +297,10 @@ struct GameState: Codable {
     /// Move cards played in the current possession. Uncapped by the rules, but read by
     /// the AI and by cards that restrict further Move plays.
     var movesThisPossession = 0
+    /// Whether anything has gone off this possession that nobody chose: a Whistle blowing
+    /// or a Game Break turning up. Give-and-Go is the one card that asks — it is a play
+    /// off a clean look, and a clean look is one nothing has interrupted.
+    var possessionWasInterrupted = false
     var rng: SeededRNG
 
     subscript(seat: Seat) -> PlayerState {

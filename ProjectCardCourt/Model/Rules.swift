@@ -97,6 +97,13 @@ enum Rules {
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
+                // Give-and-Go: a clean look is one nobody has interfered with. Clamped, or
+                // anything gone off this possession that you did not choose, and the
+                // window has closed.
+                if card.descriptor.special?.needsCleanLook == true {
+                    if !state[seat].clamps.isEmpty { return false }
+                    if state.possessionWasInterrupted { return false }
+                }
                 // Only so many referees will stand on one floor.
                 if card.descriptor.whistle?.trigger != nil {
                     return state.armedWhistles.count < state.rules.refereeSlots
@@ -266,6 +273,12 @@ enum Rules {
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
                             fromOwnMiss: held.fromOwnMiss, offering: false,
                             alreadyDrew: held.drew, state: &state, events: &events)
+            // **Turning it down is still an answer.** A possession held on this question
+            // has whatever the last one left owed still owed — a Right Back's return leg,
+            // most of all — and `settleHands` is what pays it. Only the taken path came
+            // through here, so declining stranded the ball with the receiver until the
+            // clock ran out on him: a shot-clock violation nobody could see coming.
+            settleHands(state: &state, events: &events)
             return events
         }
 
@@ -524,6 +537,18 @@ enum Rules {
             // is a dribble drive, and a different play from a Drive on its own.
             let afterCombo = comboArmed && state.lastPlayWasCombo
             if comboArmed { delta += descriptor.comboBonus }
+            // **Tomahawk pays either way.** What it is worth is read against the SHOT it
+            // is played on rather than fixed on the card: under the mark it costs, at or
+            // over it pays. Read here, before the attempt is priced, so it is the board
+            // as it stands that decides.
+            if let swing = descriptor.special?.shotSwing {
+                delta += swing.delta(on: state.shot)
+            }
+            // Straight off your own board, and only as the first thing you do with it.
+            if let extra = descriptor.special?.bonusOffOwnRebound, extra != 0,
+               state.possessionFromOwnRebound, isFirstAction(state) {
+                delta += extra
+            }
 
             // **A shooting Special Move does not move SHOT; it prices its own shot.**
             //
@@ -917,9 +942,11 @@ enum Rules {
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
         if descriptor.forcesImmediateShot { state.shootsAtOnce = receiver }
-        // Only on the way out. The return leg must not ask for another one, or the ball
-        // never stops.
-        if descriptor.returnsImmediately, state.returnLeg == nil {
+        // **Only on the way out.** The return leg must not ask for another one, or the
+        // ball never stops. Asked of the leg itself rather than of `returnLeg`, which
+        // `settleHands` has already cleared by the time it sends the ball home — so the
+        // guard was reading nil and arming a second trip every time.
+        if descriptor.returnsImmediately, !returning {
             state.returnsTo = seat
             state.returnLeg = descriptor
         }
@@ -1184,6 +1211,8 @@ enum Rules {
         }
         state[seat].injuries.append(taken)
         rollInjuryLock(seat, state: &state)
+        // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+        state.possessionWasInterrupted = true
         events.append(.gameBreakRevealed(seat: seat, card: taken))
         state.phase = .possession(holder: state.ball ?? seat)
         settleHands(state: &state, events: &events)
@@ -1353,8 +1382,10 @@ enum Rules {
         let roll = state.roll(0...999)
         // A card that calls for one gets any of the three; a plain possession gets what
         // the man's position throws down, and never a whirlwind.
-        if card?.special?.dunks == true {
-            return Dunk.allCases[roll % Dunk.allCases.count]
+        if let special = card?.special, special.dunks {
+            // A card that names one gets that one; a card that only asks for a dunk gets
+            // any of the three.
+            return special.dunkKind ?? Dunk.allCases[roll % Dunk.allCases.count]
         }
         return Dunk.ordinary(for: state[seat].position, roll: roll)
     }
@@ -1480,6 +1511,8 @@ enum Rules {
             state.armedWhistles.removeAll { $0.id == over.id || $0.id == whistle.id }
             state.discard.append(over.card)
             state.discard.append(whistle.card)
+            // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+            state.possessionWasInterrupted = true
             events.append(.whistleBlew(owner: over.owner, card: over.card.descriptor,
                                        cancelled: whistle.card.name,
                                        cancelledCard: whistle.card.descriptor,
@@ -1521,6 +1554,8 @@ enum Rules {
         } else if case .shoot = action {
             cancelled = "the shot"
         }
+        // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+        state.possessionWasInterrupted = true
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                    cancelled: cancelled, cancelledCard: cancelledCard,
                                    against: action.actor))
@@ -1733,6 +1768,7 @@ enum Rules {
         state.movesClosed = false
         state.possessionFromRebound = fromRebound
         state.possessionFromOwnRebound = fromOwnMiss
+        state.possessionWasInterrupted = false
         // Mic'd Up ends where the possession does. Cleared before the draw, so one turned
         // up by this possession's own card is the one that stands.
         state.holderShot = 0
@@ -1789,6 +1825,8 @@ enum Rules {
                 state[seat].clamps.removeAll()
                 state.armedWhistles.removeAll { $0.id == voided }
                 state.discard.append(whistle.card)
+                // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+                state.possessionWasInterrupted = true
                 events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                            cancelled: "the Clamp's effect",
                                            cancelledCard: voidedClamp, against: culprit))
@@ -2222,6 +2260,8 @@ enum Rules {
                     // it: "until a non-Game Break card is drawn" is the card's own text.
                     state.armedWhistles.removeAll { $0.id == waved.id }
                     state.discard.append(waved.card)
+                    // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+                    state.possessionWasInterrupted = true
                     events.append(.whistleBlew(owner: waved.owner,
                                                card: waved.card.descriptor,
                                                cancelled: card.name,
@@ -2233,6 +2273,8 @@ enum Rules {
                      depth: depth + 1, duringDeal: duringDeal, wavingBreaks: true)
                 return
             }
+            // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+            state.possessionWasInterrupted = true
             events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
             // An Injury is carried, not spent. See `PlayerState.injuries`.
             if effect.injury != nil {
@@ -2244,6 +2286,8 @@ enum Rules {
                     state.armedWhistles.removeAll { $0.id == waved.id }
                     state.discard.append(waved.card)
                     state.discard.append(card)
+                    // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+                    state.possessionWasInterrupted = true
                     events.append(.whistleBlew(owner: waved.owner,
                                                card: waved.card.descriptor,
                                                cancelled: card.name,

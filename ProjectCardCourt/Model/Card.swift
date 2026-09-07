@@ -238,6 +238,17 @@ enum Injury: String, Hashable, Codable {
 
 /// A Special Move: the redesign of the old Shot cards. Most of them take the shot
 /// themselves, which ends the possession — so a player wants everything else played first.
+/// A card whose worth turns on what the SHOT already is.
+struct ShotSwing: Hashable, Codable {
+    /// The mark it is read against.
+    var at: Int
+    /// What it does below that mark, and what it does at or above it.
+    var under: Int
+    var over: Int
+
+    func delta(on shot: Int) -> Int { shot < at ? under : over }
+}
+
 struct SpecialMoveEffect: Hashable, Codable {
     var shootsImmediately = false
     /// Three-pointers pay one extra on a make.
@@ -246,6 +257,17 @@ struct SpecialMoveEffect: Hashable, Codable {
     var shotOverride: Int?
     /// Slam Dunk only. Read after the debuffs, against what survived.
     var overrideRequiresAtLeast: Int?
+    /// Which finish this card calls for. Nil lets the man's own position decide, which
+    /// is what a plain possession does — see `Dunk.ordinary`.
+    var dunkKind: Dunk?
+    /// Only playable off a clean look: nothing clamped on you, and nothing this possession
+    /// that you did not choose.
+    var needsCleanLook = false
+    /// **A swing rather than a delta.** Tomahawk pays either way and the SHOT it is played
+    /// on decides which: under the mark it costs, at or over it pays.
+    var shotSwing: ShotSwing?
+    /// Straight off your own board, and only as the first thing you do with it.
+    var bonusOffOwnRebound = 0
     /// The attempt is finished at the rim, whoever is taking it. Any of the three, since
     /// the card asked for a dunk rather than for the one this man usually throws down.
     var dunks = false
