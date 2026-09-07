@@ -27,9 +27,25 @@ protocol MatchTransport: AnyObject {
     var onHostMessage: ((HostMessage) -> Void)? { get set }
     /// Puts the match down for good. A game that has been quit is not a game somebody
     /// else is still waiting on.
+    /// Say the seating again, to everybody.
+    ///
+    /// **On the protocol rather than reached for by downcast.** The controller used to
+    /// write `(match as? GameCenterMatch)?.reseatEveryone()`, which is the one place it
+    /// named a concrete transport — so the loopback, the only way to run a match without
+    /// two phones, silently did nothing here. A default no-op keeps every transport that
+    /// has nothing to re-say honest about it.
+    func reseatEveryone()
+
     func leave()
 
     /// Called when somebody drops. Their seat carries on under the AI, which is the only
     /// answer that keeps a four-handed game going.
     var onSeatLost: ((Seat) -> Void)? { get set }
+}
+
+
+extension MatchTransport {
+    /// Nothing to re-say. A transport whose seating cannot go stale — a loopback, a
+    /// test double — inherits this.
+    func reseatEveryone() {}
 }

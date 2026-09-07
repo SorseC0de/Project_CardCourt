@@ -21,24 +21,9 @@ final class PlayerLook {
     /// to agree with. Everything below is derived from it rather than stored, so two
     /// devices holding the same number draw the same court without exchanging another
     /// word about it.
-    private(set) var crew: UInt64 = UInt64.random(in: 1...9_999_999)
-
-    /// The host has said what the crew is. Redrawing everything is the point: whatever
-    /// was rolled before this arrived was this device's own guess.
-    func setCrew(_ seed: UInt64) {
-        guard seed != crew else { return }
-        crew = seed
-    }
-
-    /// Fresh opponents for a fresh game. The human keeps whatever they have chosen.
-    ///
-    /// **A solo game only.** In a match the roll comes off the wire, and rolling again
-    /// here would be this device deciding for itself what the table looks like — which is
-    /// what it was doing.
-    func randomiseTheCrew() {
-        guard Table.shared.remotes.isEmpty else { return }
-        crew = UInt64.random(in: 1...9_999_999)
-    }
+    /// **Held by `Table`**, which is where everything else that travels in `.seated`
+    /// already lives — and which the engine can name without importing SwiftUI.
+    var crew: UInt64 { Table.shared.crew }
 
     /// A number both devices reach for the same thing.
     ///

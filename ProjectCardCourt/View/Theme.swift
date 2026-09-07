@@ -91,19 +91,13 @@ enum Theme {
         static let reboundHandX: CGFloat = 0
         static let reboundHandY: CGFloat = 28.0 / 32
 
-        /// How long the ball takes to cross.
-        static let flightSeconds: Double = 0.26
-        /// How long it stays in the receiver's hands before the sprite's own ball takes
-        /// over.
-        static let holdSeconds: Double = 0.08
-
-        /// How fast the catch sheet plays — see `Theme.Figure` on rates.
-        static let catchFPS: Double = 20
-        /// And so how long a catch takes: sixteen cells at that rate. **This direction,
-        /// not the other one.** It was written the other way round — a duration was
-        /// chosen and the rate fell out of it at 17.8 a second, which is not a rate
-        /// anybody draws for and holds cells for an uneven number of screen refreshes.
-        static var catchSeconds: Double { Double(Sprite.catchBall.frames) / catchFPS }
+        // The three durations a pass is *paced* by live in `PassTiming`, where the
+        // engine can read them without importing SwiftUI. Forwarded here so every view
+        // that already spells them this way is untouched.
+        static var flightSeconds: Double { PassTiming.flight }
+        static var holdSeconds: Double { PassTiming.hold }
+        static var catchFPS: Double { PassTiming.catchFPS }
+        static var catchSeconds: Double { PassTiming.catchSeconds }
     }
 
     enum Figure {

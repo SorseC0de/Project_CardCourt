@@ -235,7 +235,7 @@ struct TurnoverCutscene: Identifiable, Equatable {
     let kind: Kind
     /// Which bit Travel plays. Rolled here rather than in the view, so the pause can be
     /// the length of the bit that is actually going to run.
-    let travelBit: TravelCutsceneView.Bit?
+    let travelBit: TravelBit?
     /// Which side the ball comes in from, read off the pass that lost it. A ball that
     /// arrives from the same side it was thrown from keeps the play's direction.
     let fromLeft: Bool
@@ -482,7 +482,7 @@ final class GameController {
     private(set) var flight: DrawFlight?
     private(set) var aiFreeThrow: AIFreeThrow?
     /// What the deck is doing. Idle unless something asks it to perform.
-    private(set) var deckRoutine: DeckStage.Routine = .rest
+    private(set) var deckRoutine: DeckRoutine = .rest
     /// Who the stage is dealing a card to, and a token so the same seat twice still counts
     /// as a second throw.
     private(set) var stageDeal: (seat: Seat, id: UUID)?
@@ -848,7 +848,7 @@ final class GameController {
             // instant the match is adopted — before the other device has a handler to
             // catch it. A guest that missed it is sitting in the wrong chair and does not
             // know it.
-            (match as? GameCenterMatch)?.reseatEveryone()
+            match.reseatEveryone()
             // **Not before the deal.** The opening board sent here is the same one
             // `begin` is about to broadcast with the deal events attached, and a guest
             // given it first watched its whole hand appear, vanish, and fly in again —
@@ -897,7 +897,7 @@ final class GameController {
         // same table twice is seating the same table.
         case .seated(let seat, let chairs, let crew):
             Table.shared.seat(chairs, asLocal: seat)
-            PlayerLook.shared.setCrew(crew)
+            Table.shared.setCrew(crew)
             DevLog.say(.net, "seated at \(seat.name)")
         case .start:
             DevLog.say(.net, "the host started the game")
@@ -1050,7 +1050,7 @@ final class GameController {
         // state change, so `@State private var controller = GameController()` runs that
         // initialiser every time and throws all but the first result away — but any side
         // effect in it has already happened. Faces were being re-rolled on every inbound.
-        PlayerLook.shared.randomiseTheCrew()
+        Table.shared.randomiseTheCrew()
         watchTheLoop()
         loop?.cancel()
         // A guest has no game of its own to open. It says it is on screen and waits to be
@@ -1101,7 +1101,7 @@ final class GameController {
         ready = Task { [weak self] in
             for _ in 0..<Int(Pacing.tableWait / 0.5) {
                 guard let self, self.isGuest, !self.dealtTheTable else { return }
-                try? self.match?.send(.ready(HooperKit.shared.look))
+                try? self.match?.send(.ready(Table.shared.myLook))
                 try? await Task.sleep(for: .milliseconds(500))
             }
         }
@@ -1549,7 +1549,7 @@ final class GameController {
             for case .rebounded(let winner) in events {
                 catchUp()
                 reboundLeap = ReboundLeap(seat: winner)
-                try? await Task.sleep(for: .seconds(ReboundTuning.shared.whole))
+                try? await Task.sleep(for: .seconds(ReboundTiming.run))
                 reboundLeap = nil
             }
             await playDrawsAndReveals(in: events)
@@ -1579,7 +1579,7 @@ final class GameController {
 
     /// Asks the deck to perform. Nothing about the game changes — it is the deck doing a
     /// thing, which is the point of it having a repertoire at all.
-    func debugDeck(_ routine: DeckStage.Routine) {
+    func debugDeck(_ routine: DeckRoutine) {
         deckRoutine = routine
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(3.6))
@@ -1657,9 +1657,9 @@ final class GameController {
             // Long enough for the throw *and* the catch that follows it. Clearing this
             // at the end of the flight pulled the receiver's `caughtAt` away a tenth of a
             // second into the catch, so the sheet never got past its first frames.
-            try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds
-                                                + Theme.Pass.holdSeconds
-                                                + Theme.Pass.catchSeconds + 0.2))
+            try? await Task.sleep(for: .seconds(PassTiming.flight
+                                                + PassTiming.hold
+                                                + PassTiming.catchSeconds + 0.2))
             practicePass = nil
             await run()
         }
@@ -1750,7 +1750,7 @@ final class GameController {
     func debugRebound() {
         reboundLeap = ReboundLeap(seat: GameRules.localSeat)
         Task {
-            try? await Task.sleep(for: .seconds(ReboundTuning.shared.whole))
+            try? await Task.sleep(for: .seconds(ReboundTiming.run))
             reboundLeap = nil
         }
     }
@@ -2178,7 +2178,7 @@ final class GameController {
             // Handed over when it lands, not when it was played. The court flies it for
             // exactly this long — both read the same constant, so they cannot drift.
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds))
+                try? await Task.sleep(for: .seconds(PassTiming.flight))
                 self.shownBall = self.state.ball
             }
             return
@@ -2411,7 +2411,7 @@ final class GameController {
     /// the other is when the man has finished closing his hands on it.
     private func settleTheThrow() async {
         guard let thrown = passLeftAt else { return }
-        let owing = Theme.Pass.flightSeconds - Date().timeIntervalSince(thrown)
+        let owing = PassTiming.flight - Date().timeIntervalSince(thrown)
         guard owing > 0 else { return }
         try? await Task.sleep(for: .seconds(owing))
     }
@@ -2424,7 +2424,7 @@ final class GameController {
     private func settleTheCatch() async {
         guard let thrown = passLeftAt else { return }
         passLeftAt = nil
-        let whole = Theme.Pass.flightSeconds + Theme.Pass.catchSeconds
+        let whole = PassTiming.flight + PassTiming.catchSeconds
         let owing = whole - Date().timeIntervalSince(thrown)
         guard owing > 0 else { return }
         try? await Task.sleep(for: .seconds(owing))

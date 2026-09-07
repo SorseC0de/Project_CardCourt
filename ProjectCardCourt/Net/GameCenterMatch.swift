@@ -320,7 +320,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
                     occupant: .remote(playerID: id),
                     name: id == me && !HooperKit.shared.name.isEmpty
                         ? HooperKit.shared.name : name,
-                    look: id == me ? HooperKit.shared.look : nil)
+                    look: id == me ? Table.shared.myLook : nil)
             }
             for seat in Seat.allCases where provisional[seat] == nil {
                 provisional[seat] = Table.Chair(occupant: .computer, name: seat.houseName)
@@ -338,7 +338,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
         // Made here and sent with the table: the host decides once what everybody nobody
         // is playing looks like, and every device draws the same crew off it.
         crew = UInt64.random(in: 1...9_999_999)
-        PlayerLook.shared.setCrew(crew)
+        Table.shared.setCrew(crew)
         var chairs: [Seat: Table.Chair] = [:]
         for player in [GKLocalPlayer.local] + match.players {
             guard let seat = seats[player.gamePlayerID] else { continue }
@@ -350,7 +350,7 @@ final class GameCenterMatch: NSObject, MatchTransport {
                     ? HooperKit.shared.name : player.displayName,
                 // The host's own man goes out with the table. Everybody else's arrives
                 // with their `ready`, which is the first thing their device says.
-                look: mine ? HooperKit.shared.look : nil)
+                look: mine ? Table.shared.myLook : nil)
         }
         // Anybody who did not turn up is played by the house, and the house has no look.
         for seat in Seat.allCases where chairs[seat] == nil {
@@ -415,8 +415,8 @@ final class GameCenterMatch: NSObject, MatchTransport {
             Table.shared.seat(chairs, asLocal: seat)
             // Your own man is the one thing you already know, and the host's copy of the
             // table is a beat behind on it until your `ready` gets there.
-            Table.shared.setLook(HooperKit.shared.look, at: seat)
-            PlayerLook.shared.setCrew(crew)
+            Table.shared.setLook(Table.shared.myLook, at: seat)
+            Table.shared.setCrew(crew)
             self.crew = crew
             DevLog.say(.net, "seated at \(seat.name) by the host")
         default:

@@ -11,6 +11,12 @@ import SwiftUI
 final class ReboundTuning {
     static let shared = ReboundTuning()
 
+    private init() {
+        // The engine waits on `ReboundTiming.run`; this is what makes turning a dial move
+        // the wait as well as the drawing. See `ReboundTiming.live`.
+        ReboundTiming.live = { MainActor.assumeIsolated { ReboundTuning.shared.whole } }
+    }
+
     /// Where the ball starts, in points off the rim it comes out of. **The rim does not
     /// move with it** — the hoop hangs where the court hangs it, and these two say where
     /// the board leaves it from.
@@ -93,13 +99,15 @@ enum ReboundStyle {
     /// there is no ball to see for the first third of the trip.
     static let fromHoop: CGFloat = 0.150
 
-    static let flight: Double = 0.25
-    static let vanish: Double = 0.30
+    // The six the engine also waits on live in `ReboundTiming`, so there is one copy of
+    // each rather than a dial's default and a duration quietly disagreeing.
+    static var flight: Double { ReboundTiming.flight }
+    static var vanish: Double { ReboundTiming.vanish }
 
-    static let riseFPS: Double = 12
-    static let landFPS: Double = 15
-    static let hang: Double = 0.35
-    static let drop: Double = 0.25
+    static var riseFPS: Double { ReboundTiming.riseFPS }
+    static var landFPS: Double { ReboundTiming.landFPS }
+    static var hang: Double { ReboundTiming.hang }
+    static var drop: Double { ReboundTiming.drop }
     /// Art pixels. Two was the sheet's own head-room and no more, which is why he never
     /// looked like he left the floor.
     static let lift: CGFloat = 13
