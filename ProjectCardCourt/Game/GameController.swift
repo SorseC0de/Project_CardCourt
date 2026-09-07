@@ -1264,7 +1264,6 @@ final class GameController {
     /// A player named.
     /// True while the floor is being asked whose hand to play out of, rather than which
     /// player a card is naming — the same question, a different thing done with the answer.
-    private var borrowing = false
 
     /// Free Agent: the hand to play out of is chosen on the floor, the way every other
     /// "which of them" in the game is asked.
@@ -1273,7 +1272,6 @@ final class GameController {
         guard case .awaitingMove(let seat) = gate else { return }
         let hands = Seat.allCases.filter { $0 != seat && !state[$0].bag.isEmpty }
         guard !hands.isEmpty else { return }
-        borrowing = true
         gate = .awaitingTarget(card: CardLibrary.freeAgent, choices: hands)
     }
 

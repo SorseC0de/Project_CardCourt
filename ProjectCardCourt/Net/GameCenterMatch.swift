@@ -267,7 +267,13 @@ final class GameCenterMatch: NSObject, MatchTransport {
         // phones agreeing about a string. Nil means it could not decide, and then there
         // is nothing left but to sort.
         match.chooseBestHostingPlayer { [weak self] best in
-            Task { @MainActor in self?.elect(among: match, host: best) }
+            // **The match is read on the main actor, not carried to it.** `GKMatch`
+            // predates Sendable, so handing this one across the hop is a promise nobody
+            // can keep — and it is already ours, sitting on the property.
+            Task { @MainActor in
+                guard let self, let mine = self.match else { return }
+                self.elect(among: mine, host: best)
+            }
         }
     }
 

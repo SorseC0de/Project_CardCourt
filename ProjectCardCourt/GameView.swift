@@ -718,24 +718,37 @@ struct GameView: View {
     /// **Quitting unloads the game**, rather than walking away from one still running
     /// behind the front screen — see `RootView`. In a match it cannot stop the table, so
     /// the freeze is silently nothing there and the only real choice is to leave.
+    /// Who has gone, written out.
+    ///
+    /// **A sentence, not an expression.** This was four ternaries and three
+    /// concatenations inline in the view, which is the shape that makes the type checker
+    /// give up — and one of the ternaries chose between "their" and "their".
+    private var leaversLine: String {
+        let names = controller.walkedOut
+            .sorted { $0.rawValue < $1.rawValue }
+            .map(\.playerName)
+        guard let last = names.last else { return "" }
+        let who: String
+        if names.count == 1 {
+            who = last
+        } else {
+            who = names.dropLast().joined(separator: ", ") + " and " + last
+        }
+        let have = names.count == 1 ? "has" : "have"
+        return "\(who) \(have) gone. Carry on with the house playing their seat?"
+    }
+
     /// What the table is asked when one of them goes.
     ///
     /// **No way to dismiss it.** Tapping the dark resumes the pause menu because a pause
     /// is yours to end; this is a question, and the game cannot go on either way until it
     /// is answered.
     private var walkedOut: some View {
-        let gone = controller.walkedOut.sorted { $0.rawValue < $1.rawValue }
-        let names = gone.map(\.playerName)
-        let who = names.count == 1 ? names[0]
-            : names.dropLast().joined(separator: ", ") + " and " + (names.last ?? "")
         return ZStack {
             Color.black.opacity(0.86).ignoresSafeArea()
             VStack(spacing: 18) {
-                ScreenTitle(text: names.count == 1 ? "They Left" : "They Left",
-                            drop: CardPalette.red)
-                Text("\(who) \(names.count == 1 ? "has" : "have") gone."
-                     + " Carry on with the house playing "
-                     + (names.count == 1 ? "their" : "their") + " seat?")
+                ScreenTitle(text: "They Left", drop: CardPalette.red)
+                Text(leaversLine)
                     .font(.custom(Chrome.display, size: 16))
                     .foregroundStyle(.white.opacity(0.75))
                     .multilineTextAlignment(.center)

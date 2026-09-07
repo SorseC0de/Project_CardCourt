@@ -114,8 +114,10 @@ struct NetReadout: View {
             // **Red is the whole point.** Two devices can no longer disagree quietly:
             // matching fingerprints mean the same game however differently it is seen,
             // and a mismatch names the batch where they parted.
-            Text(controller.parted ? "PARTED \(controller.digest)"
-                 : "sync \(controller.digest)")
+            // `verbatim` because this is a readout, not a phrase — interpolating a type
+             // into `Text` asks the localiser for something it cannot give.
+            Text(verbatim: (controller.parted ? "PARTED " : "sync ")
+                 + String(describing: controller.digest))
                 .foregroundStyle(controller.parted ? CardPalette.red : CardPalette.gold)
             Text("seat=\(GameRules.localSeat.name) \(controller.lastBoard)")
         }
