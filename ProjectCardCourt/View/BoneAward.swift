@@ -1,0 +1,138 @@
+import SwiftUI
+
+/// A Swisshbone payout, the way the end of a match hands one over.
+///
+/// **It arrives rather than appears.** The bone pops in on a spring loose enough to
+/// overshoot, and the count lands with it — a reward that fades up reads as a number
+/// going on a ledger, and this is meant to read as being handed something.
+///
+/// The glow is behind the bone and takes the strip's own colour, white for the plain one.
+/// Kept dim on purpose: a blur under a view comes out far hotter than the same bloom does
+/// on a canvas, and a bone lit like a lamp stops looking like an object.
+struct BoneAward: View {
+    var bone: Bone = .plain
+    var amount: Int
+    /// How big the bone is drawn; the count is sized against it.
+    var side: CGFloat = 64
+    /// Held off until this is true, so a screen can bring several in one after another.
+    var arrived = true
+    /// Overrides the strip's own blend, for trying them against each other on the bench.
+    var blend: BlendMode?
+
+    @State private var landed = false
+    /// When the burst started, so it plays once and is gone. A one-shot holds its last
+    /// cell forever otherwise — which is how sparkles get left stuck on a screen.
+    @State private var sparkedAt: Date?
+
+    private var pop: Animation { .spring(response: 0.42, dampingFraction: 0.52) }
+
+    var body: some View {
+        HStack(spacing: side * 0.18) {
+            ZStack {
+                Circle()
+                    .fill(bone.glow.opacity(0.38))
+                    .frame(width: side * 1.15, height: side * 1.15)
+                    .blur(radius: side * 0.30)
+                Circle()
+                    .fill(bone.glow.opacity(0.22))
+                    .frame(width: side * 0.8, height: side * 0.8)
+                    .blur(radius: side * 0.16)
+                Image(bone.asset)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: side, height: side)
+                    // Crystal is not painted on the dark, it is lit through — see
+                    // `Bone.blend`. Everything else draws over it normally.
+                    .blendMode(blend ?? bone.blend)
+                // **Gold sparkles.** Over the bone rather than behind it: the burst is
+                // light coming off the thing, and light behind it is a halo, which the
+                // glow already is.
+                if bone.sparkles, let sparkedAt {
+                    SpriteAnimation(sprite: .sparkleBurst,
+                                    scale: side / Sprite.sparkleBurst.frameSize * 1.4,
+                                    fps: Theme.Figure.playerFPS,
+                                    playsOnce: true, startedAt: sparkedAt)
+                        .allowsHitTesting(false)
+                }
+            }
+            Text("+\(amount)")
+                .font(.system(size: side * 0.72, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .shadow(color: bone.glow.opacity(0.5), radius: side * 0.10)
+                .shadow(color: Chrome.shade, radius: 0, x: side * 0.05, y: side * 0.05)
+        }
+        .scaleEffect(landed ? 1 : 0.25)
+        .opacity(landed ? 1 : 0)
+        .onChange(of: arrived, initial: true) { _, here in
+            guard here else { landed = false; sparkedAt = nil; return }
+            withAnimation(pop) { landed = true }
+            guard bone.sparkles else { return }
+            sparkedAt = Date()
+            // Cleared when the sheet has run, so nothing is left on the last cell.
+            Task {
+                let run = Double(Sprite.sparkleBurst.frames) / Theme.Figure.playerFPS
+                try? await Task.sleep(for: .seconds(run))
+                sparkedAt = nil
+            }
+        }
+    }
+}
+
+/// The strips a Swisshbone comes in. One drawing, four ramps — see `Tools/bones`, which
+/// writes the assets from the palette indices.
+enum Bone: String, CaseIterable, Identifiable {
+    case plain, gold, goldAlt, crystal
+
+    var id: String { rawValue }
+
+    var asset: String {
+        switch self {
+        case .plain:   return "Swisshbone"
+        case .gold:    return "SwisshboneGold"
+        case .goldAlt: return "SwisshboneGoldAlt"
+        case .crystal: return "SwisshboneCrystal"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .plain:   return "bone"
+        case .gold:    return "gold"
+        case .goldAlt: return "gold alt"
+        case .crystal: return "crystal"
+        }
+    }
+
+    /// How it meets what is behind it.
+    ///
+    /// **Crystal is the one that is not opaque.** Screened over the dark, its own colours
+    /// lighten what they sit on rather than replacing it, which is what makes a thing read
+    /// as glass rather than as a painted shape of glass.
+    var blend: BlendMode { self == .crystal ? .screen : .normal }
+
+    /// Whether it throws light off itself. Gold does; a plain bone is a plain bone.
+    var sparkles: Bool { self == .gold || self == .goldAlt }
+
+    /// What it lights the dark behind it with. The plain one is white; the rest borrow
+    /// the lightest entry of their own ramp, so the glow is the bone's own colour rather
+    /// than a second one laid over it.
+    var glow: Color {
+        switch self {
+        case .plain:   return .white
+        case .gold:    return PixelPalette.gold
+        case .goldAlt: return PixelPalette.khaki
+        case .crystal: return PixelPalette.aqua
+        }
+    }
+}
+
+#if DEBUG
+#Preview("Payout") {
+    ZStack {
+        Chrome.ground.ignoresSafeArea()
+        VStack(spacing: 24) {
+            ForEach(Bone.allCases) { BoneAward(bone: $0, amount: 12) }
+        }
+    }
+}
+#endif

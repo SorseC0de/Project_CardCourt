@@ -13,6 +13,17 @@ struct FrontBenchView: View {
     @State private var render = RenderDebug.shared
     @State private var deck = DeckTuning.shared
     @State private var sprites = false
+    /// Bumped to re-key the payouts, so they land again.
+    @State private var replays = 0
+    /// Which blend the crystal bone is being tried in.
+    @State private var glassy = 0
+
+    /// The ones worth trying for glass. Normal first, so the difference is obvious.
+    private static let blends: [(name: String, mode: BlendMode)] = [
+        ("screen", .screen), ("normal", .normal), ("plusLighter", .plusLighter),
+        ("overlay", .overlay), ("softLight", .softLight), ("hardLight", .hardLight),
+        ("luminosity", .luminosity), ("colorDodge", .colorDodge),
+    ]
 
     var body: some View {
         ZStack {
@@ -35,6 +46,35 @@ struct FrontBenchView: View {
                     Text("Deck height  \(Int(deck.slabs)) slabs")
                         .font(.system(size: 15, weight: .heavy))
                     Slider(value: $deck.slabs, in: 1...20, step: 1).tint(CardPalette.gold)
+                }
+
+                // **The currency, as it is handed over.** Four ramps off one
+                // drawing, shown the way the end of a match shows them — see `BoneAward`.
+                // Tap to watch one land again.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Swisshbones").font(.system(size: 15, weight: .heavy))
+                    ForEach(Bone.allCases) { bone in
+                        HStack(spacing: 12) {
+                            BoneAward(bone: bone, amount: 12, side: 44,
+                                      blend: bone == .crystal ? Self.blends[glassy].mode
+                                                              : nil)
+                                .id("\(bone.rawValue)-\(replays)-\(glassy)")
+                            Spacer(minLength: 0)
+                            Text(bone.label)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(CardPalette.gray)
+                        }
+                    }
+                    // **Which blend makes glass is a thing to look at, not to reason
+                    // about.** Cycles the crystal one through the candidates.
+                    HStack(spacing: 10) {
+                        Button("play again") { replays += 1 }
+                        Button("crystal: \(Self.blends[glassy].name)") {
+                            glassy = (glassy + 1) % Self.blends.count
+                        }
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(CardPalette.gold)
                 }
 
                 ChunkyButton(title: "Sprite gallery", fill: CardPalette.navy,
