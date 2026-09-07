@@ -68,3 +68,27 @@ extension Card {
     /// True for a card this device has been told nothing about.
     var isFaceDown: Bool { descriptor.id == CardLibrary.faceDown.id }
 }
+
+extension GameEvent {
+    /// This event as one seat is allowed to hear it.
+    ///
+    /// **The state was redacted and the events were not.** `redacted(for:)` face-downs
+    /// every other seat's hand and the whole deck, and then the same batch went out to
+    /// everybody carrying `.drew(seat:card:id:)` with the card named in full — so a guest
+    /// was told, in the same message, that it could not see a hand and exactly what had
+    /// just gone into it. Three cases carry a descriptor somebody else is not entitled to.
+    ///
+    /// Your own draws are yours to see, so only the other seats are covered.
+    func redacted(for seat: Seat) -> GameEvent {
+        switch self {
+        case .drew(let who, _, let id) where who != seat:
+            return .drew(seat: who, card: CardLibrary.faceDown, id: id)
+        case .discardedForShot(let who, _, let count) where who != seat:
+            return .discardedForShot(seat: who, card: CardLibrary.faceDown, count: count)
+        case .clampBit(let who, _, let discarded) where who != seat:
+            return .clampBit(seat: who, card: CardLibrary.faceDown, discarded: discarded)
+        default:
+            return self
+        }
+    }
+}

@@ -996,6 +996,32 @@ func runTests() {
         Check.that(sent.deck.count == state.deck.count, "so does the state")
         Check.that(carried == mine, "and the fingerprint with it")
 
+        // **What a guest is entitled to hear.** The state face-downs every other hand;
+        // the events used to name every card that went into one, in the same message.
+        let drew = GameEvent.drew(seat: .north, card: CardLibrary.drive, id: UUID())
+        let asEast = drew.redacted(for: .east)
+        let asNorth = drew.redacted(for: .north)
+        if case .drew(_, let card, _) = asEast {
+            Check.that(card.id == CardLibrary.faceDown.id,
+                       "somebody else's draw crosses face down")
+        } else {
+            Check.that(false, "somebody else's draw crosses face down")
+        }
+        if case .drew(_, let card, _) = asNorth {
+            Check.that(card.id == CardLibrary.drive.id, "your own draw crosses by name")
+        } else {
+            Check.that(false, "your own draw crosses by name")
+        }
+        Check.that(GameEvent.rebounded(.west).redacted(for: .east) == .rebounded(.west),
+                   "an event with nothing hidden in it is untouched")
+
+        // And so two seats told the same batch fold to different numbers, which is why
+        // the host keeps one fingerprint per seat rather than one for the table.
+        var east = Digest(), north = Digest()
+        east.fold([drew.redacted(for: .east)])
+        north.fold([drew.redacted(for: .north)])
+        Check.that(east != north, "two seats told the same batch fold differently")
+
         // **The whole point of it.** The same events folded the same way must agree, and
         // anything else — a batch applied twice, a batch missed, a batch out of order —
         // must not.

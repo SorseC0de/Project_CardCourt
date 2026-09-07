@@ -741,6 +741,9 @@ final class GameController {
     /// Everything this device has been told, folded in order — see `Digest`. The host
     /// builds it as it sends; a guest builds it as it receives; they should match.
     private(set) var digest = Digest()
+    /// What each guest has been told, folded as *it* was told it. The host keeps one per
+    /// seat because each seat is told a different story — see `broadcast`.
+    private var digests: [Seat: Digest] = [:]
     /// Whether the two have already been seen to disagree, so it is said once rather than
     /// on every batch after it.
     private(set) var parted = false
@@ -800,13 +803,20 @@ final class GameController {
     /// state and never sends it anywhere.
     private func broadcast(_ events: [GameEvent]) {
         guard let match, match.isHost else { return }
-        // Folded before it goes out, so what is sent and what is counted are the same
-        // batch. See `Digest`.
+        // **One fingerprint per seat, because one batch is not one batch.** Every device
+        // is told a different version of what happened — its own draws by name, everybody
+        // else's face down — so a single digest over the unredacted truth is a number no
+        // guest could ever reproduce. The host folds exactly what it sends to each, and
+        // each guest folds exactly what it was told; matching still means the same game,
+        // and the leak is closed at the same time.
         digest.fold(events)
         lastBoard = fingerprint(state)
         DevLog.say(.net, "host → \(lastBoard)  [\(events.count) event(s)]")
         try? match.broadcast { seat in
-            .turn(state: state.redacted(for: seat), events: events, digest: digest)
+            let theirs = events.map { $0.redacted(for: seat) }
+            digests[seat, default: Digest()].fold(theirs)
+            return .turn(state: state.redacted(for: seat), events: theirs,
+                         digest: digests[seat] ?? Digest())
         }
     }
 
@@ -879,7 +889,8 @@ final class GameController {
             // with a gate open on a possession it could act in before a card had landed.
             // A late arrival still needs catching up, so this stands once the deal is out.
             if dealtTheTable {
-                try? match.send(.board(state: state.redacted(for: seat), digest: digest),
+                try? match.send(.board(state: state.redacted(for: seat),
+                                       digest: digests[seat, default: Digest()]),
                                 to: seat)
             }
             DevLog.say(.net, "\(seat.name) is ready"
