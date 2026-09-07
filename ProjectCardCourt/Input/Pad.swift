@@ -1,0 +1,333 @@
+import CoreGraphics
+import Foundation
+import GameController
+import Observation
+
+/// A physical controller, in the game's own words.
+///
+/// **Semantic, never literal.** Nothing outside this file knows what a DualSense calls its
+/// buttons. The game is handed "walk left", "take this one", "put it back" — and this
+/// decides which of the many things a player might have pressed meant that. Two sticks, a
+/// d-pad and two shoulder buttons all say the same handful of things, and a screen that
+/// had to know about each of them would be a screen that breaks on the next pad.
+///
+/// **One reader.** Every press is published here with a stamp and routed by `GameView`,
+/// which is the only thing that knows what the table is currently asking. Views that each
+/// watched the pad for themselves would all answer the same button at once.
+@Observable
+@MainActor
+final class Pad {
+    static let shared = Pad()
+
+    /// Whether one is connected. **Nothing on screen changes until it is** — this is a
+    /// touch game a pad can also drive, not the other way round, so no hint, ring or
+    /// prompt appears for a player who has not plugged anything in.
+    private(set) var isAttached = false
+
+    /// The last thing asked for. **Watch the stamp, not the action**: pressing left twice
+    /// is two events and an `Equatable` action alone cannot say so.
+    private(set) var press: Press?
+
+    /// Where a stick or the touchpad is being pulled right now, in the same terms a drag
+    /// on glass reports — positive height is *down* the screen. Nought when nothing is
+    /// being held. Only the free throw reads this; it is the one thing in the game that
+    /// is a gesture rather than a choice.
+    private(set) var pull: CGSize = .zero
+
+    /// A pull that has just been let go, carrying what it measured at the moment it went.
+    /// Stamped for the same reason `press` is.
+    private(set) var release: Release?
+
+    struct Press: Equatable {
+        let action: Action
+        let stamp: Int
+    }
+
+    struct Release: Equatable {
+        let pull: CGSize
+        let stamp: Int
+    }
+
+    /// Everything a pad can say. Named for what it does at the table rather than for the
+    /// button it came off.
+    enum Action: Equatable {
+        /// Walk the row the table is asking about — the hand, the men on the floor, the
+        /// cards on offer. What the row holds is the gate's business, not the pad's.
+        case previous, next
+        /// **The flick, without the gesture.** Up on a stick or the d-pad, or triangle:
+        /// the result of throwing a card at the table, which is playing it.
+        case flick
+        /// The other way. A card held up goes back down.
+        case down
+        /// The one under your thumb, and the right trigger with it. A tap on whatever is
+        /// focused — twice on a card is a look and then a play, exactly as two taps on
+        /// glass are.
+        case tap
+        /// Out of this. A raised card goes back down, an open sheet closes, a question
+        /// with a way of declining takes it.
+        case back
+        /// A closer look at what is focused, without choosing it.
+        case inspect
+        /// The game's own pause.
+        case pause
+    }
+
+    // MARK: - Feel
+
+    /// How the pad is read. **Whole frames**: the poll runs on the game's own beat, so
+    /// every delay here is a count of frames rather than a number of seconds that lands
+    /// between two of them.
+    private enum Feel {
+        /// A sixtieth, which is what everything else in the game moves on.
+        static let beat: Double = 1.0 / 60
+
+        /// How far a stick must go before it counts as a direction at all.
+        static let throwDistance: Float = 0.55
+        /// And how far back it must come before it can say the same thing again. A single
+        /// threshold makes a stick held near the edge chatter.
+        static let letGo: Float = 0.35
+
+        /// How long a direction is held before it starts repeating, and how often it
+        /// repeats after that. Slow enough that a nudge is one card, quick enough that a
+        /// full hand is a held thumb rather than eight presses.
+        static let beforeRepeat: Double = 0.40
+        static let thenEvery: Double = 0.10
+
+        /// How far a finger must travel on the touchpad for it to read as a pull, as a
+        /// share of the pad's own width. Below this it is a rest, not a gesture.
+        static let touchFloor: CGFloat = 0.04
+
+        /// How far a stick must go before it counts as a *pull*. **Far shorter than a
+        /// direction**: walking a row is a yes-or-no answer that a resting thumb must not
+        /// give by accident, and a free throw is a distance being measured — reading
+        /// nought until it is more than half way over would make the shot jump.
+        static let pullFloor: Float = 0.12
+    }
+
+    // MARK: - Reading it
+
+    /// Which physical things are down, so a press is the moment one goes from up to down
+    /// rather than every frame it is held.
+    private var held: Set<Key> = []
+    /// Which way the sticks and the d-pad are being pushed, and since when — the pair
+    /// that turns a held thumb into a repeat.
+    private var heading: Action?
+    private var headingSince: Date?
+    private var headingFired: Date?
+
+    /// Where a finger landed on the touchpad, so what is reported is how far it has
+    /// travelled rather than where it happens to be.
+    private var touchFrom: CGPoint?
+    /// Whether anything was being pulled last frame, which is what makes a release an
+    /// event rather than a reading of nought.
+    private var wasPulling = false
+
+    private var stamp = 0
+    private var watch: Task<Void, Never>?
+
+    private init() {
+        for name in [Notification.Name.GCControllerDidConnect,
+                     .GCControllerDidDisconnect,
+                     .GCControllerDidBecomeCurrent] {
+            NotificationCenter.default.addObserver(
+                forName: name, object: nil, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.takeStock() }
+                }
+        }
+        // Wireless pads announce themselves rather than being found, so this is what
+        // picks up one that was already paired when the app opened.
+        GCController.startWirelessControllerDiscovery()
+        takeStock()
+    }
+
+    /// Whether anything is plugged in, and the poll started or stopped to match. **No
+    /// loop while nothing is connected**: a game played on glass should not be reading a
+    /// pad sixty times a second for the whole match.
+    private func takeStock() {
+        isAttached = !GCController.controllers().isEmpty
+        if isAttached, watch == nil {
+            watch = Task { [weak self] in await self?.keepReading() }
+        } else if !isAttached {
+            watch?.cancel()
+            watch = nil
+            forget()
+        }
+    }
+
+    /// Everything held, let go of. Called when the pad goes, so a button that was down as
+    /// it disconnected is not still down when another is plugged in.
+    private func forget() {
+        held = []
+        heading = nil
+        headingSince = nil
+        headingFired = nil
+        touchFrom = nil
+        pull = .zero
+        wasPulling = false
+    }
+
+    private func keepReading() async {
+        while !Task.isCancelled {
+            read()
+            try? await Task.sleep(for: .seconds(Feel.beat))
+        }
+    }
+
+    // MARK: - One frame of it
+
+    private func read() {
+        guard let pad = GCController.controllers().first?.extendedGamepad else { return }
+        readButtons(on: pad)
+        readHeading(on: pad)
+        readPull(on: pad)
+    }
+
+    /// What each button says. **The whole map, in one table** — a pad that calls its face
+    /// buttons something else is a row here, not a change anywhere in the game.
+    private func readButtons(on pad: GCExtendedGamepad) {
+        // Cross on a DualSense, A on an Xbox pad. The right trigger says the same thing
+        // so a thumb can stay on the stick.
+        edge(.tap, pad.buttonA, as: .tap)
+        edge(.r2, pad.rightTrigger, as: .tap)
+        // Circle. Out of whatever this is.
+        edge(.back, pad.buttonB, as: .back)
+        // Triangle, which is the flick under a thumb that never left the face buttons.
+        edge(.flick, pad.buttonY, as: .flick)
+        // Square. A look at something without taking it.
+        edge(.inspect, pad.buttonX, as: .inspect)
+        // The bumpers walk the row, so a hand can be read without leaving the sticks.
+        edge(.l1, pad.leftShoulder, as: .previous)
+        edge(.r1, pad.rightShoulder, as: .next)
+        // Options on a DualSense, Menu on an Xbox pad.
+        edge(.menu, pad.buttonMenu, as: .pause)
+    }
+
+    /// Fires once, on the way down.
+    private func edge(_ key: Key, _ button: GCControllerButtonInput?, as action: Action) {
+        guard let button else { return }
+        if button.isPressed {
+            guard !held.contains(key) else { return }
+            held.insert(key)
+            say(action)
+        } else {
+            held.remove(key)
+        }
+    }
+
+    /// Which way the row is being walked, from the d-pad and either stick, with the
+    /// repeat that a held thumb earns.
+    ///
+    /// **One heading between the three of them.** A thumb on a stick and a thumb on the
+    /// d-pad are the same hand asking for the same thing; read separately they walk the
+    /// row two cards at a time.
+    private func readHeading(on pad: GCExtendedGamepad) {
+        let now = pushing(pad)
+
+        guard let now else {
+            heading = nil
+            headingSince = nil
+            headingFired = nil
+            return
+        }
+        guard now == heading, let since = headingSince else {
+            heading = now
+            headingSince = Date()
+            headingFired = nil
+            say(now)
+            return
+        }
+        // Held. The first repeat waits; the rest come at a steady clip.
+        let waited = Date().timeIntervalSince(headingFired ?? since)
+        let due = headingFired == nil ? Feel.beforeRepeat : Feel.thenEvery
+        guard waited >= due else { return }
+        headingFired = Date()
+        say(now)
+    }
+
+    /// The one direction all three inputs add up to, or nil for a hand at rest.
+    ///
+    /// Sideways beats up and down: the row is walked far more often than a card is
+    /// played, and a stick pushed left and a little high should not throw a card at the
+    /// table.
+    private func pushing(_ pad: GCExtendedGamepad) -> Action? {
+        var x: Float = pad.leftThumbstick.xAxis.value + pad.rightThumbstick.xAxis.value
+        var y: Float = pad.leftThumbstick.yAxis.value + pad.rightThumbstick.yAxis.value
+        if pad.dpad.left.isPressed { x -= 1 }
+        if pad.dpad.right.isPressed { x += 1 }
+        if pad.dpad.down.isPressed { y -= 1 }
+        if pad.dpad.up.isPressed { y += 1 }
+
+        // Whatever it was doing has to be let go of before it can say it again — see
+        // `Feel.letGo`, which is what stops a stick resting near the edge from chattering.
+        let held = heading != nil
+        let over = held ? Feel.letGo : Feel.throwDistance
+        if abs(x) >= over { return x < 0 ? .previous : .next }
+        if abs(y) >= over { return y > 0 ? .flick : .down }
+        return nil
+    }
+
+    private func say(_ action: Action) {
+        stamp += 1
+        press = Press(action: action, stamp: stamp)
+    }
+
+    // MARK: - The one gesture
+
+    /// The free throw's pull, off a stick or off the DualSense's own glass.
+    ///
+    /// **Reported the way a drag is.** `FreeThrowView` measures a pull down the screen and
+    /// a drift across it; whatever a player pulls it with, that is what arrives — so the
+    /// shot does not need to know which it was.
+    private func readPull(on pad: GCExtendedGamepad) {
+        var now = stickPull(pad)
+        if let touch = touchPull(pad) { now = touch }
+
+        let pulling = now != .zero
+        // Let go: what it measured at the last frame it was held is the throw, because
+        // the frame it is released on reads nought.
+        if wasPulling, !pulling {
+            stamp += 1
+            release = Release(pull: pull, stamp: stamp)
+        }
+        wasPulling = pulling
+        pull = now
+    }
+
+    /// A stick's own displacement. There is no travel to measure — where it is pushed to
+    /// *is* how far it has been pulled.
+    private func stickPull(_ pad: GCExtendedGamepad) -> CGSize {
+        let sticks = [pad.leftThumbstick, pad.rightThumbstick]
+        // Whichever hand is doing the work. Added together, a thumb resting on the other
+        // stick drags the aim across.
+        guard let stick = sticks.max(by: { hypot($0.xAxis.value, $0.yAxis.value)
+                                         < hypot($1.xAxis.value, $1.yAxis.value) }),
+              hypot(stick.xAxis.value, stick.yAxis.value) >= Feel.pullFloor
+        else { return .zero }
+        // Down the screen is up the axis reversed: a pad reports +1 for forward.
+        return CGSize(width: CGFloat(stick.xAxis.value),
+                      height: CGFloat(-stick.yAxis.value))
+    }
+
+    /// How far a finger has travelled across the touchpad since it landed.
+    ///
+    /// The DualSense's pad reports where a finger is, not that it is there — nought is
+    /// both the middle and nobody touching it. A finger at rest in the middle is a finger
+    /// that has not thrown anything, so reading the two the same way costs nothing.
+    private func touchPull(_ pad: GCExtendedGamepad) -> CGSize? {
+        guard let sense = pad as? GCDualSenseGamepad else { return nil }
+        let at = CGPoint(x: CGFloat(sense.touchpadPrimary.xAxis.value),
+                         y: CGFloat(sense.touchpadPrimary.yAxis.value))
+        guard at != .zero else { touchFrom = nil; return nil }
+
+        guard let from = touchFrom else { touchFrom = at; return .zero }
+        let moved = CGSize(width: at.x - from.x, height: -(at.y - from.y))
+        guard hypot(moved.width, moved.height) >= Feel.touchFloor else { return .zero }
+        return moved
+    }
+
+    /// The physical things a press is remembered by. Their own names, so the map above is
+    /// the only place a button's meaning is written down.
+    private enum Key: Hashable {
+        case tap, back, flick, inspect, l1, r1, r2, menu
+    }
+}

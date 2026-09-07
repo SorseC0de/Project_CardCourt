@@ -9,6 +9,12 @@ struct GameView: View {
     var onQuit: () -> Void = {}
     /// The same again, dealt fresh.
     var onRunItBack: () -> Void = {}
+    /// The pad, if one is plugged in, and where it is pointing. **Both are nothing until
+    /// a controller is connected** — see `Pad.isAttached`, which is what keeps a ring off
+    /// the screen of somebody playing on glass.
+    @State private var pad = Pad.shared
+    @State private var cursor = Cursor()
+
     @State private var paused = false
     @State private var detail: Card?
     /// A slotted passive or an active debuff, held up to be read.
@@ -77,6 +83,20 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
         .onChange(of: controller.gate) { detail = nil }
+        // **Every press lands in one place.** Only this screen knows what is over the
+        // floor, so it is the only thing that can say whether a button was answering the
+        // hand or the pause menu on top of it.
+        .onChange(of: pad.press) { _, press in
+            guard let press else { return }
+            take(press.action)
+        }
+        // The ring goes where the question does. A hand that gains a card leaves it
+        // where it was; a new question puts it back at the start of the new row.
+        .onChange(of: controller.gate) { cursor.settle(on: Row.at(controller)) }
+        .onChange(of: controller.shownBag(of: GameRules.localSeat).count) {
+            cursor.settle(on: Row.at(controller))
+        }
+        .onAppear { cursor.settle(on: Row.at(controller)) }
         // **Anything that takes the screen holds the game.** A sheet already did; a card
         // raised out of a slot and the discard browser did not, and the floor carried on
         // playing behind them. Not the hand's own card detail — that one is a card you
@@ -161,7 +181,8 @@ struct GameView: View {
                         // Down a little: the flanks stand right above them.
                         .offset(y: Panels.drop)
                         .animation(.easeInOut(duration: 0.28), value: standingAside)
-                        ActionBarView(controller: controller, detail: $detail,
+                        ActionBarView(controller: controller, ringed: cursor.at,
+                                      detail: $detail,
                                       onInspectReferees: { open(.referees) })
                     }
                     // Out of the way rather than washed over. Two translucent sheets meeting
@@ -621,17 +642,8 @@ struct GameView: View {
                   opening: controller.opening,
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },
-                  onSelect: { seat in
-                      // The same tap answers both — which is the point of asking for a
-                      // player the way the game already asks for one.
-                      if case .awaitingTarget = controller.gate {
-                          controller.choose(target: seat)
-                      } else if case .awaitingNaming = controller.gate {
-                          controller.choose(naming: seat)
-                      } else {
-                          controller.inbound(to: seat)
-                      }
-                  },
+                  onSelect: select,
+                  ringed: cursor.seat,
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
                   spend: controller.spend,
@@ -958,6 +970,175 @@ struct GameView: View {
         }
         .padding(.vertical, 34)
         .transition(.opacity)
+    }
+
+    // MARK: - The pad
+
+    /// Where every press lands.
+    ///
+    /// **Read from the top down: whatever is nearest the player answers.** A button
+    /// pressed while the pause menu is up is answering the pause menu, not the hand
+    /// behind it, and a card held up to be read is between the two.
+    private func take(_ action: Pad.Action) {
+        if case .gameOver = controller.gate { return takeOnFinalCard(action) }
+        if paused { return takeWhilePaused(action) }
+
+        // Everything the player opened for themselves, and everything the game is
+        // holding up to be looked at. All of it closes on the same two buttons.
+        if browsingDiscard || onFloor != nil || inspecting != nil {
+            guard action == .back || action == .tap else { return }
+            browsingDiscard = false
+            onFloor = nil
+            inspecting = nil
+            return
+        }
+        // A first sighting waits on the player, exactly as it does for a tap on glass.
+        if controller.reveal != nil {
+            if action == .tap || action == .back { controller.dismissReveal() }
+            return
+        }
+        if controller.whistleReveal != nil {
+            if action == .tap || action == .back { controller.dismissWhistleReveal() }
+            return
+        }
+
+        switch action {
+        case .pause:
+            controller.pause()
+            withAnimation(.easeOut(duration: 0.2)) { paused = true }
+        case .previous, .next:
+            let row = Row.at(controller)
+            cursor.settle(on: row)
+            cursor.walk(action, along: row)
+            // The reading does not follow the ring. Walking away from a card you were
+            // holding up puts it back in the hand, which is what a finger does too.
+            detail = nil
+        case .down:
+            detail = nil
+        case .flick:
+            commit(cursor.at)
+        case .tap:
+            press(cursor.at)
+        case .back:
+            if detail != nil { detail = nil } else { decline() }
+        case .inspect:
+            look(at: cursor.at)
+        }
+    }
+
+    /// A press on whatever is focused. **The same two steps a finger gets**: a card comes
+    /// up to be read, and a second press plays it.
+    private func press(_ spot: PadSpot?) {
+        switch spot {
+        case .card(let id):
+            guard let card = focused(id) else { return }
+            if detail?.id == id {
+                detail = nil
+                controller.commit(card)
+            } else {
+                detail = card
+            }
+        case .shoot:   controller.shoot()
+        case .borrow:  controller.beginBorrow()
+        case .confirm: confirm()
+        case .decline: decline()
+        case .seat(let seat): select(seat)
+        case nil: break
+        }
+    }
+
+    /// The flick: what throwing a card at the table means, without the throw. It does not
+    /// wait for the card to be read first — neither does a flick on glass.
+    private func commit(_ spot: PadSpot?) {
+        switch spot {
+        case .card(let id):
+            guard let card = focused(id) else { return }
+            detail = nil
+            controller.commit(card)
+        default:
+            press(spot)
+        }
+    }
+
+    /// A look at what is focused, without taking it.
+    private func look(at spot: PadSpot?) {
+        switch spot {
+        case .card(let id): detail = focused(id)
+        case .seat(let seat): onFloor = .player(seat)
+        default: break
+        }
+    }
+
+    /// The card the ring is on, wherever it is being offered from — your own hand at most
+    /// gates, and the answers held out at a counter.
+    private func focused(_ id: Card.ID) -> Card? {
+        if let mine = controller.shownBag(of: GameRules.localSeat).first(where: { $0.id == id }) {
+            return mine
+        }
+        if case .awaitingCounter(let cards) = controller.gate {
+            return cards.first { $0.id == id }
+        }
+        return nil
+    }
+
+    /// The bar's single confirm, whichever question is asking it.
+    private func confirm() {
+        switch controller.gate {
+        case .awaitingBid:      controller.submitBid()
+        case .awaitingDiscard:  controller.submitDiscard()
+        case .awaitingGiveUp:   controller.submitGiveUp()
+        default: break
+        }
+    }
+
+    /// Saying no, where no is an answer. Circle does this when there is nothing held up
+    /// to put down first.
+    private func decline() {
+        switch controller.gate {
+        case .awaitingCounter: controller.choose(counter: nil)
+        case .awaitingNaming:  controller.choose(naming: nil)
+        default: break
+        }
+    }
+
+    /// Picking a man off the floor. **The same answer for a tap and for the ring** —
+    /// which is the point of asking for a player the way the game already asks for one.
+    private func select(_ seat: Seat) {
+        if case .awaitingTarget = controller.gate {
+            controller.choose(target: seat)
+        } else if case .awaitingNaming = controller.gate {
+            controller.choose(naming: seat)
+        } else {
+            controller.inbound(to: seat)
+        }
+    }
+
+    /// The pause menu is two buttons and no row: resume is the near one and quitting is
+    /// deliberate, so it takes the button that means "the other thing".
+    private func takeWhilePaused(_ action: Pad.Action) {
+        switch action {
+        case .tap, .back, .pause: resume()
+        case .flick: paused = false; onQuit()
+        default: break
+        }
+    }
+
+    /// The final card. Its three ways off it, on three buttons rather than a row —
+    /// nothing else is happening, and a ring here would be the only one in the game that
+    /// had to be walked to reach a menu.
+    private func takeOnFinalCard(_ action: Pad.Action) {
+        if reviewingLog {
+            if action == .back || action == .tap {
+                withAnimation(.easeOut(duration: 0.2)) { reviewingLog = false }
+            }
+            return
+        }
+        switch action {
+        case .tap:     onRunItBack()
+        case .inspect: withAnimation(.easeOut(duration: 0.2)) { reviewingLog = true }
+        case .back:    onQuit()
+        default: break
+        }
     }
 
     /// "You Win!" but "Raheem Wins!", and a shared line when nobody separated.

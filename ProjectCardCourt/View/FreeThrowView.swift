@@ -21,6 +21,14 @@ struct FreeThrowView: View {
     private static let powerWindow: ClosedRange<CGFloat> = 0.70...1.35
     /// How far off line the flick may finish, as a fraction of the screen's width.
     private static let aimWindow: CGFloat = 0.15
+    /// Less than this and the hand barely moved: not a throw at all.
+    private static let leastPull: CGFloat = 0.06
+    /// What a stick pushed to its stop is worth, against a perfect pull — see
+    /// `throwOffThePad(_:in:)`.
+    private static let padReach: CGFloat = 1.5
+    /// And sideways, where a full push is well outside the aim window rather than at the
+    /// edge of it: drifting off the mark should take a deliberate thumb.
+    private static let padDrift: CGFloat = 0.5
 
     /// Where the ball rests before it is thrown, as a share of the scene's height.
     private static let restY: CGFloat = 0.80
@@ -44,6 +52,7 @@ struct FreeThrowView: View {
         }
     }
 
+    @State private var pad = Pad.shared
     @State private var drag: CGSize = .zero
     @State private var launched = false
     @State private var flight: CGFloat = 0
@@ -137,6 +146,17 @@ struct FreeThrowView: View {
             }
             .contentShape(Rectangle())
             .gesture(auto == nil ? shooting(in: geo.size) : nil)
+            // **The same throw off a stick or the DualSense's own glass.** A pull is
+            // handed over as the drag it would have been, so nothing below here knows
+            // which it was — see `throwOffThePad(_:in:)`.
+            .onChange(of: pad.pull) { _, held in
+                guard auto == nil, !launched else { return }
+                drag = throwOffThePad(held, in: geo.size)
+            }
+            .onChange(of: pad.release) { _, went in
+                guard let went, auto == nil, !launched else { return }
+                release(throwOffThePad(went.pull, in: geo.size), in: geo.size)
+            }
             .task { await playItself(in: geo.size) }
         }
     }
@@ -205,13 +225,31 @@ struct FreeThrowView: View {
             }
             .onEnded { value in
                 guard !launched else { return }
-                // Straight down, or barely moved at all: not a throw.
-                let pull = -value.translation.height
-                guard pull > size.height * 0.06 else { drag = .zero; return }
-                power = pull / (size.height * Self.perfectPull)
-                aim = value.translation.width / size.width
-                launch(in: size)
+                release(value.translation, in: size)
             }
+    }
+
+    /// Letting go. **One owner, because a pad throws too** — a stick pushed to its stop
+    /// is a hand that pulled the ball all the way back, so what arrives here is always a
+    /// translation and the shot cannot tell the two apart.
+    private func release(_ translation: CGSize, in size: CGSize) {
+        // Straight down, or barely moved at all: not a throw.
+        let pull = -translation.height
+        guard pull > size.height * Self.leastPull else { drag = .zero; return }
+        power = pull / (size.height * Self.perfectPull)
+        aim = translation.width / size.width
+        launch(in: size)
+    }
+
+    /// A pull off a controller, in the drag's own terms.
+    ///
+    /// **A full push is a little long on purpose.** Mapping the stop to a perfect throw
+    /// would leave a pad player unable to overcook one at all, and half the shot is that
+    /// you can — so the sweet spot sits between about a half and nine tenths of the
+    /// stick's travel and there is room to miss on both sides of it.
+    private func throwOffThePad(_ pull: CGSize, in size: CGSize) -> CGSize {
+        CGSize(width: pull.width * size.width * Self.padDrift,
+               height: pull.height * size.height * Self.perfectPull * Self.padReach)
     }
 
     /// An opponent's turn. Same flight, with the numbers worked backwards from the

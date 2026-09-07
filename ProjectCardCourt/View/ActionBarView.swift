@@ -3,6 +3,8 @@ import SwiftUI
 /// The player's own controls, laid straight over the court with no panel behind them.
 struct ActionBarView: View {
     let controller: GameController
+    /// What a controller is pointing at. Nothing when nobody has one — see `PadRing`.
+    var ringed: PadSpot?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
 
@@ -77,6 +79,8 @@ struct ActionBarView: View {
                           wash: isChoosingInbound ? CourtView.Court.cardWash : nil,
                           activeReferees: controller.shown.armedWhistles.count,
                           onInspectReferees: onInspectReferees,
+                          ringed: { if case .card(let id) = ringed { return id }
+                                    else { return nil } }(),
                           detail: $detail,
                           onCommit: commit)
             asking
@@ -98,24 +102,10 @@ struct ActionBarView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// A drag clear of the log, or a second tap, means this card.
-    private func commit(_ card: Card) {
-        switch controller.gate {
-        case .awaitingMove:
-            guard playableCards.contains(card.id) else { return }
-            controller.play(card)
-        case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
-            // Nothing moves once the bid is in.
-            guard !controller.bidPlaced else { return }
-            if controller.bidSelection.contains(card.id) {
-                controller.bidSelection.remove(card.id)
-            } else {
-                controller.bidSelection.insert(card.id)
-            }
-        default:
-            break
-        }
-    }
+    /// A drag clear of the log, or a second tap, means this card. **The rules of it live
+    /// on the controller**, because up on a pad means exactly the same thing and the two
+    /// must not be able to disagree — see `GameController.commit(_:)`.
+    private func commit(_ card: Card) { controller.commit(card) }
 
     // MARK: - Prompt
 
@@ -229,6 +219,7 @@ struct ActionBarView: View {
                 Capsule().fill(CardPalette.orange)
                     .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
         }
+        .padRing(ringed == .shoot, corner: Act.height / 2)
         .frame(width: Act.width)
     }
 
@@ -243,6 +234,7 @@ struct ActionBarView: View {
                 .frame(height: Act.height)
                 .background(Capsule().fill(.white))
         }
+        .padRing(ringed == .borrow, corner: Act.height / 2)
         .frame(width: Act.width * Act.secondShare)
     }
 
@@ -266,6 +258,7 @@ struct ActionBarView: View {
                 .padding(.vertical, 10)
                 .background(Capsule().fill(count == 0 ? Theme.ink : Theme.ball))
         }
+        .padRing(ringed == .confirm, corner: 22)
         .frame(width: 220)
     }
 
@@ -283,6 +276,7 @@ struct ActionBarView: View {
                 .padding(.vertical, 10)
                 .background(Capsule().fill(ready ? Theme.danger : Theme.ink))
         }
+        .padRing(ringed == .confirm, corner: 22)
         .frame(width: 240)
         .disabled(!ready)
         .opacity(ready ? 1 : 0.6)
@@ -305,6 +299,7 @@ struct ActionBarView: View {
                                            : (controller.bidSelection.isEmpty
                                               ? Theme.ink : Theme.live)))
         }
+        .padRing(ringed == .confirm, corner: 22)
         .frame(width: 220)
         .disabled(waiting)
         .opacity(waiting ? 0.55 : 1)

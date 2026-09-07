@@ -34,6 +34,10 @@ struct CourtView: View {
     var flightDuration: Double = 0.30
     var onOpenDiscard: () -> Void = {}
     var onSelect: (Seat) -> Void
+    /// The man a controller is pointing at, and nobody when nobody has one plugged in.
+    /// **The wedge already over his head, in the cursor's colour** — a ring round a
+    /// figure would be the one box on a floor with no boxes on it.
+    var ringed: Seat?
     /// Cards dealt but not yet landed — see `GameController.undelivered`. A bag count
     /// that ticks up before the card arrives is the same instant draw in miniature.
     var undelivered: Set<UUID> = []
@@ -153,7 +157,14 @@ struct CourtView: View {
     @State private var flewAt: Date?
     @State private var rebounding = ReboundTuning.shared
 
-    private var selectableSeats: Set<Seat> {
+    private var selectableSeats: Set<Seat> { Self.choosable(at: gate, in: state) }
+
+    /// Who can be picked off the floor, for whatever the table is asking.
+    ///
+    /// **One answer for the floor and for the pad.** The men wearing a wedge and the men
+    /// a controller's ring can walk onto have to be the same men, and they are only the
+    /// same by construction — see `Row`.
+    static func choosable(at gate: GameController.Gate, in state: GameState) -> Set<Seat> {
         if case .awaitingInbound(let inbounder) = gate {
             // Altercation: the man you shoved is not standing there waiting for it.
             return Set(Seat.allCases.filter { $0 != inbounder && $0 != state.inboundBarred })
@@ -773,7 +784,7 @@ struct CourtView: View {
     /// single seat you cannot pass to, so they wear nothing at all — marking them would
     /// point at the one illegal target on the floor.
     private func marker(for seat: Seat, selectable: Bool) -> Color? {
-        if selectable { return Theme.live }
+        if selectable { return seat == ringed ? CardPalette.gold : Theme.live }
         if case .inbound = state.phase { return nil }
         return state.phase.actingSeat == seat ? .white : nil
     }

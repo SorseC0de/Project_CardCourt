@@ -1536,6 +1536,31 @@ final class GameController {
         choose(.play(card.id))
     }
 
+    /// **What throwing a card at the table means, wherever the throw came from.**
+    ///
+    /// A flick on glass, a second tap, and up on a pad are one act, and what it does
+    /// depends entirely on what is being asked: on your turn it plays the card, and at
+    /// every gate that wants a fistful of them it puts this one in or takes it back out.
+    /// One owner, or the pad and the hand answer the same gate differently.
+    func commit(_ card: Card) {
+        switch gate {
+        case .awaitingMove:
+            guard Rules.legalMoves(shown, for: GameRules.localSeat).contains(.play(card.id))
+            else { return }
+            play(card)
+        case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
+            // Nothing moves once the bid is in.
+            guard !bidPlaced else { return }
+            if bidSelection.contains(card.id) {
+                bidSelection.remove(card.id)
+            } else {
+                bidSelection.insert(card.id)
+            }
+        default:
+            break
+        }
+    }
+
     func shoot() {
         guard !isPaused else { return }
         guard case .awaitingMove = gate else { return }

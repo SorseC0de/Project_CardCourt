@@ -29,6 +29,9 @@ struct FannedBagView: View {
     /// Referees already on the floor. Hung under a Whistle while it is being read.
     var activeReferees: Int = 0
     var onInspectReferees: () -> Void = {}
+    /// The card a controller is pointing at, and nothing at all when nobody has one
+    /// plugged in — see `PadRing`.
+    var ringed: Card.ID?
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -98,6 +101,7 @@ struct FannedBagView: View {
                                 .transition(.scale.combined(with: .opacity))
                         }
                     }
+                    .padRing(ringed == card.id, corner: 76 * CardLayout.cornerFraction)
                     .modifier(ShakeEffect(progress: refused == card.id ? refusal : 0))
                     .rotationEffect(.degrees(lifted || expanded ? 0 : placement.angle))
                     // Grown from the bottom edge, so it rises out of the hand rather
