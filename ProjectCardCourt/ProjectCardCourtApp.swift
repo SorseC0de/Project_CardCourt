@@ -64,10 +64,6 @@ struct RootView: View {
         // status changing, and the button that changes it — and a second controller here
         // is a second game dealt against the same wire.
         guard let session, game == nil else { return }
-        // **What this device looks like, written down before anybody asks.** The engine
-        // reads it off the table now rather than reaching into the art for it, and the
-        // table is the only place all four looks live — see `Table.myLook`.
-        Table.shared.setMyLook(HooperKit.shared.look)
         let controller = GameController()
         controller.join(session)
         game = controller

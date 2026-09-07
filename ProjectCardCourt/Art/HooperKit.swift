@@ -61,6 +61,9 @@ final class HooperKit {
     var billing: String { "#\(Kit.numbers[safe: number] ?? "0") \(name)" }
 
     private init() {
+        // The table asks for this device's own man by calling back here, so it is never a
+        // stale copy — see `Table.localLook`.
+        Table.localLook = { MainActor.assumeIsolated { HooperKit.shared.look } }
         let store = UserDefaults.standard
         name = store.string(forKey: Key.name) ?? "You"
         number = store.object(forKey: Key.number) as? Int ?? 1

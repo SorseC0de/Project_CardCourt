@@ -2176,13 +2176,22 @@ enum Rules {
         // asked for, a full Intangible board — dropped the forced shot on the floor and
         // never re-armed it. `settleHands` runs again at the edge of whatever answers the
         // question, and the shot has to still be owed when it does.
-        if let shooter = state.shootsAtOnce,
-           case .possession(let holder) = state.phase, holder == shooter {
+        // **Cleared once the chain settles anywhere, spent only if it settled on him.**
+        // Three shapes, and the middle one is easy to lose: while a question is still
+        // open the shot is still *owed* and must survive; the moment there is a
+        // possession the chain is over and it is either taken or gone. Guarding the clear
+        // on `holder == shooter` as well left it armed for the rest of the round whenever
+        // the chain came to rest on somebody else, and it fired on an unrelated
+        // possession later. The return leg above clears on the possession and tests the
+        // holder second for exactly this reason.
+        if let shooter = state.shootsAtOnce, case .possession(let holder) = state.phase {
             state.shootsAtOnce = nil
-            if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
-                blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
-            } else {
-                resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
+            if holder == shooter {
+                if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+                    blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
+                } else {
+                    resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
+                }
             }
         }
 

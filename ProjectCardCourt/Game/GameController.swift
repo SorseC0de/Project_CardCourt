@@ -771,6 +771,16 @@ final class GameController {
     private var watching: [Batch] = []
     /// Whether the drain is already running. It feeds itself until the queue is empty.
     private var watchingNow = false
+    /// Which drain is the current one.
+    ///
+    /// **A cancelled drain still has a tail.** It is suspended inside `present`, and when
+    /// the cancellation lets it go it runs its last two lines — putting `watchingNow`
+    /// down and setting the gate — over the top of whichever drain replaced it. The next
+    /// batch then found the flag clear, started a *third*, and cancelled the second
+    /// mid-beat. Every arrival after a catch-up truncated the one before it, which is the
+    /// fault this queue existed to fix. Only the drain still holding the current number
+    /// may write anything shared.
+    private var watchGeneration = 0
 
     /// The guest saying it is here, until it is dealt to. See `announceUntilDealt`.
     private var ready: Task<Void, Never>?
@@ -814,19 +824,44 @@ final class GameController {
     private func drainTheWatch() {
         guard !watchingNow, !watching.isEmpty else { return }
         watchingNow = true
+        watchGeneration += 1
+        let mine = watchGeneration
         loop?.cancel()
         drive { [weak self] in
             guard let self else { return }
-            while !Task.isCancelled, !self.watching.isEmpty {
+            while !Task.isCancelled, self.watchGeneration == mine, !self.watching.isEmpty {
                 let next = self.watching.removeFirst()
                 self.state = next.state
                 await self.present(next.events,
                                    defenders: self.defenderCount(
                                     on: next.state.phase.actingSeat ?? GameRules.localSeat))
             }
+            guard self.watchGeneration == mine else { return }
             self.watchingNow = false
             self.gate = self.localGate
         }
+    }
+
+    /// Takes whatever a cut-off presentation left on screen back off it.
+    ///
+    /// A catch-up board replaces the story, and a story stopped in the middle leaves its
+    /// scenery standing — a cutscene held, a card in the air, bids revealed, a man still
+    /// up at the rim. None of it belongs to the board that just arrived.
+    private func clearTheScene() {
+        throwing = nil
+        cutscene = nil
+        turnover = nil
+        whistleReveal = nil
+        stageDeal = nil
+        opening = nil
+        playedCard = nil
+        clampSwipe = nil
+        actionCall = nil
+        revealedBids = nil
+        reboundLeap = nil
+        flashed = nil
+        undelivered.removeAll()
+        unrevealed.removeAll()
     }
 
     /// **One line that says what board this device is looking at.**
@@ -856,14 +891,28 @@ final class GameController {
         // guest could ever reproduce. The host folds exactly what it sends to each, and
         // each guest folds exactly what it was told; matching still means the same game,
         // and the leak is closed at the same time.
-        digest.fold(events)
+        // **Folded before any of it goes out, not inside the loop that sends it.** A
+        // `broadcast` that throws part-way through would otherwise leave the seats it
+        // reached folded and the rest not — and then the very next batch would fold
+        // cleanly on both sides and agree, so the batch that went missing is the one
+        // thing the digest can never report.
+        var told: [Seat: [GameEvent]] = [:]
+        for seat in Table.shared.remotes {
+            let theirs = events.map { $0.redacted(for: seat) }
+            told[seat] = theirs
+            digests[seat, default: Digest()].fold(theirs)
+        }
+        // The host's own readout is what the *host* was told, so it is folded the way a
+        // guest folds: its own draws by name, everybody else's face down. Two phones can
+        // no longer be compared by eye — they are told different stories on purpose —
+        // and they no longer need to be, because every guest's copy is checked against
+        // its own on arrival.
+        digest.fold(events.map { $0.redacted(for: GameRules.localSeat) })
         lastBoard = fingerprint(state)
         DevLog.say(.net, "host → \(lastBoard)  [\(events.count) event(s)]")
         try? match.broadcast { seat in
-            let theirs = events.map { $0.redacted(for: seat) }
-            digests[seat, default: Digest()].fold(theirs)
-            return .turn(state: state.redacted(for: seat), events: theirs,
-                         digest: digests[seat] ?? Digest())
+            .turn(state: state.redacted(for: seat), events: told[seat] ?? events,
+                  digest: digests[seat] ?? Digest())
         }
     }
 
@@ -993,10 +1042,13 @@ final class GameController {
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← caught up at batch \(theirs.batches)  \(lastBoard)")
             // A board with no story attached replaces the story. Anything still waiting
-            // to be watched is about a game that has moved on without it.
+            // to be watched is about a game that has moved on without it, and anything a
+            // half-played one left standing has to come off the screen with it.
             watching.removeAll()
+            watchGeneration += 1
             watchingNow = false
             loop?.cancel()
+            clearTheScene()
             self.state = state
             self.shown = state
             gate = localGate
@@ -2430,6 +2482,36 @@ final class GameController {
         // count lighting up, a hand emptying — is shown once the card itself has gone.
         catchUp()
         release(.play, from: &ledger)
+
+        // **The board, for a device that is only being told.**
+        //
+        // These beats live in `submitBid`, which the host runs and a guest never reaches,
+        // so a guest folded the rebound batch, agreed with the host about it, and drew
+        // none of it. Played here rather than later because the host's order is bids →
+        // turnover → leap → *then* the draw that opens the possession he won: put after
+        // the draws, a guest watched the winner take his card before anybody had revealed
+        // who won.
+        if isGuest {
+            for case .reboundBids(let counts, _) in events {
+                revealedBids = counts
+                try? await Task.sleep(for: .seconds(Pacing.bidReveal))
+                revealedBids = nil
+            }
+            release(.bid, from: &ledger)
+            if let scene = TurnoverCutscene(events: events) {
+                turnover = scene
+                try? await Task.sleep(for: .seconds(scene.hold))
+                turnover = nil
+            }
+            release(.turnover, from: &ledger)
+            for case .rebounded(let winner) in events {
+                catchUp()
+                reboundLeap = ReboundLeap(seat: winner)
+                try? await Task.sleep(for: .seconds(ReboundTiming.run))
+                reboundLeap = nil
+            }
+            if Task.isCancelled { return }
+        }
         // What the card cost, thrown rather than deleted. Before the draws, because a card
         // that pays for a draw pays for it first.
         for case .discarded(let seat, let count) in events {
@@ -2507,38 +2589,12 @@ final class GameController {
         }
         release(.shot, from: &ledger)
 
-        // **The board, for anybody who is only watching.**
-        //
-        // These two beats existed in one place — `submitBid`, which the host runs and a
-        // guest never reaches. So a guest was handed the rebound batch, folded it into
-        // its digest, agreed with the host about it, and drew none of it: no bids
-        // revealed, nobody going up. The whole scramble was a board that silently changed
-        // hands. `submitBid` still plays its own, because the host has to interleave them
-        // with a resolution it is performing; this is the same two beats for a device
-        // that is only being told.
-        if isGuest {
-            for case .reboundBids(let counts, _) in events {
-                revealedBids = counts
-                try? await Task.sleep(for: .seconds(Pacing.bidReveal))
-                revealedBids = nil
-            }
-            release(.bid, from: &ledger)
-        }
-
         if let scene = TurnoverCutscene(events: events) {
             turnover = scene
             try? await Task.sleep(for: .seconds(scene.hold))
             turnover = nil
         }
 
-        if isGuest {
-            for case .rebounded(let winner) in events {
-                catchUp()
-                reboundLeap = ReboundLeap(seat: winner)
-                try? await Task.sleep(for: .seconds(ReboundTiming.run))
-                reboundLeap = nil
-            }
-        }
         // **The turn does not start until the ball is in his hands.**
         //
         // Nothing waited for the catch: the beat ended at the throw, and the next play

@@ -78,17 +78,19 @@ extension GameEvent {
     /// was told, in the same message, that it could not see a hand and exactly what had
     /// just gone into it. Three cases carry a descriptor somebody else is not entitled to.
     ///
+    /// **One case, not three.** `.discardedForShot` and `.clampBit` look like they carry
+    /// somebody's card and do not: the first names the *shot card that asked*, which the
+    /// guest already has because `phase` crosses unredacted, and the second names the
+    /// Clamp or Injury doing the biting, which is read off `clamps`/`injuries` — public,
+    /// and untouched by `redacted(for:)`. Face-downing them hid nothing and broke two
+    /// real things: `CardLibrary.faceDown` is typed `.gameBreak`, so `showClampBite`'s
+    /// `card.type == .clamp` filter stopped matching and the guest never saw the defender
+    /// walk out and swipe, and both events are loggable, so a guest's log read "East feeds
+    /// 3 cards into ." while the host's named the card.
+    ///
     /// Your own draws are yours to see, so only the other seats are covered.
     func redacted(for seat: Seat) -> GameEvent {
-        switch self {
-        case .drew(let who, _, let id) where who != seat:
-            return .drew(seat: who, card: CardLibrary.faceDown, id: id)
-        case .discardedForShot(let who, _, let count) where who != seat:
-            return .discardedForShot(seat: who, card: CardLibrary.faceDown, count: count)
-        case .clampBit(let who, _, let discarded) where who != seat:
-            return .clampBit(seat: who, card: CardLibrary.faceDown, discarded: discarded)
-        default:
-            return self
-        }
+        guard case .drew(let who, _, let id) = self, who != seat else { return self }
+        return .drew(seat: who, card: CardLibrary.faceDown, id: id)
     }
 }

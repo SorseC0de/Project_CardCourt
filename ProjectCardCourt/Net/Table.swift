@@ -146,12 +146,26 @@ final class Table {
     /// had to import the art to reach — and it meant the local look was only ever written
     /// to the table by `GameCenterMatch.readAsGuest`, so on a loopback this device was the
     /// one player at the table nobody had a look for. `RootView` sets it once at join.
+    /// **What this device said, first.** Reading the chair first was wrong twice over:
+    /// the chair is written by the seating, which on a host arrives *before* anything has
+    /// asked what this player looks like, so the very first `.seated` carried the all-zero
+    /// default out to the table. What the player built is the answer; the chair is only a
+    /// fallback for a device that somehow never said.
     var myLook: Look {
-        chairs[GameRules.localSeat]?.look ?? mine ?? Look(tone: 0, face: 0, jersey: 0, belt: 0)
+        Table.localLook?() ?? mine ?? chairs[GameRules.localSeat]?.look
+            ?? Look(tone: 0, face: 0, jersey: 0, belt: 0)
     }
 
     /// What this device said about itself, kept even before it has a chair.
     private(set) var mine: Look?
+
+    /// Where this device's own player is actually built.
+    ///
+    /// **A seam, not a copy.** `HooperKit` is a view-layer object and this file has to
+    /// stay headless, and a snapshot taken at some moment goes stale the instant somebody
+    /// changes their kit. `HooperKit` installs this; with it unset — a test, the harness —
+    /// `mine` is whatever was last set by hand.
+    nonisolated(unsafe) static var localLook: (() -> Look)?
 
     /// This device's own player, as built on the My Hooper screen.
     func setMyLook(_ look: Look) {
