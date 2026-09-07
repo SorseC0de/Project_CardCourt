@@ -20,7 +20,7 @@ newest=$(find "$ROOT/ProjectCardCourt/Model" "$ROOT/ProjectCardCourt/GameRules.s
 if [[ ! -x "$BIN" || -n "$newest" ]]; then
   # Globbed, so a new tool file just needs dropping in here — minus the two that are
   # their own programs. `main.swift` is this one's entry point and `marks.swift` is the
-  # mark table.s, and a second file of top-level statements will not compile alongside it.
+  # mark table's, and a second file of top-level statements will not compile alongside it.
   helpers=("$HERE"/*.swift(N))
   helpers=("${(@)helpers:#$HERE/main.swift}")
   helpers=("${(@)helpers:#$HERE/marks.swift}")
