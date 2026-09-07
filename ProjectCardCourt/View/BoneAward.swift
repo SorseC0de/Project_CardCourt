@@ -20,9 +20,6 @@ struct BoneAward: View {
     var blends: [BlendMode]?
 
     @State private var landed = false
-    /// When the burst started, so it plays once and is gone. A one-shot holds its last
-    /// cell forever otherwise — which is how sparkles get left stuck on a screen.
-    @State private var sparkedAt: Date?
     /// Drives the shine down the bone. One long linear repeat rather than a timer: the
     /// strip spends most of its travel off the metal, and that gap **is** the wait.
     @State private var sweeping = false
@@ -79,15 +76,13 @@ struct BoneAward: View {
                         .blendMode(pass.element)
                 }
                 if bone.shines { shine }
-                // **Gold sparkles.** Over the bone rather than behind it: the burst is
-                // light coming off the thing, and light behind it is a halo, which the
-                // glow already is.
-                if bone.sparkles, let sparkedAt {
-                    SpriteAnimation(sprite: .sparkleBurst,
-                                    scale: side / Sprite.sparkleBurst.frameSize * 1.4,
-                                    fps: Theme.Figure.playerFPS,
-                                    playsOnce: true, startedAt: sparkedAt)
-                        .allowsHitTesting(false)
+                // **Gold twinkles.** Drawn, not a sheet: the bone is a vector with its
+                // own shading, and a pixel-art burst over it reads as two different games
+                // in one frame. They sit around it rather than behind — behind is where
+                // the glow already is — and they carry on rather than playing once, since
+                // metal keeps catching the light.
+                if bone.sparkles {
+                    BoneSparkles(side: side, tint: bone.glow)
                 }
             }
             Text("+\(amount)")
@@ -99,20 +94,12 @@ struct BoneAward: View {
         .scaleEffect(landed ? 1 : 0.25)
         .opacity(landed ? 1 : 0)
         .onChange(of: arrived, initial: true) { _, here in
-            guard here else { landed = false; sparkedAt = nil; return }
+            guard here else { landed = false; return }
             withAnimation(pop) { landed = true }
             if bone.shines, !sweeping {
                 withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false)) {
                     sweeping = true
                 }
-            }
-            guard bone.sparkles else { return }
-            sparkedAt = Date()
-            // Cleared when the sheet has run, so nothing is left on the last cell.
-            Task {
-                let run = Double(Sprite.sparkleBurst.frames) / Theme.Figure.playerFPS
-                try? await Task.sleep(for: .seconds(run))
-                sparkedAt = nil
             }
         }
     }
