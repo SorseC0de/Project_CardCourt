@@ -81,7 +81,15 @@ struct ModeCardView: View {
     var titlePrefix = ""
     var titleSuffix = ""
     /// How big the affixes are against the title they sit beside.
-    var affixScale: CGFloat = 0.46
+    var affixScale: CGFloat = 0.56
+    /// Where the sign sits against the number, as shares of the title's size: down and
+    /// right of centre, and tucked far enough under the first digit to touch it.
+    ///
+    /// **A sign hung level and clear of the digits reads as part of a string**; one that
+    /// leans into them reads as attached to the number. The digits are drawn after it, so
+    /// they pass over the tail of it rather than under.
+    var prefixNudge = CGPoint(x: 0.05, y: 0.14)
+    var prefixOverlap: CGFloat = 0.12
 
     /// One colour for the streaks, when the call has a colour of its own — a Game Break's
     /// purple, a Clamp's red. Nil leaves them white on a card that belongs to a seat, and
@@ -320,7 +328,11 @@ struct ModeCardView: View {
                 // **Centred, not on the baseline.** A sign beside a number is read
                 // against the whole of it rather than sat on the line it stands on.
                 HStack(alignment: .center, spacing: size * 0.06) {
-                    if !titlePrefix.isEmpty { affix(titlePrefix, against: size) }
+                    if !titlePrefix.isEmpty {
+                        affix(titlePrefix, against: size)
+                            .offset(x: size * prefixNudge.x, y: size * prefixNudge.y)
+                            .padding(.trailing, -size * prefixOverlap)
+                    }
                     ActionText(title, size: size,
                                ink: ink, drop: titleShade,
                                taper: ModeCardStyle.titleTaper,
