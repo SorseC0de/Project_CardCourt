@@ -658,7 +658,16 @@ final class GameController {
 
     /// True when this device only chooses and watches. The rules are running elsewhere,
     /// and nothing here may touch `state` except by being told to.
-    var isGuest: Bool { match.map { $0.isActive && !$0.isHost } ?? false }
+    ///
+    /// **Latched at `join`, not read off the transport.** It used to be
+    /// `match.isActive && !match.isHost` asked fresh every time — and `isActive` is
+    /// `match != nil && !seats.isEmpty`, a live property of a connection that can report
+    /// anything mid-match. The only thing standing between a hiccup there and disaster
+    /// was `guard !isGuest` in a watchdog that fires every two seconds: read `false` once
+    /// and a guest starts its own `run()` over the host's board — a board whose RNG
+    /// `redacted(for:)` has zeroed, so it would resolve the rest of the game from seed 0
+    /// and broadcast none of it. A role is decided when you sit down.
+    private(set) var isGuest = false
 
     /// What has arrived from the other devices and not been acted on yet. One slot per
     /// seat: a client that sends twice before the host looks has changed its mind, which
@@ -740,6 +749,8 @@ final class GameController {
     /// first message has already been delivered will never see it.
     func join(_ transport: any MatchTransport) {
         match = transport
+        // Whatever the connection says later, this is the seat we took.
+        isGuest = transport.isActive && !transport.isHost
         transport.onHostMessage = { [weak self] in self?.receive($0) }
         transport.onClientMessage = { [weak self] in self?.receive($1, from: $0) }
         // A seat whose player has gone is played by the house for the rest of the game.
@@ -1564,6 +1575,8 @@ final class GameController {
 #if DEBUG
     /// Pulls one card for the human, flight animation and all.
     func debugDraw() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             var events: [GameEvent] = []
@@ -1574,12 +1587,16 @@ final class GameController {
     }
 
     func debugDiscardHand() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         Rules.discardHand(GameRules.localSeat, state: &state)
     }
 
     /// Asks the deck to perform. Nothing about the game changes — it is the deck doing a
     /// thing, which is the point of it having a repertoire at all.
     func debugDeck(_ routine: DeckRoutine) {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         deckRoutine = routine
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(3.6))
@@ -1589,6 +1606,8 @@ final class GameController {
 
     /// Runs the whole opening: in from the horizon, round the table, home, and down.
     func debugOpening() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         opening = OpeningDeal(id: UUID(),
                               order: GameRules.localSeat.clockwiseOrderFromHere,
                               each: state.rules.startingBagSize)
@@ -1596,12 +1615,16 @@ final class GameController {
 
     /// Throws one card from the deck to the next seat round, on the court-wide stage.
     func debugDeal() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         let next = stageDeal.map { $0.seat.clockwise } ?? GameRules.localSeat
         stageDeal = (next, UUID())
     }
 
     /// Sets a Whistle down face-down, the way arming one looks from the table.
     func debugArmWhistle() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             playedCard = PlayedCard(seat: GameRules.localSeat,
@@ -1617,6 +1640,8 @@ final class GameController {
     /// Goes through `SeenCards` like the real thing, so the first press on a given card
     /// shows the New badge and waits for a tap. `unsee` puts them all back.
     func debugBlowWhistle() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             let card = Self.aWhistle()
@@ -1637,6 +1662,8 @@ final class GameController {
 
     /// Plays a turnover scene without waiting to lose the ball.
     func debugTurnover(_ kind: TurnoverCutscene.Kind) {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             let scene = TurnoverCutscene(seat: GameRules.localSeat, kind: kind)
@@ -1649,6 +1676,8 @@ final class GameController {
 
     /// Throws a pass across the court without touching the game.
     func debugPass(to seat: Seat) {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             practicePass = (GameRules.localSeat, seat)
@@ -1667,6 +1696,8 @@ final class GameController {
 
     /// Sends the human to the line for two, for working on the mini-game.
     func debugFreeThrows() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             await present(Rules.debugAwardFreeThrows(2, to: GameRules.localSeat,
@@ -1677,6 +1708,8 @@ final class GameController {
 
     /// Replays a missed shot, which is where most of the rim drama lives.
     func debugMiss() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
@@ -1690,6 +1723,8 @@ final class GameController {
 
     /// Replays the shot scene on demand, for matching its timing to the sprite.
     func debugShot() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
@@ -1705,6 +1740,8 @@ final class GameController {
     ///
     /// A miss makes it a miss: the bench picks which of the three ways it comes apart.
     func debugDunk(_ dunk: Dunk, miss: DunkMiss? = nil) {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         loop?.cancel()
         drive {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
@@ -1723,6 +1760,8 @@ final class GameController {
     /// A plain `Task`, not `drive`: this is scenery, and the game should carry on behind
     /// it exactly as it does when the plate rides a played card.
     func debugNameCall() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         Task {
             playedCardLeaving = false
             playedCard = PlayedCard(seat: GameRules.localSeat,
@@ -1737,6 +1776,8 @@ final class GameController {
 
     /// Plays a Lethal Shooter make, which is otherwise a card and a rebound away.
     func debugUnderstood() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         cutscene = ShotCutscene(shooter: GameRules.localSeat, chance: 100, made: true,
                                 defenders: 2, signature: .understood)
         Task {
@@ -1748,6 +1789,8 @@ final class GameController {
     /// Sends the local seat up for a board, for tuning the leap without waiting for a
     /// miss and a bid — see `ReboundBench`.
     func debugRebound() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         reboundLeap = ReboundLeap(seat: GameRules.localSeat)
         Task {
             try? await Task.sleep(for: .seconds(ReboundTiming.run))
@@ -1757,6 +1800,8 @@ final class GameController {
 
     /// Plays the three's celebration on the local seat, for looking at it on demand.
     func debugThree() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         Task {
             celebratingThree = GameRules.localSeat
             withheldPoints = (seat: GameRules.localSeat, amount: 3)
@@ -1765,6 +1810,8 @@ final class GameController {
 
     /// Dump and redraw, for getting to a hand worth testing quickly.
     func debugReshuffleHand() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
         Rules.reshuffleHand(GameRules.localSeat, state: &state)
     }
 #endif

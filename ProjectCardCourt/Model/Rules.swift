@@ -2170,14 +2170,19 @@ enum Rules {
         // Alley-Oop: it goes up now, with whatever he drew still in his hands. Before the
         // board's question, because the shot is the possession and a passive changing
         // hands is not.
-        if let shooter = state.shootsAtOnce {
+        // **Cleared inside the guard, not before it** — the same fault the return leg
+        // above had and was fixed for. The clear ran unconditionally, so a chain that
+        // ended on a question rather than in a possession — a toll, a give-up, a card
+        // asked for, a full Intangible board — dropped the forced shot on the floor and
+        // never re-armed it. `settleHands` runs again at the edge of whatever answers the
+        // question, and the shot has to still be owed when it does.
+        if let shooter = state.shootsAtOnce,
+           case .possession(let holder) = state.phase, holder == shooter {
             state.shootsAtOnce = nil
-            if case .possession(let holder) = state.phase, holder == shooter {
-                if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
-                    blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
-                } else {
-                    resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
-                }
+            if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+                blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
+            } else {
+                resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
             }
         }
 
