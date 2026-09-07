@@ -110,6 +110,44 @@ enum DunkStyle {
     static let spinAfter: Double = 0
     static let hand = UnitPoint(x: 19.0 / 32, y: 4.5 / 32)
 
+    // ── When it does not go in ──────────────────────────────────────────
+
+    /// How far past the rim he carries when he sails over it, as a share of the climb —
+    /// and how long that takes. The scale falls out of the same number: he is already
+    /// shrinking toward `arrivesAt` on the way up, so carrying on past one shrinks him
+    /// past it too, which is what going away looks like.
+    static let pastReach: CGFloat = 1.9
+    static let pastSeconds: Double = 0.55
+    /// The smallest he is allowed to get. Past two the scale would cross zero and turn
+    /// him inside out.
+    static let pastFloor: CGFloat = 0.06
+    /// **Up and to the left, not straight up.** Going over the rim means going clear of
+    /// the board behind it; straight up is going through it. Points, at full carry.
+    static let pastDrift: CGFloat = -90
+
+    /// **How high he gets when he does not get up to it, in points.** Not a share of the
+    /// climb: the shrink has to reach the *same* size it would at the rim — he is as far
+    /// upcourt as anybody else, just lower — so the height and the size come apart here
+    /// and are two values rather than one.
+    static let shortPeak: CGFloat = 252
+    /// Where the fall leaves him, as a share of that peak, and how long it takes.
+    static let shortLands: CGFloat = 0.42
+    static let shortFall: Double = 0.45
+    /// The landing sheet's rate, and how long the turn-around holds its one profile cell.
+    static let landFPS: Double = 7.5
+    static let turnHold: Double = 0.16
+
+    /// A tumble: how far round he goes and over how long, repeating. **Clockwise, and it
+    /// starts with the leap** — the ball is gone the moment he leaves the floor, not once
+    /// he is level with the rim.
+    static let tumbleTurns: Double = 1
+    static let tumbleSeconds: Double = 1.2
+    /// How long he is held coiled on the last cell of the wind-up before a tumble leaves
+    /// the floor. **The gather has to read first**: a man who comes apart needs to be
+    /// seen gathering himself, or the tumble is the whole of what happened rather than
+    /// the thing that went wrong with it.
+    static let tumbleGather: Double = 0.30
+
     /// How far the ring is pulled down, against its own width, and how far the net
     /// stretches doing it. **One pull for both halves**, or the ring comes apart.
     static let rimDrop: CGFloat = 0.08
@@ -130,6 +168,8 @@ final class DunkTuning {
 
     /// Which one the bench — and the in-game `dunk` button — throws down.
     var showing: Dunk = .oneHand
+    /// How it fails when it does. Nil throws it down.
+    var missing: DunkMiss?
 
     private var trips: [Dunk: DunkStyle.Trip] = Dictionary(
         uniqueKeysWithValues: Dunk.allCases.map { ($0, DunkStyle.trip(for: $0)) })
@@ -248,9 +288,9 @@ struct DunkBench: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button {
-                    controller.debugDunk(tune.showing)
+                    controller.debugDunk(tune.showing, miss: tune.missing)
                 } label: {
-                    Text("THROW IT DOWN")
+                    Text(tune.missing == nil ? "THROW IT DOWN" : "BRICK IT")
                         .font(.system(size: 11, weight: .black)).tracking(0.8)
                         .foregroundStyle(.black)
                         .padding(.horizontal, 12).padding(.vertical, 6)
@@ -295,6 +335,20 @@ struct DunkBench: View {
                                 }
                             }
                         }
+                        // Down, or one of the three ways it comes apart. A whirlwind
+                        // cannot tumble — it is already spinning.
+                        row("outcome", "") {
+                            HStack(spacing: 3) {
+                                chip("down", on: tune.missing == nil) { tune.missing = nil }
+                                ForEach(DunkMiss.allCases) { kind in
+                                    if kind != .tumbles || tune.showing.canTumble {
+                                        chip(kind.title, on: tune.missing == kind) {
+                                            tune.missing = kind
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         heading("the trip")
                         dial("rise (pt)", $tune.rise, 0...400)
                         dial("arrives at", $tune.arrivesAt, 0.2...1)
@@ -331,6 +385,17 @@ struct DunkBench: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(.horizontal, 8)
         .padding(.bottom, 6)
+    }
+
+    /// One of a row of little buttons that pick between named things.
+    private func chip(_ label: String, on: Bool,
+                      _ run: @escaping () -> Void) -> some View {
+        Button(label, action: run)
+            .font(.system(size: 9, weight: .bold))
+            .padding(.horizontal, 5).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 3)
+                .fill(on ? CardPalette.blue : .white.opacity(0.12)))
+            .foregroundStyle(.white)
     }
 
     static func label(_ dunk: Dunk) -> String {

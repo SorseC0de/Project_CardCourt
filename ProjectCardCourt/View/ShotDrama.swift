@@ -39,6 +39,27 @@ enum ShotDrama: Equatable {
     /// How often an eligible miss becomes one. Rare on purpose.
     static let robberyOdds = 3
 
+    /// What the rim does with a dunk.
+    ///
+    /// A finish put down has none of it — see `.dunk`. One that comes off the iron gets
+    /// the two variants that make sense for a ball driven at the ring from above: it
+    /// rattles, or it kicks off the back of it. **Not the roll** — a ball rolling the
+    /// ring is a jumper's death, and nothing dropped from the rim rides it. Nor the bank,
+    /// which needs glass, nor a robbery, which is a make being taken back.
+    static func offTheIron() -> ShotDrama {
+        [.rattle, .highBounce].randomElement() ?? .rattle
+    }
+
+    /// What a dunk's ball does, given how the dunk went. A trip that never reaches the
+    /// iron has nothing at the rim to watch.
+    static func forDunk(miss: DunkMiss?) -> ShotDrama {
+        switch miss {
+        case .none:    return .dunk
+        case .ironOut: return offTheIron()
+        default:       return .none
+        }
+    }
+
     static func choose(made: Bool, chance: Int) -> ShotDrama {
         guard chance < certainty, Int.random(in: 0..<odds) == 0 else { return .none }
 

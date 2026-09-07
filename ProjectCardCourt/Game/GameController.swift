@@ -119,6 +119,8 @@ struct ShotCutscene: Identifiable, Equatable {
     /// and a `var` so the memberwise initialiser defaults it — the bench builds scenes
     /// that way and none of them is a dunk.
     var dunk: Dunk?
+    /// How it failed, when it did. Nil on a make and on anything that is not a dunk.
+    var dunkMiss: DunkMiss?
     /// Picked once here rather than in the view, which re-evaluates.
     let spoils: String
     /// What the make says, if it says anything beyond the word.
@@ -135,14 +137,18 @@ struct ShotCutscene: Identifiable, Equatable {
 
     /// Built directly, for replaying the scene from the debug panel.
     init(shooter: Seat, chance: Int, made: Bool, defenders: Int,
-         signature: ShotSignature = .none, dunk: Dunk? = nil) {
+         signature: ShotSignature = .none, dunk: Dunk? = nil,
+         dunkMiss: DunkMiss? = nil) {
         self.dunk = dunk
+        let missed = dunk.map { made ? nil : (dunkMiss ?? DunkMiss.roll(for: $0)) } ?? nil
+        self.dunkMiss = missed
         self.signature = signature
         self.shooter = shooter
         self.chance = chance
         self.made = made
         self.defenders = defenders
-        self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance) : .dunk
+        self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance)
+                                 : ShotDrama.forDunk(miss: missed)
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
         self.line = SwisshLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
@@ -170,6 +176,9 @@ struct ShotCutscene: Identifiable, Equatable {
         // Settled by the rules and carried in the state, so every device watches the same
         // finish rather than four of them each rolling one — see `Rules.dunk(for:card:)`.
         self.dunk = dunk
+        // **How it failed is not.** That is how the thing looked rather than what
+        // happened, the same as `ShotDrama`, and the rules have already said he missed.
+        self.dunkMiss = dunk.map { made ? nil : DunkMiss.roll(for: $0) } ?? nil
         // Read off the shot's own arithmetic rather than off the rules: whatever set the
         // number is named in the breakdown, which is the one place that already knows.
         if breakdown?.steps.contains(where: { $0.label == CardLibrary.lethalShooter.name }) == true {
@@ -184,7 +193,8 @@ struct ShotCutscene: Identifiable, Equatable {
         self.made = made
         self.defenders = defenders
         // A brick is its own announcement; everything else takes an even roll.
-        self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance) : .dunk
+        self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance)
+                                 : ShotDrama.forDunk(miss: self.dunkMiss)
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
         self.line = SwisshLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
@@ -1633,12 +1643,15 @@ final class GameController {
     }
 
     /// Throws one down on demand, for matching the climb to the sheet. See `DunkBench`.
-    func debugDunk(_ dunk: Dunk) {
+    ///
+    /// A miss makes it a miss: the bench picks which of the three ways it comes apart.
+    func debugDunk(_ dunk: Dunk, miss: DunkMiss? = nil) {
         loop?.cancel()
         drive {
             cutscene = ShotCutscene(shooter: GameRules.localSeat,
                                     chance: Int(ShotTuning.shared.debugChance),
-                                    made: true, defenders: 0, dunk: dunk)
+                                    made: miss == nil, defenders: 0, dunk: dunk,
+                                    dunkMiss: miss)
             try? await Task.sleep(for: .seconds(Pacing.cutscene + (cutscene?.drama.seconds ?? 0)))
             cutscene = nil
             await run()

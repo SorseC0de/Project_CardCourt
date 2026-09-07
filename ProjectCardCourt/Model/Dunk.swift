@@ -31,6 +31,10 @@ enum Dunk: String, CaseIterable, Codable, Hashable {
     /// its own animation, so it is the only one with a deadline.
     var arrivesBy: Int? { self == .whirlwind ? 4 : nil }
 
+    /// Whether this one can come apart in mid-air. A whirlwind is already spinning, so
+    /// spinning it further says nothing; the two that hold a pose have somewhere to go.
+    var canTumble: Bool { self != .whirlwind }
+
     /// **What a man of this position throws down instead of shooting**, and how often.
     ///
     /// A centre finishes at the rim nine times in ten; a power forward two in three; a
@@ -46,5 +50,48 @@ enum Dunk: String, CaseIterable, Codable, Hashable {
         }
         guard roll % odds.of < odds.in else { return nil }
         return roll.isMultiple(of: 2) ? .oneHand : .reverse
+    }
+}
+
+
+/// How a dunk fails.
+///
+/// **Three shapes, not one.** A missed dunk is the one shot where *how* it missed is the
+/// whole story: he never got up to it, he got up and sailed past it, or he arrived and
+/// the iron kept it. A single "miss" animation would make all three the same event.
+enum DunkMiss: String, CaseIterable, Codable, Hashable, Identifiable {
+    /// Up and over. He holds the pose he went up in and carries on past the rim.
+    case fliesPast
+    /// The same trip, coming apart on the way. Rare, and only on the two that hold a
+    /// pose — see `Dunk.canTumble`.
+    case tumbles
+    /// He does not get up to it. The leap tops out under the rim and he lands.
+    case short
+    /// He gets there. The finish plays out whole and the ball comes off the iron.
+    case ironOut
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fliesPast: return "past"
+        case .tumbles:   return "tumble"
+        case .short:     return "short"
+        case .ironOut:   return "iron"
+        }
+    }
+
+    /// Whether he ever reaches the rim, which is what says if there is a ball to come
+    /// off it and whether the ring has anything to give.
+    var reachesTheRim: Bool { self == .ironOut }
+
+    /// How rarely the tumble comes up, in misses.
+    static let tumbleOdds = 8
+
+    /// Which one this miss is. **Rolled per device, like `ShotDrama`**: it is how the
+    /// thing looked, not what happened, and the rules have already said he missed.
+    static func roll(for dunk: Dunk) -> DunkMiss {
+        if dunk.canTumble, Int.random(in: 0..<tumbleOdds) == 0 { return .tumbles }
+        return [.fliesPast, .short, .ironOut].randomElement() ?? .fliesPast
     }
 }

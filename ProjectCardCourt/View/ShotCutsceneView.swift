@@ -80,6 +80,16 @@ struct ShotCutsceneView: View {
     /// When the rim gave, so the burst off it plays once from there — cleared when it
     /// has finished, which is what takes it off the screen.
     @State private var rimGaveAt: Date?
+    /// Whether there is a loose ball to draw at all: he keeps his unless the rim takes
+    /// it off him, and a make has one dropping out of the net.
+    private var dunkBallShows: Bool {
+        scene.made || scene.dunkMiss?.reachesTheRim == true
+    }
+
+    /// How far a ball off the iron carries as it falls, against one dropping through the
+    /// net. Kept out rather than dropped in, so it does not read as a late make.
+    private var caromAway: CGFloat { scene.made ? 1 : DunkBall.carom }
+
     /// Whether the rim has already answered. **Its own flag, not `rimGaveAt == nil`**:
     /// that is cleared the moment the burst ends, so a reverse's next swing found it
     /// empty and set the whole thing off again, once a second, for the rest of the scene.
@@ -100,6 +110,9 @@ struct ShotCutsceneView: View {
         /// as having been there at all.
         static let hold: Double = 0.25
         static let fade: Double = 0.40
+        /// How much further one the iron kept travels on its way down. It is leaving,
+        /// not arriving.
+        static let carom: CGFloat = 1.6
     }
 
     var body: some View {
@@ -212,7 +225,8 @@ struct ShotCutsceneView: View {
                             // **He does not shoot it.** A finish at the rim is its own
                             // trip — gather, climb, arrive — and it replaces the jumper
                             // rather than dressing it up. See `DunkFigure`.
-                            DunkFigure(seat: scene.shooter, dunk: dunk, onBallLoose: {
+                            DunkFigure(seat: scene.shooter, dunk: dunk,
+                                       miss: scene.dunkMiss, onBallLoose: {
                                 dunkBallOut = true
                                 dunkBallFell = true
                             }, onRimPull: { amount, spring in
@@ -228,6 +242,10 @@ struct ShotCutsceneView: View {
                                 // the rim throwing sparks for the rest of the scene.
                                 if amount == 1, !rimAnswered {
                                     rimAnswered = true
+                                    // **A miss gets no light off the rim.** The burst is
+                                    // the ring answering a ball put through it; one that
+                                    // came back out has nothing to celebrate.
+                                    guard scene.made else { return }
                                     let burst = dunkTuning.trip(for: scene.dunk ?? .oneHand)
                                     let skipped = Double(burst.burstSkip) / burst.burstFPS
                                     // **Started part-played.** Dating it back by the
@@ -298,10 +316,20 @@ struct ShotCutsceneView: View {
                 // **The one a dunk leaves.** It comes out of the net once he has let go
                 // of the one drawn in his hands, drops, and fades — a ball settling after
                 // the fact rather than a shot arriving.
-                if scene.dunk != nil, dunkBallOut {
+                // **Only a ball that got to the rim comes off it.** He carries his own
+                // through the whole trip — it is drawn into every dunk sheet — so one
+                // that sails past or falls short never lets go of it, and there is
+                // nothing here to draw.
+                if scene.dunk != nil, dunkBallOut, dunkBallShows {
                     PixelBallView(scale: tuning.ballEndScale)
                         .position(rimPoint(in: geo.size))
-                        .offset(y: dunkBallFell ? tuning.rimWidth * DunkBall.fall : 0)
+                        // A ball kept by the iron rattles it or kicks off the back of it
+                        // before it drops — see `ShotDrama.offTheIron`.
+                        .modifier(DramaPath(progress: dunkBallFell ? 1 : 0,
+                                            drama: scene.drama,
+                                            rim: tuning.rimWidth * 0.5))
+                        .offset(y: dunkBallFell
+                                ? tuning.rimWidth * DunkBall.fall * caromAway : 0)
                         .animation(DunkBall.curve, value: dunkBallFell)
                         .opacity(dunkBallFell ? 0 : 1)
                         .animation(.easeOut(duration: DunkBall.fade).delay(DunkBall.hold),
