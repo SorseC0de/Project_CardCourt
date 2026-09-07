@@ -86,8 +86,9 @@ struct ModeCardView: View {
     /// right of centre, and tucked far enough under the first digit to touch it.
     ///
     /// **A sign hung level and clear of the digits reads as part of a string**; one that
-    /// leans into them reads as attached to the number. The digits are drawn after it, so
-    /// they pass over the tail of it rather than under.
+    /// leans into them reads as attached to the number. It sits over the digit rather than
+    /// behind it — see the `zIndex` below, which stack order would otherwise decide the
+    /// wrong way round.
     var prefixNudge = CGPoint(x: 0.05, y: 0.14)
     var prefixOverlap: CGFloat = 0.12
 
@@ -332,6 +333,10 @@ struct ModeCardView: View {
                         affix(titlePrefix, against: size)
                             .offset(x: size * prefixNudge.x, y: size * prefixNudge.y)
                             .padding(.trailing, -size * prefixOverlap)
+                            // Over the digit, not under it. Stack order alone would put
+                            // it behind — it is drawn first, and a sibling drawn later
+                            // paints over whatever it overlaps.
+                            .zIndex(1)
                     }
                     ActionText(title, size: size,
                                ink: ink, drop: titleShade,
