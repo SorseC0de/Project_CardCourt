@@ -68,11 +68,15 @@ enum Pacing {
     /// One number for every decision, because a player learning two different clocks is a
     /// worse game than one that is occasionally generous.
     ///
-    /// **nil turns the clocks off**, which is where they were for the first live tests: a
-    /// seat that never answers hangs where you can see it rather than being papered over
-    /// by a fallback that looks like the game working. Off is a debugging setting — a real
-    /// table cannot wait on somebody who has put their phone down.
-    static let actionClock: Double? = 30
+    /// **nil turns the clocks off**, and they stay off until online play is smooth. A
+    /// seat that never answers should hang where you can see it rather than be papered
+    /// over by a fallback that looks like the game working — while multiplayer is still
+    /// being chased, a clock quietly answering for somebody is one more thing to rule out
+    /// before you can trust what you are looking at.
+    ///
+    /// A real table cannot wait on somebody who has put their phone down, so this goes to
+    /// 30 the moment a match runs clean.
+    static let actionClock: Double? = nil
     /// One opponent attempt from the line, start to finish.
     static let freeThrow = 2.5
 

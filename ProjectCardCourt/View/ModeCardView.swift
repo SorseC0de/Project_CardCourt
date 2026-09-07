@@ -317,7 +317,9 @@ struct ModeCardView: View {
                 // quiet across the word, which is what makes a phase read as called out
                 // rather than labelled. See `ActionText`.
                 let size = ModeCardStyle.titleSize * bar.height * titleScale
-                HStack(alignment: .firstTextBaseline, spacing: size * 0.06) {
+                // **Centred, not on the baseline.** A sign beside a number is read
+                // against the whole of it rather than sat on the line it stands on.
+                HStack(alignment: .center, spacing: size * 0.06) {
                     if !titlePrefix.isEmpty { affix(titlePrefix, against: size) }
                     ActionText(title, size: size,
                                ink: ink, drop: titleShade,
@@ -341,8 +343,10 @@ struct ModeCardView: View {
     /// A sign or a unit beside the title: the same ink and the same hard drop, in plain
     /// letters at a share of its size.
     private func affix(_ text: String, against size: CGFloat) -> some View {
+        // The game's own face, which is what everything else beside a display word is set
+        // in — the system's rounded belongs to readouts, not to a call.
         Text(text)
-            .font(.system(size: size * affixScale, weight: .black, design: .rounded))
+            .font(.custom(Chrome.display, size: size * affixScale))
             .foregroundStyle(ink)
             .shadow(color: titleShade, radius: 0,
                     x: size * 0.04, y: size * 0.04)
