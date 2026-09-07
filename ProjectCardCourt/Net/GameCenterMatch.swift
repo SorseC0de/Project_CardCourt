@@ -434,7 +434,14 @@ final class GameCenterMatch: NSObject, MatchTransport {
         guard let match, let id = seats.first(where: { $0.value == seat })?.key,
               let player = match.players.first(where: { $0.gamePlayerID == id })
         else { return }
-        try match.send(MatchCoder.encode(message), to: [player], dataMode: .reliable)
+        let data = try MatchCoder.encode(message)
+        do {
+            try match.send(data, to: [player], dataMode: .reliable)
+        } catch {
+            // GameKit refuses a reliable send over roughly 87 KB, and says so only here.
+            DevLog.say(.net, "send to \(seat.name) FAILED at \(data.count) bytes: \(error)")
+            throw error
+        }
     }
 
     func broadcast(_ each: (Seat) throws -> HostMessage) throws {
@@ -447,7 +454,13 @@ final class GameCenterMatch: NSObject, MatchTransport {
         guard let match, let hostID,
               let host = match.players.first(where: { $0.gamePlayerID == hostID })
         else { return }
-        try match.send(MatchCoder.encode(message), to: [host], dataMode: .reliable)
+        let data = try MatchCoder.encode(message)
+        do {
+            try match.send(data, to: [host], dataMode: .reliable)
+        } catch {
+            DevLog.say(.net, "send to the host FAILED at \(data.count) bytes: \(error)")
+            throw error
+        }
     }
 }
 

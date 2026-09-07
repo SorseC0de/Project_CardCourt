@@ -795,6 +795,10 @@ final class GameController {
         match = transport
         // Whatever the connection says later, this is the seat we took.
         isGuest = transport.isActive && !transport.isHost
+        DevLog.say(.net, "join: active=\(transport.isActive) host=\(transport.isHost)"
+                   + " → \(isGuest ? "GUEST" : "HOST")"
+                   + "  seat=\(GameRules.localSeat.name)"
+                   + "  remotes=\(Table.shared.remotes.map(\.name).joined(separator: ","))")
         transport.onHostMessage = { [weak self] in self?.receive($0) }
         transport.onClientMessage = { [weak self] in self?.receive($1, from: $0) }
         // A seat whose player has gone is played by the house for the rest of the game.
@@ -884,7 +888,19 @@ final class GameController {
     /// One snapshot each, redacted for its own seat — the host holds the only complete
     /// state and never sends it anywhere.
     private func broadcast(_ events: [GameEvent]) {
-        guard let match, match.isHost else { return }
+        guard let match else {
+            DevLog.say(.net, "broadcast REFUSED: no transport — this device is solo")
+            return
+        }
+        guard match.isHost else {
+            DevLog.say(.net, "broadcast REFUSED: not the host")
+            return
+        }
+        if Table.shared.remotes.isEmpty {
+            DevLog.say(.net, "broadcast REFUSED: nobody is remote — the table reads "
+                       + Seat.allCases.map { "\($0.name)=\(Table.shared.occupant(at: $0))" }
+                        .joined(separator: " "))
+        }
         // **One fingerprint per seat, because one batch is not one batch.** Every device
         // is told a different version of what happened — its own draws by name, everybody
         // else's face down — so a single digest over the unredacted truth is a number no
@@ -910,9 +926,16 @@ final class GameController {
         digest.fold(events.map { $0.redacted(for: GameRules.localSeat) })
         lastBoard = fingerprint(state)
         DevLog.say(.net, "host → \(lastBoard)  [\(events.count) event(s)]")
-        try? match.broadcast { seat in
-            .turn(state: state.redacted(for: seat), events: told[seat] ?? events,
-                  digest: digests[seat] ?? Digest())
+        // **Said out loud when it fails.** This was `try?`, and for a week that silence
+        // *was* the bug: every board was over GameKit's reliable size limit, every send
+        // threw, and nothing anywhere said so. A wire that cannot deliver has to complain.
+        do {
+            try match.broadcast { seat in
+                .turn(state: state.redacted(for: seat), events: told[seat] ?? events,
+                      digest: digests[seat] ?? Digest())
+            }
+        } catch {
+            DevLog.say(.net, "BROADCAST FAILED: \(error)")
         }
     }
 
@@ -985,9 +1008,13 @@ final class GameController {
             // with a gate open on a possession it could act in before a card had landed.
             // A late arrival still needs catching up, so this stands once the deal is out.
             if dealtTheTable {
-                try? match.send(.board(state: state.redacted(for: seat),
-                                       digest: digests[seat, default: Digest()]),
-                                to: seat)
+                do {
+                    try match.send(.board(state: state.redacted(for: seat),
+                                          digest: digests[seat, default: Digest()]),
+                                   to: seat)
+                } catch {
+                    DevLog.say(.net, "SENDING THE BOARD FAILED: \(error)")
+                }
             }
             DevLog.say(.net, "\(seat.name) is ready"
                        + (dealtTheTable ? " — sent the table and the board" : " — waiting on the deal"))
@@ -1189,11 +1216,13 @@ final class GameController {
         // A guest has no game of its own to open. It says it is on screen and waits to be
         // dealt to, which is what a player does at a table.
         if isGuest {
+            DevLog.say(.net, "begin: GUEST — clearing the solo game, announcing")
             forgetTheSoloGame()
             gate = .thinking
             announceUntilDealt()
             return
         }
+        DevLog.say(.net, "begin: HOST — match active=\(match?.isActive == true)")
         // **A match deals for the table that turned up.** The initialiser had to deal
         // one — a controller has to have a game — but that deck was shuffled when the
         // screen appeared, before anybody had joined, for a table that did not exist.
@@ -1211,6 +1240,8 @@ final class GameController {
             // Told to the other devices before it is shown here, so the cards fly on
             // every screen rather than only on the one running the rules.
             dealtTheTable = true
+            DevLog.say(.net, "begin: sending the deal — \(self.openingDraws.count) event(s)"
+                       + " to \(Table.shared.remotes.count) device(s)")
             broadcast(openingDraws)
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)

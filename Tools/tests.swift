@@ -996,6 +996,34 @@ func runTests() {
         Check.that(sent.deck.count == state.deck.count, "so does the state")
         Check.that(carried == mine, "and the fingerprint with it")
 
+        // **The size of the thing.** This is what was actually wrong for a week: a board
+        // written out in full is a quarter of a megabyte, GameKit refuses a reliable send
+        // over about 87 KB, and `try?` ate the error every time. Held here so a card that
+        // starts carrying its whole self again is caught by a test rather than by two
+        // people holding phones.
+        for rules in [MatchRules.classic, MatchRules.standard] {
+            let (big, opening) = Rules.newGame(seed: 9148711, rules: rules)
+            let board = HostMessage.turn(state: big.redacted(for: .north),
+                                         events: opening, digest: Digest())
+            let bytes = (try? MatchCoder.encode(board))?.count ?? .max
+            Check.that(bytes < 87_000,
+                       "an opening board fits GameKit's reliable send (\(bytes) bytes, "
+                       + "\(big.deck.count)-card deck)")
+        }
+
+        // A card crosses as which library entry it is, and the one number the match bakes
+        // into it — see `CardDescriptor.encode(to:)`.
+        let dealt = CardLibrary.swingLeft.resolved(passShotBonus: 5)
+        let onTheWire = (try? MatchCoder.encode(dealt)).map { $0.count } ?? .max
+        Check.that(onTheWire < 60,
+                   "a dealt card is a name and a number on the wire (\(onTheWire) bytes)")
+        if let data = try? MatchCoder.encode(dealt),
+           let home = try? MatchCoder.decode(CardDescriptor.self, from: data) {
+            Check.that(home == dealt, "and it comes back with the baked number intact")
+        } else {
+            Check.that(false, "and it comes back with the baked number intact")
+        }
+
         // **What a guest is entitled to hear.** The state face-downs every other hand;
         // the events used to name every card that went into one, in the same message.
         let drew = GameEvent.drew(seat: .north, card: CardLibrary.drive, id: UUID())

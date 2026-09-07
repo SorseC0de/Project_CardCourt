@@ -793,6 +793,45 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         copy.shotDelta = passShotBonus
         return copy
     }
+
+    // MARK: - On the wire
+
+    /// **By name, plus whatever the match baked into it.**
+    ///
+    /// A descriptor is a library entry and every device holds the library, so what has to
+    /// cross is *which* entry — not a copy of one. A `GameState` carries one per card in
+    /// the deck, and written out in full an opening board came to **237 KB**. GameKit
+    /// refuses a reliable send over about 87 KB, so `match.send` threw, `broadcast`
+    /// swallowed it with `try?`, and no board ever reached a guest. The small messages
+    /// went through, which is why the table always seated and nothing else ever happened.
+    ///
+    /// `shotDelta` travels because it is the one field a dealt card does not share with
+    /// its library entry: `buildDeck` calls `resolved(passShotBonus:)` to bake the match's
+    /// passing increment in, and that is the only mutation there is. Sent only when it
+    /// differs, so an ordinary card is four words on the wire.
+    private enum Wire: String, CodingKey { case card, shot }
+
+    init(from decoder: any Decoder) throws {
+        let box = try decoder.container(keyedBy: Wire.self)
+        let named = try box.decode(String.self, forKey: .card)
+        guard var found = CardLibrary.byID[named] else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .card, in: box,
+                debugDescription: "no card in the library called \(named)")
+        }
+        if let baked = try box.decodeIfPresent(Int.self, forKey: .shot) {
+            found.shotDelta = baked
+        }
+        self = found
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var box = encoder.container(keyedBy: Wire.self)
+        try box.encode(id, forKey: .card)
+        if shotDelta != CardLibrary.byID[id]?.shotDelta {
+            try box.encode(shotDelta, forKey: .shot)
+        }
+    }
 }
 
 /// A dealt instance. Two copies of Swing Left are different cards in a bag.

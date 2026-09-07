@@ -802,6 +802,12 @@ enum CardLibrary {
         id: "face-down", name: "", type: .gameBreak,
         effect: "", numberInDeck: 0)
 
+    /// Every descriptor there is, by its id — **including `faceDown`**, which is not in
+    /// `all` because it is not a card anybody plays.
+    ///
+    /// The wire needs this. A `Card` used to cross as its whole descriptor: its name, its
+    /// type, its effect structs, every time. Both devices already hold this library, so
+    /// what has to travel is *which* card it is, not what that card does.
     static let all: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
         dime, lob, nutmeg, noLook, bulletPass, handOff, outletPass, kickOut,
@@ -817,6 +823,20 @@ enum CardLibrary {
     static let standardPool: [CardDescriptor] = all
         + [contest, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
         + whistles + intangibles + gameBreaks + specialMoves
+
+    /// **Every descriptor there is, by its id.** The wire needs this: a card crosses as
+    /// which library entry it is rather than as a copy of one, and the other device looks
+    /// it up here — see `Card.encode(to:)`.
+    ///
+    /// Off `standardPool`, not `all`. `all` is the Classic pool — passes and moves, 28 of
+    /// the 128 cards in the game — and building this from it left every Whistle,
+    /// Intangible, Game Break, Injury, Clamp and Special Move unable to decode. The
+    /// injuries are in neither pool, since nobody is dealt one.
+    static let byID: [String: CardDescriptor] = {
+        var found: [String: CardDescriptor] = [:]
+        for card in standardPool + injuries + [faceDown] { found[card.id] = card }
+        return found
+    }()
 
     /// Names that turn up inside other cards' text, for highlighting them there. Only
     /// multi-letter names, so a stray word is never mistaken for a reference.
