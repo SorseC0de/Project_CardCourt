@@ -142,6 +142,37 @@ you ever add one.
   the overlay is attached unconditionally — every test build is a debug build.
 
 
+### Where to pick up
+
+In order of value:
+
+1. **Thread the seat through `GameController`.** `GameRules.localSeat` is a mutable global
+   read in 41 places, and it is the only thing standing between here and a headless
+   host+guest test. Make it a stored property on the controller. Mechanical, and it
+   unlocks everything else.
+2. **Then build `Tools/sim --net`** — a full loopback match asserting the digests agree
+   every batch. `LoopbackMatch` already round-trips through `MatchCoder`; it needs
+   deferred delivery rather than a synchronous hop, and a pump the harness drives.
+   **Every fault in this file becomes a test you can write.**
+3. **Then the remaining faults**: F6 (the host's rebound bypasses `present` entirely — two
+   presentation implementations for one game, which is the seam the queue exists to
+   remove), F11 (human Free Agent never issues a move — broken in solo too; note you asked
+   for that card to be removed), F13, F14.
+4. **Then the queue**, staged as `one-queue.md` describes. Read the note above about
+   twenty-plus owed fields first, and read the constraint the survey turned up: *nothing in
+   this engine holds a continuation.* Every question is re-derivable from state, which is
+   what makes `restartIfStalled` and `keepPlaying` work at all. **A queue must not trade
+   that away for suspended steps that carry their own continuations.**
+
+### State at hand-off
+
+- Branch `queue-engine`, 13 commits, unmerged and unpushed. `main` is pushed and clean.
+- Clean build, **zero warnings**.
+- `./Tools/sim --test` — `ALL PASS`, including four new tests on event redaction.
+- 500-game soak — **0 unfinished**.
+- The engine typechecks headlessly — **0 errors** against Model, GameRules, AIPolicy and Net.
+
+
 ---
 
 ## The brief I was given
