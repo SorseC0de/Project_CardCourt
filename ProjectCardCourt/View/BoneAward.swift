@@ -16,8 +16,8 @@ struct BoneAward: View {
     var side: CGFloat = 64
     /// Held off until this is true, so a screen can bring several in one after another.
     var arrived = true
-    /// Overrides the strip's own blend, for trying them against each other on the bench.
-    var blend: BlendMode?
+    /// Overrides the strip's own passes, for trying them against each other on the bench.
+    var blends: [BlendMode]?
 
     @State private var landed = false
     /// When the burst started, so it plays once and is gone. A one-shot holds its last
@@ -37,13 +37,17 @@ struct BoneAward: View {
                     .fill(bone.glow.opacity(0.22))
                     .frame(width: side * 0.8, height: side * 0.8)
                     .blur(radius: side * 0.16)
-                Image(bone.asset)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: side, height: side)
-                    // Crystal is not painted on the dark, it is lit through — see
-                    // `Bone.blend`. Everything else draws over it normally.
-                    .blendMode(blend ?? bone.blend)
+                // **One pass per blend.** Crystal is not painted on the dark, it is lit
+                // through — and one pass of a soft blend barely registers, so it is laid
+                // over itself. Two *different* ones stack differently again: the second
+                // works on what the first left rather than on the ground. See `Bone.blends`.
+                ForEach(Array((blends ?? bone.blends).enumerated()), id: \.offset) { pass in
+                    Image(bone.asset)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: side, height: side)
+                        .blendMode(pass.element)
+                }
                 // **Gold sparkles.** Over the bone rather than behind it: the burst is
                 // light coming off the thing, and light behind it is a halo, which the
                 // glow already is.
@@ -103,12 +107,16 @@ enum Bone: String, CaseIterable, Identifiable {
         }
     }
 
-    /// How it meets what is behind it.
+    /// How it meets what is behind it, one entry per pass.
     ///
-    /// **Crystal is the one that is not opaque.** Screened over the dark, its own colours
-    /// lighten what they sit on rather than replacing it, which is what makes a thing read
-    /// as glass rather than as a painted shape of glass.
-    var blend: BlendMode { self == .crystal ? .screen : .normal }
+    /// **Crystal is the one that is not opaque.** Its colours lighten what they sit on
+    /// rather than replacing it, which is what makes a thing read as glass rather than as
+    /// a painted shape of glass — and it takes more than one pass, because the second
+    /// works on what the first left rather than on the ground. Everything else is a single
+    /// opaque pass.
+    var blends: [BlendMode] {
+        self == .crystal ? [.softLight, .screen] : [.normal]
+    }
 
     /// Whether it throws light off itself. Gold does; a plain bone is a plain bone.
     var sparkles: Bool { self == .gold || self == .goldAlt }

@@ -15,14 +15,22 @@ struct FrontBenchView: View {
     @State private var sprites = false
     /// Bumped to re-key the payouts, so they land again.
     @State private var replays = 0
-    /// Which blend the crystal bone is being tried in.
-    @State private var glassy = 0
+    /// The two passes the crystal bone is being tried in. The second may be "off", which
+    /// is how a single pass is compared against a pair.
+    @State private var first = 0
+    @State private var second = 1
+
+    /// What the crystal bone is drawn with right now.
+    private var crystalPasses: [BlendMode] {
+        [Self.blends[first].mode, Self.blends[second].mode].compactMap { $0 }
+    }
 
     /// The ones worth trying for glass. Normal first, so the difference is obvious.
-    private static let blends: [(name: String, mode: BlendMode)] = [
-        ("screen", .screen), ("normal", .normal), ("plusLighter", .plusLighter),
-        ("overlay", .overlay), ("softLight", .softLight), ("hardLight", .hardLight),
-        ("luminosity", .luminosity), ("colorDodge", .colorDodge),
+    private static let blends: [(name: String, mode: BlendMode?)] = [
+        ("softLight", .softLight), ("screen", .screen), ("off", nil),
+        ("normal", .normal), ("plusLighter", .plusLighter), ("overlay", .overlay),
+        ("hardLight", .hardLight), ("luminosity", .luminosity),
+        ("colorDodge", .colorDodge), ("plusDarker", .plusDarker),
     ]
 
     var body: some View {
@@ -56,9 +64,8 @@ struct FrontBenchView: View {
                     ForEach(Bone.allCases) { bone in
                         HStack(spacing: 12) {
                             BoneAward(bone: bone, amount: 12, side: 44,
-                                      blend: bone == .crystal ? Self.blends[glassy].mode
-                                                              : nil)
-                                .id("\(bone.rawValue)-\(replays)-\(glassy)")
+                                      blends: bone == .crystal ? crystalPasses : nil)
+                                .id("\(bone.rawValue)-\(replays)-\(first)-\(second)")
                             Spacer(minLength: 0)
                             Text(bone.label)
                                 .font(.system(size: 10, weight: .bold))
@@ -69,8 +76,11 @@ struct FrontBenchView: View {
                     // about.** Cycles the crystal one through the candidates.
                     HStack(spacing: 10) {
                         Button("play again") { replays += 1 }
-                        Button("crystal: \(Self.blends[glassy].name)") {
-                            glassy = (glassy + 1) % Self.blends.count
+                        Button("1: \(Self.blends[first].name)") {
+                            first = (first + 1) % Self.blends.count
+                        }
+                        Button("2: \(Self.blends[second].name)") {
+                            second = (second + 1) % Self.blends.count
                         }
                     }
                     .font(.system(size: 12, weight: .bold))
