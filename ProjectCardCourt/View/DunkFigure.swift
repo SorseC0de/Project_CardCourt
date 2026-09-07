@@ -24,6 +24,12 @@ struct DunkFigure: View {
     /// a ball from the first cell of the wind-up**, so the scene's own ball has to stay
     /// away until he has let go of this one — see `ShotCutsceneView`.
     var onBallLoose: () -> Void = {}
+    /// Whether he is **behind** the men contesting him, called at every moment it
+    /// changes. The rim is upcourt, so a man climbing toward it goes away from the camera
+    /// and past the wall — he is in front of them gathering, behind them all the way up,
+    /// and in front again once he is at the ring, which he comes through from behind.
+    /// Modelled on `onRimPull`: he says what he is doing rather than the scene timing it.
+    var onDepth: (Bool) -> Void = { _ in }
     /// How hard he is pulling on the rim, called at **every** moment he changes it and
     /// carrying the curve he is riding — nil for a snap.
     ///
@@ -114,6 +120,8 @@ struct DunkFigure: View {
         }
         showing = dunk.sheet
         cell = 0
+        // His feet are off the floor and the trip is upcourt: past the wall from here.
+        onDepth(true)
 
         // **The tumble starts with the leap.** He has lost it the moment his feet leave
         // the floor, not once he is level with the ring — set going here, before the
@@ -155,6 +163,9 @@ struct DunkFigure: View {
         // **The sink is counted in pixels, not in cells.** A reverse spends two cells at
         // the rim and wants four pixels of drop, so the descent runs its own count and
         // carries on over the held last cell once the sheet is out of frames.
+        // At the ring and coming through it — over the near half, and over the wall he
+        // climbed past, which is well below him by now.
+        onDepth(false)
         let steps = max(cells.count, tune.sink)
         for place in 0..<steps {
             cell = cells[min(place, cells.count - 1)]
@@ -194,6 +205,8 @@ struct DunkFigure: View {
         }
         try? await Task.sleep(for: .seconds(DunkStyle.shortFall))
         if Task.isCancelled { return }
+        // Back on the floor he took off from, which is in front of the wall.
+        onDepth(false)
 
         await play(dunk == .reverse ? .land : .landBack, at: DunkStyle.landFPS)
         if Task.isCancelled || dunk == .reverse { return }

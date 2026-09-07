@@ -24,6 +24,10 @@ struct GameView: View {
     /// hangs from. Nought until the first layout, which is one frame before anything
     /// can be played.
     @State private var logBottom: CGFloat = 0
+    /// Whether the final card is showing the game's log rather than its result. **Over
+    /// the result, not instead of it** — the score stays underneath, because the log is
+    /// being read to work out how it got there.
+    @State private var reviewingLog = false
     /// The roll the results card's poses come off. Once per game, so nobody changes
     /// stance every time the card redraws — see `Winner.pose(for:at:from:)`.
     @State private var winnerPose = Int.random(in: 0..<10_000)
@@ -865,9 +869,9 @@ struct GameView: View {
                     .font(.system(size: 96, weight: .black, design: .rounded))
                     .foregroundStyle(Theme.color(for: winners[0]).opacity(0.22))
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
-                           alignment: .bottomTrailing)
+                           alignment: .topTrailing)
                     .padding(.trailing, 14)
-                    .padding(.bottom, 10)
+                    .padding(.top, 10)
                     .allowsHitTesting(false)
             }
 
@@ -903,16 +907,57 @@ struct GameView: View {
                     .padding(.horizontal, 26)
                     .padding(.top, 4)
 
-                Button { onRunItBack() } label: {
-                    Text("RUN IT BACK")
-                        .font(.system(size: 14, weight: .black)).tracking(1.2)
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 30).padding(.vertical, 12)
-                        .background(Capsule().fill(Theme.ball))
+                // **Three ways off this screen, not one.** Playing again is the one
+                // being offered, so it keeps the gold and the room; going back over the
+                // game and leaving the table are the quieter pair under it.
+                VStack(spacing: 10) {
+                    finalButton("RUN IT BACK", fill: Theme.ball, ink: .black) {
+                        onRunItBack()
+                    }
+                    HStack(spacing: 10) {
+                        finalButton("GAME LOG", fill: CardPalette.blue, ink: .white) {
+                            withAnimation(.easeOut(duration: 0.2)) { reviewingLog = true }
+                        }
+                        finalButton("QUIT", fill: CardPalette.red, ink: .white) {
+                            onQuit()
+                        }
+                    }
                 }
                 .padding(.top, 4)
             }
+            .opacity(reviewingLog ? 0 : 1)
+
+            if reviewingLog { logReview }
         }
+    }
+
+    /// One of the three off the final card. They are capsules rather than `ChunkyButton`s
+    /// because this screen is a card being handed over, not the game's own chrome.
+    private func finalButton(_ title: String, fill: Color, ink: Color,
+                             _ run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            Text(title)
+                .font(.system(size: 14, weight: .black)).tracking(1.2)
+                .foregroundStyle(ink)
+                .padding(.horizontal, 30).padding(.vertical, 12)
+                .background(Capsule().fill(fill))
+        }
+    }
+
+    /// The whole game, back to the tip, over the result it produced.
+    private var logReview: some View {
+        VStack(spacing: 12) {
+            ScreenTitle(text: "Game Log", drop: CardPalette.blue)
+            LogView(lines: controller.log)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(.horizontal, 18)
+            ChunkyButton(title: "Done", fill: CardPalette.blue) {
+                withAnimation(.easeOut(duration: 0.2)) { reviewingLog = false }
+            }
+            .padding(.horizontal, 60)
+        }
+        .padding(.vertical, 34)
+        .transition(.opacity)
     }
 
     /// "You Win!" but "Raheem Wins!", and a shared line when nobody separated.

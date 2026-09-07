@@ -262,7 +262,7 @@ struct CourtView: View {
 
                 // Painted far to near, so anything upcourt is overlapped by what
                 // stands in front of it instead of by whatever draws last.
-                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: refereePosts),
+                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: refereeCrew),
                         id: \.self) { item in
                     place(item, on: court, in: geo.size)
                         // People come up over the dim; the piles stay under it. Equal
@@ -271,7 +271,7 @@ struct CourtView: View {
                         .zIndex(isStill && item.isPerson ? Layer.people : Layer.stage)
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
-                           value: refereePosts)
+                           value: refereeCrew)
 
                 // Over the player he is taking from, and gone again in under a second.
                 if let swipe {
@@ -589,14 +589,19 @@ struct CourtView: View {
         static let name: CGFloat = 11
     }
 
-    /// The armed Whistle this post is standing for. The crew is built from the armed list
-    /// in order, so a post's place in it is the Whistle it belongs to.
-    private func whistle(at post: RefereePost) -> ArmedWhistle? {
-        guard let index = refereePosts.firstIndex(of: post) else { return nil }
-        return state.armedWhistles[safe: index]
+    /// A referee on the floor, and the Whistle that called him out.
+    ///
+    /// **His identity is the Whistle, not the post he stands on.** One is spent and
+    /// another arms and a different man comes out — but the crew is laid out from the
+    /// first of them, so the new man can land on the post the old one was standing on.
+    /// Keyed on the post alone the two collapsed into a single figure that never left
+    /// and never arrived, which is why the warp-in only sometimes played.
+    private struct RefereeCall: Hashable {
+        let post: RefereePost
+        let whistle: ArmedWhistle
     }
 
-    private var refereePosts: [RefereePost] {
+    private var refereeCrew: [RefereeCall] {
         guard let first = state.armedWhistles.first else { return [] }
         // Only the first is rolled — read off that Whistle's own id rather than a random
         // number, so a redraw cannot move the crew mid-round. Everyone after him is
@@ -605,7 +610,8 @@ struct CourtView: View {
         let start: RefereePost = coin[0].isMultiple(of: 2)
             ? (coin[1].isMultiple(of: 2) ? .rightWing : .leftWing)
             : (coin[1].isMultiple(of: 2) ? .farRight : .farLeft)
-        return Array(RefereePost.crew(from: start).prefix(state.armedWhistles.count))
+        return zip(RefereePost.crew(from: start), state.armedWhistles)
+            .map(RefereeCall.init)
     }
 
     /// What sits above what while an inbound is being asked for.
@@ -784,7 +790,7 @@ struct CourtView: View {
     private enum CourtItem: Hashable {
         case player(Seat)
         case deck
-        case referee(RefereePost)
+        case referee(RefereeCall)
 
         /// A player or a referee, rather than the furniture.
         var isPerson: Bool { if case .deck = self { return false }; return true }
@@ -793,12 +799,12 @@ struct CourtView: View {
             switch self {
             case .player(let seat): return Perspective.depth(of: seat.slot(viewedFrom: viewer))
             case .deck:             return Perspective.deckDepth
-            case .referee(let post): return post.depth
+            case .referee(let call): return call.post.depth
             }
         }
 
         static func inDepthOrder(viewedFrom viewer: Seat,
-                                 referees: [RefereePost]) -> [CourtItem] {
+                                 referees: [RefereeCall]) -> [CourtItem] {
             (Seat.allCases.map(CourtItem.player) + [.deck]
                 + referees.map(CourtItem.referee))
                 .sorted { $0.depth(viewedFrom: viewer) < $1.depth(viewedFrom: viewer) }
@@ -809,11 +815,12 @@ struct CourtView: View {
     private func place(_ item: CourtItem, on court: CourtGeometry,
                        in geo: CGSize) -> some View {
         switch item {
-        case .referee(let post):
+        case .referee(let call):
+            let post = call.post
             // Framed and dropped exactly as a player is, so his feet land on the same
             // floor line theirs would at that depth. Top-aligned because he has no name
             // plate under him taking up the bottom of the box.
-            let called = whistle(at: post)
+            let called = call.whistle
             // His name is drawn as it would be at the near row and then handed to the
             // far one, so the whole label — size and the gap over his head — is the same
             // on every post. Same trick the plates use; see `nameScale`.
@@ -821,23 +828,20 @@ struct CourtView: View {
                 / court.scale(at: post.depth)
             RefereeFigure(duty: refereeDuty,
                           mirrored: post.isLeft, phase: post.phase,
-                          tone: called.map { look.refereeTone(for: $0.id) }
-                              ?? PixelPalette.drawnSkinTone,
+                          tone: look.refereeTone(for: called.id),
                           frozen: frozen)
                 // Whose call he is, over his head. Small and bracketed: it is an aside
                 // about a man standing there, not a name plate like the players wear.
                 .overlay(alignment: .top) {
-                    if let owner = called?.owner {
-                        SmallCapsText(text: "(\(owner.playerName))",
-                                      font: "AvenirNextCondensed-Heavy",
-                                      size: Referee.name)
-                            .foregroundStyle(.white)
-                            .shadow(color: PixelPalette.shade(for: owner),
-                                    radius: 0, x: 1, y: 1)
-                            .fixedSize()
-                            .scaleEffect(nameScale, anchor: .bottom)
-                            .offset(y: -Referee.name * nameScale)
-                    }
+                    SmallCapsText(text: "(\(called.owner.playerName))",
+                                  font: "AvenirNextCondensed-Heavy",
+                                  size: Referee.name)
+                        .foregroundStyle(.white)
+                        .shadow(color: PixelPalette.shade(for: called.owner),
+                                radius: 0, x: 1, y: 1)
+                        .fixedSize()
+                        .scaleEffect(nameScale, anchor: .bottom)
+                        .offset(y: -Referee.name * nameScale)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onInspectReferees)

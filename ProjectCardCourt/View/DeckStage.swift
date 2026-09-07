@@ -102,6 +102,18 @@ final class DeckStage {
     /// that resizes for no reason, and a size slider that appears to do nothing.
     var wantedScale: Float?
 
+    /// **What a pile standing at a given point must be drawn at.** Set by the court,
+    /// which owns the rule — see `CourtStage.fit`.
+    ///
+    /// A card's apparent size falls off with its distance from the camera, so a pile is
+    /// scaled against its own distance to read the same size wherever it stands. The
+    /// court can only do that while the deck is its to place: for the whole opening the
+    /// deck is under its own power, and it spends it travelling to each seat in turn —
+    /// well forward of its home and much nearer the camera. Every leg carried the size it
+    /// left with, so it arrived enormous and every bow snapped it back to the home size.
+    /// A move takes the size of **where it is going**.
+    var sizeAt: ((SIMD3<Float>) -> Float?)?
+
     /// Where the court says the pile belongs. The idle orbits this rather than replacing
     /// it, so moving the deck on the bench still moves it while it is floating.
     var ground: SIMD3<Float> = .zero
@@ -120,8 +132,14 @@ final class DeckStage {
     private func begin() -> Transform {
         pile.stopAllAnimations()
         var now = pile.transform
-        if let wantedScale { now.scale = .one * wantedScale }
+        if let size = size(at: now.translation) { now.scale = .one * size }
         return now
+    }
+
+    /// What it should be drawn at standing there. The court's rule if it has handed one
+    /// over, and otherwise the last size the court measured.
+    private func size(at point: SIMD3<Float>) -> Float? {
+        sizeAt?(point) ?? wantedScale
     }
 
     // MARK: - Setup
@@ -201,6 +219,7 @@ final class DeckStage {
 
         var arrived = banked
         arrived.translation = point
+        if let size = size(at: point) { arrived.scale = .one * size }
         pile.move(to: arrived, relativeTo: pile.parent,
                   duration: seconds, timingFunction: curve)
         try? await Task.sleep(for: .seconds(seconds))
@@ -214,6 +233,7 @@ final class DeckStage {
         travelling = true
         var put = begin()
         put.translation = point
+        if let size = size(at: point) { put.scale = .one * size }
         pile.transform = put
     }
 
@@ -361,6 +381,9 @@ final class DeckStage {
                       curve: AnimationTimingFunction) async {
         var raised = begin()
         raised.translation.y = height
+        // The hover is toward the camera as well as up, so it grows on the way if it
+        // keeps the size it had on the floor.
+        if let size = size(at: raised.translation) { raised.scale = .one * size }
         pile.move(to: raised, relativeTo: pile.parent,
                   duration: seconds, timingFunction: curve)
         try? await Task.sleep(for: .seconds(seconds))

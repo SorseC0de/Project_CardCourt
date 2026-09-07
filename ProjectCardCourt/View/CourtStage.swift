@@ -168,6 +168,8 @@ struct CourtStage: View {
                 discard.pile.position = discard.ground
                 // Half a lap behind the live pile, so the two do not breathe in step.
                 discard.phase = 0.5
+                deck.sizeAt = { fitted(at: $0, in: geo.size) }
+                discard.sizeAt = { fitted(at: $0, in: geo.size) }
                 place(camera: camera, in: geo.size)
             } update: { content in
                 guard let camera = content.entities
@@ -179,12 +181,16 @@ struct CourtStage: View {
                 // The idle owns where the deck actually is — it is never sitting
                 // still — so the court hands it a home point rather than a position.
                 deck.ground = floorPoint(deckAt, in: geo.size)
+                // The rule goes with it, so a deck under its own power can size itself
+                // for wherever it is heading — see `DeckStage.sizeAt`.
+                deck.sizeAt = { fitted(at: $0, in: geo.size) }
                 if !deck.travelling { fit(deck, in: geo.size) }
                 // The same for the spent pile, now that it drifts too. Setting its
                 // position outright while `idle` was also writing one left the drift
                 // reading a home point of zero — so the pile flew off to the middle of
                 // the world and only its shadow was left on the floor.
                 discard.ground = floorPoint(discardAt, in: geo.size)
+                discard.sizeAt = { fitted(at: $0, in: geo.size) }
                 if !discard.travelling { fit(discard, in: geo.size) }
             }
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
@@ -327,27 +333,46 @@ struct CourtStage: View {
     /// pile the size the court drew it before this scene existed.
     private func fit(_ stage: DeckStage, in size: CGSize) {
         let pile = stage.pile
+        guard let sized = measure(at: pile.position, in: size) else { return }
+        pile.scale = .one * sized.scale
+        stage.wantedScale = sized.scale
+
+        // Reported once per change, not per frame: the arithmetic says this lands at the
+        // court's own 138 of 390, so if the pile is not that size on screen the number
+        // here says whether the sizing is wrong or something downstream is.
+        if abs(sized.scale - Self.lastFit) > 0.01 {
+            Self.lastFit = sized.scale
+            DevLog.say(.deck, String(
+                format: "fit %@  scale %.3f  away %.3f  view %.0fx%.0f  → card reads %.0fpt",
+                pile.name, sized.scale, sized.away, size.width, size.height,
+                Double(Stage.cardWidth * sized.scale / sized.across) * size.width))
+        }
+    }
+
+    /// What a pile standing at this point must be scaled to.
+    ///
+    /// **Its own function because the deck asks it too.** The court can only place the
+    /// deck while the deck is not moving itself, and the whole opening deal is the deck
+    /// moving itself — round the table, seat by seat, well forward of where it rests.
+    /// See `DeckStage.sizeAt`.
+    private func fitted(at point: SIMD3<Float>, in size: CGSize) -> Float? {
+        measure(at: point, in: size)?.scale
+    }
+
+    /// The sizing, with the two numbers it was worked out from — which is what the
+    /// readout above needs to say whether a wrong size is this arithmetic or something
+    /// downstream of it.
+    private func measure(at point: SIMD3<Float>,
+                         in size: CGSize) -> (scale: Float, away: Float, across: Float)? {
         let eye = Self.cameraTransform(for: size).translation
-        let away = distance(eye, pile.position)
+        let away = distance(eye, point)
         let aspect = Float(size.width / max(size.height, 1))
         let across = 2 * away * tan(Stage.fieldOfView * .pi / 360) * aspect
         let scale = Stage.cardShare * Float(tuning.size) * across / Stage.cardWidth
         // A view with no size yet gives an eye at the origin and a distance of nothing,
         // and the pile comes out infinitely large. Nothing is drawn until there is a size.
-        guard scale.isFinite, scale > 0 else { return }
-        pile.scale = .one * scale
-        stage.wantedScale = scale
-
-        // Reported once per change, not per frame: the arithmetic says this lands at the
-        // court's own 138 of 390, so if the pile is not that size on screen the number
-        // here says whether the sizing is wrong or something downstream is.
-        if abs(scale - Self.lastFit) > 0.01 {
-            Self.lastFit = scale
-            DevLog.say(.deck, String(
-                format: "fit %@  scale %.3f  away %.3f  view %.0fx%.0f  → card reads %.0fpt",
-                pile.name, scale, away, size.width, size.height,
-                Double(Stage.cardWidth * scale / across) * size.width))
-        }
+        guard scale.isFinite, scale > 0 else { return nil }
+        return (scale, away, across)
     }
 
     /// The last scale reported, so the console is not filled with the same line.

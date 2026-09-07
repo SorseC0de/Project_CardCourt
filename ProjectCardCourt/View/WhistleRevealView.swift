@@ -81,7 +81,15 @@ struct WhistleRevealView: View {
             .drawingGroup()
             .shadow(color: CardPalette.gold.opacity(0.5), radius: 26)
             .scaleEffect(whistleIn ? 1 : 0.2)
-            .rotationEffect(.degrees(whistleIn ? (rocked ? Self.rock : -Self.rock) : -30))
+            // **The arrival and the shudder are two turns, so they are two modifiers.**
+            // One `rotationEffect` reading both put an unanimated change and a repeating
+            // one into the same value, and a repeat set in the same tick as a plain
+            // change is folded into it and never starts: the whistle hung dead still
+            // until the card animating in over it gave the modifier an animated
+            // transaction to latch onto, which is why it only ever shook once it was
+            // already covered up.
+            .rotationEffect(.degrees(whistleIn ? 0 : -30))
+            .rotationEffect(.degrees(rocked ? Self.rock : -Self.rock))
             // Pushed back once the card is on top of it, rather than removed — it stays
             // behind the card as the thing that summoned it.
             .opacity(whistleIn ? (backIn ? 0.22 : 1) : 0)

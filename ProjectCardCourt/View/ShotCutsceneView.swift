@@ -43,6 +43,43 @@ struct ShotCutsceneView: View {
         }
     }
 
+    /// Where a man stands, and what he stands relative to.
+    ///
+    /// **A jumper stands on the floor; a man finishing at the rim stands under the ring.**
+    /// They are not the same anchor. The floor is counted up from the bottom of the
+    /// screen and moves with it; the board is pinned to the top by `Hoop.drop` and never
+    /// does — so a trip tuned at one height arrives above the ring at another, which is
+    /// why every dunk was two or three art pixels over the iron on a phone after being
+    /// tuned in the preview canvas. The climb is measured against the ring, so he is
+    /// placed against it too.
+    private enum Stage {
+        /// How far up from the bottom of the screen a man taking a jump shot stands.
+        static let floor: CGFloat = 132
+        /// How far under the ring's own line a man finishing at it stands. **One art
+        /// pixel at the ring is `Theme.Figure.playerScale * arrivesAt * gather` points —
+        /// under seven** — so this moves in sevens, not in ones.
+        static let underRim: CGFloat = 561
+    }
+
+    /// What is drawn over what. **Named, because two of them move**: a man finishing at
+    /// the rim climbs from in front of the wall to behind it and back out over the ring.
+    private enum Depth {
+        static let backdrop: Double = 0
+        /// Whose shot this is, said across the top.
+        static let name: Double = 1
+        /// The ball, and a man on his way up to the ring — both between the board and
+        /// the men on the floor.
+        static let climbing: Double = 1
+        static let ball: Double = 1
+        /// The contest, and the near half of the ring they stand level with.
+        static let wall: Double = 2
+        static let rim: Double = 2
+        /// Whoever is taking the shot, over everything on the floor.
+        static let shooter: Double = 3
+        /// What comes off the ring, over all of it.
+        static let burst: Double = 4
+    }
+
     private enum Name {
         static let drop: CGFloat = 26
         /// How long before the scene ends the plate starts its trip out. Long enough that
@@ -94,6 +131,10 @@ struct ShotCutsceneView: View {
     /// that is cleared the moment the burst ends, so a reverse's next swing found it
     /// empty and set the whole thing off again, once a second, for the rest of the scene.
     @State private var rimAnswered = false
+    /// Whether the man finishing at the rim is behind the men contesting him. **He climbs
+    /// past them**: the ring is upcourt, so the trip goes away from the camera. He says
+    /// when it changes — see `DunkFigure.onDepth`.
+    @State private var dunkBehind = false
     /// Which burst this finish throws — see `DunkStyle.Trip.burst`.
     @State private var dunkTuning = DunkTuning.shared
 
@@ -125,10 +166,10 @@ struct ShotCutsceneView: View {
                 VStack {
                     HoopBackdrop(width: tuning.rimWidth, struckAt: struckAt,
                                  light: boardLight, pull: rimPull)
-                        .padding(.top, 46)
+                        .padding(.top, Hoop.drop)
                     Spacer()
                 }
-                .zIndex(0)
+                .zIndex(Depth.backdrop)
 
                 // Whose shot this is, said across the top rather than under his feet: the
                 // camera pushes in on the rim, and a plate on the floor is either off the
@@ -139,7 +180,7 @@ struct ShotCutsceneView: View {
                         .padding(.top, Name.drop)
                     Spacer()
                 }
-                .zIndex(1)
+                .zIndex(Depth.name)
 
                 // Held until the ball is actually at the rim.
                 if let burst, showBurst {
@@ -207,6 +248,9 @@ struct ShotCutsceneView: View {
                                    value: shuffling)
                         .position(x: geo.size.width / 2 + Wall.spread * spot.x,
                                   y: geo.size.height - Wall.base - Wall.lift * spot.back)
+                        // A band of their own, so a man climbing past them has somewhere
+                        // to be. Level with the ring: a contest happens at it.
+                        .zIndex(Depth.wall)
                 }
 
                 VStack(spacing: 8) {
@@ -229,6 +273,8 @@ struct ShotCutsceneView: View {
                                        miss: scene.dunkMiss, onBallLoose: {
                                 dunkBallOut = true
                                 dunkBallFell = true
+                            }, onDepth: { behind in
+                                dunkBehind = behind
                             }, onRimPull: { amount, spring in
                                 // Whatever he just did to it, on his curve. He calls this
                                 // at every change he makes, so nothing here has to guess
@@ -288,10 +334,12 @@ struct ShotCutsceneView: View {
                         .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(Theme.ink)
                 }
-                .position(x: geo.size.width / 2, y: geo.size.height - 132)
+                .position(x: geo.size.width / 2, y: stageY(in: geo.size))
                 // **Over the ring, not behind it.** A jumper is downcourt of the rim and
-                // reads right behind its near half; a man finishing at it is on top of it.
-                .zIndex(scene.dunk == nil ? 0 : 3)
+                // reads right behind its near half; a man finishing at it is on top of it
+                // — except on the way up, where he is climbing past the wall and the ring
+                // both. See `DunkFigure.onDepth`.
+                .zIndex(dunkBehind ? Depth.climbing : Depth.shooter)
 
                 PixelBallView(scale: tuning.ballScale
                               + (tuning.ballEndScale - tuning.ballScale) * min(flight, 1))
@@ -311,7 +359,7 @@ struct ShotCutsceneView: View {
                                          control: controlPoint(in: geo.size),
                                          rim: rimPoint(in: geo.size),
                                          after: afterPoint(in: geo.size)))
-                    .zIndex(1)
+                    .zIndex(Depth.ball)
 
                 // **The one a dunk leaves.** It comes out of the net once he has let go
                 // of the one drawn in his hands, drops, and fades — a ball settling after
@@ -334,7 +382,7 @@ struct ShotCutsceneView: View {
                         .opacity(dunkBallFell ? 0 : 1)
                         .animation(.easeOut(duration: DunkBall.fade).delay(DunkBall.hold),
                                    value: dunkBallFell)
-                        .zIndex(1)
+                        .zIndex(Depth.ball)
                 }
 
                 // **What the rim gives back.** The ring springing on its own is a part
@@ -347,16 +395,16 @@ struct ShotCutsceneView: View {
                                     playsOnce: true, startedAt: rimGaveAt)
                         .position(rimPoint(in: geo.size))
                         .allowsHitTesting(false)
-                        .zIndex(4)
+                        .zIndex(Depth.burst)
                 }
 
                 // Red and heavy while the layering is being sorted out.
-                RimHalf(isNear: true, width: tuning.rimWidth * 0.54,
+                RimHalf(isNear: true, width: tuning.rimWidth * Hoop.ring,
                         thickness: 8, tint: PixelPalette.vermilion)
                     .position(x: rimPoint(in: geo.size).x,
                               y: rimPoint(in: geo.size).y + geo.size.height * tuning.rimNearY)
                     .offset(y: rimPull * tuning.rimWidth * DunkStyle.rimDrop)
-                    .zIndex(2)
+                    .zIndex(Depth.rim)
             }
             .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
             .task { shuffling = true }
@@ -394,6 +442,13 @@ struct ShotCutsceneView: View {
             return nil
         }
         return scene.chance < 40 ? (["🧱"], 22) : nil
+    }
+
+    /// Where the man stands — see `Stage`. A dunk is placed under the ring; everything
+    /// else stands on the floor, where it always did.
+    private func stageY(in size: CGSize) -> CGFloat {
+        guard scene.dunk != nil else { return size.height - Stage.floor }
+        return Hoop.line(width: tuning.rimWidth) + Stage.underRim
     }
 
     private func rimPoint(in size: CGSize) -> CGPoint {

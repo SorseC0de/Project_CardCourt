@@ -5,13 +5,40 @@ import SwiftUI
 /// The ring is one ellipse drawn twice and masked into halves: the far half sits behind
 /// the ball, the near half in front. Stacking the ball between them is what sells the
 /// ball going *through* rather than over.
+/// Where the hoop hangs, and where the ring runs through it.
+///
+/// **The board is pinned to the top of the scene and never moves.** Everything a man does
+/// is counted up from the bottom of the screen, which does move — so the two only agree
+/// at one height, and a trip tuned against the ring at one arrives above it at another.
+/// This is the one place that says where the ring is; `ShotCutsceneView` stands a man
+/// finishing at it under this line rather than off the floor.
+enum Hoop {
+    /// How far the backboard hangs below the top of the scene.
+    static let drop: CGFloat = 46
+    /// The backboard's height, against the hoop's width.
+    static let board: CGFloat = 0.67
+    /// How far the ring is set back up into the board.
+    static let lift: CGFloat = 0.04
+    /// The ring's own width, against the hoop's.
+    static let ring: CGFloat = 0.54
+    /// How deep the ring reads, against its own width — it is an ellipse, not a line.
+    static let depth: CGFloat = 0.27
+
+    /// Where the ring's line falls, in points below the top of the scene: the board,
+    /// then the set-back, then half the ellipse. That line is what the ball drops
+    /// through and what a hand takes hold of.
+    static func line(width: CGFloat) -> CGFloat {
+        drop + width * (board - lift + ring * depth / 2)
+    }
+}
+
 struct RimHalf: View {
     let isNear: Bool
     var width: CGFloat
     var thickness: CGFloat = 4
     var tint: Color = Theme.ball
 
-    private var height: CGFloat { width * 0.27 }
+    private var height: CGFloat { width * Hoop.depth }
 
     var body: some View {
         Ellipse()
@@ -172,17 +199,17 @@ struct HoopBackdrop: View {
                     .frame(width: width * 0.40, height: width * 0.30)
                     .offset(y: width * 0.12)
             }
-            .frame(width: width, height: width * 0.67)
+            .frame(width: width, height: width * Hoop.board)
             .animation(.easeOut(duration: 0.18), value: light)
 
             ZStack(alignment: .top) {
-                RimHalf(isNear: false, width: width * 0.54,
+                RimHalf(isNear: false, width: width * Hoop.ring,
                         thickness: 8, tint: PixelPalette.darkRed)
-                NetView(width: width * 0.54, struckAt: struckAt)
+                NetView(width: width * Hoop.ring, struckAt: struckAt)
                     // The ring is iron and keeps its shape; the net is string and does not.
                     .scaleEffect(y: 1 + pull * DunkStyle.netStretch, anchor: .top)
             }
-            .offset(y: -width * 0.04 + pull * width * DunkStyle.rimDrop)
+            .offset(y: -width * Hoop.lift + pull * width * DunkStyle.rimDrop)
         }
     }
 }
