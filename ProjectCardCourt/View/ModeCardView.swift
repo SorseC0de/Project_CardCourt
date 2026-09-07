@@ -82,14 +82,14 @@ struct ModeCardView: View {
     var titleSuffix = ""
     /// How big the affixes are against the title they sit beside.
     var affixScale: CGFloat = 0.56
-    /// Where the sign sits against the number, as shares of the title's size: down and
-    /// right of centre, and tucked far enough under the first digit to touch it.
+    /// Where the sign sits against the number, as shares of the title's size: level with
+    /// it, and tucked far enough over the first digit to touch it.
     ///
     /// **A sign hung level and clear of the digits reads as part of a string**; one that
     /// leans into them reads as attached to the number. It sits over the digit rather than
     /// behind it — see the `zIndex` below, which stack order would otherwise decide the
     /// wrong way round.
-    var prefixNudge = CGPoint(x: 0.05, y: 0.14)
+    var prefixNudge = CGPoint(x: 0.05, y: 0)
     var prefixOverlap: CGFloat = 0.12
 
     /// One colour for the streaks, when the call has a colour of its own — a Game Break's
