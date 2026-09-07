@@ -203,6 +203,17 @@ enum GameEvent: Hashable, Codable {
                 : "FINAL. Tie: " + winners.map(\.playerName).joined(separator: ", ") + "."
         }
     }
+
+    /// What kind of thing this is, without any of what it says.
+    ///
+    /// **The shape of a batch, for comparing two devices.** Their contents cannot be
+    /// diffed — each seat is told a different story on purpose — but the *order and kind*
+    /// of what happened is the same game or it is not. A digest says two devices parted;
+    /// this says what they parted about.
+    var kind: String {
+        let mirror = Mirror(reflecting: self)
+        return mirror.children.first?.label ?? String(describing: self)
+    }
 }
 
 extension Array where Element == GameEvent {

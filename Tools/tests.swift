@@ -986,15 +986,17 @@ func runTests() {
         var mine = Digest()
         mine.fold(events)
         let message = HostMessage.turn(state: state.redacted(for: .east), events: events,
-                                       digest: mine)
+                                       digest: mine, shape: events.map(\.kind))
         let back = try! MatchCoder.decode(HostMessage.self,
                                           from: try! MatchCoder.encode(message))
-        guard case .turn(let sent, let told, let carried) = back else {
+        guard case .turn(let sent, let told, let carried, let shape) = back else {
             Check.that(false, "a turn survives the wire"); return
         }
         Check.that(told == events, "every event survives the wire")
         Check.that(sent.deck.count == state.deck.count, "so does the state")
         Check.that(carried == mine, "and the fingerprint with it")
+        Check.that(shape == events.map(\.kind), "and the shape of the batch")
+        Check.that(!shape.contains { $0.isEmpty }, "every event kind has a name")
 
         // **The size of the thing.** This is what was actually wrong for a week: a board
         // written out in full is a quarter of a megabyte, GameKit refuses a reliable send
@@ -1004,7 +1006,8 @@ func runTests() {
         for rules in [MatchRules.classic, MatchRules.standard] {
             let (big, opening) = Rules.newGame(seed: 9148711, rules: rules)
             let board = HostMessage.turn(state: big.redacted(for: .north),
-                                         events: opening, digest: Digest())
+                                         events: opening, digest: Digest(),
+                                         shape: opening.map(\.kind))
             let bytes = (try? MatchCoder.encode(board))?.count ?? .max
             Check.that(bytes < 87_000,
                        "an opening board fits GameKit's reliable send (\(bytes) bytes, "

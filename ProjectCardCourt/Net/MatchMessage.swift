@@ -71,7 +71,11 @@ enum HostMessage: Codable {
     /// `digest` is the host's rolling fingerprint of every batch it has sent — see
     /// `Digest`. The guest folds the same events into its own and compares: the states
     /// cannot be diffed because they are redacted differently, but the events cannot.
-    case turn(state: GameState, events: [GameEvent], digest: Digest)
+    ///
+    /// `shape` is the batch's event kinds in order, and it is what makes a desync
+    /// *readable*. The digest says two devices stopped agreeing; without this, finding out
+    /// about what meant playing the round again and watching harder.
+    case turn(state: GameState, events: [GameEvent], digest: Digest, shape: [String])
     /// **The board as it stands, with no story attached.** Sent to a guest that arrived
     /// late or re-announced itself, to catch it up.
     ///

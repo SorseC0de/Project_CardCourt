@@ -932,7 +932,8 @@ final class GameController {
         do {
             try match.broadcast { seat in
                 .turn(state: state.redacted(for: seat), events: told[seat] ?? events,
-                      digest: digests[seat] ?? Digest())
+                      digest: digests[seat] ?? Digest(),
+                      shape: (told[seat] ?? events).map(\.kind))
             }
         } catch {
             DevLog.say(.net, "BROADCAST FAILED: \(error)")
@@ -1079,7 +1080,7 @@ final class GameController {
             self.state = state
             self.shown = state
             gate = localGate
-        case .turn(let state, let events, let theirs):
+        case .turn(let state, let events, let theirs, let theirShape):
             // Dealt to. Whatever else this board is, it is proof the host can hear us.
             dealtTheTable = true
             // **The one comparison two devices can actually make.** Their boards are
@@ -1089,8 +1090,25 @@ final class GameController {
             digest.fold(events)
             if digest != theirs, !parted {
                 parted = true
+                // **Says what they parted about, not only that they did.** The shapes are
+                // the event kinds in order — the one thing two devices told different
+                // stories are still obliged to agree on.
+                let ours = events.map(\.kind)
                 DevLog.say(.net, "DESYNC at batch \(theirs.batches) — "
                            + "host \(theirs) ours \(digest)")
+                DevLog.say(.net, "  host sent: \(theirShape.joined(separator: " "))")
+                DevLog.say(.net, "  we  heard: \(ours.joined(separator: " "))")
+                if theirShape == ours {
+                    DevLog.say(.net, "  same shape — so the two disagree about a payload, "
+                               + "not about what happened. Suspect a redaction that is not "
+                               + "symmetric, or a field that does not round-trip.")
+                } else {
+                    let firstOff = zip(theirShape, ours).enumerated()
+                        .first { $0.element.0 != $0.element.1 }?.offset
+                        ?? min(theirShape.count, ours.count)
+                    DevLog.say(.net, "  they diverge at event \(firstOff) of "
+                               + "\(theirShape.count)/\(ours.count)")
+                }
             }
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← \(lastBoard)  [\(events.count) event(s)]"
