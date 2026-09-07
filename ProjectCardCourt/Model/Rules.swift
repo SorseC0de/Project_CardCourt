@@ -726,7 +726,11 @@ enum Rules {
             } else if !descriptor.modes.isEmpty {
                 state.pendingPlay = descriptor
                 state.pendingActor = seat
-                state.phase = .awaitingMode(seat: asker(instead: seat, in: state), card: descriptor)
+                // **Asked of the man playing it.** Which branch of your own card you take
+                // is not a target, so a Floor General does not name it — see
+                // `aimsEveryTarget`. He was picking it, and `resolveMode` then acted as
+                // him: his possession, his draw, his pass, his name in the log.
+                state.phase = .awaitingMode(seat: seat, card: descriptor)
                 return events
             } else {
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
@@ -1004,24 +1008,31 @@ enum Rules {
     static func resolveMode(_ index: Int, state: inout GameState) -> [GameEvent] {
         // Bounds-checked by hand: the `safe:` subscript lives in the view layer, and the
         // rules module deliberately imports none of it.
-        guard case .awaitingMode(let seat, let descriptor) = state.phase,
+        guard case .awaitingMode(let asked, let descriptor) = state.phase,
               index >= 0, index < descriptor.modes.count else { return [] }
         let mode = descriptor.modes[index]
+        // **Whoever played it, not whoever answered.** These are two different seats the
+        // moment anything speaks for somebody else, and this read the answering one for
+        // all of it — so a card played out of one hand drew for another man, passed from
+        // his seat, handed him the ball and went into the log under his name.
+        let actor = state.pendingActor ?? asked
         var events: [GameEvent] = []
         state.pendingPlay = nil
         state.pendingActor = nil
-        state.phase = .possession(holder: seat)
+        state.phase = .possession(holder: actor)
 
         if mode.shotDelta != 0 { adjustShot(by: mode.shotDelta, state: &state) }
-        if mode.draws > 0 { drawBatch(seat, count: mode.draws, state: &state, events: &events) }
+        if mode.draws > 0 { drawBatch(actor, count: mode.draws, state: &state, events: &events) }
         if let passes = mode.passes {
             state.pendingPlay = descriptor
-            state.pendingActor = seat
-            state.phase = .awaitingTarget(seat: seat, card: descriptor,
-                                          choices: passChoices(passes, from: seat))
+            state.pendingActor = actor
+            // The pass leaves his seat, and *that* is a target, so a Floor General names it.
+            state.phase = .awaitingTarget(seat: asker(instead: actor, in: state),
+                                          card: descriptor,
+                                          choices: passChoices(passes, from: actor))
             return events
         }
-        events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
+        events.append(.movePlayed(seat: actor, card: descriptor, shot: state.shot))
         state.lastPlayThisPossession = descriptor.id
         state.movesThisPossession += 1
         settleHands(state: &state, events: &events)
@@ -1277,7 +1288,11 @@ enum Rules {
             let discarded = state[seat].bag.filter { ids.contains($0.id) }
             state[seat].bag.removeAll { ids.contains($0.id) }
             state.discard.append(contentsOf: discarded)
-            counts[seat] = discarded.count
+            // Roswell Reach: what he put in, plus the reach. Nought stays nought —
+            // a man who did not go up for it is not on the board at all.
+            let reach = state[seat].intangibles
+                .compactMap(\.intangible).reduce(0) { $0 + $1.reboundBidBonus }
+            counts[seat] = discarded.isEmpty ? 0 : discarded.count + reach
         }
         events.append(.reboundBids(bids: counts, order: shooter.clockwiseOrderFromHere))
 
@@ -2290,6 +2305,17 @@ enum Rules {
                 drawBatch(other, count: count, state: &state, events: &events,
                           depth: depth + 1)
             }
+        }
+        if effect.swapsHandsAtRandom {
+            // Somebody else, and the deal is done where they stand: two bags change
+            // owner and nothing else moves. Whatever is standing on either man stays
+            // standing on him — it was him it was called on, not his cards.
+            let others = Seat.allCases.filter { $0 != seat }
+            let partner = state.pick(from: others)
+            let mine = state[seat].bag
+            state[seat].bag = state[partner].bag
+            state[partner].bag = mine
+            events.append(.handsTraded(seat: seat, with: partner))
         }
         if effect.rotatesHands {
             // Which way is the drawer's call, and the two seats either side are the two

@@ -51,6 +51,8 @@ enum GameEvent: Hashable, Codable {
     case shotMade(seat: Seat, points: Int, roll: Int, chance: Int = 0)
     case shotMissed(seat: Seat, roll: Int, chance: Int = 0)
     case assisted(Seat)
+    /// Traded Mid-Game: two men swapped hands where they stand.
+    case handsTraded(seat: Seat, with: Seat)
     case reboundBids(bids: [Seat: Int], order: [Seat])
     case rebounded(Seat)
     /// `cause` is the card that took the ball away, or nil when the clock did. Without
@@ -159,6 +161,9 @@ enum GameEvent: Hashable, Codable {
             return "GOOD! \(seat.playerName) +\(points) PTS. (\(chance)%)"
         case .shotMissed(let seat, _, let chance):
             return "No good. \(seat.playerName) \(seat.verb("misses", "miss")). (\(chance)%)"
+        case .handsTraded(let seat, let other):
+            return "\(seat.playerName) \(seat.verb("trades", "trade")) hands with "
+                 + "\(other.playerName)"
         case .assisted(let seat):
             return "\(seat.playerName) +1 AST."
         case .reboundBids(let bids, let order):

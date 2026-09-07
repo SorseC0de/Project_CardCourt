@@ -61,6 +61,9 @@ struct IntangibleEffect: Hashable, Codable {
     /// Clutch Gene fires on either: a hand this thin, or a clock this low.
     var requiresHandAtMost: Int?
     var requiresClockAtMost: Int?
+    /// Roswell Reach: every bid he actually makes is worth one more card than he put
+    /// in. Nought stays nought — a man who did not go up for it is not on the board.
+    var reboundBidBonus = 0
     /// Board-Crasher: only off your own miss. Catch & Shoot: only off a pass.
     var requiresOwnRebound = false
     var requiresReceivedPass = false
@@ -107,9 +110,10 @@ struct IntangibleEffect: Hashable, Codable {
     var oneOfEachMovePerTurn = false
     var keepsOnPlay: [String] = []
     /// Floor General: **every** target on the floor is named by this player instead —
-    /// who a pass finds, which card comes out of a hand, which branch a card takes. Not
-    /// the choices a player makes about their own board: giving up one of your own cards
-    /// is not a target.
+    /// who a pass finds, and which card comes out of a hand you cannot see. **Not the
+    /// choices a player makes about their own card**: which branch of a multi-effect card
+    /// to take, or whether to feed a shot an extra discard, are not targets — they are
+    /// the play itself, and naming a target is not playing somebody's card for them.
     var aimsEveryTarget = false
     /// Franchise Player: a pass costs the man receiving it something. One of his
     /// passives, or one card out of a hand you cannot see.
@@ -154,6 +158,11 @@ struct GameBreakEffect: Hashable, Codable {
     /// Trade Deadline: every bag moves one seat, and the ball goes with it. The player
     /// who turned it up says which way.
     var rotatesHands = false
+    /// Traded Mid-Game: the man who turned it up and one other, picked at random, trade
+    /// hands where they stand. **Hands, not seats** — moving a man round the diamond
+    /// moves the ball, the clamps standing on him and everybody's view of the court, and
+    /// a trade is about the squad rather than about where he is standing.
+    var swapsHandsAtRandom = false
     /// Fresh Ball: the next possession opens without its draw. A bad thing — a fresh ball
     /// is a ball nobody has broken in.
     var skipsNextDraw = false

@@ -84,6 +84,11 @@ struct NameCall: Identifiable, Equatable {
 /// It keeps the mother shape's slant and its tail taper, and it travels the way she does
 /// — in from the leading edge, out past the trailing one. It never comes back the way it
 /// came, and it is gone before the middle of the screen: there is a scene underneath it.
+/// - TODO: **Show the Intangible that fired.** When a passive activates, the card itself
+///   goes on this callout — turned about ten degrees clockwise and pinned between the
+///   name and the shape, like something clipped to the plate rather than drawn on it.
+///   Nothing says which passive did the thing right now, so a player learns what their
+///   own Intangibles do by inference, and never learns what anybody else's do at all.
 struct NameCallView: View {
     let call: NameCall
 

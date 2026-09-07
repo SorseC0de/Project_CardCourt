@@ -7,11 +7,11 @@ enum CardLibrary {
 
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "Pass Left. SHOT +5%", numberInDeck: 32, passTarget: .left)
+        effect: "Pass Left. SHOT +5%", numberInDeck: 31, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "Pass Right. SHOT +5%", numberInDeck: 32, passTarget: .right)
+        effect: "Pass Right. SHOT +5%", numberInDeck: 31, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,
@@ -313,6 +313,11 @@ enum CardLibrary {
                                awardsShotValueToOffender: true,
                                requiresShotDebuffClamp: true))
 
+    static let roswellReach = CardDescriptor(
+        id: "roswell-reach", name: "Roswell Reach", type: .intangible,
+        effect: "Every #[Rebound] bid you make counts as one card more", numberInDeck: 1,
+        intangible: IntangibleEffect(reboundBidBonus: 1))
+
     static let boardCrasher = CardDescriptor(
         id: "board-crasher", name: "Board-Crasher", type: .intangible,
         effect: "SHOT +10% off your own board", numberInDeck: 1,
@@ -454,6 +459,11 @@ enum CardLibrary {
         effect: "Every turn: all but 1 random card is held", numberInDeck: 1,
         gameBreak: GameBreakEffect(isInjury: true, injury: .game, playableEachTurn: 1))
 
+    static let tradedMidGame = CardDescriptor(
+        id: "traded-mid-game", name: "Traded Mid-Game", type: .gameBreak,
+        effect: "Trade hands with another player, at random", numberInDeck: 1,
+        gameBreak: GameBreakEffect(swapsHandsAtRandom: true))
+
     static let rockFight = CardDescriptor(
         id: "rock-fight", name: "Rock Fight", type: .gameBreak,
         effect: "Nobody shoots at 50% or better. Rest of the round", numberInDeck: 3,
@@ -539,7 +549,7 @@ enum CardLibrary {
 
     static let intangibles: [CardDescriptor] = [
         shotCreator, hotHand, freethrowMerchant, generationalWhistle, unselfish,
-        boardCrasher, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
+        boardCrasher, roswellReach, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
         gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
         sixthMan, sniper, splashCousin, competitive, lethalShooter, ballPounder,
         fundamentalist, freeAgent, villainousReputation, dirtyPlayer, franchisePlayer,
@@ -733,6 +743,7 @@ enum CardLibrary {
         crowdNoise, twoMinuteWarning, designedPlay, mvpVote, offNight, benched,
         swallowedWhistle, foul, salaryCapIncrease,
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
+        tradedMidGame,
         tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout, teamDoctor,
         altercation, hugeAltercation, homeCourtAdvantage, awayGame, micdUp, inTheZone,
         rolePlayer, backAndForthGame,
