@@ -135,6 +135,9 @@ struct SpriteGallery: View {
         // inside the box and cannot reach past it.
         .clipped()
         .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.35)))
+        // Nothing in here is pressed — it is the thing being looked at. Said outright
+        // rather than left to depend on every view inside it behaving.
+        .allowsHitTesting(false)
         .frame(maxWidth: .infinity)
     }
 

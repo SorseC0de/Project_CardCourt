@@ -213,6 +213,12 @@ struct SpriteAnimation: View {
                 .clipped()
         }
         .frame(width: side, height: side)
+        // **A sheet is taller than the cell it shows.** Sixteen frames is sixteen times
+        // the height, offset upward to bring the right one into view — and `clipped()`
+        // clips the drawing, not the touches. So every sprite was hit-testing a column
+        // reaching thousands of points above itself, over whatever was up there. This
+        // says the cell is the whole of it.
+        .contentShape(Rectangle())
     }
 
     /// Which sheet is on screen right now.
