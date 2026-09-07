@@ -72,6 +72,34 @@ spend that long watching owes you a way to catch up.
 Worth noting the same window would give a guest a way to *re-sync*: replay is the same
 mechanism as catch-up, which is what a device rejoining a match needs.
 
+## What it unlocks: multiplayer that cannot quietly disagree
+
+> "You write the netcode to literally just compare queues every resolution. It shouldn't be
+> possible for them to disagree if every action is just broadcast to push to both queues."
+
+Nearly. One correction, and it makes the idea stronger rather than weaker.
+
+**The queues cannot be identical**, because of redaction. A step reading "North drew Pump
+Fake" on the host has to reach West as "North drew a card" — West is not allowed to know
+which. So the payloads differ by design, and comparing them would report a desync on every
+draw.
+
+What *can* be identical is the **shape**: which steps, in which order. So each side keeps a
+rolling digest of the steps it has drained — kind and identity, not contents — and every
+message carries the host's. Matching digests mean the two are the same game however
+differently they are allowed to see it; a mismatch names the exact step where they parted.
+
+That is the real win, and it is not "disagreement is impossible". Anything derived locally
+can still drift — a roll made on the wrong side, an appearance nobody sent, a presentation
+that cancelled halfway. The queue narrows the surface to *steps the host pushed*, and the
+digest makes whatever is left **loud instead of silent**. Today a desync is found by two
+people holding phones next to each other and reading numbers off them.
+
+**The digest does not need the queue.** Events already cross unredacted — only the state is
+redacted — so a rolling hash of applied events can be built against the stream as it
+stands, and become the queue's comparison mechanism later. That is worth doing first,
+because it is the diagnostic the whole problem has been missing.
+
 ## What is genuinely hard
 
 1. **Presentation is already a second queue**, and a better one — `beat(of:)`, `release`,

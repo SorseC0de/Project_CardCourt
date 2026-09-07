@@ -114,7 +114,7 @@ final class LoopbackMatch: MatchTransport {
     private static func name(of message: HostMessage) -> String {
         switch message {
         case .seated(let seat, _, _):     return "seated(\(seat.name))"
-        case .turn(let state, let events): return "turn(\(state.phase.label), \(events.count))"
+        case .turn(let state, let events, _): return "turn(\(state.phase.label), \(events.count))"
         case .start:                       return "start"
         }
     }

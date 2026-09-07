@@ -983,14 +983,33 @@ func runTests() {
     print("The wire")
     do {
         let (state, events) = Rules.newGame(seed: 33)
-        let message = HostMessage.turn(state: state.redacted(for: .east), events: events)
+        var mine = Digest()
+        mine.fold(events)
+        let message = HostMessage.turn(state: state.redacted(for: .east), events: events,
+                                       digest: mine)
         let back = try! MatchCoder.decode(HostMessage.self,
                                           from: try! MatchCoder.encode(message))
-        guard case .turn(let sent, let told) = back else {
+        guard case .turn(let sent, let told, let carried) = back else {
             Check.that(false, "a turn survives the wire"); return
         }
         Check.that(told == events, "every event survives the wire")
         Check.that(sent.deck.count == state.deck.count, "so does the state")
+        Check.that(carried == mine, "and the fingerprint with it")
+
+        // **The whole point of it.** The same events folded the same way must agree, and
+        // anything else — a batch applied twice, a batch missed, a batch out of order —
+        // must not.
+        var theirs = Digest()
+        theirs.fold(events)
+        Check.that(theirs == mine, "two devices told the same thing agree")
+        theirs.fold(events)
+        Check.that(theirs != mine, "and one told it twice does not")
+        var reordered = Digest()
+        reordered.fold(events.reversed())
+        Check.that(reordered != mine, "order is part of the game")
+        var missed = Digest()
+        missed.fold(Array(events.dropLast()))
+        Check.that(missed != mine, "so is every event in it")
 
         for move in [Move.shoot, .inbound(to: .west), .play(UUID())] {
             let there = try! MatchCoder.decode(

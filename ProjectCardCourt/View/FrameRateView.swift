@@ -111,6 +111,12 @@ struct NetReadout: View {
         VStack(alignment: .trailing, spacing: 1) {
             Text(wiring)
             Text(crew)
+            // **Red is the whole point.** Two devices can no longer disagree quietly:
+            // matching fingerprints mean the same game however differently it is seen,
+            // and a mismatch names the batch where they parted.
+            Text(controller.parted ? "PARTED \(controller.digest)"
+                 : "sync \(controller.digest)")
+                .foregroundStyle(controller.parted ? CardPalette.red : CardPalette.gold)
             Text("seat=\(GameRules.localSeat.name) \(controller.lastBoard)")
         }
         .font(.system(size: 8, weight: .medium, design: .monospaced))

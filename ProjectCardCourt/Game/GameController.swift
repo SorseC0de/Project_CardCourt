@@ -674,6 +674,13 @@ final class GameController {
     private var readySeats: Set<Seat> = []
     /// Whether the game has been started. See `begin`.
     private var hasBegun = false
+    /// Everything this device has been told, folded in order — see `Digest`. The host
+    /// builds it as it sends; a guest builds it as it receives; they should match.
+    private(set) var digest = Digest()
+    /// Whether the two have already been seen to disagree, so it is said once rather than
+    /// on every batch after it.
+    private(set) var parted = false
+
     /// The guest saying it is here, until it is dealt to. See `announceUntilDealt`.
     private var ready: Task<Void, Never>?
     /// Whether the opening deal has gone out to the other devices yet. Until it has, a
@@ -721,10 +728,13 @@ final class GameController {
     /// state and never sends it anywhere.
     private func broadcast(_ events: [GameEvent]) {
         guard let match, match.isHost else { return }
+        // Folded before it goes out, so what is sent and what is counted are the same
+        // batch. See `Digest`.
+        digest.fold(events)
         lastBoard = fingerprint(state)
         DevLog.say(.net, "host → \(lastBoard)  [\(events.count) event(s)]")
         try? match.broadcast { seat in
-            .turn(state: state.redacted(for: seat), events: events)
+            .turn(state: state.redacted(for: seat), events: events, digest: digest)
         }
     }
 
@@ -797,7 +807,8 @@ final class GameController {
             // with a gate open on a possession it could act in before a card had landed.
             // A late arrival still needs catching up, so this stands once the deal is out.
             if dealtTheTable {
-                try? match.send(.turn(state: state.redacted(for: seat), events: []), to: seat)
+                try? match.send(.turn(state: state.redacted(for: seat), events: [],
+                                      digest: digest), to: seat)
             }
             DevLog.say(.net, "\(seat.name) is ready"
                        + (dealtTheTable ? " — sent the table and the board" : " — waiting on the deal"))
@@ -839,9 +850,19 @@ final class GameController {
         case .start:
             DevLog.say(.net, "the host started the game")
             begin()
-        case .turn(let state, let events):
+        case .turn(let state, let events, let theirs):
             // Dealt to. Whatever else this board is, it is proof the host can hear us.
             dealtTheTable = true
+            // **The one comparison two devices can actually make.** Their boards are
+            // redacted differently and cannot be diffed; the events are not. A mismatch
+            // names the batch where the two games parted, which is the thing a week of
+            // holding two phones side by side could never establish.
+            digest.fold(events)
+            if digest != theirs, !parted {
+                parted = true
+                DevLog.say(.net, "DESYNC at batch \(theirs.batches) — "
+                           + "host \(theirs) ours \(digest)")
+            }
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← \(lastBoard)  [\(events.count) event(s)]"
                        + "  seat=\(GameRules.localSeat.name)")
