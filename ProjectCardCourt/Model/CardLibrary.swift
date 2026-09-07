@@ -808,7 +808,8 @@ enum CardLibrary {
     /// The wire needs this. A `Card` used to cross as its whole descriptor: its name, its
     /// type, its effect structs, every time. Both devices already hold this library, so
     /// what has to travel is *which* card it is, not what that card does.
-    static let all: [CardDescriptor] = [
+    /// The passes and the moves — **not every card**, whatever the old name said.
+    static let passesAndMoves: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
         dime, lob, nutmeg, noLook, bulletPass, handOff, outletPass, kickOut,
         alleyOop, rightBack, touchPass,
@@ -817,12 +818,24 @@ enum CardLibrary {
     ]
 
     /// Classic mode's pool: Pass and Move cards only.
-    static let classicPool: [CardDescriptor] = all
+    static let classicPool: [CardDescriptor] = passesAndMoves
 
     /// Standard adds everything else, as each type gets built.
-    static let standardPool: [CardDescriptor] = all
+    static let standardPool: [CardDescriptor] = passesAndMoves
         + [contest, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
         + whistles + intangibles + gameBreaks + specialMoves
+
+    /// **Every card in the game.**
+    ///
+    /// This name used to belong to the twenty-eight passes and moves that make up
+    /// Classic, and six places read it meaning *all of them*: the gallery showed two of
+    /// the seven types and no others existed as far as it knew, a collection could never
+    /// record a Whistle you had met, and `Rules` looked cards up by id in it — so a
+    /// Special Move, a Clamp or an Intangible simply came back nil. A name that says
+    /// `all` has to mean all.
+    /// The two injuries are already in `gameBreaks` — `injuries` is a *view* of them for
+    /// the rules, not a separate set — so this is `standardPool` alone.
+    static let all: [CardDescriptor] = standardPool
 
     /// **Every descriptor there is, by its id.** The wire needs this: a card crosses as
     /// which library entry it is rather than as a copy of one, and the other device looks
@@ -834,7 +847,7 @@ enum CardLibrary {
     /// injuries are in neither pool, since nobody is dealt one.
     static let byID: [String: CardDescriptor] = {
         var found: [String: CardDescriptor] = [:]
-        for card in standardPool + injuries + [faceDown] { found[card.id] = card }
+        for card in all + [faceDown] { found[card.id] = card }
         return found
     }()
 

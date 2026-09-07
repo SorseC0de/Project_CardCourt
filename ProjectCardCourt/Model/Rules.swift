@@ -1406,9 +1406,7 @@ enum Rules {
         // **Settled here, once.** Which finish this is has to be in the state everybody
         // is told about, or four devices would each roll their own and watch four
         // different dunks. Nothing about the scoring reads it.
-        let played = state.lastPlayThisPossession.flatMap { id in
-            CardLibrary.all.first { $0.id == id }
-        }
+        let played = state.lastPlayThisPossession.flatMap { CardLibrary.byID[$0] }
         state.dunking = dunk(for: seat, card: played, state: &state)
         if state.dunking != nil { state[seat].dunks += 1 }
         state.shotsThisRound += 1
@@ -1956,7 +1954,7 @@ enum Rules {
     /// thing is a second field to keep in step across the wire.
     private static func lastPlayWasDribble(_ state: GameState) -> Bool {
         guard let last = state.lastPlayThisPossession else { return false }
-        return CardLibrary.all.first { $0.id == last }?.isDribble ?? false
+        return CardLibrary.byID[last]?.isDribble ?? false
     }
 
     /// Returns true when the clock ran out and the round has already been ended.

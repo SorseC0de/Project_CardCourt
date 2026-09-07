@@ -998,6 +998,24 @@ func runTests() {
         Check.that(shape == events.map(\.kind), "and the shape of the batch")
         Check.that(!shape.contains { $0.isEmpty }, "every event kind has a name")
 
+        // **`all` means all.** It used to be the twenty-eight passes and moves of the
+        // Classic pool, and six places read it meaning every card there is — so the
+        // gallery showed two of seven types, a collection could never hold a Whistle you
+        // had met, and `Rules` looked cards up by id in it and got nil for every Special
+        // Move, Clamp and Intangible.
+        for kind in [CardType.pass, .move, .specialMove, .clamp, .whistle,
+                     .gameBreak, .intangible] {
+            Check.that(CardLibrary.all.contains { $0.type == kind },
+                       "the library has \(kind) cards in it")
+        }
+        let everyID = CardLibrary.all.map(\.id)
+        Check.that(everyID.count == Set(everyID).count,
+                   "and no card is in it twice (\(everyID.count) cards)")
+        Check.that(CardLibrary.all.allSatisfy { CardLibrary.byID[$0.id] != nil },
+                   "and every one of them can be found by id")
+        Check.that(CardLibrary.injuries.allSatisfy { CardLibrary.byID[$0.id] != nil },
+                   "injuries included, which are a view of the Game Breaks")
+
         // **The size of the thing.** This is what was actually wrong for a week: a board
         // written out in full is a quarter of a megabyte, GameKit refuses a reliable send
         // over about 87 KB, and `try?` ate the error every time. Held here so a card that
