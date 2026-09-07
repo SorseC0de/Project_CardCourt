@@ -1036,6 +1036,9 @@ final class GameController {
             guard case .awaitingGiveUp(let asked, _, _) = state.phase, asked == seat
             else { return }
             giveUpsFromWire[seat] = Posted(batch: askedAt, value: cards)
+        // Nothing acts on it. It is here so the whole story reaches one console.
+        case .parted(let report):
+            DevLog.say(.net, "\(seat.name) HAS PARTED FROM US —\n\(report)")
         case .freeThrow(let made):
             guard case .freeThrows(let trip) = state.phase, trip.shooter == seat
             else { return }
@@ -1094,21 +1097,26 @@ final class GameController {
                 // the event kinds in order — the one thing two devices told different
                 // stories are still obliged to agree on.
                 let ours = events.map(\.kind)
-                DevLog.say(.net, "DESYNC at batch \(theirs.batches) — "
-                           + "host \(theirs) ours \(digest)")
-                DevLog.say(.net, "  host sent: \(theirShape.joined(separator: " "))")
-                DevLog.say(.net, "  we  heard: \(ours.joined(separator: " "))")
+                var report = "DESYNC at batch \(theirs.batches) — "
+                    + "host \(theirs) ours \(digest)"
+                report += "\n  host sent: \(theirShape.joined(separator: " "))"
+                report += "\n  we  heard: \(ours.joined(separator: " "))"
                 if theirShape == ours {
-                    DevLog.say(.net, "  same shape — so the two disagree about a payload, "
-                               + "not about what happened. Suspect a redaction that is not "
-                               + "symmetric, or a field that does not round-trip.")
+                    report += "\n  same shape — so the two disagree about a payload, not "
+                        + "about what happened. Suspect a redaction that is not symmetric, "
+                        + "or a field that does not round-trip."
                 } else {
                     let firstOff = zip(theirShape, ours).enumerated()
                         .first { $0.element.0 != $0.element.1 }?.offset
                         ?? min(theirShape.count, ours.count)
-                    DevLog.say(.net, "  they diverge at event \(firstOff) of "
-                               + "\(theirShape.count)/\(ours.count)")
+                    report += "\n  they diverge at event \(firstOff) of "
+                        + "\(theirShape.count)/\(ours.count)"
                 }
+                DevLog.say(.net, report)
+                // **Sent up as well as printed.** Only a guest can notice this — it holds
+                // both fingerprints — but the host is the device attached to Xcode, so a
+                // report that printed only over here was one nobody read.
+                try? match?.send(.parted(report: report))
             }
             lastBoard = fingerprint(state)
             DevLog.say(.net, "guest ← \(lastBoard)  [\(events.count) event(s)]"

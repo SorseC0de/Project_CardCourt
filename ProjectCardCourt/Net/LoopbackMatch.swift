@@ -128,6 +128,7 @@ final class LoopbackMatch: MatchTransport {
         case .reboundBid(let c):   return "bid(\(c.count))"
         case .discardForShot(let c): return "discardForShot(\(c.count))"
         case .giveUp(let c):       return "giveUp(\(c.count))"
+        case .parted:              return "parted"
         case .freeThrow(let made): return "freeThrow(\(made))"
         case .decision(let what):  return "decision(\(what))"
         }

@@ -43,6 +43,13 @@ enum ClientMessage: Codable {
     /// own loop sat on the inbox waiting for it. With no action clock that wait never
     /// returns — a guest paying a Bone Bruise hung the whole table, for good.
     case giveUp([UUID])
+    /// **A guest saying it has stopped agreeing.**
+    ///
+    /// Only a guest can notice: it is the one holding both fingerprints. But the host is
+    /// the device somebody has attached to Xcode — it is the one running the game — so a
+    /// report that only ever printed on the other phone was a report nobody read. Sent as
+    /// formatted text rather than as fields: nothing acts on it, it is for a person.
+    case parted(report: String)
     /// Everything else the game stops to ask for. See `Decision`.
     case decision(Decision)
     /// The free-throw mini-game's own result. The trip it belongs to is in the phase, so
