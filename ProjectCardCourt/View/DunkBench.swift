@@ -69,6 +69,11 @@ enum DunkStyle {
         }
     }
 
+    /// How far over the iron a finish was arriving, counted by eye. See
+    /// `DunkTuning.overTheRim`, which is the dial, and the court tuner, which is where it
+    /// is turned — on the phone, because that is the only screen it can be judged on.
+    static let overTheRim: CGFloat = 3
+
     /// **The rim takes his weight.** He goes this many art pixels *past* the tuned
     /// finish as he catches hold of it, and the ring goes down with him — then a spring
     /// puts both of them back where they belong. Snapped on the way down, because that is
@@ -173,6 +178,15 @@ enum DunkStyle {
 final class DunkTuning {
     static let shared = DunkTuning()
 
+    /// **How far over the iron a finish arrives, in art pixels.** Dropped by this, so a
+    /// positive number brings him down onto the ring.
+    ///
+    /// In art pixels because that is the unit the drawing is in and the unit the error
+    /// gets counted in — one of them at the top of the climb is a little under seven
+    /// points, so a step of one is a pixel on the screen. See
+    /// `ShotCutsceneView.stageY(in:)`.
+    var overTheRim: CGFloat = DunkStyle.overTheRim
+
     /// Which one the bench — and the in-game `dunk` button — throws down.
     var showing: Dunk = .oneHand
     /// How it fails when it does. Nil throws it down.
@@ -242,6 +256,7 @@ final class DunkTuning {
     }
 
     func reset() {
+        overTheRim = DunkStyle.overTheRim
         trips[showing] = DunkStyle.trip(for: showing)
         bounceResponse = DunkStyle.bounceResponse
         bounceEvery = DunkStyle.bounceEvery
@@ -267,6 +282,7 @@ final class DunkTuning {
         }.joined(separator: "\n")
         + """
         \n
+        static let overTheRim: CGFloat = \(g(overTheRim))
         static let bounceResponse: Double = \(g(bounceResponse))
         static let bounceEvery: Double = \(g(bounceEvery))
         """
@@ -375,6 +391,13 @@ struct DunkBench: View {
                         heading("the swing")
                         time("spring", $tune.bounceResponse, 0.2...1.5)
                         time("every", $tune.bounceEvery, 0.2...2.5)
+                        // Where the finish lands, in art pixels over the ring. The same
+                        // dial the court tuner turns — one number, two screens.
+                        row("over rim", String(Int(tune.overTheRim))) {
+                            Slider(value: Binding(get: { Double(tune.overTheRim) },
+                                                  set: { tune.overTheRim = CGFloat($0) }),
+                                   in: -10...10, step: 1)
+                        }
                         // Art pixels he comes back down at the end, one per frame.
                         row("sink (px)", String(Int(tune.sink))) {
                             Slider(value: $tune.sink, in: 0...10, step: 1)

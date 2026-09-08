@@ -57,14 +57,6 @@ struct ShotCutsceneView: View {
         static let floor: CGFloat = 132
         /// What the whole figure is blown up by once it is placed.
         static let gather: CGFloat = 1.7
-        /// **How far over the iron a finish was arriving, in art pixels.** Counted by
-        /// eye — two or three — so he is dropped by that and no more.
-        ///
-        /// In art pixels because that is the unit the drawing is in and the unit the
-        /// error was measured in. One of them at the top of the climb is the sprite's own
-        /// scale, shrunk by how far away he ends and blown back up with the scene: a
-        /// little under seven points. Nudging this by one is a pixel on the screen.
-        static let overTheRim: CGFloat = 3
     }
 
     /// What is drawn over what. **Named, because two of them move**: a man finishing at
@@ -475,7 +467,7 @@ struct ShotCutsceneView: View {
         // few pixels lower.
         let pixel = Theme.Figure.playerScale
             * dunkTuning.trip(for: dunk).arrivesAt * Stage.gather
-        return floor + Stage.overTheRim * pixel
+        return floor + dunkTuning.overTheRim * pixel
     }
 
     private func rimPoint(in size: CGSize) -> CGPoint {

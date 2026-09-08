@@ -190,6 +190,14 @@ struct DebugActionsView: View {
                     action("miss") { controller.debugMiss() }
                     action("FTs") { controller.debugFreeThrows() }
                 }
+                // **Where the finish lands, in art pixels over the ring.** On the phone
+                // rather than in the preview canvas: the two are different heights, and
+                // this was settled on the one nobody plays.
+                slider("dunk y",
+                       Binding(get: { Double(dunks.overTheRim) },
+                               set: { dunks.overTheRim = CGFloat(($0).rounded()) }),
+                       -10...10)
+                    .frame(width: 150)
             }
             if showDeck {
                 HStack(spacing: 4) {
