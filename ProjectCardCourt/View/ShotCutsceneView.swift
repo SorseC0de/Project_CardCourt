@@ -53,12 +53,18 @@ struct ShotCutsceneView: View {
     /// tuned in the preview canvas. The climb is measured against the ring, so he is
     /// placed against it too.
     private enum Stage {
-        /// How far up from the bottom of the screen a man taking a jump shot stands.
+        /// How far up from the bottom of the screen a man stands.
         static let floor: CGFloat = 132
-        /// How far under the ring's own line a man finishing at it stands. **One art
-        /// pixel at the ring is `Theme.Figure.playerScale * arrivesAt * gather` points —
-        /// under seven** — so this moves in sevens, not in ones.
-        static let underRim: CGFloat = 561
+        /// What the whole figure is blown up by once it is placed.
+        static let gather: CGFloat = 1.7
+        /// **How far over the iron a finish was arriving, in art pixels.** Counted by
+        /// eye — two or three — so he is dropped by that and no more.
+        ///
+        /// In art pixels because that is the unit the drawing is in and the unit the
+        /// error was measured in. One of them at the top of the climb is the sprite's own
+        /// scale, shrunk by how far away he ends and blown back up with the scene: a
+        /// little under seven points. Nudging this by one is a pixel on the screen.
+        static let overTheRim: CGFloat = 3
     }
 
     /// What is drawn over what. **Named, because two of them move**: a man finishing at
@@ -343,7 +349,7 @@ struct ShotCutsceneView: View {
                                          mirrored: false)
                         }
                     }
-                    .scaleEffect(1.7)
+                    .scaleEffect(Stage.gather)
                     Text("SHOT \(scene.chance)%")
                         .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(Theme.ink)
@@ -461,8 +467,15 @@ struct ShotCutsceneView: View {
     /// Where the man stands — see `Stage`. A dunk is placed under the ring; everything
     /// else stands on the floor, where it always did.
     private func stageY(in size: CGSize) -> CGFloat {
-        guard scene.dunk != nil else { return size.height - Stage.floor }
-        return Hoop.line(width: tuning.rimWidth) + Stage.underRim
+        let floor = size.height - Stage.floor
+        guard let dunk = scene.dunk else { return floor }
+        // **The floor he stands on is the jumper's, and always was.** Hanging him off the
+        // ring instead was meant to make the two agree at any height; it made the trip
+        // worse, and the drawing is the thing being judged. He stands where he stood, a
+        // few pixels lower.
+        let pixel = Theme.Figure.playerScale
+            * dunkTuning.trip(for: dunk).arrivesAt * Stage.gather
+        return floor + Stage.overTheRim * pixel
     }
 
     private func rimPoint(in size: CGSize) -> CGPoint {

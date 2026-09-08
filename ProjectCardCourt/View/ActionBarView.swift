@@ -77,6 +77,7 @@ struct ActionBarView: View {
                           locked: lockedCards,
                           barred: barredCards,
                           wash: isChoosingInbound ? CourtView.Court.cardWash : nil,
+                          justPlayed: controller.justPlayed,
                           activeReferees: controller.shown.armedWhistles.count,
                           onInspectReferees: onInspectReferees,
                           ringed: { if case .card(let id) = ringed { return id }

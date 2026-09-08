@@ -26,6 +26,11 @@ struct FannedBagView: View {
     /// A wash over every card, whatever else is going on. The red one marks a card out;
     /// this one marks the whole hand as not being what is being asked about.
     var wash: Color?
+    /// **Cards already played, which the fan has not lost yet.** The hand lags the rules
+    /// by a beat, and for that beat the card was on screen twice — held up in front of
+    /// the court and apparently stuck in the fan behind it. See
+    /// `GameController.justPlayed`.
+    var justPlayed: Set<Card.ID> = []
     /// Referees already on the floor. Hung under a Whistle while it is being read.
     var activeReferees: Int = 0
     var onInspectReferees: () -> Void = {}
@@ -110,7 +115,13 @@ struct FannedBagView: View {
                                 .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    .padRing(ringed == card.id, corner: 76 * CardLayout.cornerFraction)
+                    // Gone the instant it is played, not a beat later — and gone means
+                    // out of reach as well as out of sight, or the beat it is invisible
+                    // for is a beat it can be played a second time.
+                    .opacity(justPlayed.contains(card.id) ? 0 : 1)
+                    .allowsHitTesting(!justPlayed.contains(card.id))
+                    .padRing(ringed == card.id && !justPlayed.contains(card.id),
+                             corner: 76 * CardLayout.cornerFraction)
                     .modifier(ShakeEffect(progress: refused == card.id ? refusal : 0))
                     .rotationEffect(.degrees(lifted || expanded ? 0 : placement.angle))
                     // Grown from the bottom edge, so it rises out of the hand rather

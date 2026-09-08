@@ -1015,9 +1015,10 @@ struct GameView: View {
         case .previous, .next:
             walk(action)
         case .up:
-            // **Navigation, never a commit.** Up is where a thumb rests and where it
-            // passes through on the way anywhere else.
-            if Row.runsDown(controller) { walk(.previous) }
+            // **Up takes a card and nothing else.** It is the flick, so it still throws
+            // one at the table — but a thumb resting on the stick must never lean on a
+            // button, which is what it was doing on every confirm in the game.
+            if Row.runsDown(controller) { walk(.previous) } else { commitCard(cursor.at) }
         case .down:
             if Row.runsDown(controller) { walk(.next) } else { detail = nil }
         case .flick:
@@ -1126,6 +1127,15 @@ struct GameView: View {
 
     /// The flick: what throwing a card at the table means, without the throw. It does not
     /// wait for the card to be read first — neither does a flick on glass.
+    /// The flick, but only where a card is. **Buttons are pressed on purpose**: up is
+    /// where a thumb rests, and leaning on it used to be a bid placed or a card given up.
+    private func commitCard(_ spot: PadSpot?) {
+        switch spot {
+        case .card, .offer: commit(spot)
+        default: break
+        }
+    }
+
     private func commit(_ spot: PadSpot?) {
         switch spot {
         case .card(let id):
@@ -1209,6 +1219,10 @@ struct GameView: View {
         case .awaitingBid:      controller.submitBid()
         case .awaitingDiscard:  controller.submitDiscard()
         case .awaitingGiveUp:   controller.submitGiveUp()
+        // The button under a sheet, which takes whatever has been picked off it.
+        case .awaitingCounter, .awaitingToll, .awaitingIntangibleDrop,
+             .awaitingInjuryPick, .awaitingCardFrom:
+            if let picked { takeTheOffer(picked) }
         default: break
         }
     }

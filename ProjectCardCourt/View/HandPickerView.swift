@@ -129,9 +129,9 @@ struct HandPickerView: View {
                          size: 18, isEnabled: chosen != nil) {
                 if case .position(let at) = chosen { onPick(at) }
             }
-            // **The ring moves on once a card is taken.** A pad has nowhere else to walk
-            // on a sheet, so nothing said the button was the next thing to press.
-            .padRing(pill: chosen != nil && ringed != nil)
+            // **The button is in the row.** A shortcut that takes whatever is picked is
+            // not the same as being able to see where the answer goes — see `Row`.
+            .padRing(pill: ringed == .confirm)
             .frame(width: 200)
         }
         .fixedSize()

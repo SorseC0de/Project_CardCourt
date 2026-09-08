@@ -524,6 +524,22 @@ final class GameController {
     /// catch can be tuned without playing a hand to reach one.
     private(set) var practicePass: (from: Seat, to: Seat)?
 #endif
+    /// **Cards the fan still shows that the rules no longer hold.**
+    ///
+    /// The rules take a card the moment it is played; the hand is drawn from `shown`,
+    /// which walks the chain a beat at a time — so for the length of the activation the
+    /// same card was on screen twice, one held up in front of the court and one
+    /// apparently stuck in the fan behind it.
+    ///
+    /// **Worked out, never remembered.** Marking a card as spent when it is played needs
+    /// unmarking on every path where the rules give it back — a card the rules refuse, a
+    /// Whistle blown over the play, a possession that ends underneath it — and one missed
+    /// path is a card invisible in your hand for the rest of the game. This is the whole
+    /// of the idea instead: held by the fan, and not by the rules.
+    var justPlayed: Set<Card.ID> {
+        let real = Set(state[GameRules.localSeat].bag.map(\.id))
+        return Set(shownBag(of: GameRules.localSeat).map(\.id)).subtracting(real)
+    }
     private(set) var playedCard: PlayedCard?
     /// The play the last card-flash was for — see `showPlayedCard`.
     private var flashed: PlayedCard?
@@ -1561,6 +1577,9 @@ final class GameController {
     /// every gate that wants a fistful of them it puts this one in or takes it back out.
     /// One owner, or the pad and the hand answer the same gate differently.
     func commit(_ card: Card) {
+        // **Already gone.** For the beat between the rules taking a card and the fan
+        // losing it, the card is on screen and must not be reachable — see `justPlayed`.
+        guard !justPlayed.contains(card.id) else { return }
         switch gate {
         case .awaitingMove:
             guard Rules.legalMoves(shown, for: GameRules.localSeat).contains(.play(card.id))

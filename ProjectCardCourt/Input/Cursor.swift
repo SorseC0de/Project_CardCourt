@@ -37,7 +37,13 @@ enum Row {
         // **Your hand is always yours.** A card you cannot play is still a card you are
         // allowed to read, and so is one it is not your turn to play — exactly as it is
         // on glass, where nothing ever stops a finger raising one.
-        let hand = controller.shownBag(of: seat).map { PadSpot.card($0.id) }
+        // **Not the ones already played.** For the beat between the rules taking a card
+        // and the fan losing it the card is still drawn, at nothing — and a ring that can
+        // walk onto it is a ring on a card nobody can see. See `GameController.justPlayed`.
+        let spent = controller.justPlayed
+        let hand = controller.shownBag(of: seat)
+            .filter { !spent.contains($0.id) }
+            .map { PadSpot.card($0.id) }
 
         switch controller.gate {
         case .awaitingMove:
@@ -65,12 +71,13 @@ enum Row {
             return hand + [.confirm]
 
         // **The sheets.** Every one of them is the same shape — a row of cards held out,
-        // one taken, and a button underneath — so the pad walks the cards and nothing
-        // else: up takes what is picked and circle declines, which is the same language
-        // a card in the hand already speaks. Walking past eight cards to reach a button
-        // in a box that only has one is a menu's idea of a row.
+        // one taken, and a button or two underneath. **The buttons are in the row**: a
+        // shortcut that takes what is picked is not the same as being able to see where
+        // the answer goes, and a sheet whose buttons cannot be walked onto is a sheet
+        // that never highlights the thing it wants pressed.
         case .awaitingCounter(let cards):
             return cards.map { PadSpot.offer(.named($0.descriptor.id)) }
+                + [.confirm, .decline]
 
         case .awaitingToll(let victim):
             let board = controller.shown[victim].intangibles.map {
@@ -79,16 +86,18 @@ enum Row {
             // His hand is face down, so it is answered by position rather than by name.
             return board + controller.shown[victim].bag.indices.map {
                 PadSpot.offer(.position($0))
-            }
+            } + [.confirm, .decline]
 
         case .awaitingIntangibleDrop(let offered):
-            return offered.map { PadSpot.offer(.named($0.id)) }
+            return offered.map { PadSpot.offer(.named($0.id)) } + [.confirm]
 
         case .awaitingInjuryPick:
             return controller.shown.injuriesOffered.map { PadSpot.offer(.named($0.id)) }
+                + [.confirm]
 
         case .awaitingCardFrom(_, let victim):
             return controller.shown[victim].bag.indices.map { PadSpot.offer(.position($0)) }
+                + [.confirm]
 
         case .awaitingMode(let card):
             return card.modes.indices.map(PadSpot.mode)
