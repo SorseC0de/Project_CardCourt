@@ -2247,11 +2247,17 @@ enum Rules {
 
         // And the question a full board owes. One at a time: answering it can rehome a
         // passive onto another full board, which asks again.
-        state.overflowing = state.overflowing.filter {
-            state[$0].intangibles.count > state.rules.intangibleSlots
-        }
-        if let seat = state.overflowing.sorted(by: { $0.rawValue < $1.rawValue }).first {
-            state.overflowing.remove(seat)
+        //
+        // **Read off the boards, never remembered.** This used to sift a set that
+        // `activate` had written into, and it took the seat *out* of that set in order to
+        // ask — so a board that went two over asked once and then sat there. The sift
+        // only ever removed seats, so nothing put it back, and every passive after that
+        // landed in silence. On a three-slot table boards reached six.
+        let over = Seat.allCases
+            .filter { state[$0].intangibles.count > state.rules.intangibleSlots }
+            .sorted { $0.rawValue < $1.rawValue }
+        state.overflowing = Set(over)
+        if let seat = over.first {
             state.phase = .awaitingIntangibleDrop(seat: seat,
                                                   offered: state[seat].intangibles)
             return
@@ -2579,16 +2585,6 @@ enum Rules {
                                  state: inout GameState, events: inout [GameEvent]) {
         events.append(.intangibleRevealed(seat: seat, card: card.descriptor))
         state[seat].intangibles.append(card.descriptor)
-        shedIntangibles(for: seat, state: &state, events: &events)
-    }
-
-    /// Notes a board that is over its slots. **Whose goes is the player's call**, so this
-    /// only queues the question — `settleHands` asks it once the chain is done.
-    private static func shedIntangibles(for seat: Seat, state: inout GameState,
-                                        events: inout [GameEvent]) {
-        if state[seat].intangibles.count > state.rules.intangibleSlots {
-            state.overflowing.insert(seat)
-        }
     }
 
     /// One passive off a full board, chosen. Taking the one that just arrived is a
@@ -2620,7 +2616,6 @@ enum Rules {
         let landing = state.pick(from: Seat.allCases)
         state[landing].intangibles.append(card)
         events.append(.intangibleRevealed(seat: landing, card: card))
-        shedIntangibles(for: landing, state: &state, events: &events)
     }
 
     /// Dumps a hand and deals a fresh one, the way halftime does. Debug only.
