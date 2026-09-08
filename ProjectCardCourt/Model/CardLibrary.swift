@@ -19,8 +19,8 @@ enum CardLibrary {
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
-        effect: "Pass back to last player.",
-        numberInDeck: 5, passTarget: .backToPasser)
+        effect: "Pass back to last player. Gains what the pass to you gained",
+        numberInDeck: 5, passTarget: .backToPasser, matchesArrivingPass: true)
 
     static let dime = CardDescriptor(
         id: "dime", name: "Dime", type: .pass,

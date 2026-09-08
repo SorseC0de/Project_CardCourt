@@ -388,6 +388,14 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// worth twice its own SHOT and a card to each of them — and whatever the trip cost
     /// him on the way happens in between.
     var returnsImmediately = false
+    /// **Worth whatever the pass that found you was worth.**
+    ///
+    /// Behind-the-Back alone. Every other pass names its number and takes the match's
+    /// increment if it does not; this one is priced off the ball rather than off the
+    /// card — a good feed sent straight back is a good feed twice, and a swing sent back
+    /// is only a swing. Its number is nil for that reason, so `resolved(passShotBonus:)`
+    /// has to leave it alone.
+    var matchesArrivingPass = false
     /// Touch Pass: worth more when it never stops in your hands.
     var drawIfFirstAction = 0
     /// Clear Out: you are not where the pass expected you to be. A pass thrown by
@@ -437,7 +445,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
          forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
-         returnsImmediately: Bool = false, drawIfFirstAction: Int = 0,
+         returnsImmediately: Bool = false, matchesArrivingPass: Bool = false,
+         drawIfFirstAction: Int = 0,
          clearsOut: Bool = false, firstActionOnly: Bool = false,
          stealsAlongPass: Int = 0,
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
@@ -447,6 +456,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.forcesReceiverShot = forcesReceiverShot
         self.forcesImmediateShot = forcesImmediateShot
         self.returnsImmediately = returnsImmediately
+        self.matchesArrivingPass = matchesArrivingPass
         self.drawIfFirstAction = drawIfFirstAction
         self.clearsOut = clearsOut
         self.firstActionOnly = firstActionOnly
@@ -804,13 +814,14 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     }
     var isMove: Bool { type == .move }
 
-    /// Always concrete on a dealt card — `buildDeck` bakes the passing bonus in.
+    /// Always concrete on a dealt card — `buildDeck` bakes the passing bonus in, except
+    /// on a card that is worth whatever found it. See `matchesArrivingPass`.
     var baseShotDelta: Int { shotDelta ?? 0 }
 
     /// A copy with the match's passing increment written in, so the card carries its own
     /// number rather than pointing at one.
     func resolved(passShotBonus: Int) -> CardDescriptor {
-        guard shotDelta == nil, isPass else { return self }
+        guard shotDelta == nil, isPass, !matchesArrivingPass else { return self }
         var copy = self
         copy.shotDelta = passShotBonus
         return copy

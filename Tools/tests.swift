@@ -528,6 +528,45 @@ func runTests() {
         Check.that(order.contains("break"), "and it does land")
     }
 
+    print("Behind-the-Back is priced off the ball")
+    do {
+        // A good feed sent straight back is a good feed twice.
+        var (state, seat, _) = openPossession(seed: 81, cards: [])
+        let dime = matchCard(CardLibrary.dime, state.rules)
+        state[seat].bag.append(dime)
+        Rules.apply(.play(dime.id), by: seat, to: &state)
+        var receiver: Seat?
+        if case .awaitingTarget(_, _, let choices) = state.phase {
+            receiver = choices.first { $0 != seat }
+            Rules.resolveTarget(receiver!, state: &state)
+        }
+        var ai = AITable(seed: 81)
+        while Prompts.step(&state, &ai) {}
+        let before = state.shot
+        guard let receiver else { Check.that(false, "a Dime found somebody"); return }
+        let back = matchCard(CardLibrary.behindTheBack, state.rules)
+        state[receiver].bag.append(back)
+        Rules.apply(.play(back.id), by: receiver, to: &state)
+        Check.that(state.shot - before == 10,
+                   "sent back off a Dime it is worth the Dime's ten")
+    }
+    do {
+        // And a swing sent back is only a swing.
+        var (state, seat, _) = openPossession(seed: 82, cards: [])
+        let swing = matchCard(CardLibrary.swingLeft, state.rules)
+        state[seat].bag.append(swing)
+        Rules.apply(.play(swing.id), by: seat, to: &state)
+        var ai = AITable(seed: 82)
+        while Prompts.step(&state, &ai) {}
+        let before = state.shot
+        guard let holder = state.ball else { Check.that(false, "the swing landed"); return }
+        let back = matchCard(CardLibrary.behindTheBack, state.rules)
+        state[holder].bag.append(back)
+        Rules.apply(.play(back.id), by: holder, to: &state)
+        Check.that(state.shot - before == state.rules.passShotBonus,
+                   "off a plain swing it is worth the match's own increment")
+    }
+
     print("Game Breaks")
     do {
         var (state, seat, _) = openPossession(seed: 61, cards: [])

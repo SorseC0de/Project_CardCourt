@@ -342,7 +342,7 @@ enum Rules {
     private static func pay(_ descriptor: CardDescriptor, breaking arriving: [ActiveClamp],
                             for seat: Seat, state: inout GameState,
                             events: inout [GameEvent]) {
-        adjustShot(by: descriptor.baseShotDelta, state: &state)
+        adjustShot(by: printedWorth(of: descriptor, in: state), state: &state)
         drawTogether([seat], count: descriptor.drawCount, state: &state, events: &events)
 
         guard !arriving.isEmpty else { return }
@@ -554,7 +554,7 @@ enum Rules {
 
             // Read before the card is played, because playing it may spend the tick it
             // is being priced against.
-            var delta = descriptor.baseShotDelta
+            var delta = printedWorth(of: descriptor, in: state)
                 + clockBonus(descriptor.special, in: state)
             // Ball Pounder: every Dribble costs a little more and pays a card.
             if descriptor.isDribble {
@@ -2103,6 +2103,20 @@ enum Rules {
         state[seat].turnovers += 1
         events.append(.turnover(seat, cause: CardLibrary.shotClockViolation.name))
         endRound(state: &state, events: &events)
+    }
+
+    /// **What a card is worth on the board in front of it**, before combos, clocks and
+    /// passives have their say.
+    ///
+    /// Nearly always the number printed on it. Behind-the-Back is the one card priced off
+    /// the ball instead: it is worth whatever the pass that found you was worth, so a
+    /// good feed sent straight back is a good feed twice and a swing sent back is only a
+    /// swing. Read before the play resolves, because completing the pass makes *this*
+    /// card the one the ball arrived by.
+    private static func printedWorth(of descriptor: CardDescriptor,
+                                     in state: GameState) -> Int {
+        guard descriptor.matchesArrivingPass else { return descriptor.baseShotDelta }
+        return state.arrivedBy?.baseShotDelta ?? 0
     }
 
     private static func adjustShot(by delta: Int, state: inout GameState) {
