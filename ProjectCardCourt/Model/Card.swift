@@ -309,7 +309,7 @@ struct SpecialMoveEffect: Hashable, Codable {
     var shotPerClockSpent = 0
 }
 
-enum CardType: String, Hashable, Codable {
+enum CardType: String, Hashable, Codable, CaseIterable {
     case pass = "Pass"
     case move = "Move"
     case specialMove = "Special Move"

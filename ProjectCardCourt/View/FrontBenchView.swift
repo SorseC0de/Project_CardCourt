@@ -13,6 +13,7 @@ struct FrontBenchView: View {
     @State private var render = RenderDebug.shared
     @State private var deck = DeckTuning.shared
     @State private var sprites = false
+    @State private var cardText = false
     /// Bumped to re-key the payouts, so they land again.
     @State private var replays = 0
     /// The two passes the crystal bone is being tried in. The second may be "off", which
@@ -87,6 +88,17 @@ struct FrontBenchView: View {
                     .foregroundStyle(CardPalette.gold)
                 }
 
+                // **On the device, not in the canvas.** A preview is a different screen
+                // at a different size, and settling the printing there is how the words
+                // ended up set for a machine nobody plays on.
+                ChunkyButton(title: "Card text", fill: CardPalette.orange,
+                             stroke: CardPalette.gold, shade: CardPalette.red,
+                             size: 16) { cardText = true }
+                Text("Every number the words are set by, over the wordiest card of each "
+                     + "type, at both the sizes a card is read at.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(CardPalette.gray)
+
                 ChunkyButton(title: "Sprite gallery", fill: CardPalette.navy,
                              stroke: CardPalette.gold, shade: CardPalette.blue,
                              size: 16) { sprites = true }
@@ -105,6 +117,9 @@ struct FrontBenchView: View {
         }
         .fullScreenCover(isPresented: $sprites) {
             SpriteGallery(onDismiss: { sprites = false })
+        }
+        .fullScreenCover(isPresented: $cardText) {
+            CardTextBench(onDismiss: { cardText = false })
         }
     }
 }

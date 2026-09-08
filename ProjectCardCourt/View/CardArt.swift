@@ -77,7 +77,19 @@ struct CardInk {
     var ring: Color
     var plate: Color
 
+    /// **The printing, as it is being tuned.** The two colours a card is read by — its
+    /// own words and the mechanics inside them — come off the dials so the bench can move
+    /// them; everything else here is settled. See `CardTextStyle`.
+    @MainActor
     static func of(_ type: CardType) -> CardInk {
+        var ink = frozen(type)
+        let tuned = CardTextTuning.shared
+        ink.text = tuned.ink(for: type)
+        ink.keyword = tuned.keywordInk(for: type)
+        return ink
+    }
+
+    private static func frozen(_ type: CardType) -> CardInk {
         // The two dark bodies. Navy lettering on either is lettering nobody can find, and
         // navy is also what the ring is drawn in — so both turn over together.
         let dark = type == .intangible || type == .gameBreak
@@ -172,11 +184,13 @@ enum CardLayout {
     /// instead of it** — a card that says its mechanic only in pictures is a card you have
     /// to have been told about, which is what the experiment turned out to mean.
     static let badgeFraction: CGFloat = 0.26
-    /// How tall the picture in front of a keyword is against the line it sits on. **Under
-    /// one**: it goes with the word now rather than instead of it, so it is a mark
-    /// beside the writing and not the writing itself.
+    /// What `TightText` falls back to when nobody says. The card itself always says —
+    /// see `CardTextStyle.glyphShare`.
     static let keywordGlyphShare: CGFloat = 0.85
     /// And the whole middle of the card, when the badge is all the card says.
+    /// The badge's own letter spacing. **Not the card text's** — that is a dial now, and
+    /// the two were one number by accident rather than by intent. See `CardTextStyle`.
+    static let badgeTracking: CGFloat = -0.05
     static let badgeAloneFraction: CGFloat = 0.42
     /// How big the value on its face is, against the badge itself.
     static let badgeValueShare: CGFloat = 0.42
@@ -227,7 +241,6 @@ enum CardLayout {
     static let ballShadowFraction: CGFloat = 7 / across
     static let badgeShadowFraction: CGFloat = 5 / across
     static let badgeSizeFraction: CGFloat = 75 / across
-    static let badgeTracking: CGFloat = -0.05
 
     static let whistleBandFraction: CGFloat = 0.10
     static let whistleGlossFraction: CGFloat = 0.10
@@ -246,6 +259,7 @@ enum CardLayout {
         type == .whistle ? PixelPalette.midnight : .white
     }
 
+    @MainActor
     static func iconShadow(for type: CardType) -> Color { CardInk.of(type).iconShade }
 
     /// The mark a Dribble card wears at its foot, and the one that goes before the word
@@ -255,14 +269,6 @@ enum CardLayout {
     /// symbol is measured by its height and an image by the box it fits inside.
     static let dribbleSymbolShare: CGFloat = 0.62
 
-    static let shootIconFraction: CGFloat = 0.30
-    static let shootIconBottomFraction: CGFloat = 0.04
-    /// How much the shoot mark shrinks so it reads as a footnote.
-    static let shootIconCrowding: CGFloat = 0.75
-    static let shootTextLift: CGFloat = 0.09
-    static let effectYFraction: CGFloat = 0.75
-    static let effectSizeFraction: CGFloat = 56 / across
-    static let effectLineHeight: CGFloat = 0.75
     static let arrowCentreYFraction: CGFloat = 0.58
     static let arrowShadowOffsetFraction: CGFloat = 18 / across
     static let backPassArrowScale: CGFloat = 1.15

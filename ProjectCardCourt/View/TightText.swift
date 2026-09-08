@@ -31,6 +31,9 @@ struct TightText: View {
     var glyphs: [String: String] = [:]
     /// How tall a drawn keyword is against the line it sits on.
     var glyphShare: CGFloat = CardLayout.keywordGlyphShare
+    /// How far the picture rides above the line, against the type size. One sitting on
+    /// the baseline reads as a letter rather than as a mark beside the writing.
+    var glyphLift: CGFloat = 0
     /// Which card this is printed on, so a marked run can be inked for it. See `CardInk`.
     var type: CardType = .pass
     /// What the unmarked words are printed in.
@@ -75,6 +78,7 @@ struct TightText: View {
                                     .resizable()
                                     .scaledToFit()
                                     .frame(height: points * glyphShare)
+                                    .offset(y: -points * glyphLift)
                                 Text(" ").font(.custom(font, size: points))
                             }
                             // **The word always prints.** A picture instead of it was
