@@ -862,18 +862,21 @@ enum Rules {
                                         state: inout GameState, events: inout [GameEvent]) {
         guard count > 0 else { return }
 
-        if var trip = state.pendingFreeThrows, trip.shooter == seat {
-            // A second foul before the first has been shot just lengthens the trip.
+        // A second foul before the first has been shot just lengthens the trip.
+        if let at = state.pending.firstIndex(where: {
+            if case .takeTheLine(let trip) = $0 { return trip.shooter == seat }
+            return false
+        }), case .takeTheLine(var trip) = state.pending[at] {
             trip.remaining += count
-            state.pendingFreeThrows = trip
+            state.pending[at] = .takeTheLine(trip)
             events.append(.freeThrowsAwarded(seat: seat, count: count, source: source))
             return
         }
 
         // Generational Whistle pays once per trip, not once per attempt.
         let bonus = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.bonusFreeThrows ?? 0) }
-        state.pendingFreeThrows = FreeThrowTrip(shooter: seat, offender: offender,
-                                                source: source, remaining: count + bonus)
+        state.owe(.takeTheLine(FreeThrowTrip(shooter: seat, offender: offender,
+                                             source: source, remaining: count + bonus)))
         events.append(.freeThrowsAwarded(seat: seat, count: count + bonus, source: source))
         if bonus > 0, let card = state[seat].intangibles.first(where: {
             ($0.intangible?.bonusFreeThrows ?? 0) > 0
@@ -888,22 +891,23 @@ enum Rules {
     /// Called after `beginPossession` has set the phase, for the same reason the trip to
     /// the line is: anything set from inside it is set on something about to be replaced.
     private static func handOverBall(state: inout GameState, events: inout [GameEvent]) {
-        guard let holder = state.pendingInbound, !state.isOver else { return }
-        state.pendingInbound = nil
+        guard case .handOverBall(let holder)? = state.owes(.handOverBall),
+              !state.isOver else { return }
+        state.forget(.handOverBall)
         // **A break in the loop.** Something has taken the ball off the floor and put it
         // back in — Benched hands it to whoever the benched man picks, and a Whistle can
         // do the same — and a Right Back still owed a return would drag it out of his
         // hands again the moment the possession opened. Whatever queued this outranks a
         // leg that was owed to a play the break has already interrupted.
-        state.returnsTo = nil
-        state.returnLeg = nil
+        state.forget(.returnBall)
         state.inbounder = holder
         state.phase = .inbound(inbounder: holder)
     }
 
     private static func takeTheLine(state: inout GameState, events: inout [GameEvent]) {
-        guard let trip = state.pendingFreeThrows, !state.isOver else { return }
-        state.pendingFreeThrows = nil
+        guard case .takeTheLine(let trip)? = state.owes(.takeTheLine),
+              !state.isOver else { return }
+        state.forget(.takeTheLine)
         state.phase = .freeThrows(trip: trip)
     }
 
@@ -984,14 +988,13 @@ enum Rules {
                               shot: state.shot, returning: returning))
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
-        if descriptor.forcesImmediateShot { state.shootsAtOnce = receiver }
+        if descriptor.forcesImmediateShot { state.owe(.shootAtOnce(receiver)) }
         // **Only on the way out.** The return leg must not ask for another one, or the
-        // ball never stops. Asked of the leg itself rather than of `returnLeg`, which
-        // `settleHands` has already cleared by the time it sends the ball home — so the
-        // guard was reading nil and arming a second trip every time.
+        // ball never stops. Asked of the leg itself rather than of what is owed, which
+        // the drain has already popped by the time it sends the ball home — so the guard
+        // was reading nil and arming a second trip every time.
         if descriptor.returnsImmediately, !returning {
-            state.returnsTo = seat
-            state.returnLeg = descriptor
+            state.owe(.returnBall(to: seat, leg: descriptor))
         }
         // **Off the glass and back to himself.** A new possession like any other — he
         // draws, the clock runs, the SHOT the card added stands. Unless it is Traveling,
@@ -2201,9 +2204,7 @@ enum Rules {
         state.holderShot = 0
         // The orders still in flight go with it. A shot the round no longer has room for
         // must not go up inside halftime's deal, and a return leg has nowhere to land.
-        state.shootsAtOnce = nil
-        state.returnsTo = nil
-        state.returnLeg = nil
+        state.forget(.shootAtOnce, .returnBall)
 
         // The referees leave when the round does — a trap does not lie in wait across the
         // inbound that follows it — and the cards they were holding are spent.
@@ -2294,67 +2295,36 @@ enum Rules {
     /// Called at the outermost edge of a deal or a draw rather than where the card landed,
     /// because "discard your hand" has to mean the hand you end up with.
     static func settleHands(state: inout GameState, events: inout [GameEvent]) {
-        for seat in state.handsOwed where !state[seat].bag.isEmpty {
-            spendHand(of: seat, state: &state, events: &events)
-        }
-        state.handsOwed.removeAll()
+        drain(state: &state, events: &events)
+    }
 
-        // Right Back: home again, and paying its SHOT a second time. After the toll and
-        // whatever else the trip cost him — that is the point of the card.
-        // **Only once there is a possession to send it back from.** A toll at the far
-        // end — Bone Bruise taking its card, a Game Break emptying a hand — leaves the
-        // phase on a question rather than on a possession, and this used to find that,
-        // throw the return away and clear it. The ball simply never came home: it sat
-        // with the receiver until the clock ran out on him, which arrives as a shot-clock
-        // violation nobody could see coming. Left owed instead, and `settleHands` runs
-        // again at the edge of whatever answered the question.
-        if let home = state.returnsTo, let leg = state.returnLeg,
-           case .possession(let holder) = state.phase {
-            state.returnsTo = nil
-            state.returnLeg = nil
-            if holder != home {
-                adjustShot(by: leg.baseShotDelta, state: &state)
-                completePass(leg, from: holder, to: home, returning: true,
-                             state: &state, events: &events)
-            }
-        }
-
-        // Alley-Oop: it goes up now, with whatever he drew still in his hands. Before the
-        // board's question, because the shot is the possession and a passive changing
-        // hands is not.
-        // **Cleared inside the guard, not before it** — the same fault the return leg
-        // above had and was fixed for. The clear ran unconditionally, so a chain that
-        // ended on a question rather than in a possession — a toll, a give-up, a card
-        // asked for, a full Intangible board — dropped the forced shot on the floor and
-        // never re-armed it. `settleHands` runs again at the edge of whatever answers the
-        // question, and the shot has to still be owed when it does.
-        // **Cleared once the chain settles anywhere, spent only if it settled on him.**
-        // Three shapes, and the middle one is easy to lose: while a question is still
-        // open the shot is still *owed* and must survive; the moment there is a
-        // possession the chain is over and it is either taken or gone. Guarding the clear
-        // on `holder == shooter` as well left it armed for the rest of the round whenever
-        // the chain came to rest on somebody else, and it fired on an unrelated
-        // possession later. The return leg above clears on the possession and tests the
-        // holder second for exactly this reason.
-        if let shooter = state.shootsAtOnce, case .possession(let holder) = state.phase {
-            state.shootsAtOnce = nil
-            if holder == shooter {
-                if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
-                    blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
-                } else {
-                    resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
-                }
-            }
+    /// **Pays whatever the play owes, one step at a time, until nothing payable is left.**
+    ///
+    /// Every step that can be paid is paid before the drain ends, and one that cannot be
+    /// paid *stays owed* — the return leg needs a possession to send the ball home from,
+    /// and a chain that ended on a question does not have one yet. The drain runs again
+    /// at the edge of whatever answers the question, and the step is still there.
+    ///
+    /// **Nothing else may clear a step.** That is the whole of it: five fields each held
+    /// one owed thing, and every bug of a certain shape was one of them cleared before it
+    /// was paid, paid twice, or never paid at all because a call site returned early. See
+    /// `Step`, which lists them.
+    ///
+    /// Paying a step can owe another — a forced shot ends a round, which lands a trip on
+    /// the line — so this loops rather than passing once. Bounded because a rule that
+    /// owes itself forever is a hang rather than a wrong answer.
+    static func drain(state: inout GameState, events: inout [GameEvent]) {
+        var passes = 0
+        while passes < 32 {
+            passes += 1
+            guard let step = payable(in: state) else { break }
+            pay(step, state: &state, events: &events)
         }
 
-        // And the question a full board owes. One at a time: answering it can rehome a
-        // passive onto another full board, which asks again.
-        //
-        // **Read off the boards, never remembered.** This used to sift a set that
-        // `activate` had written into, and it took the seat *out* of that set in order to
-        // ask — so a board that went two over asked once and then sat there. The sift
-        // only ever removed seats, so nothing put it back, and every passive after that
-        // landed in silence. On a three-slot table boards reached six.
+        // And the question a full board owes. **Read off the boards, never remembered**:
+        // being over the slots is a fact about the board rather than something to keep in
+        // step, so it is not a step. One at a time — answering it can rehome a passive
+        // onto another full board, which asks again.
         let over = Seat.allCases
             .filter { state[$0].intangibles.count > state.rules.intangibleSlots }
             .sorted { $0.rawValue < $1.rawValue }
@@ -2365,6 +2335,78 @@ enum Rules {
             return
         }
         strandOut(state: &state, events: &events)
+    }
+
+    /// The next step that can actually be paid, in the order the five have always been
+    /// paid in — see `Step.rank`. Nil when the list is empty or nothing on it is ready.
+    private static func payable(in state: GameState) -> Step? {
+        state.pending
+            .filter { ready($0, in: state) }
+            .min { $0.rank < $1.rank }
+    }
+
+    /// Whether the floor is in a state where this step means anything yet.
+    private static func ready(_ step: Step, in state: GameState) -> Bool {
+        switch step {
+        // **Always.** A hand with nothing in it is a debt already settled, not one still
+        // owed — leaving it on the list would have Free Agent's toll follow a man into
+        // the next hand he is dealt.
+        case .spendHand:
+            return true
+        // **Both need a possession to happen from.** A chain that ended on a question —
+        // a toll, a give-up, a card asked for, a full board — has none yet, and finding
+        // that and throwing the step away is exactly the bug this exists to stop.
+        case .returnBall, .shootAtOnce:
+            if case .possession = state.phase { return true }
+            return false
+        // **Not the drain's to pay.** These two take the floor itself — one puts the
+        // ball back in play, the other sends a man to the line — and they are paid at the
+        // end of a possession rather than at the edge of a chain, which is a different
+        // moment. They sit on the list so nothing can quietly clear one; `handOverBall`
+        // and `takeTheLine` pop their own.
+        case .handOverBall, .takeTheLine:
+            return false
+        }
+    }
+
+    private static func pay(_ step: Step, state: inout GameState,
+                            events: inout [GameEvent]) {
+        state.pending.removeAll { $0 == step }
+        switch step {
+        case .spendHand(let seat):
+            guard !state[seat].bag.isEmpty else { return }
+            spendHand(of: seat, state: &state, events: &events)
+
+        // Right Back: home again, and paying its SHOT a second time. After the toll and
+        // whatever else the trip cost him — that is the point of the card.
+        case .returnBall(let home, let leg):
+            guard case .possession(let holder) = state.phase, holder != home else { return }
+            adjustShot(by: leg.baseShotDelta, state: &state)
+            completePass(leg, from: holder, to: home, returning: true,
+                         state: &state, events: &events)
+
+        // Alley-Oop: it goes up now, with whatever he drew still in his hands. Spent only
+        // if the chain came to rest on him — it is his shot, and a chain that settled on
+        // somebody else has taken it away rather than moved it.
+        case .shootAtOnce(let shooter):
+            guard case .possession(let holder) = state.phase, holder == shooter else {
+                return
+            }
+            if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+                blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
+            } else {
+                resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
+            }
+
+        case .handOverBall(let holder):
+            // Whatever queued this outranks a leg owed to a play it has interrupted.
+            state.forget(.returnBall)
+            state.inbounder = holder
+            state.phase = .inbound(inbounder: holder)
+
+        case .takeTheLine(let trip):
+            state.phase = .freeThrows(trip: trip)
+        }
     }
 
 
@@ -2553,7 +2595,7 @@ enum Rules {
             // opening deal should cost the hand you end up with rather than the one card
             // you happen to be holding. Settled by `settleHands`, once the chain is done.
             if card.descriptor.intangible?.playsFromOthers == true {
-                state.handsOwed.insert(seat)
+                state.owe(.spendHand(seat))
             }
             draw(seat, state: &state, events: &events,
                  allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
@@ -2603,7 +2645,7 @@ enum Rules {
         if effect.everyoneDiscardsHands {
             // Queued to the edge of the chain, like every other card that takes a hand:
             // the hand you lose is the one you end up with.
-            state.handsOwed.formUnion(Seat.allCases)
+            for seat in Seat.allCases { state.owe(.spendHand(seat)) }
         }
         // Everybody swung. Only with a referee out there does anybody get charged for it.
         if effect.turnoversIfReferee > 0, !state.armedWhistles.isEmpty {
@@ -2761,10 +2803,10 @@ enum Rules {
         if effect.waivesBreaks > 0 { state.breaksWaived += effect.waivesBreaks }
         if effect.givesBallAway, let holder = state.ball {
             // Handed over, not taken away: whoever is benched decides where the ball
-            // goes. Queued rather than set — see `pendingInbound`.
+            // goes. Owed rather than set — see `Step.handOverBall`.
             state.lastPasser = nil
             state.arrivedBy = nil
-            state.pendingInbound = holder
+            state.owe(.handOverBall(holder))
             // The possession the rest of the draws belonged to is over — see
             // `drainBreaks`. Benched and Discontinued Dribble end one the same way.
             state.chainBroken = true

@@ -441,6 +441,51 @@ func runTests() {
         Check.that(dealt == 1, "only the card that tripped it is dealt, not the other three")
     }
 
+    print("What a play owes")
+    do {
+        // Right Back's return leg is owed the moment the pass lands, and paid when the
+        // chain settles — not before, and not twice.
+        var (state, seat, cards) = openPossession(seed: 91, cards: [CardLibrary.rightBack])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let target = Seat.allCases.first { $0 != seat }!
+        if case .awaitingTarget = state.phase {
+            Check.that(state.pending.contains { $0.kind == .returnBall } == false,
+                       "nothing is owed until the pass actually lands")
+            Rules.resolveTarget(target, state: &state)
+        }
+        var ai = AITable(seed: 91)
+        while Prompts.step(&state, &ai) {}
+        Check.that(!state.pending.contains { $0.kind == .returnBall },
+                   "and the leg is paid by the time the floor settles")
+        Check.that(state.ball == seat || state.phase.actingSeat != nil,
+                   "the ball came home, or the floor is asking about something")
+    }
+    do {
+        // **A step nothing else may clear.** Owing is pushing and paying is popping, so a
+        // chain that ends on a question leaves it owed rather than dropping it.
+        var (state, seat, _) = openPossession(seed: 92, cards: [])
+        state.owe(.shootAtOnce(seat))
+        state.phase = .awaitingGiveUp(seat: seat, card: CardLibrary.boneBruise, count: 1)
+        var events: [GameEvent] = []
+        Rules.drain(state: &state, events: &events)
+        Check.that(state.pending.contains { $0.kind == .shootAtOnce },
+                   "a shot owed while a question is open is still owed after a drain")
+        state.phase = .possession(holder: seat)
+        Rules.drain(state: &state, events: &events)
+        Check.that(!state.pending.contains { $0.kind == .shootAtOnce },
+                   "and paid the moment there is a possession to take it from")
+    }
+    do {
+        // An empty hand is a debt already settled, not one that follows a man into the
+        // next hand he is dealt.
+        var (state, seat, _) = openPossession(seed: 93, cards: [])
+        state[seat].bag = []
+        state.owe(.spendHand(seat))
+        var events: [GameEvent] = []
+        Rules.drain(state: &state, events: &events)
+        Check.that(state.pending.isEmpty, "a hand with nothing in it owes nothing")
+    }
+
     print("Draw chains")
     do {
         // The table is dealt in together — a Timeout's shape. The Break is on top, so the

@@ -10,6 +10,14 @@ func victimHand(_ state: GameState) -> String {
 
 func soak() {
     var stalls = 0
+    /// **Nothing may be owed while a man is being asked to play.**
+    ///
+    /// The property the queue exists for: a step that could have been paid and was not is
+    /// the shape of every bug it replaced — a return leg the ball never took, a forced
+    /// shot dropped on the floor, a hand that never reached the pile. If one is still
+    /// sitting there when the game hands the floor back, something returned early.
+    var owed = 0
+    var owedSeen: Set<String> = []
     for seed in UInt64(1)...UInt64(300) {
         var state = Rules.newGame(seed: seed, rules: .standard).0
         var ai = AITable(seed: seed)
@@ -34,6 +42,21 @@ func soak() {
                 Rules.resolveRebound(bids: bids, state: &state); continue
             }
             if Prompts.step(&state, &ai) { continue }
+            // The floor is about to be handed to a player. Whatever the play owed should
+            // have been paid by now, and a possession is when every step is payable.
+            // Only the three the drain owns. A trip to the line and a ball being handed
+            // over are paid when a possession *ends*, and sitting through one is what
+            // they are for.
+            let due = state.pending.filter {
+                $0.kind == .spendHand || $0.kind == .returnBall || $0.kind == .shootAtOnce
+            }
+            if case .possession = state.phase, !due.isEmpty {
+                owed += 1
+                let kinds = due.map(\.kind.rawValue).sorted().joined(separator: ",")
+                if owedSeen.insert(kinds).inserted {
+                    print("OWED seed \(seed): \(kinds) still pending at a possession")
+                }
+            }
             guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else {
                 let who = state.phase.actingSeat ?? .north
                 let held = Set(state[who].clamps.flatMap(\.locked))
@@ -45,7 +68,9 @@ func soak() {
         }
         if guardCounter >= 20000 { print("RAN LONG seed \(seed): \(state.phase)"); stalls += 1 }
     }
-    print(stalls == 0 ? "SOAK CLEAN" : "SOAK: \(stalls) problems")
+    if owed > 0 { print("SOAK: \(owed) possessions opened with a step still owed") }
+    print(stalls == 0 && owed == 0 ? "SOAK CLEAN"
+          : "SOAK: \(stalls + owed) problems")
 }
 
 /// What one card's play actually emits, in order.

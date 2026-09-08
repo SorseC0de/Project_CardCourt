@@ -230,21 +230,23 @@ struct GameState: Codable {
     /// Whether the last play was itself a combo — a Drive off a Dribble is a dribble
     /// drive, and a card can ask for that rather than for a Drive.
     var lastPlayWasCombo = false
-    /// Alley-Oop: the man it found owes a shot the instant the chain settles. Queued for
-    /// the same reason a hand dump is — a shot resolved mid-draw is a shot taken before
-    /// the cards that were still arriving.
-    var shootsAtOnce: Seat?
-    /// Right Back: the ball owes a trip home, and which card is paying for it. Queued to
-    /// the chain's edge so whatever the outward leg cost him lands first.
-    var returnsTo: Seat?
-    var returnLeg: CardDescriptor?
+    /// **Everything the play still owes**, in one list — see `Step`, which is where the
+    /// five fields that used to hold these went and why.
+    var pending: [Step] = []
+
+    /// Owes it. **The only way to owe anything** — see `Step`.
+    mutating func owe(_ step: Step) { pending.append(step) }
+
+    /// Whether one of a kind is owed, and the first of it.
+    func owes(_ kind: Step.Kind) -> Step? { pending.first { $0.kind == kind } }
+
+    /// Drops every step of a kind, for a break in the play that outranks them: a Whistle
+    /// taking the ball off the floor outranks a return leg owed to the play it stopped.
+    mutating func forget(_ kinds: Step.Kind...) {
+        pending.removeAll { kinds.contains($0.kind) }
+    }
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
-    /// Free Agent: hands owed to the pile once the draw chain that turned it up is done.
-    ///
-    /// Queued rather than dumped where it lands. Turning it up on the second card of an
-    /// opening deal should cost the hand you end up with, not the one card you had.
-    var handsOwed: Set<Seat> = []
     /// **Game Breaks turned up by a draw, waiting for the draw to finish.**
     ///
     /// A draw is one act however many cards it moves and however many people it moves
@@ -288,16 +290,6 @@ struct GameState: Codable {
     var pendingClampVoid: UUID?
     /// Swallowed Whistle. Cleared when the round turns over.
     var whistlesSilenced = false
-    /// Awarded but not yet shot. Never set straight into `phase` — a Foul is drawn from
-    /// inside `beginPossession`, which overwrites whatever phase it finds on the way out.
-    var pendingFreeThrows: FreeThrowTrip?
-    /// Benched: whoever has to hand the ball over, queued rather than set.
-    ///
-    /// A Game Break resolves from inside `draw`, which runs in the middle of
-    /// `beginPossession` — and `beginPossession` sets the phase on its way out, over
-    /// whatever it finds there. Setting the phase from inside it is writing to something
-    /// that is about to be overwritten, which is why Benched did nothing at all.
-    var pendingInbound: Seat?
     /// A possession held mid-arrival while its man is asked whether he is stepping out of
     /// it — see `Rules.beginPossession`. Everything it needs to pick up where it stopped.
     struct HeldPossession: Hashable, Codable {
