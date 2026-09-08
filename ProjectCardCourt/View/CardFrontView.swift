@@ -51,10 +51,13 @@ struct CardFrontView: View {
             } else {
                 icon
                 effectText
-                if descriptor.takesShot { shootMark }
-                if descriptor.isDribble { dribbleMark }
+                footMarks
             }
-            if let shot = descriptor.shotEffect { shotBadge(shot) }
+            // A pass says what it is worth along the bottom with the rest of its marks;
+            // everything else keeps the ball up in the corner.
+            if let shot = descriptor.shotEffect, descriptor.type != .pass {
+                shotBadge(shot)
+            }
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
@@ -143,44 +146,110 @@ struct CardFrontView: View {
                   y: height * (CardLayout.iconYFraction + descriptor.iconYAdjust))
     }
 
-    /// Bottom-centre, the way the shoot mark is: some dribbles no longer have the word in
-    /// their name, so the family needs a face rather than a spelling.
-    private var dribbleMark: some View {
-        // A symbol's font size is its whole height, where the shoot icon's frame is a box
-        // the drawing fits inside — so the same number came out a good deal bigger here.
-        let side = width * set.footSize * CardLayout.dribbleSymbolShare
-        let drop = width * CardLayout.iconShadowFraction
-        return VStack {
-            Spacer()
-            Image(systemName: CardLayout.dribbleSymbol)
-                .font(.system(size: side, weight: .heavy))
-                .foregroundStyle(.white)
-                .shadow(color: CardLayout.iconShadow(for: descriptor.type),
-                        radius: 0, x: drop, y: drop)
+    /// **Everything a card says without words, in one row along the bottom edge.**
+    ///
+    /// The pictures used to be set inside the sentence: the line had to leave room for
+    /// them, a card naming two mechanics read as a rebus, and what the ball was worth was
+    /// somewhere else again. They are a row at the foot now — what it is worth, what it
+    /// makes you do, and whether it shoots — so the words are only words and the marks
+    /// are only marks.
+    @ViewBuilder private var footMarks: some View {
+        let side = width * set.footSize
+        let glyphs = footGlyphs
+        let ball = footBallShot
+        if hasFootMarks {
+            VStack {
+                Spacer()
+                HStack(spacing: side * set.footGap) {
+                    if let ball { footBall(ball, side: side) }
+                    ForEach(glyphs, id: \.self) { art in
+                        Image(art)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: side, height: side)
+                    }
+                    if descriptor.takesShot { shootMark(side) }
+                    if descriptor.isDribble { dribbleMark(side) }
+                }
                 .padding(.bottom, height * set.footBottom)
+            }
         }
     }
 
-    /// Bottom-centre, in place of the words it replaces.
-    private var shootMark: some View {
-        // Small: it is a footnote under the effect, not the card's icon.
-        let side = width * set.footSize
-        let drop = width * CardLayout.iconShadowFraction
-        return VStack {
-            Spacer()
-            HStack(spacing: side * 0.18) {
-                Image("ShootIcon")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: side, height: side)
-                    // On the image, not the stack — the hand carries its own. The drop is
-                    // blue to match the three beside it; the drawing keeps its own colours.
-                    .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
-                if descriptor.isThree {
-                    ThreeHandMark(width: side, shadowOffset: drop)
-                }
+    /// What a pass is worth, when it is a pass. Everything else keeps its ball in the
+    /// corner, where there is room for it above the words.
+    private var footBallShot: Int? {
+        descriptor.type == .pass ? descriptor.shotEffect : nil
+    }
+
+    /// Whether the row has anything in it — which is what the words lift for.
+    private var hasFootMarks: Bool {
+        footBallShot != nil || !footGlyphs.isEmpty
+            || descriptor.takesShot || descriptor.isDribble
+    }
+
+    /// The pictures this card's words call for, in the order it says them and without
+    /// repeats — a card that says Draw twice is still one Draw to look at.
+    private var footGlyphs: [String] {
+        var found: [String] = []
+        for run in Marked.runs(of: descriptor.printedEffect) where run.ink == .keyword {
+            let word = String(run.text.prefix(while: { $0 != " " }))
+            guard let art = CardLayout.keywordGlyphs[word], !found.contains(art) else {
+                continue
             }
-            .padding(.bottom, height * set.footBottom)
+            found.append(art)
+        }
+        return found
+    }
+
+    /// What a pass is worth, down with the rest of its marks. The same ball the corner
+    /// badge draws, sized to the row it is standing in.
+    private func footBall(_ shot: Int, side: CGFloat) -> some View {
+        ZStack {
+            Image("BallVector")
+                .resizable()
+                .scaledToFit()
+                .frame(width: side, height: side)
+                .shadow(color: CardPalette.blue, radius: 0,
+                        x: width * CardLayout.ballShadowFraction,
+                        y: width * CardLayout.ballShadowFraction)
+            percentage(shot, across: side)
+                .shadow(color: .black, radius: 0,
+                        x: width * CardLayout.badgeShadowFraction,
+                        y: width * CardLayout.badgeShadowFraction)
+        }
+        .frame(width: side, height: side)
+    }
+
+    /// Some dribbles no longer have the word in their name, so the family needs a face
+    /// rather than a spelling.
+    private func dribbleMark(_ row: CGFloat) -> some View {
+        // A symbol's font size is its whole height, where the drawn marks beside it are a
+        // box the drawing fits inside — so the same number comes out a good deal bigger.
+        let side = row * CardLayout.dribbleSymbolShare
+        let drop = width * CardLayout.iconShadowFraction
+        return Image(systemName: CardLayout.dribbleSymbol)
+            .font(.system(size: side, weight: .heavy))
+            .foregroundStyle(.white)
+            .shadow(color: CardLayout.iconShadow(for: descriptor.type),
+                    radius: 0, x: drop, y: drop)
+            .frame(width: row, height: row)
+    }
+
+    /// It shoots, and how far from.
+    private func shootMark(_ row: CGFloat) -> some View {
+        let drop = width * CardLayout.iconShadowFraction
+        return HStack(spacing: row * 0.18) {
+            Image("ShootIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: row, height: row)
+                // On the image, not the stack — the hand carries its own. The drop is
+                // blue to match the three beside it; the drawing keeps its own colours.
+                .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+            if descriptor.isThree {
+                ThreeHandMark(width: row, shadowOffset: drop)
+            }
         }
     }
 
@@ -210,15 +279,15 @@ struct CardFrontView: View {
                          lineHeight: set.lineHeight,
                          tracking: size * set.tracking,
                          markShadowOffset: set.shadows ? width * set.shadowDrop : 0,
-                         glyphs: CardLayout.keywordGlyphs,
-                         glyphShare: set.glyphShare * icons.badgeScale,
-                         glyphLift: set.glyphLift,
+                         // **No pictures in the line.** They are a row at the foot now
+                         // — see `footMarks`.
+                         glyphs: [:],
                          type: descriptor.type,
                          ink: effectColour)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
                       y: height * (set.y
-                                   - (descriptor.takesShot ? set.footLift : 0)))
+                                   - (hasFootMarks ? set.footLift : 0)))
     }
 
     // MARK: - Layers
@@ -370,8 +439,12 @@ struct CardFrontView: View {
     }
 
     /// The number carries the weight; the sign and the percent sit small beside it.
-    private func percentage(_ shot: Int) -> some View {
-        let big = width * CardLayout.badgeSizeFraction
+    /// **Sized to the ball it is printed on**, not to the card — the corner badge and the
+    /// one down in the row of marks are two different sizes of the same ball.
+    private func percentage(_ shot: Int,
+                            across ball: CGFloat = 0) -> some View {
+        let side = ball == 0 ? width * CardLayout.ballSizeFraction : ball
+        let big = side * (CardLayout.badgeSizeFraction / CardLayout.ballSizeFraction)
         let small = big * 0.5
         // Centred rather than baselined, and only the number is tightened — tracking on
         // the symbols just pushed them off centre.

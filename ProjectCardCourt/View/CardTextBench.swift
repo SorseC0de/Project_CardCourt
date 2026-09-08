@@ -73,15 +73,12 @@ enum CardTextStyle {
     static let shadows = true
     static let shadowDrop: CGFloat = 0.015
 
-    /// The little mark that leads a keyword, against the type size — and how far it rides
-    /// above the line, so it reads as a mark beside the writing rather than as a letter.
-    static let glyphShare: CGFloat = 1
-    static let glyphLift: CGFloat = 0
-
-    /// The shoot and dribble marks along the bottom edge: how big against the card's
-    /// width, how far off the bottom against its height, and how far the words lift to
-    /// make room for one.
+    /// **The row of marks along the bottom edge**: what the card is worth, what it makes
+    /// you do, whether it shoots. How big against the card's width, how far apart against
+    /// their own side, how far off the bottom against the card's height, and how far the
+    /// words lift to make room for them.
     static let footSize: CGFloat = 0.225
+    static let footGap: CGFloat = 0.18
     static let footBottom: CGFloat = 0.04
     static let footLift: CGFloat = 0.09
 
@@ -132,10 +129,8 @@ final class CardTextTuning {
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
 
-    var glyphShare = CardTextStyle.glyphShare
-    var glyphLift = CardTextStyle.glyphLift
-
     var footSize = CardTextStyle.footSize
+    var footGap = CardTextStyle.footGap
     var footBottom = CardTextStyle.footBottom
     var footLift = CardTextStyle.footLift
 
@@ -155,8 +150,8 @@ final class CardTextTuning {
         lineHeight = CardTextStyle.lineHeight; tracking = CardTextStyle.tracking
         y = CardTextStyle.y; weight = CardTextStyle.weight
         shadows = CardTextStyle.shadows; shadowDrop = CardTextStyle.shadowDrop
-        glyphShare = CardTextStyle.glyphShare; glyphLift = CardTextStyle.glyphLift
-        footSize = CardTextStyle.footSize; footBottom = CardTextStyle.footBottom
+        footSize = CardTextStyle.footSize; footGap = CardTextStyle.footGap
+        footBottom = CardTextStyle.footBottom
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
@@ -178,9 +173,8 @@ final class CardTextTuning {
         static let weight: CardFont.Weight = .\(weight)
         static let shadows = \(shadows)
         static let shadowDrop: CGFloat = \(n(shadowDrop))
-        static let glyphShare: CGFloat = \(n(glyphShare))
-        static let glyphLift: CGFloat = \(n(glyphLift))
         static let footSize: CGFloat = \(n(footSize))
+        static let footGap: CGFloat = \(n(footGap))
         static let footBottom: CGFloat = \(n(footBottom))
         static let footLift: CGFloat = \(n(footLift))
         static let text: [CardType: CardTextInk] = [\(table(text))]
@@ -306,11 +300,9 @@ struct CardTextBench: View {
                             }
                         }
                         dial("depth", $tune.shadowDrop, 0...0.05)
-                        heading("pictures in the line")
-                        dial("size", $tune.glyphShare, 0.3...2)
-                        dial("lift", $tune.glyphLift, -0.4...0.4)
-                        heading("the mark at the foot")
+                        heading("the marks at the foot")
                         dial("size", $tune.footSize, 0.05...0.6)
+                        dial("gap", $tune.footGap, 0...1)
                         dial("off bottom", $tune.footBottom, 0...0.2)
                         dial("words lift", $tune.footLift, 0...0.3)
                         heading("\(type.shortLabel): the ink")
