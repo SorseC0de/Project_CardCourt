@@ -347,6 +347,48 @@ func runTests() {
                        "or the round turned over and SHOT reset on its own")
         }
     }
+    print("Draw chains")
+    do {
+        // The table is dealt in together — a Timeout's shape. The Break is on top, so the
+        // first seat draws it and three more cards are still owed after that.
+        var (state, _, _) = openPossession(seed: 71, cards: [])
+        for other in Seat.allCases { state[other].bag = [] }
+        state.deck = (0..<8).map { _ in matchCard(CardLibrary.skipPass, state.rules) }
+        state.shot = 50
+        state.deck.append(matchCard(CardLibrary.offNight, state.rules))
+        var events: [GameEvent] = []
+        Rules.testDrawAll(Seat.allCases, count: 1, state: &state, events: &events)
+        var order: [String] = []
+        for e in events {
+            if case .drew = e { order.append("draw") }
+            if case .gameBreakRevealed = e { order.append("break") }
+        }
+        Check.that(order.prefix(3).allSatisfy { $0 == "draw" },
+                   "everyone is dealt in before anything they turned up lands")
+        Check.that(order.dropFirst(3).first == "break",
+                   "and the Break goes off once the last card is in a hand")
+        Check.that(state.shot == 30, "it still does what it says when it does go off")
+        Check.that(state.pendingBreaks.isEmpty, "and the queue is empty when the act is done")
+    }
+    do {
+        // One effect drawing several: the same rule, one seat.
+        var (state, seat, _) = openPossession(seed: 72, cards: [])
+        state[seat].bag = []
+        state.deck = (0..<8).map { _ in matchCard(CardLibrary.skipPass, state.rules) }
+        state.shot = 50
+        state.deck.insert(matchCard(CardLibrary.offNight, state.rules), at: state.deck.count - 1)
+        var events: [GameEvent] = []
+        Rules.testDrawAll([seat], count: 3, state: &state, events: &events)
+        var order: [String] = []
+        for e in events {
+            if case .drew = e { order.append("draw") }
+            if case .gameBreakRevealed = e { order.append("break") }
+        }
+        Check.that(order.prefix(2).allSatisfy { $0 == "draw" },
+                   "a card that draws three takes all three before the Break lands")
+        Check.that(order.contains("break"), "and it does land")
+    }
+
     print("Game Breaks")
     do {
         var (state, seat, _) = openPossession(seed: 61, cards: [])

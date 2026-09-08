@@ -179,7 +179,7 @@ enum Rules {
         if let target = up.drawsUpTo {
             while state[seat].bag.count < target {
                 let before = state[seat].bag.count
-                draw(seat, state: &state, events: &events)
+                drawOnce(seat, state: &state, events: &events)
                 if state[seat].bag.count == before { break }
             }
         } else if up.takesFromDiscard {
@@ -343,7 +343,7 @@ enum Rules {
                             for seat: Seat, state: inout GameState,
                             events: inout [GameEvent]) {
         adjustShot(by: descriptor.baseShotDelta, state: &state)
-        drawBatch(seat, count: descriptor.drawCount, state: &state, events: &events)
+        drawTogether([seat], count: descriptor.drawCount, state: &state, events: &events)
 
         guard !arriving.isEmpty else { return }
         let shaken = arriving.count
@@ -356,7 +356,7 @@ enum Rules {
             adjustShot(by: descriptor.shotPerClamp * shaken, state: &state)
         }
         for _ in 0..<(descriptor.drawPerClamp * shaken) {
-            draw(seat, state: &state, events: &events)
+            drawOnce(seat, state: &state, events: &events)
         }
         if descriptor.clamperDiscardsPerClamp > 0 {
             for clamp in arriving {
@@ -603,7 +603,7 @@ enum Rules {
                     $0 + ($1.intangible?.dribbleBonusDraw ?? 0)
                 }
             }
-            drawBatch(seat, count: drawing, state: &state, events: &events)
+            drawTogether([seat], count: drawing, state: &state, events: &events)
 
             // Flop sells the contact: every Clamp on the player is a trip to the line,
             // and they all come off. Counted per Clamp card, so a Double-Team is one
@@ -622,7 +622,7 @@ enum Rules {
                     adjustShot(by: descriptor.shotPerClamp * shaken, state: &state)
                 }
                 for _ in 0..<(descriptor.drawPerClamp * shaken) {
-                    draw(seat, state: &state, events: &events)
+                    drawOnce(seat, state: &state, events: &events)
                 }
                 if descriptor.clamperDiscardsPerClamp > 0 {
                     for clamp in standing {
@@ -667,7 +667,7 @@ enum Rules {
                     while state.roll(0...1) == 1 && heads < 12 { heads += 1 }
                     adjustShot(by: special.coinRunShot * heads, state: &state)
                     for _ in 0..<(special.coinRunDraw * heads) {
-                        draw(seat, state: &state, events: &events)
+                        drawOnce(seat, state: &state, events: &events)
                     }
                     events.append(.coinRun(seat: seat, card: descriptor, heads: heads))
                 }
@@ -758,7 +758,7 @@ enum Rules {
                     $0 + ($1.intangible?.drawAfterPass ?? 0)
                 }
                 if earned > 0 {
-                    drawBatch(seat, count: earned, state: &state, events: &events)
+                    drawTogether([seat], count: earned, state: &state, events: &events)
                 }
                 // Read again: the draw may have turned up a Break that moved it.
                 guard case .possession(let stillHolding) = state.phase,
@@ -1043,7 +1043,7 @@ enum Rules {
             }
             // Looking after somebody else is the half of it that pays.
             if target != actor {
-                drawBatch(actor, count: effect.drawsForHealingAnother,
+                drawTogether([actor], count: effect.drawsForHealingAnother,
                           state: &state, events: &events)
             }
             state.phase = .possession(holder: state.ball ?? actor)
@@ -1099,7 +1099,7 @@ enum Rules {
         state.phase = .possession(holder: actor)
 
         if mode.shotDelta != 0 { adjustShot(by: mode.shotDelta, state: &state) }
-        if mode.draws > 0 { drawBatch(actor, count: mode.draws, state: &state, events: &events) }
+        if mode.draws > 0 { drawTogether([actor], count: mode.draws, state: &state, events: &events) }
         if let passes = mode.passes {
             state.pendingPlay = descriptor
             state.pendingActor = actor
@@ -1508,7 +1508,7 @@ enum Rules {
             if state[seat].drawsOwedOnMake > 0 {
                 let owed = state[seat].drawsOwedOnMake
                 state[seat].drawsOwedOnMake = 0
-                drawBatch(seat, count: owed, state: &state, events: &events)
+                drawTogether([seat], count: owed, state: &state, events: &events)
             }
             // Wide-Open Three: everyone he named takes one, on top of whatever the pass
             // was already worth.
@@ -1575,7 +1575,7 @@ enum Rules {
                                        against: whistle.owner))
             let effect = over.card.descriptor.whistle ?? WhistleEffect()
             for _ in 0..<effect.offenderDraws {
-                draw(action.actor, state: &state, events: &events)
+                drawOnce(action.actor, state: &state, events: &events)
             }
             return
         }
@@ -1639,7 +1639,7 @@ enum Rules {
         }
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
         if effect.offenderDraws > 0 {
-            drawBatch(offender, count: effect.offenderDraws, state: &state, events: &events)
+            drawTogether([offender], count: effect.offenderDraws, state: &state, events: &events)
             credit(whistle.owner, helping: offender, state: &state, events: &events)
         }
         if effect.offenderDiscardsBag {
@@ -1726,9 +1726,8 @@ enum Rules {
             state.shotClock = state.rules.shotClockStart
             events.append(.shotClockSet(state.rules.shotClockStart))
         }
-        for _ in 0..<effect.everyoneDraws {
-            for other in Seat.allCases { draw(other, state: &state, events: &events) }
-        }
+        drawTogether(Seat.allCases, count: effect.everyoneDraws,
+                     state: &state, events: &events)
         if effect.recoversTimeout,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
             state[seat].bag.append(state.discard.remove(at: index))
@@ -1841,7 +1840,7 @@ enum Rules {
             if state.skipsNextDraw {
                 state.skipsNextDraw = false
             } else {
-                draw(seat, state: &state, events: &events)
+                drawOnce(seat, state: &state, events: &events)
             }
         }
 
@@ -2071,7 +2070,7 @@ enum Rules {
         }
         state[helper].nextShotBonus += shot
         if cards > 0 {
-            drawBatch(helper, count: cards, state: &state, events: &events)
+            drawTogether([helper], count: cards, state: &state, events: &events)
         }
     }
 
@@ -2265,13 +2264,139 @@ enum Rules {
         strandOut(state: &state, events: &events)
     }
 
+
+    /// One held Game Break, run.
+    ///
+    /// **Everything that used to happen the instant it came off the deck.** Whether it
+    /// lands at all, what it does to whoever drew it, and the replacement draw a waved
+    /// one earns — all of it after the draw that turned it up has finished.
+    private static func revealBreak(_ pending: PendingBreak,
+                                    state: inout GameState, events: inout [GameEvent]) {
+        let seat = pending.seat
+        let card = pending.card
+        let depth = pending.depth
+        let wavingBreaks = pending.waving
+        guard let effect = card.descriptor.gameBreak else { return }
+        // **Waved off before it is announced.** Two things do it — a run left by
+        // Back-and-Forth Game, and an armed Play-On — and both mean the same thing:
+        // this Break does not land, and the draw is taken again. One place, so a
+        // third of them is a line rather than another branch through the reveal.
+        if state.breaksWaived > 0 || (!wavingBreaks
+            && state.armedWhistles.contains { $0.trigger == .gameBreakDrawn }) {
+            if state.breaksWaived > 0 {
+                state.breaksWaived -= 1
+            } else if let waved = state.armedWhistles.first(where: {
+                $0.trigger == .gameBreakDrawn
+            }) {
+                // Play-On is spent on the first one and the run carries on without
+                // it: "until a non-Game Break card is drawn" is the card's own text.
+                state.armedWhistles.removeAll { $0.id == waved.id }
+                state.discard.append(waved.card)
+                // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+                state.possessionWasInterrupted = true
+                events.append(.whistleBlew(owner: waved.owner,
+                                           card: waved.card.descriptor,
+                                           cancelled: card.name,
+                                           cancelledCard: card.descriptor,
+                                           against: seat))
+            }
+            state.discard.append(card)
+            // The replacement belongs to the act the waved one was drawn in, so it takes
+            // no bonus of its own — `drawCards` already paid that once for the batch.
+            draw(seat, state: &state, events: &events, allowBonus: false,
+                 depth: depth + 1, wavingBreaks: true)
+            return
+        }
+        // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+        state.possessionWasInterrupted = true
+        events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
+        // An Injury is carried, not spent. See `PlayerState.injuries`.
+        if effect.injury != nil {
+            // Two ways it never lands: a passive that shrugs it off, and the one
+            // Whistle the sheet wrote for exactly this.
+            let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
+            let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
+            if let waved, !shrugged {
+                state.armedWhistles.removeAll { $0.id == waved.id }
+                state.discard.append(waved.card)
+                state.discard.append(card)
+                // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+                state.possessionWasInterrupted = true
+                events.append(.whistleBlew(owner: waved.owner,
+                                           card: waved.card.descriptor,
+                                           cancelled: card.name,
+                                           cancelledCard: card.descriptor,
+                                           against: seat))
+            } else if shrugged {
+                // Shaken off, and the draw is taken again — it cost nothing but the
+                // card that was never carried.
+                state.discard.append(card)
+                draw(seat, state: &state, events: &events,
+                     allowBonus: false, depth: depth + 1)
+            } else {
+                state[seat].injuries.append(card.descriptor)
+                rollInjuryLock(seat, state: &state)
+            }
+        } else {
+            state.discard.append(card)
+        }
+        resolveGameBreak(effect, named: card.name, card: card.descriptor,
+                         drawnBy: seat, state: &state, events: &events, depth: depth)
+    }
+
+    /// Everything a draw turned up, run in the order it came off the deck.
+    ///
+    /// **The queue stays open while it runs.** Resolving a Break can draw again, and what
+    /// those draws turn up belongs behind what is already waiting rather than in front of
+    /// it — so the chain is held while the loop empties, and anything new joins the back.
+    private static func drainBreaks(state: inout GameState, events: inout [GameEvent]) {
+        state.drawChain += 1
+        while !state.pendingBreaks.isEmpty {
+            // **A broken chain throws the rest away.** Something has ended the possession
+            // the draws belonged to — a Whistle that stops the dribble, a Break that hands
+            // the ball to somebody else — and the cards still queued were being drawn for
+            // a possession that no longer exists.
+            if state.chainBroken {
+                state.discard.append(contentsOf: state.pendingBreaks.map(\.card))
+                state.pendingBreaks.removeAll()
+                break
+            }
+            revealBreak(state.pendingBreaks.removeFirst(), state: &state, events: &events)
+        }
+        state.chainBroken = false
+        state.drawChain -= 1
+    }
+
+    /// Draws for one seat as **one act**, and runs whatever it turned up once it is done.
+    ///
+    /// A card that draws two draws twice and then deals with both, rather than dealing
+    /// with the first before the second is off the deck.
+    private static func drawOnce(_ seat: Seat, state: inout GameState,
+                                 events: inout [GameEvent], depth: Int = 0) {
+        drawTogether([seat], count: 1, state: &state, events: &events, depth: depth)
+    }
+
+    /// Draws for several seats as one act. **"Everyone draws 1" is a draw, not four** —
+    /// nothing any of them turns up may land while somebody is still owed a card.
+    private static func drawTogether(_ seats: [Seat], count: Int, state: inout GameState,
+                                     events: inout [GameEvent], depth: Int = 0) {
+        guard count > 0, !seats.isEmpty else { return }
+        state.drawChain += 1
+        for seat in seats {
+            drawCards(seat, count: count, state: &state, events: &events, depth: depth)
+        }
+        state.drawChain -= 1
+        guard state.drawChain == 0 else { return }
+        drainBreaks(state: &state, events: &events)
+    }
+
     /// Draws several as **one batch**.
     ///
     /// Anything that pays per draw — Shot Creator — pays once for the lot rather than
     /// once a card. Drawing three off an All Star Selection is three cards and one bonus,
     /// which is four; card by card it was three bonuses and six, which is not what any of
     /// them say.
-    private static func drawBatch(_ seat: Seat, count: Int,
+    private static func drawCards(_ seat: Seat, count: Int,
                                   state: inout GameState, events: inout [GameEvent],
                                   depth: Int = 0) {
         guard count > 0 else { return }
@@ -2321,70 +2446,15 @@ enum Rules {
             }
             draw(seat, state: &state, events: &events,
                  allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
-        } else if let effect = card.descriptor.gameBreak {
-            // **Waved off before it is announced.** Two things do it — a run left by
-            // Back-and-Forth Game, and an armed Play-On — and both mean the same thing:
-            // this Break does not land, and the draw is taken again. One place, so a
-            // third of them is a line rather than another branch through the reveal.
-            if state.breaksWaived > 0 || (!wavingBreaks
-                && state.armedWhistles.contains { $0.trigger == .gameBreakDrawn }) {
-                if state.breaksWaived > 0 {
-                    state.breaksWaived -= 1
-                } else if let waved = state.armedWhistles.first(where: {
-                    $0.trigger == .gameBreakDrawn
-                }) {
-                    // Play-On is spent on the first one and the run carries on without
-                    // it: "until a non-Game Break card is drawn" is the card's own text.
-                    state.armedWhistles.removeAll { $0.id == waved.id }
-                    state.discard.append(waved.card)
-                    // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
-                    state.possessionWasInterrupted = true
-                    events.append(.whistleBlew(owner: waved.owner,
-                                               card: waved.card.descriptor,
-                                               cancelled: card.name,
-                                               cancelledCard: card.descriptor,
-                                               against: seat))
-                }
-                state.discard.append(card)
-                draw(seat, state: &state, events: &events, allowBonus: allowBonus,
-                     depth: depth + 1, duringDeal: duringDeal, wavingBreaks: true)
-                return
-            }
-            // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
-            state.possessionWasInterrupted = true
-            events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
-            // An Injury is carried, not spent. See `PlayerState.injuries`.
-            if effect.injury != nil {
-                // Two ways it never lands: a passive that shrugs it off, and the one
-                // Whistle the sheet wrote for exactly this.
-                let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
-                let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
-                if let waved, !shrugged {
-                    state.armedWhistles.removeAll { $0.id == waved.id }
-                    state.discard.append(waved.card)
-                    state.discard.append(card)
-                    // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
-                    state.possessionWasInterrupted = true
-                    events.append(.whistleBlew(owner: waved.owner,
-                                               card: waved.card.descriptor,
-                                               cancelled: card.name,
-                                               cancelledCard: card.descriptor,
-                                               against: seat))
-                } else if shrugged {
-                    // Shaken off, and the draw is taken again — it cost nothing but the
-                    // card that was never carried.
-                    state.discard.append(card)
-                    draw(seat, state: &state, events: &events,
-                         allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
-                } else {
-                    state[seat].injuries.append(card.descriptor)
-                    rollInjuryLock(seat, state: &state)
-                }
-            } else {
-                state.discard.append(card)
-            }
-            resolveGameBreak(effect, named: card.name, card: card.descriptor,
-                             drawnBy: seat, state: &state, events: &events, depth: depth)
+        } else if card.descriptor.gameBreak != nil {
+            // **Held, not fired.** A draw is one act however many cards it moves, and a
+            // Break that resolved the moment it came off the deck moved SHOT under the
+            // rest of the draws, took the ball off a man still owed cards, and asked
+            // about a full board before the card that filled it had arrived. It goes in
+            // the queue and the draw carries on; `drainBreaks` runs the lot in order once
+            // the last card is in a hand.
+            state.pendingBreaks.append(PendingBreak(seat: seat, card: card, depth: depth,
+                                                    waving: wavingBreaks))
         } else {
             state[seat].bag.append(card)
             events.append(.drew(seat: seat, card: card.descriptor, id: card.id))
@@ -2431,11 +2501,11 @@ enum Rules {
             state[seat].injuries.removeAll()
             state[seat].injuryUnlocked = []
         } else if effect.drawIfUninjured > 0 {
-            drawBatch(seat, count: effect.drawIfUninjured, state: &state,
+            drawTogether([seat], count: effect.drawIfUninjured, state: &state,
                       events: &events, depth: depth + 1)
         }
         if effect.draws > 0 {
-            drawBatch(seat, count: effect.draws, state: &state, events: &events,
+            drawTogether([seat], count: effect.draws, state: &state, events: &events,
                       depth: depth + 1)
         }
         if effect.drawsOnNextMake > 0 {
@@ -2444,7 +2514,7 @@ enum Rules {
         if let target = effect.drawUpTo {
             while state[seat].bag.count < target {
                 let before = state[seat].bag.count
-                draw(seat, state: &state, events: &events, depth: depth + 1)
+                drawOnce(seat, state: &state, events: &events, depth: depth + 1)
                 if state[seat].bag.count == before { break }
             }
         }
@@ -2454,17 +2524,15 @@ enum Rules {
         if effect.shotForHolder != 0 { state.holderShot += effect.shotForHolder }
         // In The Zone: a card for every 10% the ball is worth. A cold ball still pays one.
         if effect.drawsPerTenPercentShot {
-            drawBatch(seat, count: max(1, state.shot / 10), state: &state, events: &events,
+            drawTogether([seat], count: max(1, state.shot / 10), state: &state, events: &events,
                       depth: depth + 1)
         }
         if effect.skipsNextDraw { state.skipsNextDraw = true }
         // Somebody has to call a timeout. With no referee on the floor there is nobody
         // to call it, and the card is a card for everybody instead.
         if effect.requiresReferee, state.armedWhistles.isEmpty {
-            for other in Seat.allCases {
-                drawBatch(other, count: effect.everyoneDrawsInstead, state: &state,
-                          events: &events, depth: depth + 1)
-            }
+            drawTogether(Seat.allCases, count: effect.everyoneDrawsInstead,
+                         state: &state, events: &events, depth: depth + 1)
         } else {
             if effect.healsAllInjuries {
                 for other in Seat.allCases where !state[other].injuries.isEmpty {
@@ -2488,10 +2556,13 @@ enum Rules {
                 state[other].bag.removeAll()
             }
             state.deck = state.shuffled(state.deck)
+            state.drawChain += 1
             for (other, count) in sizes {
-                drawBatch(other, count: count, state: &state, events: &events,
+                drawCards(other, count: count, state: &state, events: &events,
                           depth: depth + 1)
             }
+            state.drawChain -= 1
+            if state.drawChain == 0 { drainBreaks(state: &state, events: &events) }
         }
         if effect.swapsHandsAtRandom {
             // Somebody else, and the deal is done where they stand: two bags change
@@ -2560,15 +2631,13 @@ enum Rules {
                             state: &state, events: &events)
         }
         for _ in 0..<effect.everyoneDraws {
-            for other in Seat.allCases { draw(other, state: &state, events: &events) }
+            drawTogether(Seat.allCases, count: 1, state: &state, events: &events)
         }
         // Role Player: everybody else eats. Batched, so a Shot Creator on one of them
         // pays once rather than once a card.
         if effect.othersDraw > 0 {
-            for other in Seat.allCases where other != seat {
-                drawBatch(other, count: effect.othersDraw, state: &state, events: &events,
-                          depth: depth + 1)
-            }
+            drawTogether(Seat.allCases.filter { $0 != seat }, count: effect.othersDraw,
+                         state: &state, events: &events, depth: depth + 1)
         }
         if effect.waivesBreaks > 0 { state.breaksWaived += effect.waivesBreaks }
         if effect.givesBallAway, let holder = state.ball {
@@ -2649,8 +2718,16 @@ enum Rules {
     }
 
     /// Draws one card. Exposed only so the harness can exercise draw-time effects.
+    /// Deals several in at once, the way a Timeout does, so a test can watch the order a
+    /// draw and what it turns up come out in.
+    static func testDrawAll(_ seats: [Seat], count: Int,
+                            state: inout GameState, events: inout [GameEvent]) {
+        drawTogether(seats, count: count, state: &state, events: &events)
+        handOverBall(state: &state, events: &events)
+    }
+
     static func testDraw(_ seat: Seat, state: inout GameState, events: inout [GameEvent]) {
-        draw(seat, state: &state, events: &events)
+        drawOnce(seat, state: &state, events: &events)
         // Play resolves what a draw queued; a test drawing straight into the deck has to
         // do the same or it is testing a state the game never sits in.
         handOverBall(state: &state, events: &events)

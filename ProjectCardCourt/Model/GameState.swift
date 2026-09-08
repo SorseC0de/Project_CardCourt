@@ -169,6 +169,19 @@ enum Phase: Hashable, Codable {
     }
 }
 
+/// A Game Break taken off the deck and held until the draw that turned it up is done.
+///
+/// It carries its own depth, because resolving it can draw again and the run of Breaks
+/// still has to be bounded — see `Rules.draw`.
+struct PendingBreak: Codable, Hashable {
+    let seat: Seat
+    let card: Card
+    let depth: Int
+    /// Whether the draw that turned it up was itself replacing a waved Break. Play-On is
+    /// spent on the first one and the run carries on without it.
+    let waving: Bool
+}
+
 struct GameState: Codable {
     /// Frozen at creation — see MatchRules.
     let rules: MatchRules
@@ -227,6 +240,23 @@ struct GameState: Codable {
     /// Queued rather than dumped where it lands. Turning it up on the second card of an
     /// opening deal should cost the hand you end up with, not the one card you had.
     var handsOwed: Set<Seat> = []
+    /// **Game Breaks turned up by a draw, waiting for the draw to finish.**
+    ///
+    /// A draw is one act however many cards it moves and however many people it moves
+    /// them to: "everyone draws 1" is a draw, not four, and a card that draws two is one
+    /// draw of two. Nothing a draw turns up may resolve while cards are still being
+    /// taken — a Break that fired mid-chain moved SHOT under the rest of the draws, took
+    /// the ball off a man still owed cards, and asked a player about a full board before
+    /// the card that filled it had arrived.
+    ///
+    /// They come out in the order they went in, and resolving one can queue more behind
+    /// it — see `Rules.drainBreaks(state:events:)`.
+    var pendingBreaks: [PendingBreak] = []
+    /// How many draws are still open. The queue is drained when the last one closes.
+    var drawChain = 0
+    /// Set by anything that ends the possession the draws belonged to, which throws the
+    /// rest of the chain away — see `Whistle.endsPossessionOnDraw`.
+    var chainBroken = false
     /// Boards holding more passives than the rules allow, waiting to be asked which goes.
     /// Queued for the same reason a hand is: the phase set where the overflow happens is
     /// overwritten by whatever the draw chain does next.
