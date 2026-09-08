@@ -86,6 +86,8 @@ struct CardInk {
         let tuned = CardTextTuning.shared
         ink.text = tuned.ink(for: type)
         ink.keyword = tuned.keywordInk(for: type)
+        ink.ring = tuned.ringInk(for: type)
+        ink.plate = tuned.plateInk(for: type)
         return ink
     }
 

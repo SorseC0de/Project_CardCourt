@@ -129,7 +129,9 @@ struct SmokeBench: View {
                 }
                 Button("print") {
                     UIPasteboard.general.string = tune.source
-                    print(tune.source)
+                    // The console as well as the clipboard: a device is not always
+                    // plugged into the machine the source lives on.
+                    DevLog.say(.bench, "SmokeStyle\n" + tune.source)
                 }
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(CardPalette.gold)

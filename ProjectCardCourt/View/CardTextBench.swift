@@ -45,19 +45,19 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
     var label: String { self == .lightBlue ? "lt blue" : rawValue }
 }
 
-/// **How a card's effect text is set.** The frozen numbers, and the only copy of them.
+/// **How a card's effect text is set.** The frozen printing, and the only copy of it.
 ///
-/// A card is the whole of what a player has to read, and the printing had been settled
-/// one card at a time in five different views. Everything the words do — how big, how far
-/// apart, what colour on which body, whether they carry a drop, where the mark under them
-/// sits — is a dial here and nowhere else. See `CardTextBench`.
+/// A card is the whole of what a player has to read, and this had been settled one card
+/// at a time across five views and two enums — which is how seven types ended up printed
+/// seven different ways. **One set of numbers for all of them**: the same size, the same
+/// spacing, the same face. Only the colours are per type, because only the bodies are.
+///
+/// See `CardTextBench`, where all of it is on a dial.
 enum CardTextStyle {
-    // MARK: The words
-
     /// Against the card's width, so a hand card and a gallery card are one drawing.
-    static let size: CGFloat = 56 / CardMetrics.shape.width
+    static let size: CGFloat = 0.09
     /// How far in from each edge the column sits.
-    static let inset: CGFloat = 0.05
+    static let inset: CGFloat = 0.075
     /// Line to line, against the face's own line height. Under one is tighter than the
     /// font was drawn to be, which is what a card wants.
     static let lineHeight: CGFloat = 0.75
@@ -65,47 +65,54 @@ enum CardTextStyle {
     static let tracking: CGFloat = -0.05
     /// Where the column's middle sits down the card.
     static let y: CGFloat = 0.75
+    /// The cut the words are set in.
+    static let weight: CardFont.Weight = .semibold
 
-    // MARK: The drop
-
-    /// Whether marked words carry a hard drop under them at all.
+    /// Whether marked words carry a hard drop under them, and how far it falls against
+    /// the card's width.
     static let shadows = true
-    /// How far it falls, against the card's width. South-east, as everything else in the
-    /// game does.
-    static let shadowDrop: CGFloat = 0.014
+    static let shadowDrop: CGFloat = 0.015
 
-    // MARK: The pictures in the line
-
-    /// The little mark that leads a keyword, against the type size.
-    static let glyphShare: CGFloat = 0.85
-    /// And how far it rides above the line, against the type size — a picture sitting on
-    /// the baseline reads as a letter rather than as a mark beside the writing.
+    /// The little mark that leads a keyword, against the type size — and how far it rides
+    /// above the line, so it reads as a mark beside the writing rather than as a letter.
+    static let glyphShare: CGFloat = 1
     static let glyphLift: CGFloat = 0
 
-    // MARK: The mark at the foot
-
-    /// The shoot and dribble marks along the bottom edge, against the card's width.
-    static let footSize: CGFloat = 0.30 * 0.75
-    /// How far off the bottom edge, against the card's height.
+    /// The shoot and dribble marks along the bottom edge: how big against the card's
+    /// width, how far off the bottom against its height, and how far the words lift to
+    /// make room for one.
+    static let footSize: CGFloat = 0.225
     static let footBottom: CGFloat = 0.04
-    /// How far the words lift to make room when there is one.
     static let footLift: CGFloat = 0.09
 
-    // MARK: Per type
-
-    /// **What the body text is printed in, per type.** It has to be per type because the
-    /// bodies are: navy on a near-black Intangible is lettering nobody can find.
+    /// **What the body text is printed in, per type.** The one thing that has to differ:
+    /// navy on a near-black Intangible is lettering nobody can find.
     static let text: [CardType: CardTextInk] = [
-        .pass: .navy, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .pass: .white, .move: .navy, .specialMove: .navy, .clamp: .navy,
         .whistle: .black, .gameBreak: .white, .intangible: .white,
     ]
 
-    /// **What a named mechanic is printed in, per type.** Orange keywords on an orange
-    /// body are the card saying its own mechanic in its own colour, which is the same as
-    /// not saying it.
+    /// **And what a named mechanic inside it is printed in.** Orange on an orange body is
+    /// the card saying its own mechanic in its own colour, which is the same as not
+    /// saying it.
     static let keyword: [CardType: CardTextInk] = [
-        .pass: .orange, .move: .blue, .specialMove: .orange, .clamp: .orange,
+        .pass: .gold, .move: .blue, .specialMove: .orange, .clamp: .orange,
         .whistle: .orange, .gameBreak: .orange, .intangible: .orange,
+    ]
+
+    /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
+    /// in, so the one body that *is* that navy has to turn it over.
+    static let ring: [CardType: CardTextInk] = [
+        .pass: .navy, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .whistle: .navy, .gameBreak: .navy, .intangible: .gold,
+    ]
+
+    /// **The drop under the name plate**, per type. The plate itself is gold whatever the
+    /// body is; what falls behind it is the question, and blue behind gold on a dark body
+    /// reads as nothing at all.
+    static let plate: [CardType: CardTextInk] = [
+        .pass: .blue, .move: .blue, .specialMove: .blue, .clamp: .blue,
+        .whistle: .blue, .gameBreak: .gold, .intangible: .gold,
     ]
 }
 
@@ -120,6 +127,7 @@ final class CardTextTuning {
     var lineHeight = CardTextStyle.lineHeight
     var tracking = CardTextStyle.tracking
     var y = CardTextStyle.y
+    var weight = CardTextStyle.weight
 
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
@@ -131,25 +139,27 @@ final class CardTextTuning {
     var footBottom = CardTextStyle.footBottom
     var footLift = CardTextStyle.footLift
 
+    /// The only half that is per type.
     var text = CardTextStyle.text
     var keyword = CardTextStyle.keyword
+    var ring = CardTextStyle.ring
+    var plate = CardTextStyle.plate
 
-    func ink(for type: CardType) -> Color {
-        (text[type] ?? .navy).colour
-    }
-    func keywordInk(for type: CardType) -> Color {
-        (keyword[type] ?? .orange).colour
-    }
+    func ink(for type: CardType) -> Color { (text[type] ?? .navy).colour }
+    func keywordInk(for type: CardType) -> Color { (keyword[type] ?? .orange).colour }
+    func ringInk(for type: CardType) -> Color { (ring[type] ?? .navy).colour }
+    func plateInk(for type: CardType) -> Color { (plate[type] ?? .blue).colour }
 
     func reset() {
         size = CardTextStyle.size; inset = CardTextStyle.inset
         lineHeight = CardTextStyle.lineHeight; tracking = CardTextStyle.tracking
-        y = CardTextStyle.y
+        y = CardTextStyle.y; weight = CardTextStyle.weight
         shadows = CardTextStyle.shadows; shadowDrop = CardTextStyle.shadowDrop
         glyphShare = CardTextStyle.glyphShare; glyphLift = CardTextStyle.glyphLift
         footSize = CardTextStyle.footSize; footBottom = CardTextStyle.footBottom
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
+        ring = CardTextStyle.ring; plate = CardTextStyle.plate
     }
 
     /// The dials as `CardTextStyle`, ready to paste over it.
@@ -165,6 +175,7 @@ final class CardTextTuning {
         static let lineHeight: CGFloat = \(n(lineHeight))
         static let tracking: CGFloat = \(n(tracking))
         static let y: CGFloat = \(n(y))
+        static let weight: CardFont.Weight = .\(weight)
         static let shadows = \(shadows)
         static let shadowDrop: CGFloat = \(n(shadowDrop))
         static let glyphShare: CGFloat = \(n(glyphShare))
@@ -174,6 +185,8 @@ final class CardTextTuning {
         static let footLift: CGFloat = \(n(footLift))
         static let text: [CardType: CardTextInk] = [\(table(text))]
         static let keyword: [CardType: CardTextInk] = [\(table(keyword))]
+        static let ring: [CardType: CardTextInk] = [\(table(ring))]
+        static let plate: [CardType: CardTextInk] = [\(table(plate))]
         """
     }
 }
@@ -189,7 +202,6 @@ struct CardTextBench: View {
     var onDismiss: () -> Void = {}
 
     @State private var tune = CardTextTuning.shared
-    @State private var cardFont = CardFont.shared
     @State private var type: CardType = .move
     @State private var raised = false
     @State private var open = true
@@ -236,7 +248,9 @@ struct CardTextBench: View {
             HStack(spacing: 8) {
                 Button("print") {
                     UIPasteboard.general.string = tune.source
-                    print(tune.source)
+                    // The console as well as the clipboard: a device is not always
+                    // plugged into the machine the source lives on.
+                    DevLog.say(.bench, "CardTextStyle\n" + tune.source)
                 }
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(CardPalette.gold)
@@ -247,9 +261,6 @@ struct CardTextBench: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.white)
                 chip(raised ? "raised" : "in hand", on: true) { raised.toggle() }
-                chip("font: \(cardFont.weight.label)", on: true) {
-                    cardFont.weight = cardFont.weight.next
-                }
                 Spacer()
                 Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
                     Image(systemName: open ? "chevron.down" : "chevron.up")
@@ -270,12 +281,23 @@ struct CardTextBench: View {
                                 }
                             }
                         }
+                        // **One set for all seven.** Only the colours below are per
+                        // type — see `CardTextStyle`.
                         heading("the words")
                         dial("size", $tune.size, 0.04...0.16)
                         dial("padding", $tune.inset, 0...0.2)
                         dial("line gap", $tune.lineHeight, 0.5...1.6)
                         dial("letter gap", $tune.tracking, -0.15...0.15)
                         dial("y", $tune.y, 0.4...1)
+                        row("face", tune.weight.label) {
+                            HStack(spacing: 3) {
+                                ForEach(CardFont.Weight.allCases, id: \.self) { cut in
+                                    chip(cut.label, on: tune.weight == cut) {
+                                        tune.weight = cut
+                                    }
+                                }
+                            }
+                        }
                         heading("the drop")
                         row("shadows", tune.shadows ? "on" : "off") {
                             HStack(spacing: 3) {
@@ -291,11 +313,14 @@ struct CardTextBench: View {
                         dial("size", $tune.footSize, 0.05...0.6)
                         dial("off bottom", $tune.footBottom, 0...0.2)
                         dial("words lift", $tune.footLift, 0...0.3)
-                        // Per type, because the bodies are — see `CardTextStyle.text`.
-                        heading("\(type.shortLabel): the words")
+                        heading("\(type.shortLabel): the ink")
                         inks(tune.text[type] ?? .navy) { tune.text[type] = $0 }
                         heading("\(type.shortLabel): the mechanics")
                         inks(tune.keyword[type] ?? .orange) { tune.keyword[type] = $0 }
+                        heading("\(type.shortLabel): the inner ring")
+                        inks(tune.ring[type] ?? .navy) { tune.ring[type] = $0 }
+                        heading("\(type.shortLabel): under the name")
+                        inks(tune.plate[type] ?? .blue) { tune.plate[type] = $0 }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)
                 }

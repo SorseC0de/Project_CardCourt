@@ -25,11 +25,14 @@ enum DevLog {
         case deck
         /// The wire: signing in, matchmaking, and what crosses between devices.
         case net
+        /// What a bench settled on, printed so it can be lifted out of the console and
+        /// pasted straight back into the source it came from.
+        case bench
     }
 
     /// Switch a channel off when it drowns out what is being chased.
     static var channels: Set<Tag> = Set(
-        [.input, .shot, .card, .phase, .whistle, .freeThrow, .deck, .net])
+        [.input, .shot, .card, .phase, .whistle, .freeThrow, .deck, .net, .bench])
 
     /// Wall clock to the millisecond, and how long since the line before it.
     ///

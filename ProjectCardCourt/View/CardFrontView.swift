@@ -7,12 +7,12 @@ import SwiftUI
 /// plate, name, then the SHOT badge.
 struct CardFrontView: View {
     /// Observed, not just read — otherwise the bench's weight button changes nothing.
-    @State private var cardFont = CardFont.shared
     /// The icon and badge dials — see `IconBench`. Frozen numbers live in `IconTuning`
     /// itself, so nothing here changes until the bench is used.
     @State private var icons = IconTuning.shared
-    /// Everything about how the words are set — see `CardTextBench`.
-    @State private var type = CardTextTuning.shared
+    /// Everything about how the words are set — see `CardTextBench`. **One set for all
+    /// seven types**; only the two colours in it are asked per card.
+    @State private var set = CardTextTuning.shared
 
     let descriptor: CardDescriptor
     /// Width in points. Everything else is a fraction of it, so the card holds together
@@ -148,7 +148,7 @@ struct CardFrontView: View {
     private var dribbleMark: some View {
         // A symbol's font size is its whole height, where the shoot icon's frame is a box
         // the drawing fits inside — so the same number came out a good deal bigger here.
-        let side = width * type.footSize * CardLayout.dribbleSymbolShare
+        let side = width * set.footSize * CardLayout.dribbleSymbolShare
         let drop = width * CardLayout.iconShadowFraction
         return VStack {
             Spacer()
@@ -157,14 +157,14 @@ struct CardFrontView: View {
                 .foregroundStyle(.white)
                 .shadow(color: CardLayout.iconShadow(for: descriptor.type),
                         radius: 0, x: drop, y: drop)
-                .padding(.bottom, height * type.footBottom)
+                .padding(.bottom, height * set.footBottom)
         }
     }
 
     /// Bottom-centre, in place of the words it replaces.
     private var shootMark: some View {
         // Small: it is a footnote under the effect, not the card's icon.
-        let side = width * type.footSize
+        let side = width * set.footSize
         let drop = width * CardLayout.iconShadowFraction
         return VStack {
             Spacer()
@@ -180,7 +180,7 @@ struct CardFrontView: View {
                     ThreeHandMark(width: side, shadowOffset: drop)
                 }
             }
-            .padding(.bottom, height * type.footBottom)
+            .padding(.bottom, height * set.footBottom)
         }
     }
 
@@ -200,25 +200,25 @@ struct CardFrontView: View {
     }
 
     private var effectText: some View {
-        let size = width * type.size
-        let inset = width * type.inset
+        let size = width * set.size
+        let inset = width * set.inset
         return TightText(text: expanded ? descriptor.detailedEffect
                                        : descriptor.printedEffect,
-                         font: cardFont.name,
+                         font: CardFont.name(set.weight),
                          size: size,
                          width: width - inset * 2,
-                         lineHeight: type.lineHeight,
-                         tracking: size * type.tracking,
-                         markShadowOffset: type.shadows ? width * type.shadowDrop : 0,
+                         lineHeight: set.lineHeight,
+                         tracking: size * set.tracking,
+                         markShadowOffset: set.shadows ? width * set.shadowDrop : 0,
                          glyphs: CardLayout.keywordGlyphs,
-                         glyphShare: type.glyphShare * icons.badgeScale,
-                         glyphLift: type.glyphLift,
+                         glyphShare: set.glyphShare * icons.badgeScale,
+                         glyphLift: set.glyphLift,
                          type: descriptor.type,
                          ink: effectColour)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
-                      y: height * (type.y
-                                   - (descriptor.takesShot ? type.footLift : 0)))
+                      y: height * (set.y
+                                   - (descriptor.takesShot ? set.footLift : 0)))
     }
 
     // MARK: - Layers

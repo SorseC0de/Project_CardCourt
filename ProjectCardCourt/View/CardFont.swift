@@ -16,7 +16,7 @@ final class CardFont {
 
     /// The cuts being compared: four weights of Semi Condensed, then the narrower plain
     /// Condensed at bold for the width rather than the weight.
-    enum Weight: String, CaseIterable {
+    enum Weight: String, CaseIterable, Hashable {
         case semibold = "SemiCondensed-SemiBold"
         case bold = "SemiCondensed-Bold"
         case extraBold = "SemiCondensed-ExtraBold"
@@ -41,7 +41,13 @@ final class CardFont {
 
     /// The name to hand `Font.custom`. Falls back to the game's own face if Barlow did
     /// not register, so a missing font looks like the old text rather than like nothing.
-    var name: String { CardFont.registered ? weight.fontName : "AvenirNextCondensed-Bold" }
+    var name: String { CardFont.name(weight) }
+
+    /// The face for a given cut. **Per card type now** — see `CardTextSet.weight` — so
+    /// this is asked for a weight rather than for the one global choice.
+    static func name(_ weight: Weight) -> String {
+        registered ? weight.fontName : "AvenirNextCondensed-Bold"
+    }
 
     private static let registered: Bool = {
         var ok = true
