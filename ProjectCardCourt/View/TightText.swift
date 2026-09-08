@@ -16,8 +16,11 @@ struct TightText: View {
     let width: CGFloat
     /// Below 1 pulls the lines together; 1 is the font's own leading.
     var lineHeight: CGFloat = 1
-    var tracking: CGFloat = 0
     var maxLines = 4
+    /// How small it may shrink to fit. One is not at all — see `CardTextStyle.minScale`.
+    var minScale: CGFloat = 1
+    var tracking: CGFloat = 0
+
     /// Tried largest first; the first that fits within `maxLines` wins. Short effects end
     /// up large, long ones settle back to the base size.
     var scaleSteps: [CGFloat] = [1.25, 1.15, 1.05, 1]
@@ -90,7 +93,7 @@ struct TightText: View {
             .foregroundStyle(ink)
             .multilineTextAlignment(.center)
             .lineLimit(maxLines)
-            .minimumScaleFactor(0.55)
+            .minimumScaleFactor(minScale)
             .frame(width: width)
     }
 

@@ -68,9 +68,9 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
 /// See `CardTextBench`, where all of it is on a dial.
 enum CardTextStyle {
     /// Against the card's width, so a hand card and a gallery card are one drawing.
-    static let size: CGFloat = 0.09
+    static let size: CGFloat = 0.1
     /// How far in from each edge the column sits.
-    static let inset: CGFloat = 0.075
+    static let inset: CGFloat = 0.05
     /// Line to line, against the face's own line height. Under one is tighter than the
     /// font was drawn to be, which is what a card wants.
     static let lineHeight: CGFloat = 0.75
@@ -81,10 +81,20 @@ enum CardTextStyle {
     /// The cut the words are set in.
     static let weight: CardFont.Weight = .semibold
 
+    /// **How small a card is allowed to shrink to fit, and how many lines it may take.**
+    ///
+    /// One is no shrinking at all, which is the point: shrinking to fit sets every card
+    /// at a different size, and a Clamp's four words beside a Move's dozen then read as
+    /// two different faces. One size for all of them, and a card with too much to say
+    /// takes another line — or is too wordy, which is a thing worth seeing rather than
+    /// hiding.
+    static let minScale: CGFloat = 1
+    static let maxLines = 6
+
     /// Whether marked words carry a hard drop under them, and how far it falls against
     /// the card's width.
-    static let shadows = true
-    static let shadowDrop: CGFloat = 0.015
+    static let shadows = false
+    static let shadowDrop: CGFloat = 0.02
 
     /// One of the marks that can stand in the row at the foot of a card.
     ///
@@ -97,24 +107,34 @@ enum CardTextStyle {
     /// you do, whether it shoots. How big against the card's width, how far apart against
     /// their own side, how far off the bottom against the card's height, and how far the
     /// words lift to make room for them.
-    static let footSize: CGFloat = 0.225
+    static let footSize: CGFloat = 0.25
     static let footGap: CGFloat = 0.18
-    static let footBottom: CGFloat = 0.04
-    static let footLift: CGFloat = 0.09
+    static let footBottom: CGFloat = 0.01
+    static let footLift: CGFloat = 0.025
+
+    /// **The drop under the marks in the row**, and what colour it falls in. Its own,
+    /// not the big icon's: they sit on a different part of the card and one of them is
+    /// twice the size of the other.
+    static let footDrop: CGFloat = 0.014
+    static let footShade: [CardType: CardTextInk] = [
+        .pass: .blue, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
+    ]
 
     /// **Each mark against the row's own size.** Separate drawings on separate artboards
     /// — see `FootMark`.
     static let footScale: [FootMark: CGFloat] = [
-        .ball: 1, .draw: 1, .discard: 1, .lock: 1, .shoot: 1, .three: 1, .dribble: 1,
+        .ball: 0.8, .draw: 0.8, .discard: 0.7, .lock: 1,
+        .shoot: 1, .three: 1, .dribble: 0.95,
     ]
 
     /// The card's big icon, against `CardLayout.iconSizeFraction`.
-    static let iconScale: CGFloat = 1
+    static let iconScale: CGFloat = 0.8
 
     /// **The hard drop under that icon**, per type — the one colour of the four that is
     /// not about the words.
     static let iconShade: [CardType: CardTextInk] = [
-        .pass: .navy, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .navy,
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
     ]
 
@@ -140,7 +160,7 @@ enum CardTextStyle {
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
     /// in, so the one body that *is* that navy has to turn it over.
     static let ring: [CardType: CardTextInk] = [
-        .pass: .navy, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .navy,
         .whistle: .navy, .gameBreak: .navy, .intangible: .gold,
     ]
 
@@ -148,7 +168,7 @@ enum CardTextStyle {
     /// body is; what falls behind it is the question, and blue behind gold on a dark body
     /// reads as nothing at all.
     static let plate: [CardType: CardTextInk] = [
-        .pass: .blue, .move: .blue, .specialMove: .blue, .clamp: .blue,
+        .pass: .gold, .move: .blue, .specialMove: .blue, .clamp: .blue,
         .whistle: .blue, .gameBreak: .gold, .intangible: .gold,
     ]
 }
@@ -172,6 +192,12 @@ final class CardTextTuning {
     var footSize = CardTextStyle.footSize
     var footGap = CardTextStyle.footGap
     var footScale = CardTextStyle.footScale
+    var footDrop = CardTextStyle.footDrop
+    var footShade = CardTextStyle.footShade
+    var minScale = CardTextStyle.minScale
+    var maxLines = CardTextStyle.maxLines
+
+    func footShadeInk(for type: CardType) -> Color { (footShade[type] ?? .navy).colour }
     var iconScale = CardTextStyle.iconScale
     var iconShade = CardTextStyle.iconShade
     var highlight = CardTextStyle.highlight
@@ -204,6 +230,8 @@ final class CardTextTuning {
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
+        footDrop = CardTextStyle.footDrop; footShade = CardTextStyle.footShade
+        minScale = CardTextStyle.minScale; maxLines = CardTextStyle.maxLines
     }
 
     /// The dials as `CardTextStyle`, ready to paste over it.
@@ -220,6 +248,8 @@ final class CardTextTuning {
         static let tracking: CGFloat = \(n(tracking))
         static let y: CGFloat = \(n(y))
         static let weight: CardFont.Weight = .\(weight)
+        static let minScale: CGFloat = \(n(minScale))
+        static let maxLines = \(maxLines)
         static let shadows = \(shadows)
         static let shadowDrop: CGFloat = \(n(shadowDrop))
         static let footSize: CGFloat = \(n(footSize))
@@ -231,6 +261,8 @@ final class CardTextTuning {
         static let ring: [CardType: CardTextInk] = [\(table(ring))]
         static let plate: [CardType: CardTextInk] = [\(table(plate))]
         static let iconShade: [CardType: CardTextInk] = [\(table(iconShade))]
+        static let footDrop: CGFloat = \(n(footDrop))
+        static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
         static let iconScale: CGFloat = \(n(iconScale))
         static let highlight = \(highlight)
         static let footScale: [FootMark: CGFloat] = [\(
@@ -347,6 +379,19 @@ struct CardTextBench: View {
                                 }
                             }
                         }
+                        // **One is no shrinking.** Shrinking to fit sets every card at a
+                        // different size, which is what had Clamp and Move reading as
+                        // two different faces.
+                        dial("min scale", $tune.minScale, 0.4...1)
+                        row("lines", "\(tune.maxLines)") {
+                            HStack(spacing: 3) {
+                                ForEach(3...8, id: \.self) { count in
+                                    chip("\(count)", on: tune.maxLines == count) {
+                                        tune.maxLines = count
+                                    }
+                                }
+                            }
+                        }
                         heading("the drop")
                         // **Off.** Inking the marked spans costs the wrap — see
                         // `TightText.highlight`. Here so it can be looked at again.
@@ -372,6 +417,10 @@ struct CardTextBench: View {
                         dial("gap", $tune.footGap, 0...1)
                         dial("off bottom", $tune.footBottom, 0...0.2)
                         dial("words lift", $tune.footLift, 0...0.3)
+                        dial("drop", $tune.footDrop, 0...0.05)
+                        heading("\(type.shortLabel): under the marks")
+                        inks(tune.footShade[type] ?? .navy) { tune.footShade[type] = $0 }
+                        heading("each mark")
                         // **Each one against the row.** They are separate drawings on
                         // separate artboards — see `FootMark`.
                         ForEach(FootMark.allCases, id: \.self) { mark in

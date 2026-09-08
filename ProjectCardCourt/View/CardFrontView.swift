@@ -174,6 +174,9 @@ struct CardFrontView: View {
                         dribbleMark(side * set.scale(of: .dribble))
                     }
                 }
+                // One drop for the whole row, so six drawings fall the same way.
+                .shadow(color: set.footShadeInk(for: descriptor.type), radius: 0,
+                        x: width * set.footDrop, y: width * set.footDrop)
                 .padding(.bottom, height * set.footBottom)
             }
         }
@@ -213,9 +216,6 @@ struct CardFrontView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: side, height: side)
-                .shadow(color: CardPalette.blue, radius: 0,
-                        x: width * CardLayout.ballShadowFraction,
-                        y: width * CardLayout.ballShadowFraction)
             percentage(shot, across: side)
                 .shadow(color: .black, radius: 0,
                         x: width * CardLayout.badgeShadowFraction,
@@ -230,12 +230,9 @@ struct CardFrontView: View {
         // A symbol's font size is its whole height, where the drawn marks beside it are a
         // box the drawing fits inside — so the same number comes out a good deal bigger.
         let side = row * CardLayout.dribbleSymbolShare
-        let drop = width * CardLayout.iconShadowFraction
         return Image(systemName: CardLayout.dribbleSymbol)
             .font(.system(size: side, weight: .heavy))
-            .foregroundStyle(.white)
-            .shadow(color: set.iconShadeInk(for: descriptor.type),
-                    radius: 0, x: drop, y: drop)
+            .foregroundStyle(effectColour)
             .frame(width: row, height: row)
     }
 
@@ -254,8 +251,6 @@ struct CardFrontView: View {
                 .scaledToFit()
                 .frame(width: shoot, height: shoot)
                 .foregroundStyle(effectColour)
-                .shadow(color: set.iconShadeInk(for: descriptor.type),
-                        radius: 0, x: drop, y: drop)
             if descriptor.isThree {
                 ThreeHandMark(width: row * set.scale(of: .three), shadowOffset: drop)
             }
@@ -286,6 +281,8 @@ struct CardFrontView: View {
                          size: size,
                          width: width - inset * 2,
                          lineHeight: set.lineHeight,
+                         maxLines: set.maxLines,
+                         minScale: set.minScale,
                          tracking: size * set.tracking,
                          markShadowOffset: set.shadows ? width * set.shadowDrop : 0,
                          // **No pictures in the line.** They are a row at the foot now
