@@ -138,9 +138,13 @@ enum CardTextStyle {
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
     ]
 
-    /// Whether the marked spans inside the words are inked. **Off** — see
-    /// `TightText.highlight`.
-    static let highlight = false
+    /// Whether the marked spans inside the words are inked.
+    ///
+    /// **On again.** It was turned off because colouring a span cost the line breaks —
+    /// a run had to be its own view to carry a shadow, and views in a row do not wrap.
+    /// One `AttributedString` inks every run and still wraps as one string, so the
+    /// colour is free. See `CardText`.
+    static let highlight = true
 
     /// **What the body text is printed in, per type.** The one thing that has to differ:
     /// navy on a near-black Intangible is lettering nobody can find.
@@ -393,8 +397,8 @@ struct CardTextBench: View {
                             }
                         }
                         heading("the drop")
-                        // **Off.** Inking the marked spans costs the wrap — see
-                        // `TightText.highlight`. Here so it can be looked at again.
+                        // **On.** Inking a span costs nothing now it is one string — see
+                        // `CardText`. Free now that one AttributedString inks every run.
                         row("highlight", tune.highlight ? "on" : "off") {
                             HStack(spacing: 3) {
                                 chip("on", on: tune.highlight) { tune.highlight = true }

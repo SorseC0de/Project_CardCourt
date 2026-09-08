@@ -37,6 +37,8 @@ struct FannedBagView: View {
     /// The card a controller is pointing at, and nothing at all when nobody has one
     /// plugged in — see `PadRing`.
     var ringed: Card.ID?
+    /// Handed the mechanic a reader pressed on a raised card — see `CardText`.
+    var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -79,7 +81,8 @@ struct FannedBagView: View {
 
                 CardFrontView(descriptor: card.descriptor, displayWidth: 76,
                               expanded: expanded,
-                              isDormant: dormant.contains(card.id))
+                              isDormant: dormant.contains(card.id),
+                              onKeyword: onKeyword)
                     .overlay {
                         // One wash, whatever it is for. A held card wears the same red a
                         // refused one does, because it is the same fact: this one is not

@@ -21,6 +21,8 @@ struct GameView: View {
     /// **Outside the sheet.** Every "pick one of these" in the game used to hold its own
     /// choice, which left a controller with nothing to write to — see `takeTheOffer(_:)`.
     @State private var picked: CardPick?
+    /// A mechanic somebody pressed on a card they were reading, and what it means.
+    @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
@@ -210,9 +212,16 @@ struct GameView: View {
                     .zIndex(9)
 
                 if let inspecting {
-                    InspectedCardView(card: inspecting.card, from: inspecting.from)
+                    InspectedCardView(card: inspecting.card, from: inspecting.from,
+                                      onKeyword: explain)
                         .id(inspecting.card.id)
                         .zIndex(9)
+                }
+                if let explaining {
+                    GlossaryPopup(title: explaining.title, says: explaining.says) {
+                        withAnimation(.easeOut(duration: 0.15)) { self.explaining = nil }
+                    }
+                    .zIndex(9.4)
                 }
                 if let played = controller.playedCard {
                     PlayedCardView(played: played, width: 210)
@@ -966,6 +975,13 @@ struct GameView: View {
         }
         .padding(.vertical, 34)
         .transition(.opacity)
+    }
+
+    /// Says what a mechanic is. **Only where there is something to say** — a marked word
+    /// with no entry stays inert rather than opening an empty note.
+    private func explain(_ word: String) {
+        guard let found = Glossary.meaning(of: word) else { return }
+        withAnimation(.easeOut(duration: 0.15)) { explaining = found }
     }
 
     // MARK: - The pad

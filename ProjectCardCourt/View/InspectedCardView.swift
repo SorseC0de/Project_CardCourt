@@ -10,12 +10,14 @@ struct InspectedCardView: View {
     let card: CardDescriptor
     /// The slot's centre, in global coordinates.
     let from: CGPoint
+    var onKeyword: ((String) -> Void)?
 
     @State private var arrived = false
 
     var body: some View {
         GeometryReader { geo in
-            CardFrontView(descriptor: card, displayWidth: 96, expanded: true)
+            CardFrontView(descriptor: card, displayWidth: 96, expanded: true,
+                          onKeyword: onKeyword)
                 .scaleEffect(arrived ? 2 : 0.3)
                 .opacity(arrived ? 1 : 0)
                 .position(arrived

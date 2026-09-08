@@ -20,6 +20,9 @@ struct CardFrontView: View {
     /// In play but unable to act — drained of colour rather than dimmed, so it still
     /// reads at a glance without looking merely faded.
     var isDormant = false
+    /// Handed the mechanic a reader pressed, when this card is raised to be read. Nil
+    /// leaves the words inert — see `CardText`.
+    var onKeyword: ((String) -> Void)?
 
 
     /// Everything inside is drawn at raster size; the whole thing is scaled back down
@@ -60,9 +63,27 @@ struct CardFrontView: View {
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
         // Flattened to one texture. Without it the overlay's blend mode costs an
         // offscreen pass per card, which a fanned hand pays for every frame.
-        .drawingGroup()
+        //
+        // **Except while it is raised.** A `drawingGroup` renders its subtree into an
+        // image, and an image takes no taps — so a keyword inside one cannot be pressed.
+        // A raised card is one card rather than a fan of them, so the pass it costs is
+        // affordable and the words become live.
+        .modifier(FlattenUnlessRead(live: expanded && onKeyword != nil))
         .scaleEffect(1 / CardLayout.rasterScale)
         .frame(width: displayWidth, height: displayWidth / CardMetrics.aspect)
+    }
+
+    /// Flattens the card to one texture, unless its words are meant to be pressed.
+    ///
+    /// A `drawingGroup` draws its subtree into an image, and an image takes no taps. A
+    /// fan of cards needs the flattening — the body's blend mode costs an offscreen pass
+    /// each, every frame — and a single raised card does not.
+    private struct FlattenUnlessRead: ViewModifier {
+        let live: Bool
+
+        @ViewBuilder func body(content: Content) -> some View {
+            if live { content } else { content.drawingGroup() }
+        }
     }
 
     private enum PassArt { case swingRight, swingLeft, skip, backPass }
@@ -275,26 +296,25 @@ struct CardFrontView: View {
     private var effectText: some View {
         let size = width * set.size
         let inset = width * set.inset
-        return TightText(text: expanded ? descriptor.detailedEffect
-                                       : descriptor.printedEffect,
-                         font: CardFont.name(set.weight),
-                         size: size,
-                         width: width - inset * 2,
-                         lineHeight: set.lineHeight,
-                         maxLines: set.maxLines,
-                         minScale: set.minScale,
-                         tracking: size * set.tracking,
-                         markShadowOffset: set.shadows ? width * set.shadowDrop : 0,
-                         // **No pictures in the line.** They are a row at the foot now
-                         // — see `footMarks`.
-                         glyphs: [:],
-                         type: descriptor.type,
-                         ink: effectColour,
-                         highlight: set.highlight)
+        return CardText(text: expanded ? descriptor.detailedEffect
+                                      : descriptor.printedEffect,
+                        font: CardFont.name(set.weight),
+                        size: size,
+                        lineHeight: set.lineHeight,
+                        tracking: size * set.tracking,
+                        maxLines: set.maxLines,
+                        minScale: set.minScale,
+                        ink: effectColour,
+                        highlight: set.highlight,
+                        type: descriptor.type,
+                        // **Only where a finger can reach it.** A card in the hand is
+                        // flattened to a texture and takes no taps at all; one raised to
+                        // be read is not, which is the only size the words can be
+                        // pressed at anyway.
+                        onKeyword: expanded ? onKeyword : nil)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
-                      y: height * (set.y
-                                   - (hasFootMarks ? set.footLift : 0)))
+                      y: height * (set.y - (hasFootMarks ? set.footLift : 0)))
     }
 
     // MARK: - Layers

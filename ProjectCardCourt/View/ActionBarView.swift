@@ -5,6 +5,8 @@ struct ActionBarView: View {
     let controller: GameController
     /// What a controller is pointing at. Nothing when nobody has one — see `PadRing`.
     var ringed: PadSpot?
+    /// Handed the mechanic a reader pressed on a raised card.
+    var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
 
@@ -82,6 +84,7 @@ struct ActionBarView: View {
                           onInspectReferees: onInspectReferees,
                           ringed: { if case .card(let id) = ringed { return id }
                                     else { return nil } }(),
+                          onKeyword: onKeyword,
                           detail: $detail,
                           onCommit: commit)
             asking

@@ -49,6 +49,9 @@ enum Marked {
     struct Run: Hashable {
         var text: String
         var ink: Ink?
+        /// The mechanic itself, without whatever number was written beside it. The run's
+        /// text already reads "Draw 2"; this is the half a glossary can be asked about.
+        var word: String?
         /// What the keyword is worth, when it is written as one: `#[Draw|2]` is a Draw of
         /// two, `#[Draw|?]` is a Draw of however many. Kept alongside the run's text,
         /// which already reads "Draw 2" — see `Marked.runs(of:)`.
@@ -104,7 +107,7 @@ enum Marked {
                 // sentence around it already says how many, as in "Up to 5 Draw".
                 runs.append(Run(text: value == nil || value == "?" ? word
                                 : "\(word) \(value!)",
-                                ink: ink, value: value))
+                                ink: ink, word: word, value: value))
                 index = text.index(after: close)
                 continue
             }

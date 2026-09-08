@@ -186,7 +186,7 @@ enum CardLayout {
     /// instead of it** — a card that says its mechanic only in pictures is a card you have
     /// to have been told about, which is what the experiment turned out to mean.
     static let badgeFraction: CGFloat = 0.26
-    /// What `TightText` falls back to when nobody says. The card itself always says —
+    /// What `CardText` falls back to when nobody says. The card itself always says —
     /// see `CardTextStyle.glyphShare`.
     static let keywordGlyphShare: CGFloat = 0.85
     /// And the whole middle of the card, when the badge is all the card says.
