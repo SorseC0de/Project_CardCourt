@@ -140,3 +140,21 @@ survives being small and being on a moving sprite wins.
 
 Open: whether the number is drawn into the sheet or laid over it, and whether it turns
 with the player.
+
+## Card text audit — stopped at Whistles
+
+Working through the card text type by type, in the order the sheet lists them: Pass, Move,
+Special Move, Clamp, **Whistle**, Game Break, Intangible.
+
+**Done:** Pass, Move, Special Move, Clamp.
+**Next:** Whistle, then Game Break, then Intangible.
+
+Picking it back up 2026-09-08.
+
+The bench is on the front screen, under Settings → **Card text**. It shows the three
+wordiest cards of whichever type at both sizes a card is read at, and `print` puts the
+whole of `CardTextStyle` on the clipboard and into the console on the `[bench]` channel.
+
+Everything but four colours is one set of numbers across all seven types — see
+`CardTextStyle`. The four that are per type: the words, the mechanics inside them, the
+inner ring, and the drop under the name plate. The drop under the big icon is a fifth.

@@ -36,31 +36,31 @@ enum CardLibrary {
 
     static let nutmeg = CardDescriptor(
         id: "nutmeg", name: "Nutmeg", type: .pass,
-        effect: "Pass Left or Right. A card follows it on to the next player. SHOT +5%",
+        effect: "Pass Left or Right. Knock 1 card to next player. SHOT +5%",
         numberInDeck: 6,
         passTarget: .leftOrRight, shotDelta: 5, stealsAlongPass: 1)
 
     static let noLook = CardDescriptor(
         id: "no-look", name: "No-Look", type: .pass,
-        effect: "Pass to a random other player. SHOT +5%", numberInDeck: 10,
+        effect: "Pass to random other player. SHOT +5%", numberInDeck: 10,
         passTarget: .random, shotDelta: 5)
 
     static let touchPass = CardDescriptor(
         id: "touch-pass", name: "Touch Pass", type: .pass,
-        effect: "Pass to a player of choice. SHOT +5%. #[Draw] 2 if it never stopped",
+        effect: "Pass to target player. SHOT +5%. #[Draw] 2 if it never stopped",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 5, drawIfFirstAction: 2)
 
     static let rightBack = CardDescriptor(
         id: "right-back", name: "Right Back", type: .pass,
-        effect: "Pass to a player of choice. SHOT +5%. They give it straight back",
+        effect: "Pass to target player to pass right back. SHOT +5%.",
         numberInDeck: 7,
         passTarget: .choice, passesToOthersOnly: true,
         shotDelta: 5, returnsImmediately: true)
 
     static let alleyOop = CardDescriptor(
         id: "alley-oop", name: "Alley-Oop", type: .pass,
-        effect: "Pass to a player of choice. SHOT +20%. They shoot at once",
+        effect: "Pass to target player. SHOT +20%. They must shoot.",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 20, forcesImmediateShot: true)
 
@@ -73,20 +73,20 @@ enum CardLibrary {
 
     static let outletPass = CardDescriptor(
         id: "outlet-pass", name: "Outlet Pass", type: .pass,
-        effect: "Pass to a player of choice. SHOT +10%. #[Shot Clock] +01",
+        effect: "Pass to target player. SHOT +10%. #[Shot Clock] +01",
         numberInDeck: 3,
         passTarget: .choice, shotDelta: 10, clockDelta: 1, replacesClockTick: true)
 
     static let kickOut = CardDescriptor(
         id: "kick-out", name: "Kick-Out", type: .pass,
-        effect: "Pass to a player of choice. SHOT +10%. The basket is a three",
+        effect: "Pass to target player. SHOT +10%. The shot becomes a three",
         numberInDeck: 3,
         passTarget: .choice, shotDelta: 10, comboAfter: "drive",
         comboDraw: 1, comboAssist: 1, upgradesToThree: true)
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
-        effect: "Pass to a player of choice. SHOT +5%. They #[Discard] 1 at random",
+        effect: "Pass to target player. SHOT +5%. They #[Discard] 1 at random",
         numberInDeck: 10,
         passTarget: .choice, shotDelta: 5, receiverDiscards: 1)
 
@@ -107,31 +107,31 @@ enum CardLibrary {
 
     static let spinMove = CardDescriptor(
         id: "spin-move", name: "Spin Move", type: .move,
-        effect: "SHOT +10%. #[Clear] every #[Clamp]: SHOT +10% each", numberInDeck: 10,
+        effect: "SHOT +10%. #[Clear] all #[Clamps]: SHOT +10% for each", numberInDeck: 10,
         shotDelta: 10, isDribble: true, shotPerClamp: 10, clearsClamps: true)
 
     static let crossover = CardDescriptor(
         id: "crossover", name: "Crossover", type: .move,
-        effect: "#[Draw] 1. SHOT +10%. #[Clear] every #[Clamp]: #[Draw] 1 and they #[Discard] 1 each",
+        effect: "#[Draw] 1. SHOT +10%. #[Clear] all #[Clamps]: #[Draw] 1 and Clamper #[Discards] 1 for each",
         numberInDeck: 5,
         shotDelta: 10, drawCount: 1, isDribble: true,
         drawPerClamp: 1, clamperDiscardsPerClamp: 1, clearsClamps: true)
 
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
-        effect: "#[Draw] 1. SHOT +10%. #[Shot Clock] -1", numberInDeck: 5,
+        effect: "#[Draw] 1. SHOT +10%. #[Shot Clock] -01", numberInDeck: 5,
         shotDelta: 10, drawCount: 1, clockDelta: -1, isDribble: true)
 
     /// The sheet's row is cut off after "If no Clamps on you," — so the card does what
     /// the written half says and nothing more. It greys out on an empty floor.
     static let ankleBreaker = CardDescriptor(
         id: "ankle-breaker", name: "Ankle Breaker", type: .move,
-        effect: "A player of choice #[Discards] 1. SHOT +10%", numberInDeck: 10,
+        effect: "#[Target] player #[Discards] 1. SHOT +10%", numberInDeck: 10,
         shotDelta: 10, targetDiscards: 1)
 
     static let hesi = CardDescriptor(
         id: "hesi", name: "Hesi", type: .move,
-        effect: "SHOT +10%. #[Shot Clock] -1", numberInDeck: 10,
+        effect: "SHOT +10%. #[Shot Clock] -01", numberInDeck: 10,
         shotDelta: 10, clockDelta: -1, isDribble: true)
 
     static let pumpFake = CardDescriptor(
@@ -141,27 +141,27 @@ enum CardLibrary {
 
     static let stepback = CardDescriptor(
         id: "stepback", name: "Stepback", type: .move,
-        effect: "SHOT +10%. You may #[Discard] 1 for another +10%", numberInDeck: 12,
+        effect: "SHOT +10%. You may #[Discard] 1 for additional SHOT +10%", numberInDeck: 12,
         shotDelta: 10, optionalDiscardForShot: 10)
 
     static let tripleThreat = CardDescriptor(
         id: "triple-threat", name: "Triple Threat", type: .move,
-        effect: "Choose: #[Draw] 1, pass for +5%, or SHOT +10%. No more Moves after it",
+        effect: "Choose: #[Draw] 1 / Pass (+5%) / SHOT +10%.\nCan use no further Moves this possession",
         numberInDeck: 15,
         modes: [CardMode(label: "Draw 1", draws: 1),
-                CardMode(label: "Pass +5%", shotDelta: 5, passes: .choice),
+                CardMode(label: "Pass (+5%)", shotDelta: 5, passes: .choice),
                 CardMode(label: "SHOT +10%", shotDelta: 10)],
         blocksFurtherMoves: true)
 
     static let clearOut = CardDescriptor(
         id: "clear-out", name: "Clear Out", type: .move,
-        effect: "First action only. Step aside: the ball, and any #[Clamps] on you, carry on to the next player",
+        effect: "First action only: Step aside, dodging the ball and all #[Clamps].",
         numberInDeck: 8,
         clearsOut: true, firstActionOnly: true)
 
     static let flop = CardDescriptor(
         id: "flop", name: "Flop", type: .move,
-        effect: "Cancel #[Clamps]. Take 1 #[FT] for each. If no #[Clamps] on you, #[TOV] +1",
+        effect: "#[Clear] all #[Clamps]. Take 1 #[FT] for each. If no #[Clamps], #[TOV] +1",
         numberInDeck: 5,
         freeThrowsPerClamp: 1, clearsClamps: true, turnoverIfNoClamps: true)
 
@@ -182,7 +182,7 @@ enum CardLibrary {
 
     static let trap = CardDescriptor(
         id: "trap", name: "Trap", type: .clamp,
-        effect: "Next player can play nothing but Passes", numberInDeck: 5,
+        effect: "Next player can only Pass or Shoot", numberInDeck: 5,
         clamp: ClampEffect(defenders: 3, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
@@ -196,7 +196,7 @@ enum CardLibrary {
 
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
-        effect: "#[Shot Clock] changes: #[TOV] +1. Ball out of bounds", numberInDeck: 1,
+        effect: "#[Shot Clock] changes: #[TOV] +1. Side-out.", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotClockLowered, turnoverOnOffender: true,
                                cancelsCard: false, offenderInbounds: true))
 
@@ -205,19 +205,19 @@ enum CardLibrary {
     /// whatever the draw still had queued.
     static let discontinuedDribble = CardDescriptor(
         id: "discontinued-dribble", name: "Discontinued Dribble", type: .whistle,
-        effect: "When a player #[Draws] a card. Their possession ends. They inbound",
+        effect: "Player #[Draws] a card: Possession ends. Side-out.",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .cardDrawn, cancelsCard: false,
                                offenderInbounds: true, endsPossession: true))
 
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
-        effect: "Cancel Next Move. #[TOV] +1", numberInDeck: 1,
+        effect: "Cancel Next Move. #[TOV] +1. Side-out.", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true))
 
     static let playOn = CardDescriptor(
         id: "play-on", name: "Play-On", type: .whistle,
-        effect: "#[Discard] each #[Game Break] drawn and #[Draw] again, until a card is not one",
+        effect: "On #[Game Break]: #[Cancel] and #[Draw] again",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .gameBreakDrawn))
 
@@ -234,7 +234,7 @@ enum CardLibrary {
 
     static let backCourtViolation = CardDescriptor(
         id: "back-court-violation", name: "Back Court Violation", type: .whistle,
-        effect: "Cancel Next Pass. #[TOV] +1. You choose who inbounds",
+        effect: "Cancel Next Pass. #[TOV] +1. Side-out.",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .passPlayed, turnoverOnOffender: true,
                                setterChoosesInbound: true))
@@ -509,7 +509,7 @@ enum CardLibrary {
 
     static let teamDoctor = CardDescriptor(
         id: "team-doctor", name: "Team Doctor", type: .gameBreak,
-        effect: "An #[Injury] off a player of choice. #[Draw] 2 if it was not you", numberInDeck: 3,
+        effect: "An #[Injury] off target player. #[Draw] 2 if it was not you", numberInDeck: 3,
         gameBreak: GameBreakEffect(healsChosenInjury: true, drawsForHealingAnother: 2))
 
     static let tradeDeadline = CardDescriptor(
