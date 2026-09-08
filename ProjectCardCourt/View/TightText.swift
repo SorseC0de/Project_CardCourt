@@ -45,6 +45,16 @@ struct TightText: View {
     /// change: an Intangible's white text was printing black on near-black.
     var ink: Color = CardPalette.navy
 
+    /// **Whether the marked spans are inked at all.**
+    ///
+    /// Colouring them costs the wrap: a run is its own view because a shadow is a view
+    /// modifier, so the lines have to be broken by hand and stacked — and a hand wrap is
+    /// worse than the one SwiftUI does for free. Off, the whole effect is one `Text` that
+    /// wraps and shrinks the way any other string does, with the markers eaten on the way
+    /// in. The colour is worth having and this is not the way to get it; the code stays
+    /// so it can be tried again from a better direction.
+    var highlight = false
+
     /// The size actually used, after the fit search.
     private var chosenSize: CGFloat {
         for step in scaleSteps where wrapped(at: size * step).count <= maxLines {
@@ -59,9 +69,34 @@ struct TightText: View {
         UIFont(name: font, size: points) ?? .systemFont(ofSize: points, weight: .bold)
     }
 
+    /// The whole effect as one string, markers gone.
+    private var plain: String {
+        Marked.runs(of: text).map(\.text).joined()
+    }
+
     var body: some View {
+        if highlight { inked } else { straight }
+    }
+
+    /// One `Text`, wrapped and shrunk by SwiftUI. **Nothing is measured here**: the line
+    /// breaks are the system's, which is the whole point of it.
+    private var straight: some View {
+        Text(plain)
+            .font(.custom(font, size: size))
+            .tracking(tracking)
+            // The gap this view exists to close. `lineSpacing` cannot go under the
+            // font's own leading, so the negative half of the dial is spent here.
+            .lineSpacing(uiFont(at: size).lineHeight * (lineHeight - 1))
+            .foregroundStyle(ink)
+            .multilineTextAlignment(.center)
+            .lineLimit(maxLines)
+            .minimumScaleFactor(0.55)
+            .frame(width: width)
+    }
+
+    private var inked: some View {
         let points = chosenSize
-        VStack(spacing: uiFont(at: points).lineHeight * (lineHeight - 1)) {
+        return VStack(spacing: uiFont(at: points).lineHeight * (lineHeight - 1)) {
             ForEach(Array(wrapped(at: points).enumerated()), id: \.offset) { _, line in
                 // Runs rather than one Text: a shadow is a view modifier, so a marked
                 // span can only carry its own by being its own view.

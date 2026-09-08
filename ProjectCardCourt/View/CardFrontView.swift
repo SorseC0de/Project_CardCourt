@@ -7,9 +7,6 @@ import SwiftUI
 /// plate, name, then the SHOT badge.
 struct CardFrontView: View {
     /// Observed, not just read — otherwise the bench's weight button changes nothing.
-    /// The icon and badge dials — see `IconBench`. Frozen numbers live in `IconTuning`
-    /// itself, so nothing here changes until the bench is used.
-    @State private var icons = IconTuning.shared
     /// Everything about how the words are set — see `CardTextBench`. **One set for all
     /// seven types**; only the two colours in it are asked per card.
     @State private var set = CardTextTuning.shared
@@ -82,7 +79,7 @@ struct CardFrontView: View {
     }
 
     @ViewBuilder private var icon: some View {
-        let side = width * CardLayout.iconSizeFraction * icons.iconScale
+        let side = width * CardLayout.iconSizeFraction * set.iconScale
         let drop = width * CardLayout.iconShadowFraction
         Group {
             if descriptor.id == "behind-the-back" {
@@ -137,10 +134,10 @@ struct CardFrontView: View {
         // of artwork carries its own multiplier — was being cut off at the slot's edge.
         .modifier(SlashIfNeeded(on: descriptor.isSlashed,
                                 side: side * (descriptor.artwork?.scale ?? 1),
-                                slash: CardLayout.iconShadow(for: descriptor.type)))
+                                slash: set.iconShadeInk(for: descriptor.type)))
         .rotationEffect(.degrees(descriptor.iconRotation))
         .shadow(color: descriptor.id == "behind-the-back"
-                    ? .clear : CardLayout.iconShadow(for: descriptor.type),
+                    ? .clear : set.iconShadeInk(for: descriptor.type),
                 radius: 0, x: drop, y: drop)
         .position(x: width / 2,
                   y: height * (CardLayout.iconYFraction + descriptor.iconYAdjust))
@@ -161,15 +158,21 @@ struct CardFrontView: View {
             VStack {
                 Spacer()
                 HStack(spacing: side * set.footGap) {
-                    if let ball { footBall(ball, side: side) }
+                    if let ball {
+                        footBall(ball, side: side * set.scale(of: .ball))
+                    }
                     ForEach(glyphs, id: \.self) { art in
+                        let mark = FootMark.art[art] ?? .draw
                         Image(art)
                             .resizable()
                             .scaledToFit()
-                            .frame(width: side, height: side)
+                            .frame(width: side * set.scale(of: mark),
+                                   height: side * set.scale(of: mark))
                     }
                     if descriptor.takesShot { shootMark(side) }
-                    if descriptor.isDribble { dribbleMark(side) }
+                    if descriptor.isDribble {
+                        dribbleMark(side * set.scale(of: .dribble))
+                    }
                 }
                 .padding(.bottom, height * set.footBottom)
             }
@@ -231,24 +234,30 @@ struct CardFrontView: View {
         return Image(systemName: CardLayout.dribbleSymbol)
             .font(.system(size: side, weight: .heavy))
             .foregroundStyle(.white)
-            .shadow(color: CardLayout.iconShadow(for: descriptor.type),
+            .shadow(color: set.iconShadeInk(for: descriptor.type),
                     radius: 0, x: drop, y: drop)
             .frame(width: row, height: row)
     }
 
     /// It shoots, and how far from.
+    ///
+    /// **A silhouette, not the drawing.** The mark is a shape saying "this shoots", and
+    /// its own colours had it fighting the card under it on three of the seven bodies. It
+    /// takes the card's own ink like everything else printed on the face.
     private func shootMark(_ row: CGFloat) -> some View {
         let drop = width * CardLayout.iconShadowFraction
+        let shoot = row * set.scale(of: .shoot)
         return HStack(spacing: row * 0.18) {
             Image("ShootIcon")
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .frame(width: row, height: row)
-                // On the image, not the stack — the hand carries its own. The drop is
-                // blue to match the three beside it; the drawing keeps its own colours.
-                .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+                .frame(width: shoot, height: shoot)
+                .foregroundStyle(effectColour)
+                .shadow(color: set.iconShadeInk(for: descriptor.type),
+                        radius: 0, x: drop, y: drop)
             if descriptor.isThree {
-                ThreeHandMark(width: row, shadowOffset: drop)
+                ThreeHandMark(width: row * set.scale(of: .three), shadowOffset: drop)
             }
         }
     }
@@ -283,7 +292,8 @@ struct CardFrontView: View {
                          // — see `footMarks`.
                          glyphs: [:],
                          type: descriptor.type,
-                         ink: effectColour)
+                         ink: effectColour,
+                         highlight: set.highlight)
             .frame(width: width - inset * 2)
             .position(x: width / 2,
                       y: height * (set.y

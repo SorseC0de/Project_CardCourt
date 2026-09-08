@@ -19,6 +19,19 @@ extension CardType {
     var shortLabel: String { self == .specialMove ? "special" : rawValue.lowercased() }
 }
 
+/// One of the marks that can stand in the row along the foot of a card.
+enum FootMark: String, CaseIterable, Hashable, Codable {
+    case ball, draw, discard, lock, shoot, three, dribble
+
+    var label: String { rawValue }
+
+    /// The art each one is drawn from, where it is a drawing. The shoot mark, the three
+    /// and the dribble are drawn by hand — see `CardFrontView`.
+    static let art: [String: FootMark] = [
+        "DrawIcon": .draw, "DiscardIcon": .discard, "LockIcon": .lock,
+    ]
+}
+
 /// A colour a card's printing can be set in, by name.
 ///
 /// **Named rather than raw**, because these numbers get pasted back into `CardTextStyle`
@@ -73,6 +86,13 @@ enum CardTextStyle {
     static let shadows = true
     static let shadowDrop: CGFloat = 0.015
 
+    /// One of the marks that can stand in the row at the foot of a card.
+    ///
+    /// Named, so each can carry its own size: they are separate drawings on separate
+    /// artboards — a ball is round and fills its box, a whistle is wide and does not —
+    /// and one multiplier across the six is a row where three of them look wrong.
+    static let footMarks = FootMark.self
+
     /// **The row of marks along the bottom edge**: what the card is worth, what it makes
     /// you do, whether it shoots. How big against the card's width, how far apart against
     /// their own side, how far off the bottom against the card's height, and how far the
@@ -81,6 +101,26 @@ enum CardTextStyle {
     static let footGap: CGFloat = 0.18
     static let footBottom: CGFloat = 0.04
     static let footLift: CGFloat = 0.09
+
+    /// **Each mark against the row's own size.** Separate drawings on separate artboards
+    /// — see `FootMark`.
+    static let footScale: [FootMark: CGFloat] = [
+        .ball: 1, .draw: 1, .discard: 1, .lock: 1, .shoot: 1, .three: 1, .dribble: 1,
+    ]
+
+    /// The card's big icon, against `CardLayout.iconSizeFraction`.
+    static let iconScale: CGFloat = 1
+
+    /// **The hard drop under that icon**, per type — the one colour of the four that is
+    /// not about the words.
+    static let iconShade: [CardType: CardTextInk] = [
+        .pass: .navy, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
+    ]
+
+    /// Whether the marked spans inside the words are inked. **Off** — see
+    /// `TightText.highlight`.
+    static let highlight = false
 
     /// **What the body text is printed in, per type.** The one thing that has to differ:
     /// navy on a near-black Intangible is lettering nobody can find.
@@ -131,6 +171,13 @@ final class CardTextTuning {
 
     var footSize = CardTextStyle.footSize
     var footGap = CardTextStyle.footGap
+    var footScale = CardTextStyle.footScale
+    var iconScale = CardTextStyle.iconScale
+    var iconShade = CardTextStyle.iconShade
+    var highlight = CardTextStyle.highlight
+
+    func scale(of mark: FootMark) -> CGFloat { footScale[mark] ?? 1 }
+    func iconShadeInk(for type: CardType) -> Color { (iconShade[type] ?? .navy).colour }
     var footBottom = CardTextStyle.footBottom
     var footLift = CardTextStyle.footLift
 
@@ -155,6 +202,8 @@ final class CardTextTuning {
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
+        footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
+        iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
     }
 
     /// The dials as `CardTextStyle`, ready to paste over it.
@@ -181,6 +230,12 @@ final class CardTextTuning {
         static let keyword: [CardType: CardTextInk] = [\(table(keyword))]
         static let ring: [CardType: CardTextInk] = [\(table(ring))]
         static let plate: [CardType: CardTextInk] = [\(table(plate))]
+        static let iconShade: [CardType: CardTextInk] = [\(table(iconShade))]
+        static let iconScale: CGFloat = \(n(iconScale))
+        static let highlight = \(highlight)
+        static let footScale: [FootMark: CGFloat] = [\(
+            FootMark.allCases.map { ".\($0.rawValue): \(n(scale(of: $0)))" }
+                .joined(separator: ", "))]
         """
     }
 }
@@ -293,6 +348,14 @@ struct CardTextBench: View {
                             }
                         }
                         heading("the drop")
+                        // **Off.** Inking the marked spans costs the wrap — see
+                        // `TightText.highlight`. Here so it can be looked at again.
+                        row("highlight", tune.highlight ? "on" : "off") {
+                            HStack(spacing: 3) {
+                                chip("on", on: tune.highlight) { tune.highlight = true }
+                                chip("off", on: !tune.highlight) { tune.highlight = false }
+                            }
+                        }
                         row("shadows", tune.shadows ? "on" : "off") {
                             HStack(spacing: 3) {
                                 chip("on", on: tune.shadows) { tune.shadows = true }
@@ -300,11 +363,23 @@ struct CardTextBench: View {
                             }
                         }
                         dial("depth", $tune.shadowDrop, 0...0.05)
+                        heading("the big icon")
+                        dial("size", $tune.iconScale, 0.3...2)
+                        heading("\(type.shortLabel): under the icon")
+                        inks(tune.iconShade[type] ?? .navy) { tune.iconShade[type] = $0 }
                         heading("the marks at the foot")
-                        dial("size", $tune.footSize, 0.05...0.6)
+                        dial("row size", $tune.footSize, 0.05...0.6)
                         dial("gap", $tune.footGap, 0...1)
                         dial("off bottom", $tune.footBottom, 0...0.2)
                         dial("words lift", $tune.footLift, 0...0.3)
+                        // **Each one against the row.** They are separate drawings on
+                        // separate artboards — see `FootMark`.
+                        ForEach(FootMark.allCases, id: \.self) { mark in
+                            dial(mark.label,
+                                 Binding(get: { tune.scale(of: mark) },
+                                         set: { tune.footScale[mark] = $0 }),
+                                 0.2...2.5)
+                        }
                         heading("\(type.shortLabel): the ink")
                         inks(tune.text[type] ?? .navy) { tune.text[type] = $0 }
                         heading("\(type.shortLabel): the mechanics")

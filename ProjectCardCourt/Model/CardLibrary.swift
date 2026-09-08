@@ -19,18 +19,18 @@ enum CardLibrary {
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
-        effect: "Pass back to last player. Nobody to give it back to: #[TOV] +1",
+        effect: "Pass back to last player.",
         numberInDeck: 5, passTarget: .backToPasser)
 
     static let dime = CardDescriptor(
         id: "dime", name: "Dime", type: .pass,
-        effect: "Pass to a player of choice. SHOT +10%", numberInDeck: 5,
+        effect: "Pass to target player. SHOT +10%", numberInDeck: 5,
         passTarget: .choice, passesToOthersOnly: true,
         shotDelta: 10, bonusAssistOnScore: true)
 
     static let lob = CardDescriptor(
         id: "lob", name: "Lob", type: .pass,
-        effect: "SHOT +10%. Pass to a player of choice. They must shoot first",
+        effect: "SHOT +10%. Pass to target player. They must shoot.",
         numberInDeck: 6,
         passTarget: .choice, shotDelta: 10, forcesReceiverShot: true)
 
