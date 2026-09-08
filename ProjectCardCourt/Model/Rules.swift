@@ -2359,6 +2359,13 @@ enum Rules {
         case .returnBall, .shootAtOnce:
             if case .possession = state.phase { return true }
             return false
+        // **Not the settle's to pay.** A Break waits for the draw that turned it up to
+        // finish, which is a different edge — `drainBreaks` runs them, in the order they
+        // came off the deck, while it holds the chain open. They sit on the one list so
+        // there is no second place for an owed thing to live.
+        case .revealBreak:
+            return false
+
         // **Not the drain's to pay.** These two take the floor itself — one puts the
         // ball back in play, the other sends a man to the line — and they are paid at the
         // end of a possession rather than at the edge of a chain, which is a different
@@ -2406,6 +2413,12 @@ enum Rules {
 
         case .takeTheLine(let trip):
             state.phase = .freeThrows(trip: trip)
+
+        // Never reached: `ready` keeps these off the settle, because `drainBreaks` runs
+        // them in deck order while it holds the draw chain open. Spelled out rather than
+        // defaulted, so a new step cannot be added and quietly ignored.
+        case .revealBreak(let held):
+            revealBreak(held, state: &state, events: &events)
         }
     }
 
@@ -2496,17 +2509,21 @@ enum Rules {
     /// it — so the chain is held while the loop empties, and anything new joins the back.
     private static func drainBreaks(state: inout GameState, events: inout [GameEvent]) {
         state.drawChain += 1
-        while !state.pendingBreaks.isEmpty {
+        while let next = state.owes(.revealBreak) {
             // **A broken chain throws the rest away.** Something has ended the possession
             // the draws belonged to — a Whistle that stops the dribble, a Break that hands
             // the ball to somebody else — and the cards still queued were being drawn for
             // a possession that no longer exists.
             if state.chainBroken {
-                state.discard.append(contentsOf: state.pendingBreaks.map(\.card))
-                state.pendingBreaks.removeAll()
+                for case .revealBreak(let held) in state.pending {
+                    state.discard.append(held.card)
+                }
+                state.forget(.revealBreak)
                 break
             }
-            revealBreak(state.pendingBreaks.removeFirst(), state: &state, events: &events)
+            guard case .revealBreak(let held) = next else { break }
+            state.pending.removeAll { $0 == next }
+            revealBreak(held, state: &state, events: &events)
         }
         state.chainBroken = false
         state.drawChain -= 1
@@ -2606,8 +2623,8 @@ enum Rules {
             // about a full board before the card that filled it had arrived. It goes in
             // the queue and the draw carries on; `drainBreaks` runs the lot in order once
             // the last card is in a hand.
-            state.pendingBreaks.append(PendingBreak(seat: seat, card: card, depth: depth,
-                                                    waving: wavingBreaks))
+            state.owe(.revealBreak(PendingBreak(seat: seat, card: card, depth: depth,
+                                                waving: wavingBreaks)))
         } else {
             state[seat].bag.append(card)
             events.append(.drew(seat: seat, card: card.descriptor, id: card.id))

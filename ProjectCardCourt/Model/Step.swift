@@ -41,6 +41,13 @@ enum Step: Hashable, Codable {
     case handOverBall(Seat)
     /// Awarded but not yet shot, for the same reason.
     case takeTheLine(FreeThrowTrip)
+    /// **A Game Break turned up by a draw, waiting for the draw to finish.**
+    ///
+    /// A draw is one act however many cards it moves, and a Break that resolved the
+    /// moment it came off the deck moved SHOT under the rest of the draws and asked
+    /// about a full board before the card that filled it had arrived. It waits here,
+    /// in the order it came off the deck — see `Rules.drainBreaks`.
+    case revealBreak(PendingBreak)
 
     /// **Where this sits in a drain, which is not the order it was pushed in.**
     ///
@@ -50,6 +57,10 @@ enum Step: Hashable, Codable {
     /// one mechanism, not a reason to change what they do.
     var rank: Int {
         switch self {
+        // A Break outranks everything: it can empty the hand the next step was going to
+        // spend, take the ball off the man the next step was sending it to, and end the
+        // round the next step was shooting in.
+        case .revealBreak:  return -1
         case .spendHand:    return 0
         case .handOverBall: return 1
         case .returnBall:   return 2
@@ -67,10 +78,11 @@ enum Step: Hashable, Codable {
         case .shootAtOnce:  return .shootAtOnce
         case .handOverBall: return .handOverBall
         case .takeTheLine:  return .takeTheLine
+        case .revealBreak:  return .revealBreak
         }
     }
 
     enum Kind: String, Hashable, Codable {
-        case spendHand, returnBall, shootAtOnce, handOverBall, takeTheLine
+        case spendHand, returnBall, shootAtOnce, handOverBall, takeTheLine, revealBreak
     }
 }

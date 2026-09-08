@@ -247,18 +247,6 @@ struct GameState: Codable {
     }
     /// Fresh Ball: the next possession opens without its draw.
     var skipsNextDraw = false
-    /// **Game Breaks turned up by a draw, waiting for the draw to finish.**
-    ///
-    /// A draw is one act however many cards it moves and however many people it moves
-    /// them to: "everyone draws 1" is a draw, not four, and a card that draws two is one
-    /// draw of two. Nothing a draw turns up may resolve while cards are still being
-    /// taken — a Break that fired mid-chain moved SHOT under the rest of the draws, took
-    /// the ball off a man still owed cards, and asked a player about a full board before
-    /// the card that filled it had arrived.
-    ///
-    /// They come out in the order they went in, and resolving one can queue more behind
-    /// it — see `Rules.drainBreaks(state:events:)`.
-    var pendingBreaks: [PendingBreak] = []
     /// How many draws are still open. The queue is drained when the last one closes.
     var drawChain = 0
     /// Set by anything that ends the possession the draws belonged to, which throws the

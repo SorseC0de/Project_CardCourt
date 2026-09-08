@@ -47,8 +47,11 @@ func soak() {
             // Only the three the drain owns. A trip to the line and a ball being handed
             // over are paid when a possession *ends*, and sitting through one is what
             // they are for.
+            // A Break owed at a possession means a draw act never closed, which is the
+            // same class of fault as a step never paid.
             let due = state.pending.filter {
-                $0.kind == .spendHand || $0.kind == .returnBall || $0.kind == .shootAtOnce
+                $0.kind == .spendHand || $0.kind == .returnBall
+                    || $0.kind == .shootAtOnce || $0.kind == .revealBreak
             }
             if case .possession = state.phase, !due.isEmpty {
                 owed += 1

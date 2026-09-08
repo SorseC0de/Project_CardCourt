@@ -436,7 +436,7 @@ func runTests() {
         } else {
             Check.that(false, "the man who drew it puts it back in")
         }
-        Check.that(state.pendingBreaks.isEmpty, "and nothing the draw had queued survives")
+        Check.that(!state.pending.contains { $0.kind == .revealBreak }, "and nothing the draw had queued survives")
         let dealt = events.filter { if case .drew = $0 { return true }; return false }.count
         Check.that(dealt == 1, "only the card that tripped it is dealt, not the other three")
     }
@@ -507,7 +507,7 @@ func runTests() {
         Check.that(order.dropFirst(3).first == "break",
                    "and the Break goes off once the last card is in a hand")
         Check.that(state.shot == 30, "it still does what it says when it does go off")
-        Check.that(state.pendingBreaks.isEmpty, "and the queue is empty when the act is done")
+        Check.that(!state.pending.contains { $0.kind == .revealBreak }, "and the queue is empty when the act is done")
     }
     do {
         // One effect drawing several: the same rule, one seat.
