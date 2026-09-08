@@ -17,7 +17,11 @@ enum GameEvent: Hashable, Codable {
     /// A card leaving a hand for the pile, whatever took it. Said once per card, so the
     /// floor can throw one for each rather than watching them vanish — see
     /// `GameController.spend`.
-    case discarded(seat: Seat, count: Int)
+    /// **What went, not how many.** "1 card gone" is a line nobody can act on: a card
+    /// taken at random is the one thing in the game a player cannot see happen, so the
+    /// log is the only place it exists. The cards are named because they are public the
+    /// moment they land in the pile.
+    case discarded(seat: Seat, cards: [CardDescriptor])
     case failedReturn(seat: Seat)
     /// `against` is the seat the call was made on — whose card, whose shot, whose Clamp.
     /// Without it the log says a Travel cancelled an Ankle Breaker and leaves you to guess
@@ -195,8 +199,9 @@ enum GameEvent: Hashable, Codable {
             return "\(card.name): the Clamp lands on nothing — \(count) defender\(count == 1 ? "" : "s") waved off \(seat.playerName)."
         case .clampsShaken(let seat, let card, let count):
             return "\(card.name): \(seat.playerName) \(seat.verb("clears", "clear")) \(count) Clamp\(count == 1 ? "" : "s")."
-        case .discarded(let seat, let count):
-            return "\(seat.playerName) \(seat.verb("gives", "give")) up \(count) card\(count == 1 ? "" : "s")."
+        case .discarded(let seat, let cards):
+            let named = cards.map(\.name).joined(separator: ", ")
+            return "\(seat.playerName) \(seat.verb("gives", "give")) up \(named)."
         case .roundEnded(let round):
             return "End of round \(round)."
         case .deckReshuffled:
@@ -243,5 +248,15 @@ extension Array where Element == GameEvent {
             return false
         }) else { return (self, []) }
         return (Array(self[..<at]), Array(self[at...]))
+    }
+
+    /// Whether the ball goes up in here.
+    ///
+    /// **What the SHOT badge waits on.** The rules settle an attempt in full before a
+    /// frame of it is drawn, so the number knows the outcome before the player does: a
+    /// make ends the round and takes SHOT back to its opening value. Anything that reads
+    /// the board has to hold off until the ball has come down.
+    var holdsAShot: Bool {
+        contains { if case .shotAttempted = $0 { return true }; return false }
     }
 }

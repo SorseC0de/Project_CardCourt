@@ -34,6 +34,15 @@ struct AIPolicy {
     mutating func chooseMove(_ state: GameState, for seat: Seat) -> Move? {
         let legal = Rules.legalMoves(state, for: seat)
         guard !legal.isEmpty else { return nil }
+        // **The hand it may actually spend from.** Several branches below reach into the
+        // bag directly, and a bag is not a list of legal plays — a Clamp holds cards
+        // down, Triple Threat closes the book on Moves, a Lob owes a shot. Asked for
+        // one of those the rules simply refuse, and an opponent that keeps asking is an
+        // opponent whose turn never ends.
+        let playableIDs = Set(legal.compactMap { move -> Card.ID? in
+            if case .play(let id) = move { return id } else { return nil }
+        })
+        let playable = state[seat].bag.filter { playableIDs.contains($0.id) }
 
         // A Free Agent with nothing of his own has only other people's bags. Reaching for
         // the fullest one is the same rule the rest of this policy uses for a target.
@@ -57,11 +66,11 @@ struct AIPolicy {
         }
 
         if state.movesThisPossession < moveAllowance(),
-           let card = bestMoveCard(state, for: seat) {
+           let card = bestMoveCard(state, for: seat, from: playable) {
             return .play(card)
         }
 
-        let passes = state[seat].bag.filter { playablePass($0, state: state) }
+        let passes = playable.filter { playablePass($0, state: state) }
 
         // A good look beats setting anything up — and a Special Move that shoots is a
         // better version of the same decision, so it is checked here rather than among
@@ -85,14 +94,14 @@ struct AIPolicy {
         // Only one Whistle is ever live, so there is nothing to gain from overwriting
         // your own — and re-arming in a loop would never end the possession.
         if !state.armedWhistles.contains(where: { $0.owner == seat }),
-           let trap = state[seat].bag.first(where: { $0.descriptor.whistle != nil }) {
+           let trap = playable.first(where: { $0.descriptor.whistle != nil }) {
             return .play(trap.id)
         }
 
         // A Clamp is only worth setting when the ball is about to move — and only one,
         // or the possession never ends.
         if !passes.isEmpty, state.pendingClamps.isEmpty,
-           let clamp = state[seat].bag.first(where: { $0.descriptor.clamp != nil }) {
+           let clamp = playable.first(where: { $0.descriptor.clamp != nil }) {
             return .play(clamp.id)
         }
 
@@ -127,8 +136,9 @@ struct AIPolicy {
         return true
     }
 
-    private mutating func bestMoveCard(_ state: GameState, for seat: Seat) -> Card.ID? {
-        let bag = state[seat].bag
+    private mutating func bestMoveCard(_ state: GameState, for seat: Seat,
+                                       from playable: [Card]) -> Card.ID? {
+        let bag = playable
         func first(_ id: String) -> Card? { bag.first { $0.descriptor.id == id } }
 
         // Free points, and the Clamps come off the shot that follows. Worth taking the

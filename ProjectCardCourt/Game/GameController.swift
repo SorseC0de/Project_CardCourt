@@ -135,6 +135,24 @@ struct ShotCutscene: Identifiable, Equatable {
     /// Whether this one gets a scene of its own.
     let signature: ShotSignature
 
+    /// What a miss gets called.
+    ///
+    /// **A dunk is never a brick.** A brick is a shot that never had a chance from
+    /// distance — a man at the rim who does not finish missed for a reason you watched,
+    /// and the word for it is the reason. Rolled once, here, rather than in the view,
+    /// so it does not change under the player mid-animation.
+    static func missCall(chance: Int, dunk: DunkMiss?) -> String {
+        switch dunk {
+        case .short:     return "SHORT"
+        case .fliesPast, .tumbles: return "SOMETHING'S A-MISS"
+        case .ironOut:   return "NOPE"
+        case .none:
+            return chance < 40
+                ? "BRRRICK"
+                : ["NO GOOD", "A MISS", "MISSED", "NOPE"].randomElement()!
+        }
+    }
+
     /// Built directly, for replaying the scene from the debug panel.
     init(shooter: Seat, chance: Int, made: Bool, defenders: Int,
          signature: ShotSignature = .none, dunk: Dunk? = nil,
@@ -152,9 +170,7 @@ struct ShotCutscene: Identifiable, Equatable {
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
         self.line = SwisshLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
-        self.missCall = chance < 40
-            ? "BRRRICK"
-            : ["NO GOOD", "A MISS", "MISSED", "NOPE"].randomElement()!
+        self.missCall = ShotCutscene.missCall(chance: chance, dunk: missed)
     }
 
     init?(events: [GameEvent], defenders: Int = 0, lastPlay: String? = nil,
@@ -198,9 +214,7 @@ struct ShotCutscene: Identifiable, Equatable {
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
         self.line = SwisshLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
-        self.missCall = chance < 40
-            ? "BRRRICK"
-            : ["NO GOOD", "A MISS", "MISSED", "NOPE"].randomElement()!
+        self.missCall = ShotCutscene.missCall(chance: chance, dunk: self.dunkMiss)
     }
 }
 
@@ -2664,7 +2678,8 @@ final class GameController {
         }
         // What the card cost, thrown rather than deleted. Before the draws, because a card
         // that pays for a draw pays for it first.
-        for case .discarded(let seat, let count) in events {
+        for case .discarded(let seat, let cards) in events {
+            let count = cards.count
             for _ in 0..<count {
                 if Task.isCancelled { return }
                 await spendCard(from: seat)
@@ -2673,7 +2688,16 @@ final class GameController {
         // **Not while the card is still asking.** See `Phase.isMidPlay`: a play that has
         // put a question up has not finished, and what it did to SHOT is not the board's
         // until it has been answered.
-        if !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
+        //
+        // **And never over a shot.** The rules resolve the attempt in full before a frame
+        // of it is drawn, so by the time this line runs the number has already told you
+        // how it went: a make ends the round and takes SHOT back to its opening value, a
+        // miss leaves it where it was. The badge dropping to 25 was the bucket, half a
+        // second before the ball did. It waits for the ball to come down — see the
+        // cutscene below, which is where it catches up on a shot.
+        if !state.phase.isMidPlay, !events.holdsAShot {
+            shownShot = state.shot + state.holderShot
+        }
         if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
             await announce(.whistle)
         }
@@ -2723,6 +2747,8 @@ final class GameController {
                 gate = .awaitingBid(shooter: shooter)
             }
             cutscene = nil
+            // Now. The ball has come down, so the number is no longer a spoiler.
+            shownShot = state.shot + state.holderShot
             await celebrateThree(in: events)
             await callTheScore(in: events)
         }
@@ -2738,6 +2764,10 @@ final class GameController {
             release(.reveal, from: &ledger)
         }
         release(.shot, from: &ledger)
+        // Whatever the shot did to the number, once there is nothing left to give away.
+        if events.holdsAShot, !state.phase.isMidPlay {
+            shownShot = state.shot + state.holderShot
+        }
 
         if !boardShown, let scene = TurnoverCutscene(events: events) {
             turnover = scene

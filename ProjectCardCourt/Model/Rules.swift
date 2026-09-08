@@ -506,6 +506,14 @@ enum Rules {
             guard case .possession(let holder) = state.phase, holder == seat,
                   let index = state[seat].bag.firstIndex(where: { $0.id == cardID })
             else { return [] }
+            // **The rules are the rules here, not only in the hand that draws them.**
+            // `legalMoves` is what bars a card — a Clamp holding it down, Triple Threat
+            // closing the book on Moves, a Lob owing a shot — and this took any card in
+            // the bag on trust. The floor greys them out and a finger cannot reach one,
+            // so nothing a player did ever showed it; the opponents ask for a card
+            // without asking the rules, and they played straight through every one of
+            // those bars. Lob forced nothing in three of every four it found.
+            guard legalMoves(state, for: seat).contains(.play(cardID)) else { return [] }
             // Declared but not yet resolved — a Whistle gets to speak here.
             let declared = state[seat].bag[index]
             if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: state) {
@@ -1328,7 +1336,7 @@ enum Rules {
            injury.id == asking.id {
             events.append(.clampBit(seat: seat, card: injury, discarded: count))
         } else {
-            events.append(.discarded(seat: seat, count: spent.count))
+            events.append(.discarded(seat: seat, cards: spent.map(\.descriptor)))
         }
         state.phase = .possession(holder: seat)
         settleHands(state: &state, events: &events)
@@ -1801,7 +1809,7 @@ enum Rules {
                               state: inout GameState, events: inout [GameEvent]) {
         guard !cards.isEmpty else { return }
         state.discard.append(contentsOf: cards)
-        events.append(.discarded(seat: seat, count: cards.count))
+        events.append(.discarded(seat: seat, cards: cards.map(\.descriptor)))
     }
 
     /// The whole hand, down.
@@ -1822,8 +1830,9 @@ enum Rules {
                                         events: inout [GameEvent]) {
         guard !state[seat].bag.isEmpty else { return }
         let index = state.roll(0...(state[seat].bag.count - 1))
-        state.discard.append(state[seat].bag.remove(at: index))
-        events.append(.discarded(seat: seat, count: 1))
+        let taken = state[seat].bag.remove(at: index)
+        state.discard.append(taken)
+        events.append(.discarded(seat: seat, cards: [taken.descriptor]))
     }
 
     /// Hands the ball back in without advancing the round. Shot Clock Violation and
@@ -1837,6 +1846,9 @@ enum Rules {
         state.arrivedBy = nil
         state.lastPlayThisPossession = nil
         state.pendingClamps = []
+        // The play a Lob owed a shot to is over. Carrying it into the throw-in leaves a
+        // man barred from his own hand for a possession the pass never reached.
+        state.mustShootFirst = nil
         // **Clamps are not cleared here.** `beginPossession` is the one place that ends
         // them, because ending a possession is the only thing that does — and a dead ball
         // clearing them early handed a cancelled card its effect for free: a Whistle that

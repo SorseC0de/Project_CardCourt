@@ -154,6 +154,9 @@ struct ShotCutsceneView: View {
         /// How much further one the iron kept travels on its way down. It is leaving,
         /// not arriving.
         static let carom: CGFloat = 1.6
+        /// A beat on the rim before it goes anywhere, so there is a ball there to watch
+        /// come off it. One frame at sixty is not a beat; three is.
+        static let leaves: Double = 3.0 / 60
     }
 
     var body: some View {
@@ -216,7 +219,9 @@ struct ShotCutsceneView: View {
                         }
                     } else {
                         Text(scene.missCall)
-                            .font(.system(size: scene.missCall == "BRRRICK" ? 40 : 34,
+                            // The long one has to fit; the loud one gets to be loud.
+                            .font(.system(size: scene.missCall == "BRRRICK" ? 40
+                                                : (scene.missCall.count > 10 ? 26 : 34),
                                           weight: .black, design: .rounded))
                             .tracking(scene.missCall == "BRRRICK" ? 2 : 0)
                             .foregroundStyle(Theme.danger)
@@ -271,8 +276,17 @@ struct ShotCutsceneView: View {
                             // rather than dressing it up. See `DunkFigure`.
                             DunkFigure(seat: scene.shooter, dunk: dunk,
                                        miss: scene.dunkMiss, onBallLoose: {
+                                // **Out first, then away.** Both were raised in the same
+                                // tick, so the ball was created already at the end of its
+                                // trip: no bounce off the iron ever played, because there
+                                // was nothing between where it appeared and where it was
+                                // going. It leaves his hands on one frame and starts
+                                // travelling on the next.
                                 dunkBallOut = true
-                                dunkBallFell = true
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .seconds(DunkBall.leaves))
+                                    dunkBallFell = true
+                                }
                             }, onDepth: { behind in
                                 dunkBehind = behind
                             }, onRimPull: { amount, spring in
