@@ -347,6 +347,100 @@ func runTests() {
                        "or the round turned over and SHOT reset on its own")
         }
     }
+    print("Off the glass")
+    do {
+        // A target pass may name the man throwing it.
+        let (state, seat, _) = openPossession(seed: 81, cards: [CardLibrary.lob])
+        Check.that(Rules.passChoices(.choice, from: seat,
+                                     othersOnly: CardLibrary.lob.passesToOthersOnly)
+                       .contains(seat),
+                   "Lob can be thrown to yourself")
+        Check.that(!Rules.passChoices(.choice, from: seat,
+                                      othersOnly: CardLibrary.dime.passesToOthersOnly)
+                       .contains(seat),
+                   "a Dime cannot — an assist to yourself is not an assist")
+        Check.that(!Rules.passChoices(.leftOrRight, from: seat).contains(seat),
+                   "and left-or-right is geometry, so it never could")
+        _ = state
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 82, cards: [CardLibrary.lob])
+        let round = state.round
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let events = Rules.resolveTarget(seat, state: &state)
+        Check.that(events.contains { if case .turnover = $0 { return true }; return false },
+                   "throwing it to yourself is Traveling")
+        Check.that(state.round > round, "and the round ends on it")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 83, cards: [CardLibrary.lob])
+        state[seat].intangibles.append(CardLibrary.movesAtOwnPace)
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let events = Rules.resolveTarget(seat, state: &state)
+        Check.that(!events.contains { if case .turnover = $0 { return true }; return false },
+                   "a man who moves at his own pace is not travelling")
+        Check.that(state.ball == seat, "he still has it")
+        Check.that(events.contains { if case .drew = $0 { return true }; return false },
+                   "and it opens like any other possession — he draws")
+    }
+
+    print("Moves At Own Pace")
+    do {
+        var (state, seat, _) = openPossession(seed: 84, cards: [])
+        state[seat].intangibles.append(CardLibrary.movesAtOwnPace)
+        state.shotClock = 1
+        var events: [GameEvent] = []
+        Rules.testTick(by: -1, holder: seat, state: &state, events: &events)
+        Check.that(state.shotClock == 0, "the clock reaches nought")
+        Check.that(!events.contains { if case .turnover = $0 { return true }; return false },
+                   "and nothing is called")
+        // And the moment it leaves him.
+        let before = state.round
+        var after: [GameEvent] = []
+        Rules.testStripIntangibles(seat, state: &state, events: &after)
+        Check.that(after.contains { if case .turnover = $0 { return true }; return false },
+                   "losing it at nought calls the violation at once")
+        Check.that(state.round > before, "which ends the round")
+    }
+
+    print("Off the Backboard")
+    do {
+        var (state, seat, _) = openPossession(seed: 85, cards: [])
+        state.freeRebound.insert(seat)
+        state.shot = 0
+        var events: [GameEvent] = []
+        Rules.testShot(by: seat, state: &state, events: &events)
+        Check.that(events.contains { if case .shotMissed = $0 { return true }; return false },
+                   "the shot is short")
+        Check.that(events.contains { if case .rebounded(let who) = $0 { return who == seat }
+                                     else { return false } },
+                   "and it comes straight back to him")
+        Check.that(state.freeRebound.isEmpty, "the card is spent taking it")
+        Check.that(!state.phase.isAwaitingRebound, "nobody bids for a board he called")
+    }
+
+    print("Discontinued Dribble")
+    do {
+        var (state, seat, _) = openPossession(seed: 86, cards: [])
+        state.armedWhistles = [ArmedWhistle(owner: seat.across,
+                                            card: matchCard(CardLibrary.discontinuedDribble,
+                                                            state.rules))]
+        state.deck = (0..<8).map { _ in matchCard(CardLibrary.skipPass, state.rules) }
+        var events: [GameEvent] = []
+        Rules.testDrawAll(Seat.allCases, count: 1, state: &state, events: &events)
+        Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "it is called on the draw itself")
+        Check.that(state.armedWhistles.isEmpty, "and the referee leaves the floor")
+        if case .inbound(let who) = state.phase {
+            Check.that(who == Seat.allCases[0], "the man who drew it puts it back in")
+        } else {
+            Check.that(false, "the man who drew it puts it back in")
+        }
+        Check.that(state.pendingBreaks.isEmpty, "and nothing the draw had queued survives")
+        let dealt = events.filter { if case .drew = $0 { return true }; return false }.count
+        Check.that(dealt == 1, "only the card that tripped it is dealt, not the other three")
+    }
+
     print("Draw chains")
     do {
         // The table is dealt in together — a Timeout's shape. The Break is on top, so the

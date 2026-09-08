@@ -16,7 +16,9 @@ enum Prompts {
         case .awaitingTarget(let seat, _, let choices):
             // Whoever holds the most: the man worth finding, and the man worth taking
             // from. The same rule either way, because the AI has no reason to prefer one.
-            let pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
+            let worth = Rules.sensibleTargets(choices, for: state.pendingActor ?? seat,
+                                              in: state)
+            let pick = worth.max { state[$0].bag.count < state[$1].bag.count } ?? worth[0]
             _ = seat
             Rules.resolveTarget(pick, state: &state)
             return true

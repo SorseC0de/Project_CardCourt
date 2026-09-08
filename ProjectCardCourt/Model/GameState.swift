@@ -167,6 +167,11 @@ enum Phase: Hashable, Codable {
         default:                    return nil
         }
     }
+
+    var isAwaitingRebound: Bool {
+        if case .awaitingRebound = self { return true }
+        return false
+    }
 }
 
 /// A Game Break taken off the deck and held until the draw that turned it up is done.
@@ -257,6 +262,10 @@ struct GameState: Codable {
     /// Set by anything that ends the possession the draws belonged to, which throws the
     /// rest of the chain away — see `Whistle.endsPossessionOnDraw`.
     var chainBroken = false
+    /// **Off the Backboard: whose next miss comes straight back to them.** No bid and no
+    /// scramble — the shooter takes his own board. Spent the moment it is used, and shown
+    /// in the corner of the HUD until then.
+    var freeRebound: Set<Seat> = []
     /// Boards holding more passives than the rules allow, waiting to be asked which goes.
     /// Queued for the same reason a hand is: the phase set where the overflow happens is
     /// overwritten by whatever the draw chain does next.

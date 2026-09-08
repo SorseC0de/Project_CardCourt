@@ -365,7 +365,9 @@ struct CourtView: View {
                 // ball the size of the rim.
                 if let rebound {
                     ReboundBallView(
-                        from: boardLeaves(on: court, in: geo.size),
+                        from: rebound.offTheGlass
+                            ? ownToss(of: rebound.seat, on: court)
+                            : boardLeaves(on: court, in: geo.size),
                         to: reboundPoint(of: rebound.seat, on: court),
                         end: court.scale(of: rebound.seat),
                         descent: rebounding.lift * Theme.Figure.playerScale
@@ -568,6 +570,17 @@ struct CourtView: View {
 
     /// Where the ball meets him at the top of the leap: both hands over his head, plus
     /// the two pixels the jump adds beyond what the sheet can draw.
+    /// His own hands, standing. Where a ball he throws up himself leaves from — the same
+    /// place `reboundPoint` ends, without the leap under it.
+    private func ownToss(of seat: Seat, on court: CourtGeometry) -> CGPoint {
+        let footing = court.footing(of: seat, inbounding: thrower)
+        let row = court.scale(of: seat, inbounding: thrower)
+        let side = Theme.Figure.height * row
+        // The same hands, on the floor: `reboundPoint` without the leap under it.
+        return CGPoint(x: footing.x + side * rebounding.handX,
+                       y: footing.y - side * rebounding.handY)
+    }
+
     private func reboundPoint(of seat: Seat, on court: CourtGeometry) -> CGPoint {
         let footing = court.footing(of: seat, inbounding: thrower)
         let row = court.scale(of: seat, inbounding: thrower)

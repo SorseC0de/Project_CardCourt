@@ -738,7 +738,8 @@ enum Rules {
                     state.pendingPlay = descriptor
                     state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
                                                   card: descriptor,
-                                                  choices: passChoices(target, from: seat))
+                                                  choices: passChoices(target, from: seat,
+                                                                       othersOnly: descriptor.passesToOthersOnly))
                     state.pendingActor = seat
                     return events
                 }
@@ -984,6 +985,16 @@ enum Rules {
             state.returnsTo = seat
             state.returnLeg = descriptor
         }
+        // **Off the glass and back to himself.** A new possession like any other — he
+        // draws, the clock runs, the SHOT the card added stands. Unless it is Traveling,
+        // which it is for everybody but the man who moves at his own pace, and which is
+        // called before the possession opens rather than after he has been dealt into it.
+        if receiver == seat, !has(seat, in: state, { $0.ignoresViolations }) {
+            state[seat].turnovers += 1
+            events.append(.turnover(seat, cause: CardLibrary.travel.name))
+            endRound(state: &state, events: &events)
+            return
+        }
         beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
                         state: &state, events: &events)
 
@@ -1106,7 +1117,8 @@ enum Rules {
             // The pass leaves his seat, and *that* is a target, so a Floor General names it.
             state.phase = .awaitingTarget(seat: asker(instead: actor, in: state),
                                           card: descriptor,
-                                          choices: passChoices(passes, from: actor))
+                                          choices: passChoices(passes, from: actor,
+                                                               othersOnly: descriptor.passesToOthersOnly))
             return events
         }
         events.append(.movePlayed(seat: actor, card: descriptor, shot: state.shot))
@@ -1217,6 +1229,7 @@ enum Rules {
             else { return events }
             let lost = state[victim].intangibles.remove(at: index)
             events.append(.intangibleDisplaced(seat: victim, card: lost))
+            clockCatchesUp(victim, state: &state, events: &events)
             rehome(lost, from: victim, state: &state, events: &events)
         case .position(let slot):
             guard state[victim].bag.indices.contains(slot) else { return events }
@@ -1525,7 +1538,17 @@ enum Rules {
             endRound(state: &state, events: &events)
         } else {
             events.append(.shotMissed(seat: seat, roll: roll, chance: chance))
-            state.phase = .awaitingRebound(shooter: seat)
+            // **Off the Backboard: he called it, so it comes back to him.** No bid and
+            // no scramble — the board is his, and the card is spent taking it.
+            if state.freeRebound.contains(seat) {
+                state.freeRebound.remove(seat)
+                state[seat].rebounds += 1
+                events.append(.rebounded(seat))
+                beginPossession(seat, tickClock: false, fromRebound: true,
+                                fromOwnMiss: true, state: &state, events: &events)
+            } else {
+                state.phase = .awaitingRebound(shooter: seat)
+            }
         }
     }
 
@@ -1550,6 +1573,33 @@ enum Rules {
             }
             return true
         }
+    }
+
+    /// A Whistle waiting on the draw itself, if one is set.
+    ///
+    /// Its own reader rather than `interceptor`, which only ever sees a `PendingAction` —
+    /// and a card reaching a hand is not something anybody did.
+    private static func drawInterceptor(in state: GameState) -> ArmedWhistle? {
+        guard !state.whistlesSilenced else { return nil }
+        return state.armedWhistles.first { $0.trigger == .cardDrawn }
+    }
+
+    /// Blows one called on a draw. **It ends the possession where it stands** and throws
+    /// the rest of the chain away — see `WhistleEffect.endsPossession`.
+    private static func blowOnDraw(_ whistle: ArmedWhistle, against seat: Seat,
+                                   state: inout GameState, events: inout [GameEvent]) {
+        state.armedWhistles.removeAll { $0.id == whistle.id }
+        state.discard.append(whistle.card)
+        // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+        state.possessionWasInterrupted = true
+        // Nothing was cancelled — the card reached the hand and stays there. What is
+        // called is the draw itself, so that is what the log says.
+        events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
+                                   cancelled: "the draw", cancelledCard: nil,
+                                   against: seat))
+        guard whistle.card.descriptor.whistle?.endsPossession == true else { return }
+        state.chainBroken = true
+        reinbound(by: seat, state: &state, events: &events)
     }
 
     /// Spends the Whistle, cancels what tripped it, and applies its effects.
@@ -1633,6 +1683,7 @@ enum Rules {
             let stripped = state[offender].intangibles
             state[offender].intangibles.removeAll()
             events.append(.intangiblesStripped(seat: offender))
+            clockCatchesUp(offender, state: &state, events: &events)
             for card in stripped {
                 rehome(card, from: offender, state: &state, events: &events)
             }
@@ -2016,10 +2067,27 @@ enum Rules {
         state.shotClock = remaining
         events.append(.shotClockTicked(remaining))
         guard remaining <= 0 else { return false }
+        // **Moves At Own Pace plays at nought.** Not forgiven, held: `clockCatchesUp`
+        // calls it the moment the passive leaves him.
+        guard !has(holder, in: state, { $0.ignoresViolations }) else { return false }
         state[holder].turnovers += 1
         events.append(.turnover(holder))
         endRound(state: &state, events: &events)
         return true
+    }
+
+    /// The clock catching up with a man who had been ignoring it.
+    ///
+    /// **Called wherever a passive comes off a player**, because that is the only moment
+    /// a violation he has been sitting on becomes callable. A man on 00 who loses Moves
+    /// At Own Pace loses the ball with it.
+    private static func clockCatchesUp(_ seat: Seat, state: inout GameState,
+                                       events: inout [GameEvent]) {
+        guard state.ball == seat, let clock = state.shotClock, clock <= 0,
+              !has(seat, in: state, { $0.ignoresViolations }) else { return }
+        state[seat].turnovers += 1
+        events.append(.turnover(seat, cause: CardLibrary.shotClockViolation.name))
+        endRound(state: &state, events: &events)
     }
 
     private static func adjustShot(by delta: Int, state: inout GameState) {
@@ -2041,11 +2109,34 @@ enum Rules {
     }
 
     /// Who may be picked, when a card lets the passer choose.
-    static func passChoices(_ target: PassTarget, from seat: Seat) -> [Seat] {
+    /// Who a pass may be thrown to.
+    ///
+    /// **His own seat is on the list.** People throw it off the glass and take it back,
+    /// and the sheet only says *another* player where the card means it — see
+    /// `CardDescriptor.passesToOthersOnly`. Left-or-right is geometry and never includes
+    /// him. What happens when he does name himself is `completePass`'s business: it is
+    /// Traveling, unless he moves at his own pace.
+    static func passChoices(_ target: PassTarget, from seat: Seat,
+                            othersOnly: Bool = false) -> [Seat] {
         switch target {
         case .leftOrRight: return [seat.left, seat.right]
-        default: return Seat.allCases.filter { $0 != seat }
+        default:
+            return othersOnly ? Seat.allCases.filter { $0 != seat } : Seat.allCases
         }
+    }
+
+    /// The targets worth naming, out of the ones that are legal.
+    ///
+    /// **A man may name himself, and almost never should.** Passing to yourself is
+    /// Traveling for everybody but the one holding Moves At Own Pace — so it is a legal
+    /// choice and a terrible one, and an AI picking uniformly out of the legal list threw
+    /// the ball away one throw in four. One owner, because the floor's opponents and the
+    /// harness's have to make the same judgement.
+    static func sensibleTargets(_ choices: [Seat], for actor: Seat,
+                                in state: GameState) -> [Seat] {
+        guard !has(actor, in: state, { $0.ignoresViolations }) else { return choices }
+        let others = choices.filter { $0 != actor }
+        return others.isEmpty ? choices : others
     }
 
     /// Paid whenever one player does something for another.
@@ -2383,6 +2474,11 @@ enum Rules {
         guard count > 0, !seats.isEmpty else { return }
         state.drawChain += 1
         for seat in seats {
+            // **A broken chain stops dealing.** Discontinued Dribble ends the possession
+            // on the card that tripped it, so the cards still owed are cards for a
+            // possession that no longer exists — and Benched hands the ball away the
+            // same way. Nobody after that point gets one.
+            guard !state.chainBroken else { break }
             drawCards(seat, count: count, state: &state, events: &events, depth: depth)
         }
         state.drawChain -= 1
@@ -2401,10 +2497,13 @@ enum Rules {
                                   depth: Int = 0) {
         guard count > 0 else { return }
         for _ in 0..<count {
+            guard !state.chainBroken else { return }
             draw(seat, state: &state, events: &events, allowBonus: false, depth: depth)
         }
+        guard !state.chainBroken else { return }
         let bonus = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.bonusDraw ?? 0) }
         for _ in 0..<bonus {
+            guard !state.chainBroken else { return }
             draw(seat, state: &state, events: &events, allowBonus: false, depth: depth + 1)
         }
     }
@@ -2458,6 +2557,13 @@ enum Rules {
         } else {
             state[seat].bag.append(card)
             events.append(.drew(seat: seat, card: card.descriptor, id: card.id))
+            // **The one call that does not wait for the chain.** Discontinued Dribble is
+            // called on the draw itself, so it fires here rather than in the queue — and
+            // it takes the queue with it: whatever else was coming was being drawn for a
+            // possession that has just ended. See `drainBreaks`.
+            if let whistle = drawInterceptor(in: state) {
+                blowOnDraw(whistle, against: seat, state: &state, events: &events)
+            }
         }
 
         // Shot Creator pulls extra on every draw. The bonus draw itself grants none,
@@ -2557,7 +2663,7 @@ enum Rules {
             }
             state.deck = state.shuffled(state.deck)
             state.drawChain += 1
-            for (other, count) in sizes {
+            for (other, count) in sizes where !state.chainBroken {
                 drawCards(other, count: count, state: &state, events: &events,
                           depth: depth + 1)
             }
@@ -2639,6 +2745,7 @@ enum Rules {
             drawTogether(Seat.allCases.filter { $0 != seat }, count: effect.othersDraw,
                          state: &state, events: &events, depth: depth + 1)
         }
+        if effect.reboundsNextMiss { state.freeRebound.insert(seat) }
         if effect.waivesBreaks > 0 { state.breaksWaived += effect.waivesBreaks }
         if effect.givesBallAway, let holder = state.ball {
             // Handed over, not taken away: whoever is benched decides where the ball
@@ -2646,6 +2753,9 @@ enum Rules {
             state.lastPasser = nil
             state.arrivedBy = nil
             state.pendingInbound = holder
+            // The possession the rest of the draws belonged to is over — see
+            // `drainBreaks`. Benched and Discontinued Dribble end one the same way.
+            state.chainBroken = true
         }
     }
 
@@ -2666,6 +2776,7 @@ enum Rules {
         var events: [GameEvent] = []
         let displaced = state[seat].intangibles.remove(at: index)
         events.append(.intangibleDisplaced(seat: seat, card: displaced))
+        clockCatchesUp(seat, state: &state, events: &events)
         state.phase = .possession(holder: state.ball ?? seat)
         rehome(displaced, from: seat, state: &state, events: &events)
         // Rehoming can overflow the board it lands on, and a board can be more than one
@@ -2724,6 +2835,25 @@ enum Rules {
                             state: inout GameState, events: inout [GameEvent]) {
         drawTogether(seats, count: count, state: &state, events: &events)
         handOverBall(state: &state, events: &events)
+    }
+
+    /// The clock, run down by hand, so a test can watch who it is called on.
+    static func testTick(by amount: Int, holder: Seat,
+                         state: inout GameState, events: inout [GameEvent]) {
+        _ = tickClock(by: amount, holder: holder, state: &state, events: &events)
+    }
+
+    /// A board cleared, which is what makes a held violation callable.
+    static func testStripIntangibles(_ seat: Seat, state: inout GameState,
+                                     events: inout [GameEvent]) {
+        state[seat].intangibles.removeAll()
+        events.append(.intangiblesStripped(seat: seat))
+        clockCatchesUp(seat, state: &state, events: &events)
+    }
+
+    /// A shot taken straight, for watching what the miss does.
+    static func testShot(by seat: Seat, state: inout GameState, events: inout [GameEvent]) {
+        resolveShot(by: seat, bonusPoints: 0, state: &state, events: &events)
     }
 
     static func testDraw(_ seat: Seat, state: inout GameState, events: inout [GameEvent]) {

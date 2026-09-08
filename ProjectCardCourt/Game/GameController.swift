@@ -211,6 +211,10 @@ struct ShotCutscene: Identifiable, Equatable {
 struct ReboundLeap: Identifiable, Equatable {
     let id = UUID()
     let seat: Seat
+    /// **He threw it up himself.** A pass named his own seat, so the ball does not come
+    /// out of the hoop — it leaves his hands, rises to the height a board is taken at,
+    /// and he goes up and gets it. The leap and the follow-through are the same ones.
+    var offTheGlass = false
 }
 
 /// A throw-in on its way. Identified, so each one is a fresh flight rather than the last
@@ -1799,6 +1803,15 @@ final class GameController {
                 try? await Task.sleep(for: .seconds(ReboundTiming.run))
                 reboundLeap = nil
             }
+            // **Off the glass to himself.** A pass that named the man throwing it is not
+            // a pass across the floor — there is nowhere for the ball to go. He puts it
+            // up and takes it back, which is a rebound in every way that shows.
+            for case .passed(_, let from, let to, _, _) in events where from == to {
+                catchUp()
+                reboundLeap = ReboundLeap(seat: from, offTheGlass: true)
+                try? await Task.sleep(for: .seconds(ReboundTiming.run))
+                reboundLeap = nil
+            }
             await playDrawsAndReveals(in: events)
             release(.draw, from: &ledger)
             release(.reveal, from: &ledger)
@@ -2121,7 +2134,9 @@ final class GameController {
                 if seat.isLocal { gate = localGate; return }
                 // Whoever holds the most is the man worth finding — and the man worth
                 // taking from. One rule, because the AI has no reason to prefer another.
-                var pick = choices.max { state[$0].bag.count < state[$1].bag.count } ?? choices[0]
+                let worth = Rules.sensibleTargets(choices, for: state.pendingActor ?? seat,
+                                                  in: state)
+                var pick = worth.max { state[$0].bag.count < state[$1].bag.count } ?? worth[0]
                 if case .target(let said)? = await decision(from: seat), choices.contains(said) {
                     pick = said
                 } else if !Table.shared.isRemote(seat) {

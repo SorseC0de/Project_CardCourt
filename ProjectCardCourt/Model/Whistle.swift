@@ -31,11 +31,16 @@ enum WhistleTrigger: String, Hashable, Codable {
     /// is the referee blowing over the top of another call, so it cannot be matched
     /// against a `PendingAction` the way the rest are; see `Rules.blow`.
     case gameBreakDrawn
+    /// **A card reaching a hand.** The third exception to Breaks and draws being events
+    /// rather than plays, and the loudest: Discontinued Dribble is called on the draw
+    /// itself, so it is raised where the card lands rather than matched against an
+    /// action — and it is the one thing that cuts a draw chain short. See `Rules.draw`.
+    case cardDrawn
 
     func matches(_ action: PendingAction) -> Bool {
         // Never intercepts a play. It waits for another Whistle instead.
         if self == .whistleFired || self == .injuryDrawn
-            || self == .gameBreakDrawn { return false }
+            || self == .gameBreakDrawn || self == .cardDrawn { return false }
         switch (self, action) {
         case (.shotAttempt, .shoot):
             return true
@@ -100,6 +105,10 @@ struct WhistleEffect: Hashable, Codable {
     var cancelsCard = true
     /// Charge: the ball goes back in by the player who was called, with no turnover.
     var offenderInbounds = false
+    /// **Ends the possession where it stands.** Discontinued Dribble: the dribble is
+    /// over, whatever was still owed. Everything the draw had queued is thrown away —
+    /// those cards were being drawn for a possession that no longer exists.
+    var endsPossession = false
     /// Timeout: the Whistle's owner takes the ball and puts it back in play.
     var ownerInbounds = false
     var setterChoosesInbound = false

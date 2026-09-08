@@ -106,6 +106,7 @@ struct StatusHUDView: View {
         VStack(alignment: .trailing, spacing: ballSize * 0.10) {
             HStack(alignment: .center, spacing: ballSize * 0.16) {
                 if owed > 0 { pending }
+                if state.freeRebound.contains(GameRules.localSeat) { calledGlass }
                 if state.whistlesSilenced { silenced }
                 if !state.armedWhistles.isEmpty { watching }
                 ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize)
@@ -117,6 +118,7 @@ struct StatusHUDView: View {
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
                    value: state.armedWhistles.isEmpty)
         .animation(.spring(response: 0.32, dampingFraction: 0.7), value: owed)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7), value: state.freeRebound)
     }
 
     /// How many cards are left, over the pixel deck.
@@ -145,6 +147,16 @@ struct StatusHUDView: View {
 
     private enum Deck {
         static let drop: CGFloat = 3
+    }
+
+    /// **Off the Backboard, still owed.** The card itself, shrunk to a mark, held in the
+    /// corner until the miss it is waiting for. A Break that has already happened but has
+    /// not happened *yet* is the only kind the player needs reminding of.
+    private var calledGlass: some View {
+        CardFrontView(descriptor: CardLibrary.offTheBackboard,
+                      displayWidth: ballSize * 0.62)
+            .shadow(color: CardPalette.navy, radius: 0, x: drop, y: drop)
+            .transition(.scale.combined(with: .opacity))
     }
 
     /// No Whistle can be called this round. The flat icon, struck out.

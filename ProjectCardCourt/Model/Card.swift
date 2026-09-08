@@ -44,6 +44,13 @@ struct ClampEffect: Hashable, Codable {
 
 /// A passive that sits in one of a player's slots for the rest of the match.
 struct IntangibleEffect: Hashable, Codable {
+    /// Moves At Own Pace: he cannot be called for Traveling or for a shot-clock
+    /// violation. **He may play at nought** — the clock runs out and nothing happens.
+    ///
+    /// The violation is not forgiven, only held: `Rules.clockCatchesUp(_:)` calls it the
+    /// moment the card leaves him, so a man sitting on 00 loses the ball as soon as the
+    /// passive does.
+    var ignoresViolations = false
     /// Feeds the adds layer of the SHOT stack.
     var shotBonus: Int = 0
     /// Hot Hand only pays if you scored in the previous round.
@@ -137,6 +144,9 @@ struct IntangibleEffect: Hashable, Codable {
 
 /// A one-off that fires the moment it is drawn.
 struct GameBreakEffect: Hashable, Codable {
+    /// Off the Backboard: the next shot this player misses comes straight back to them.
+    /// No bid, no scramble — see `Rules.resolveShot`. Carried until it is spent.
+    var reboundsNextMiss = false
     /// Everybody, not only whoever turned it up.
     var everyoneDraws = 0
     /// Role Player: everybody *else*. The man who turned it up gets nothing.
@@ -319,6 +329,16 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
 
     /// nil for cards that do not move the ball.
     let passTarget: PassTarget?
+    /// **Whether the man throwing it may name himself.**
+    ///
+    /// He may, on nearly all of them: people throw the ball off the glass and take it
+    /// back, and the sheet only says *another* player where the card means it. Dime is
+    /// one — an assist to yourself is not an assist — and Right Back is the other, where
+    /// the return leg is the same man twice and the ball never leaves his hands.
+    ///
+    /// Passing to yourself is Traveling unless something says otherwise; see
+    /// `Rules.completePass` and `IntangibleEffect.ignoresViolations`.
+    var passesToOthersOnly = false
     /// Resolved into a concrete value by `CardLibrary.buildDeck`, so a dealt card
     /// never depends on a rule that could move under it.
     var shotDelta: Int?
@@ -402,7 +422,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let turnoverIfNoClamps: Bool
 
     init(id: String, name: String, type: CardType, effect: String, numberInDeck: Int,
-         passTarget: PassTarget? = nil, shotDelta: Int? = nil, drawCount: Int = 0,
+         passTarget: PassTarget? = nil, passesToOthersOnly: Bool = false,
+         shotDelta: Int? = nil, drawCount: Int = 0,
          clockDelta: Int = 0, comboAfter: String? = nil,
          comboAfterDribble: Bool = false, comboBonus: Int = 0,
          comboDraw: Int = 0, comboAssist: Int = 0,
@@ -439,6 +460,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.clamperDiscardsPerClamp = clamperDiscardsPerClamp
         self.id = id; self.name = name; self.type = type; self.effect = effect
         self.numberInDeck = numberInDeck; self.passTarget = passTarget
+        self.passesToOthersOnly = passesToOthersOnly
         self.shotDelta = shotDelta; self.drawCount = drawCount; self.clockDelta = clockDelta
         self.comboAfter = comboAfter; self.comboAfterDribble = comboAfterDribble
         self.comboBonus = comboBonus

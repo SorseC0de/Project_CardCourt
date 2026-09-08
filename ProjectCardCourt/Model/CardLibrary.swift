@@ -25,7 +25,8 @@ enum CardLibrary {
     static let dime = CardDescriptor(
         id: "dime", name: "Dime", type: .pass,
         effect: "Pass to a player of choice. SHOT +10%", numberInDeck: 5,
-        passTarget: .choice, shotDelta: 10, bonusAssistOnScore: true)
+        passTarget: .choice, passesToOthersOnly: true,
+        shotDelta: 10, bonusAssistOnScore: true)
 
     static let lob = CardDescriptor(
         id: "lob", name: "Lob", type: .pass,
@@ -54,7 +55,8 @@ enum CardLibrary {
         id: "right-back", name: "Right Back", type: .pass,
         effect: "Pass to a player of choice. SHOT +5%. They give it straight back",
         numberInDeck: 7,
-        passTarget: .choice, shotDelta: 5, returnsImmediately: true)
+        passTarget: .choice, passesToOthersOnly: true,
+        shotDelta: 5, returnsImmediately: true)
 
     static let alleyOop = CardDescriptor(
         id: "alley-oop", name: "Alley-Oop", type: .pass,
@@ -197,6 +199,16 @@ enum CardLibrary {
         effect: "#[Shot Clock] changes: #[TOV] +1. Ball out of bounds", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotClockLowered, turnoverOnOffender: true,
                                cancelsCard: false, offenderInbounds: true))
+
+    /// Called on the draw itself, which is the only Whistle that is — see
+    /// `WhistleTrigger.cardDrawn`. It ends the possession where it stands and throws away
+    /// whatever the draw still had queued.
+    static let discontinuedDribble = CardDescriptor(
+        id: "discontinued-dribble", name: "Discontinued Dribble", type: .whistle,
+        effect: "When a player #[Draws] a card. Their possession ends. They inbound",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .cardDrawn, cancelsCard: false,
+                               offenderInbounds: true, endsPossession: true))
 
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
@@ -477,6 +489,11 @@ enum CardLibrary {
         // which is a floor rather than a limit.
         gameBreak: GameBreakEffect(blocksShotAtOrAbove: 51))
 
+    static let offTheBackboard = CardDescriptor(
+        id: "off-the-backboard", name: "Off the Backboard", type: .gameBreak,
+        effect: "Your next miss rebounds itself", numberInDeck: 3,
+        gameBreak: GameBreakEffect(reboundsNextMiss: true))
+
     static let floorCleanup = CardDescriptor(
         id: "floor-cleanup", name: "Floor Cleanup", type: .gameBreak,
         effect: "Every hand is shuffled back in. Everyone #[Draws] what they had",
@@ -540,6 +557,14 @@ enum CardLibrary {
         effect: "On #[Draw]: #[Draw] +1", numberInDeck: 1,
         intangible: IntangibleEffect(bonusDraw: 1))
 
+    /// He plays at nought. The violation is held rather than forgiven — see
+    /// `Rules.clockCatchesUp(_:)`, which calls it the moment this leaves him.
+    static let movesAtOwnPace = CardDescriptor(
+        id: "moves-at-own-pace", name: "Moves At Own Pace", type: .intangible,
+        effect: "Cannot be called for Traveling or #[Shot Clock] violations",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(ignoresViolations: true))
+
     static let hotHand = CardDescriptor(
         id: "hot-hand", name: "Hot Hand", type: .intangible,
         effect: "SHOT +20% if you scored last round", numberInDeck: 1,
@@ -556,7 +581,7 @@ enum CardLibrary {
         intangible: IntangibleEffect(bonusFreeThrows: 1))
 
     static let intangibles: [CardDescriptor] = [
-        shotCreator, hotHand, freethrowMerchant, generationalWhistle, unselfish,
+        shotCreator, hotHand, movesAtOwnPace, freethrowMerchant, generationalWhistle, unselfish,
         boardCrasher, roswellReach, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
         gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
         sixthMan, sniper, splashCousin, competitive, lethalShooter, ballPounder,
@@ -780,6 +805,7 @@ enum CardLibrary {
         iceWrap, hitTheBike, allStarSelection, allSwisshSelection, rockFight,
         tradedMidGame,
         tradeDeadline, freshBall, wetSpot, floorCleanup, officialTimeout, teamDoctor,
+        offTheBackboard,
         altercation, hugeAltercation, homeCourtAdvantage, awayGame, micdUp, inTheZone,
         rolePlayer, backAndForthGame,
     ] + injuries
@@ -790,6 +816,7 @@ enum CardLibrary {
 
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
+        discontinuedDribble,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
         clearedToPlay, playOn, crewChiefReview,
