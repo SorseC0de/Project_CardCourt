@@ -40,7 +40,22 @@ final class Pad {
 
     struct Press: Equatable {
         let action: Action
+        /// Which of the four it came off, when it came off one of the four. **Carried
+        /// beside the action rather than instead of it**: a face button means one thing
+        /// ordinarily and another while the table is asking which player — see
+        /// `GameView.take(_:)`.
+        let face: Face?
         let stamp: Int
+    }
+
+    /// One of the four, by where it sits on the pad rather than by what it does.
+    ///
+    /// **The diamond is the point.** Square is the left one, circle the right, cross the
+    /// bottom and triangle the top — which is the same shape as four players round a
+    /// table, so a prompt asking which of them can hand each seat the button drawn where
+    /// that seat is drawn. See `Seat.face(viewedFrom:)`.
+    enum Face: String, CaseIterable, Hashable {
+        case square, cross, circle, triangle
     }
 
     struct Release: Equatable {
@@ -194,16 +209,16 @@ final class Pad {
     /// buttons something else is a row here, not a change anywhere in the game.
     private func readButtons(on pad: GCExtendedGamepad) {
         // Cross on a DualSense, A on an Xbox pad.
-        edge(.tap, pad.buttonA, as: .tap)
+        edge(.tap, pad.buttonA, as: .tap, face: .cross)
         // **Not a second cross.** The trigger is the shortcut past the row: whatever the
         // screen is offering, without walking to it.
         edge(.r2, pad.rightTrigger, as: .primary)
         // Circle. Out of whatever this is.
-        edge(.back, pad.buttonB, as: .back)
+        edge(.back, pad.buttonB, as: .back, face: .circle)
         // Triangle, which is the flick under a thumb that never left the face buttons.
-        edge(.flick, pad.buttonY, as: .flick)
+        edge(.flick, pad.buttonY, as: .flick, face: .triangle)
         // Square. A look at something without taking it.
-        edge(.inspect, pad.buttonX, as: .inspect)
+        edge(.inspect, pad.buttonX, as: .inspect, face: .square)
         // The bumpers walk the row, so a hand can be read without leaving the sticks.
         edge(.l1, pad.leftShoulder, as: .previous)
         edge(.r1, pad.rightShoulder, as: .next)
@@ -212,12 +227,13 @@ final class Pad {
     }
 
     /// Fires once, on the way down.
-    private func edge(_ key: Key, _ button: GCControllerButtonInput?, as action: Action) {
+    private func edge(_ key: Key, _ button: GCControllerButtonInput?, as action: Action,
+                      face: Face? = nil) {
         guard let button else { return }
         if button.isPressed {
             guard !held.contains(key) else { return }
             held.insert(key)
-            say(action)
+            say(action, face: face)
         } else {
             held.remove(key)
         }
@@ -275,9 +291,9 @@ final class Pad {
         return nil
     }
 
-    private func say(_ action: Action) {
+    private func say(_ action: Action, face: Face? = nil) {
         stamp += 1
-        press = Press(action: action, stamp: stamp)
+        press = Press(action: action, face: face, stamp: stamp)
     }
 
     // MARK: - The one gesture
@@ -341,6 +357,16 @@ final class Pad {
     ///
     /// Apple's own rule: these glyphs are for telling a player which button to press, and
     /// nothing else.
+    func glyph(for face: Face) -> String? {
+        guard let pad = GCController.controllers().first?.extendedGamepad else { return nil }
+        switch face {
+        case .cross:    return pad.buttonA.sfSymbolsName
+        case .circle:   return pad.buttonB.sfSymbolsName
+        case .square:   return pad.buttonX.sfSymbolsName
+        case .triangle: return pad.buttonY.sfSymbolsName
+        }
+    }
+
     func glyph(for action: Action) -> String? {
         guard let pad = GCController.controllers().first?.extendedGamepad else { return nil }
         switch action {
@@ -359,9 +385,7 @@ final class Pad {
     /// Square, cross, circle, triangle. The order matters because the court is a diamond
     /// and so is a thumb's reach — the man on the left of the floor should be the button
     /// on the left of the pad, and nobody should have to learn that. Borrowed during a
-    /// "which of them" question; see `GameView.padSeats`.
-    static let faces: [Action] = [.inspect, .tap, .back, .flick]
-
+    /// "which of them" question; see `Seat.face(viewedFrom:)`.
     /// The physical things a press is remembered by. Their own names, so the map above is
     /// the only place a button's meaning is written down.
     private enum Key: Hashable {

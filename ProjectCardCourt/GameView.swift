@@ -95,6 +95,13 @@ struct GameView: View {
         // hand or the pause menu on top of it.
         .onChange(of: pad.press) { _, press in
             guard let press else { return }
+            // **A face button names a player while the table is asking for one.** The
+            // four of them are a diamond and so are four seats, so the man on your left
+            // is the button on the left and nobody has to walk a cursor to him.
+            if let face = press.face, let seat = asked(for: face) {
+                select(seat)
+                return
+            }
             take(press.action)
         }
         // The ring goes where the question does. A hand that gains a card leaves it
@@ -1014,15 +1021,6 @@ struct GameView: View {
             return
         }
 
-        // **A "which of them" question borrows the face buttons.** Walking a ring round
-        // four men standing still is slower than pointing at one, and everybody knows
-        // which of the four buttons is which — so during a selection the faces *are* the
-        // men, and the glyph goes over their heads. See `padFaces`.
-        if let at = Pad.faces.firstIndex(of: action), padSeats.indices.contains(at) {
-            select(padSeats[at])
-            return
-        }
-
         switch action {
         case .pause:
             controller.pause()
@@ -1060,15 +1058,6 @@ struct GameView: View {
     /// Where you are not one of the answers — an inbound, which cannot be thrown to
     /// yourself — the three who are left slide up the order and take square, cross and
     /// circle. Three men on three buttons beats three men on three of four.
-    private var padSeats: [Seat] {
-        guard let choosable = padFaces else { return [] }
-        /// The floor, in the order the pad reads: left, near, right, far.
-        let floor: [Seat] = [.west, .south, .east, .north]
-        func place(_ seat: Seat) -> Int {
-            floor.firstIndex(of: seat.slot(viewedFrom: GameRules.localSeat)) ?? floor.count
-        }
-        return Seat.allCases.filter(choosable.contains).sorted { place($0) < place($1) }
-    }
 
     /// Whether the game is asking which of them at all.
     private var padFaces: Set<Seat>? {
@@ -1090,10 +1079,19 @@ struct GameView: View {
     private var ring: PadSpot? { pad.isAttached ? cursor.at : nil }
 
     /// The glyph each choosable man is wearing, when the faces are standing in for them.
+    /// The button each man on offer wears.
+    ///
+    /// **Fixed to the seat, not handed out in order.** Dealing the four buttons along a
+    /// list of whoever happens to be selectable moves them: with the near man not on
+    /// offer, the right-hand player slid onto cross. The button is the one drawn where
+    /// the player is drawn and it does not move — see `Seat.face(viewedFrom:)`.
     private var padGlyphs: [Seat: String] {
+        guard let choosable = padFaces else { return [:] }
         var worn: [Seat: String] = [:]
-        for (at, seat) in padSeats.enumerated() where at < Pad.faces.count {
-            if let glyph = pad.glyph(for: Pad.faces[at]) { worn[seat] = glyph }
+        for seat in choosable {
+            if let glyph = pad.glyph(for: seat.face(viewedFrom: GameRules.localSeat)) {
+                worn[seat] = glyph
+            }
         }
         return worn
     }
@@ -1253,6 +1251,16 @@ struct GameView: View {
             if let picked { takeTheOffer(picked) }
         default: break
         }
+    }
+
+    /// The player this face button names, when the floor is what is being asked about.
+    ///
+    /// Nil at every other gate, which is what leaves the four buttons meaning what they
+    /// ordinarily mean — see `Seat.face(viewedFrom:)`.
+    private func asked(for face: Pad.Face) -> Seat? {
+        let choosable = CourtView.choosable(at: controller.gate, in: controller.shown)
+        guard !choosable.isEmpty else { return nil }
+        return choosable.first { $0.face(viewedFrom: GameRules.localSeat) == face }
     }
 
     /// Picking a man off the floor. **The same answer for a tap and for the ring** —

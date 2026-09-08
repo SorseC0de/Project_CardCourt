@@ -948,6 +948,7 @@ struct CourtView: View {
                 isDimmed: !selectableSeats.isEmpty && !selectable
                     && state.phase.actingSeat != seat,
                 marker: marker(for: seat, selectable: selectable),
+                faceGlyph: selectable ? faces[seat] : nil,
                 clampCount: showingClamps ? state[seat].clamps.count : nil,
                 handCount: state[seat].bag.count { !undelivered.contains($0.id) },
                 // Set and waiting for it, like everybody else during an inbound — and

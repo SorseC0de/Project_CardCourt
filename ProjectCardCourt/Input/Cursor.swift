@@ -168,3 +168,23 @@ final class Cursor {
     var card: Card.ID? { if case .card(let id) = at { return id } else { return nil } }
     var seat: Seat? { if case .seat(let seat) = at { return seat } else { return nil } }
 }
+
+
+extension Seat {
+    /// **The face button drawn where this player is drawn.**
+    ///
+    /// The four face buttons are a diamond and so are four players round a table, so a
+    /// prompt asking which of them needs no cursor at all: the man on your left is the
+    /// button on the left. Square is west, circle east, cross south, triangle north —
+    /// off `slot(viewedFrom:)`, so the button follows the drawing rather than the
+    /// compass, and a player sitting north still presses square for the man on their
+    /// left.
+    func face(viewedFrom viewer: Seat) -> Pad.Face {
+        switch slot(viewedFrom: viewer) {
+        case .west:  return .square
+        case .south: return .cross
+        case .east:  return .circle
+        case .north: return .triangle
+        }
+    }
+}

@@ -24,6 +24,10 @@ struct PlayerFigure: View {
     var isActing = false
     var isDimmed = false
     var marker: Color?
+    /// The button that names this man, drawn on his wedge while the floor is being asked
+    /// about. **Only ever an SF Symbol the pad itself named** — see `Pad.glyph(for:)`,
+    /// and Apple's rule that these glyphs say which button to press and nothing else.
+    var faceGlyph: String?
     /// Clamps already on this player, shown above their head while a Clamp is being read.
     /// Nil the rest of the time — a running count of nothing on four heads is clutter.
     var clampCount: Int?
@@ -117,6 +121,8 @@ struct PlayerFigure: View {
         /// Deeper than the two it had, and in the kit's blue rather than navy.
         static let drop: CGFloat = 4
         static let lift: CGFloat = -38
+        /// The button's own glyph, sitting in the wedge's wide end.
+        static let glyph: CGFloat = 13
     }
 
     private enum Bag {
@@ -392,15 +398,27 @@ struct PlayerFigure: View {
                         .offset(y: -5)
                     }
                     if let marker {
-                        MarkerTriangle()
-                            .fill(marker)
-                            .frame(width: Wedge.width, height: Wedge.height)
-                            .shadow(color: CardPalette.blue, radius: 0,
-                                    x: Wedge.drop, y: Wedge.drop)
-                            // Lifted by half of what it grew, so the bigger wedge keeps
-                            // the air it had over his head rather than reaching down
-                            // into it.
-                            .offset(y: Wedge.lift + hop)
+                        ZStack {
+                            MarkerTriangle()
+                                .fill(marker)
+                                .frame(width: Wedge.width, height: Wedge.height)
+                                .shadow(color: CardPalette.blue, radius: 0,
+                                        x: Wedge.drop, y: Wedge.drop)
+                            // **On the wedge, not beside it.** The wedge already means
+                            // "you can pick this one"; the glyph says which button does
+                            // it, so they are one mark rather than two.
+                            if let faceGlyph {
+                                Image(systemName: faceGlyph)
+                                    .font(.system(size: Wedge.glyph, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+                                    .offset(y: -Wedge.height * 0.18)
+                            }
+                        }
+                        // Lifted by half of what it grew, so the bigger wedge keeps
+                        // the air it had over his head rather than reaching down
+                        // into it.
+                        .offset(y: Wedge.lift + hop)
                     }
                     }
                     .opacity(warp > 0 ? 0 : 1)
