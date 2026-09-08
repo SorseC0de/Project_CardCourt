@@ -181,9 +181,15 @@ struct DebugActionsView: View {
                     action("clock") { controller.debugTurnover(.shotClock) }
                     action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
                     action("shot") { controller.debugShot() }
-                    // Whichever `DunkBench` is set to, so the two do not disagree.
+                    // **Throws one and moves on to the next.** The button showed
+                    // whichever finish the bench was set to and threw that one forever,
+                    // so a placement settled here had been settled against a third of
+                    // the evidence. Tap three times and you have seen all three.
                     action("dunk \(DunkBench.label(dunks.showing))") {
                         controller.debugDunk(dunks.showing)
+                        dunks.showing = Dunk.allCases[
+                            (Dunk.allCases.firstIndex(of: dunks.showing)! + 1)
+                                % Dunk.allCases.count]
                     }
                     action("name") { controller.debugNameCall() }
                     action("lethal") { controller.debugUnderstood() }

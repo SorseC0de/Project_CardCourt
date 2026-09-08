@@ -72,7 +72,7 @@ enum DunkStyle {
     /// How far over the iron a finish was arriving, counted by eye. See
     /// `DunkTuning.overTheRim`, which is the dial, and the court tuner, which is where it
     /// is turned — on the phone, because that is the only screen it can be judged on.
-    static let overTheRim: CGFloat = 3
+    static let overTheRim: CGFloat = 6
 
     /// **The rim takes his weight.** He goes this many art pixels *past* the tuned
     /// finish as he catches hold of it, and the ring goes down with him — then a spring
