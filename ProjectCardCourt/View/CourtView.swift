@@ -34,6 +34,10 @@ struct CourtView: View {
     var flightDuration: Double = 0.30
     var onOpenDiscard: () -> Void = {}
     var onSelect: (Seat) -> Void
+    /// **Which button stands for which man**, while the game is asking which of them.
+    /// The pad's own glyph for each face button, over the head of the man it names — see
+    /// `GameView.padFaces`. Empty at every other moment, and for everybody on glass.
+    var faces: [Seat: String] = [:]
     /// The man a controller is pointing at, and nobody when nobody has one plugged in.
     /// **The wedge already over his head, in the cursor's colour** — a ring round a
     /// figure would be the one box on a floor with no boxes on it.
@@ -796,6 +800,13 @@ struct CourtView: View {
     /// The wedge means "you can pick this one". During an inbound the inbounder is the
     /// single seat you cannot pass to, so they wear nothing at all — marking them would
     /// point at the one illegal target on the floor.
+    /// The button glyph over a man's head, while he is one of the answers.
+    private enum Face {
+        static let glyph: CGFloat = 26
+        /// Above the wedge rather than through it — see `PlayerFigure.Wedge`.
+        static let lift: CGFloat = -62
+    }
+
     private func marker(for seat: Seat, selectable: Bool) -> Color? {
         if selectable { return seat == ringed ? CardPalette.gold : Theme.live }
         if case .inbound = state.phase { return nil }
@@ -1021,6 +1032,19 @@ struct CourtView: View {
         // them with an inspection of the man who had left.
         .allowsHitTesting(!isAway(seat))
         .onTapGesture { selectable ? onSelect(seat) : onInspectPlayer(seat) }
+        // The button that names him, over his head where the wedge is. Only ever while
+        // the question is up, and only ever for a pad.
+        .overlay(alignment: .top) {
+            if let glyph = faces[seat] {
+                Image(systemName: glyph)
+                    .font(.system(size: Face.glyph, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
+                    .offset(y: Face.lift)
+                    .allowsHitTesting(false)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
         .animation(.easeOut(duration: 0.2), value: revealedBids?[seat])
     }
 }

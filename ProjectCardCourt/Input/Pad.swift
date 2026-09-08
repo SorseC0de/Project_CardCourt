@@ -54,11 +54,19 @@ final class Pad {
         /// Walk the row the table is asking about — the hand, the men on the floor, the
         /// cards on offer. What the row holds is the gate's business, not the pad's.
         case previous, next
-        /// **The flick, without the gesture.** Up on a stick or the d-pad, or triangle:
-        /// the result of throwing a card at the table, which is playing it.
+        /// **The flick, without the gesture.** Triangle, and triangle alone: the result
+        /// of throwing a card at the table, which is playing it.
+        ///
+        /// **Up is not this.** Up is where your thumb rests and where it goes on the way
+        /// to anywhere else, and a thumb that grazes it should not play a card.
         case flick
-        /// The other way. A card held up goes back down.
-        case down
+        /// Up and down the screen. Navigation only — in a stacked list they walk it, and
+        /// down puts a raised card back. Neither ever commits anything.
+        case up, down
+        /// **The one thing the screen is offering.** The right trigger, which is not a
+        /// second face button: wherever the ring happens to be, this presses whatever the
+        /// game is holding out — SHOOT on your turn, the bid, the spend, the take.
+        case primary
         /// The one under your thumb, and the right trigger with it. A tap on whatever is
         /// focused — twice on a card is a look and then a play, exactly as two taps on
         /// glass are.
@@ -185,10 +193,11 @@ final class Pad {
     /// What each button says. **The whole map, in one table** — a pad that calls its face
     /// buttons something else is a row here, not a change anywhere in the game.
     private func readButtons(on pad: GCExtendedGamepad) {
-        // Cross on a DualSense, A on an Xbox pad. The right trigger says the same thing
-        // so a thumb can stay on the stick.
+        // Cross on a DualSense, A on an Xbox pad.
         edge(.tap, pad.buttonA, as: .tap)
-        edge(.r2, pad.rightTrigger, as: .tap)
+        // **Not a second cross.** The trigger is the shortcut past the row: whatever the
+        // screen is offering, without walking to it.
+        edge(.r2, pad.rightTrigger, as: .primary)
         // Circle. Out of whatever this is.
         edge(.back, pad.buttonB, as: .back)
         // Triangle, which is the flick under a thumb that never left the face buttons.
@@ -262,7 +271,7 @@ final class Pad {
         let held = heading != nil
         let over = held ? Feel.letGo : Feel.throwDistance
         if abs(x) >= over { return x < 0 ? .previous : .next }
-        if abs(y) >= over { return y > 0 ? .flick : .down }
+        if abs(y) >= over { return y > 0 ? .up : .down }
         return nil
     }
 
@@ -324,6 +333,30 @@ final class Pad {
         guard hypot(moved.width, moved.height) >= Feel.touchFloor else { return .zero }
         return moved
     }
+
+    /// **What this pad calls its own buttons.** `GameController` hands every button an
+    /// SF Symbol for the controller actually plugged in, so a DualSense says cross and an
+    /// Xbox pad says A without the game knowing either name. Nil when nothing is attached
+    /// or the pad does not offer one, and the caller draws nothing rather than guessing.
+    ///
+    /// Apple's own rule: these glyphs are for telling a player which button to press, and
+    /// nothing else.
+    func glyph(for action: Action) -> String? {
+        guard let pad = GCController.controllers().first?.extendedGamepad else { return nil }
+        switch action {
+        case .tap:     return pad.buttonA.sfSymbolsName
+        case .back:    return pad.buttonB.sfSymbolsName
+        case .flick:   return pad.buttonY.sfSymbolsName
+        case .inspect: return pad.buttonX.sfSymbolsName
+        case .primary: return pad.rightTrigger.sfSymbolsName
+        case .pause:   return pad.buttonMenu.sfSymbolsName
+        default:       return nil
+        }
+    }
+
+    /// The four face buttons, in the order a hand finds them: the two under the thumb
+    /// first. **Borrowed during a "which of them" question** — see `GameView`.
+    static let faces: [Action] = [.tap, .back, .inspect, .flick]
 
     /// The physical things a press is remembered by. Their own names, so the map above is
     /// the only place a button's meaning is written down.

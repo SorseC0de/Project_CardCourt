@@ -13,6 +13,10 @@ struct EntryScreenView: View {
     var onWell: () -> Void = {}
     var onSettings: () -> Void = {}
 
+    @State private var pad = Pad.shared
+    /// Which door the ring is on. Opens on the game, which is the last of them.
+    @State private var at = 5
+
     private enum Front {
         static let title: CGFloat = SwisshWordmark.Mark.size
         /// How far down the mark sits. Clear of the corners rather than tucked under
@@ -23,6 +27,40 @@ struct EntryScreenView: View {
         static let gear: CGFloat = 34
         static let tile: CGFloat = 58
         static let gap: CGFloat = 20
+        /// The slab's own corner, so the ring follows its edge rather than boxing it.
+        static let corner: CGFloat = 18
+    }
+
+    /// Everything on this screen a pad can press, top to bottom the way the eye reads it.
+    ///
+    /// **A menu is a column.** Up and down walk it, and so do the bumpers — see
+    /// `Row.runsDown`, which says the same thing about the mode picker. The ring opens on
+    /// the game rather than on the first thing in the list, because that is what anybody
+    /// pressing a button on the front screen came here to do.
+    private var doors: [(label: String, run: () -> Void)] {
+        [("Play online", onLobby),
+         ("Settings", onSettings),
+         ("Card Gallery", onGallery),
+         ("My Hooper", onHooper),
+         ("Swisshing Well", onWell),
+         ("Check Rock!", onPlay)]
+    }
+
+    /// Whether the ring is on this door. **Nothing at all without a pad** — see
+    /// `PadRing`.
+    private func ringed(_ door: Int) -> Bool { pad.isAttached && at == door }
+
+    private func walk(_ way: Int) {
+        at = max(0, min(doors.count - 1, at + way))
+    }
+
+    private func take(_ action: Pad.Action) {
+        switch action {
+        case .up, .previous:  walk(-1)
+        case .down, .next:    walk(1)
+        case .tap, .flick, .primary: doors[at].run()
+        default: break
+        }
     }
 
     var body: some View {
@@ -40,14 +78,18 @@ struct EntryScreenView: View {
                     // screen is settled before any of them does anything.
                     tile("Card Gallery", art: .symbol("rectangle.stack.fill"),
                          run: onGallery)
+                        .padRing(ringed(2), corner: Front.corner)
                     tile("My Hooper", art: .image("MyHooperIcon"), run: onHooper)
+                        .padRing(ringed(3), corner: Front.corner)
                     tile("Swisshing Well", art: .image("SwisshingWellIcon"), run: onWell)
+                        .padRing(ringed(4), corner: Front.corner)
 
                     // Last, and the only gold thing on the screen. Everything above it is
                     // somewhere to go; this is the game.
                     ChunkyButton(title: "Check Rock!", fill: CardPalette.gold,
                                  stroke: CardPalette.gold, shade: CardPalette.orange,
                                  size: 28, run: onPlay)
+                        .padRing(pill: ringed(5))
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 44)
@@ -68,7 +110,7 @@ struct EntryScreenView: View {
                                    height: Front.gear * 0.96)
                             .foregroundStyle(.white)
                             .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
-                        
+                            .padRing(ringed(1), corner: 8)
                     }
                     .buttonStyle(.plain)
                 }
@@ -76,6 +118,10 @@ struct EntryScreenView: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 14)
+        }
+        .onChange(of: pad.press) { _, press in
+            guard let press else { return }
+            take(press.action)
         }
     }
 
@@ -100,6 +146,7 @@ struct EntryScreenView: View {
             .shadow(color: CardPalette.orange, radius: 0, x: 4, y: 4)
         }
         .buttonStyle(.plain)
+        .padRing(pill: ringed(0))
     }
 
     /// What a tile shows: a drawing of ours, or a stand-in until there is one.

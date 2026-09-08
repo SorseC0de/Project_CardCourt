@@ -638,7 +638,8 @@ struct GameView: View {
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },
                   onSelect: select,
-                  ringed: cursor.seat,
+                  faces: padGlyphs,
+                  ringed: padFaces == nil ? cursor.seat : nil,
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
                   spend: controller.spend,
@@ -997,24 +998,88 @@ struct GameView: View {
             return
         }
 
+        // **A "which of them" question borrows the face buttons.** Walking a ring round
+        // four men standing still is slower than pointing at one, and everybody knows
+        // which of the four buttons is which — so during a selection the faces *are* the
+        // men, and the glyph goes over their heads. See `padFaces`.
+        if let choosable = padFaces, let at = Pad.faces.firstIndex(of: action),
+           Seat.allCases.indices.contains(at), choosable.contains(Seat.allCases[at]) {
+            select(Seat.allCases[at])
+            return
+        }
+
         switch action {
         case .pause:
             controller.pause()
             withAnimation(.easeOut(duration: 0.2)) { paused = true }
         case .previous, .next:
             walk(action)
+        case .up:
+            // **Navigation, never a commit.** Up is where a thumb rests and where it
+            // passes through on the way anywhere else.
+            if Row.runsDown(controller) { walk(.previous) }
         case .down:
-            // **A list of options runs down the screen.** Up and down walk it there, and
-            // the bumpers keep meaning what they mean everywhere else.
             if Row.runsDown(controller) { walk(.next) } else { detail = nil }
         case .flick:
-            if Row.runsDown(controller) { walk(.previous) } else { commit(cursor.at) }
+            commit(cursor.at)
         case .tap:
             press(cursor.at)
+        case .primary:
+            offered()
         case .back:
             if detail != nil { detail = nil } else { declineTheOffer() }
         case .inspect:
             look(at: cursor.at)
+        }
+    }
+
+    /// The men the face buttons stand for right now, or nil when the game is not asking
+    /// which of them.
+    ///
+    /// **A seat, not a place in a list.** Each man is bound to the same button for the
+    /// whole game — the fourth chair is always the fourth button — so the answer to "which
+    /// one is Raheem" is learned once rather than re-read every time the question changes
+    /// shape. A man who is not one of the answers simply wears nothing.
+    private var padFaces: Set<Seat>? {
+        guard pad.isAttached else { return nil }
+        switch controller.gate {
+        case .awaitingInbound, .awaitingTarget, .awaitingNaming:
+            let choosable = CourtView.choosable(at: controller.gate, in: controller.shown)
+            return choosable.isEmpty ? nil : choosable
+        default:
+            return nil
+        }
+    }
+
+    /// The glyph each choosable man is wearing, when the faces are standing in for them.
+    private var padGlyphs: [Seat: String] {
+        guard let choosable = padFaces else { return [:] }
+        var worn: [Seat: String] = [:]
+        for (at, seat) in Seat.allCases.enumerated()
+        where at < Pad.faces.count && choosable.contains(seat) {
+            if let glyph = pad.glyph(for: Pad.faces[at]) { worn[seat] = glyph }
+        }
+        return worn
+    }
+
+    /// **Whatever the screen is holding out.** The right trigger, which skips the row: on
+    /// your turn that is the shot, at a bid it is the bid, on a sheet it is the take. One
+    /// button for "the obvious thing", wherever the ring happens to be.
+    private func offered() {
+        switch controller.gate {
+        case .awaitingMove:
+            guard Rules.legalMoves(controller.shown, for: GameRules.localSeat)
+                .contains(.shoot) else { return }
+            controller.shoot()
+        case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
+            confirm()
+        case .awaitingCounter, .awaitingToll, .awaitingIntangibleDrop,
+             .awaitingInjuryPick, .awaitingCardFrom:
+            if let picked { takeTheOffer(picked) }
+        case .gameOver:
+            onRunItBack()
+        default:
+            break
         }
     }
 
@@ -1158,7 +1223,7 @@ struct GameView: View {
     private func takeWhilePaused(_ action: Pad.Action) {
         switch action {
         case .tap, .back, .pause: resume()
-        case .flick: paused = false; onQuit()
+        case .flick, .primary: paused = false; onQuit()
         default: break
         }
     }
