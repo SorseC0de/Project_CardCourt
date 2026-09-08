@@ -122,3 +122,78 @@ one mechanism, with every call site still in place. If that holds for a week, th
 follows the same way.
 
 Nothing here is scheduled. It is written down so the decision is a decision.
+
+---
+
+# Where it stands — 2026-09-08
+
+The way in has been taken. **`GameState.pending: [Step]`** exists and is the only place
+an owed thing lives.
+
+## What is on it
+
+Six kinds, and they were six separate fields:
+
+| step | was | paid by |
+|---|---|---|
+| `revealBreak` | `pendingBreaks` | `drainBreaks`, in deck order, while the draw chain is held |
+| `spendHand` | `handsOwed` | the settle |
+| `handOverBall` | `pendingInbound` | `handOverBall`, at a possession's end |
+| `returnBall` | `returnsTo` + `returnLeg` | the settle, once there is a possession |
+| `shootAtOnce` | `shootsAtOnce` | the settle, once there is a possession |
+| `takeTheLine` | `pendingFreeThrows` | `takeTheLine`, at a possession's end |
+
+`overflowing` is **not** a step and should not become one: being over the slots is a fact
+about a board, so it is read rather than remembered. That was itself a bug once — a set
+that was sifted rather than rebuilt left boards at six on a three-slot table.
+
+## The property, and what enforcing it found
+
+> A possession may not open owing a step the drain could have paid.
+
+The soak checks this every time the floor is handed to a player. It found **73 cases on
+the first run**. Two were real: an empty hand was being treated as a debt still owed
+rather than one already settled, so Free Agent's toll followed a man into the next hand he
+was dealt. The rest were the check being too strict about the two steps that are paid at a
+possession's *end*.
+
+`./Tools/sim --steps` reads the list from outside the rules over 300 games:
+
+```
+step            owed   per game   waited (moves)      longest   left at the end
+  revealBreak     owed and paid inside one play, so never seen from out here
+  spendHand       never owed
+  handOverBall     29       0.10             0.57            1                 5
+  returnBall       96       0.32             0.12            1                 0
+  shootAtOnce      74       0.25             0.24            1                 0
+  takeTheLine      84       0.28             0.87            3                 0
+```
+
+Steps are paid within a move of being owed, and the longest anything waits is three. The
+five left at a final whistle are games that ended with a ball still to be handed over —
+the debt dies with the game, which is right, but it is the one number here worth an
+opinion.
+
+## What is deliberately not done
+
+**Two drains, one list.** `drainBreaks` runs Breaks while it holds the draw chain open;
+the settle runs the rest at the edge of a play. Those are genuinely different edges, and
+merging them changes *when* things happen rather than how they are book-kept. What is gone
+is the second **place** an owed thing could live, which is where every bug of this shape
+came from.
+
+**`pendingClamps` is still a field.** Defenders waiting to land is an owed action by the
+same definition, and it has its own bug history — but the landing rules are intricate
+(`clampLanding`, `clampMagnet`, `pendingClampVoid`) and the court reads the field directly
+to draw them in the air. It is the obvious next one, and it wants somebody watching.
+
+**Presentation is still the second queue**, and still the hard part. Nothing here has
+touched it. Until it is steps, there is no replay ring and no per-seat step redaction — so
+the two big unlocks in this document remain unlocked.
+
+## The next decision
+
+Whether the settle and the break drain become one. That is the change that makes "pushed
+to the end and resolved one by one" literally true, and it is the first one that can
+change the game rather than only the bookkeeping. It wants a day with somebody watching,
+not a night.
