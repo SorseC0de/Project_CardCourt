@@ -354,9 +354,13 @@ final class Pad {
         }
     }
 
-    /// The four face buttons, in the order a hand finds them: the two under the thumb
-    /// first. **Borrowed during a "which of them" question** — see `GameView`.
-    static let faces: [Action] = [.tap, .back, .inspect, .flick]
+    /// The four face buttons **in the shape they sit in**: left, bottom, right, top.
+    ///
+    /// Square, cross, circle, triangle. The order matters because the court is a diamond
+    /// and so is a thumb's reach — the man on the left of the floor should be the button
+    /// on the left of the pad, and nobody should have to learn that. Borrowed during a
+    /// "which of them" question; see `GameView.padSeats`.
+    static let faces: [Action] = [.inspect, .tap, .back, .flick]
 
     /// The physical things a press is remembered by. Their own names, so the map above is
     /// the only place a button's meaning is written down.

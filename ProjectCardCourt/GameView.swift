@@ -1002,9 +1002,8 @@ struct GameView: View {
         // four men standing still is slower than pointing at one, and everybody knows
         // which of the four buttons is which — so during a selection the faces *are* the
         // men, and the glyph goes over their heads. See `padFaces`.
-        if let choosable = padFaces, let at = Pad.faces.firstIndex(of: action),
-           Seat.allCases.indices.contains(at), choosable.contains(Seat.allCases[at]) {
-            select(Seat.allCases[at])
+        if let at = Pad.faces.firstIndex(of: action), padSeats.indices.contains(at) {
+            select(padSeats[at])
             return
         }
 
@@ -1034,13 +1033,28 @@ struct GameView: View {
         }
     }
 
-    /// The men the face buttons stand for right now, or nil when the game is not asking
-    /// which of them.
+    /// The men the buttons stand for, laid out the way the floor lays them out.
     ///
-    /// **A seat, not a place in a list.** Each man is bound to the same button for the
-    /// whole game — the fourth chair is always the fourth button — so the answer to "which
-    /// one is Raheem" is learned once rather than re-read every time the question changes
-    /// shape. A man who is not one of the answers simply wears nothing.
+    /// **The pad's diamond over the court's.** Square is the button on the left and the
+    /// man on the left; cross is the one nearest you, at the bottom of both; circle is
+    /// the right of both; triangle the far one. Nobody has to learn a mapping that is
+    /// already on the screen, and the four never shuffle — a man keeps his button because
+    /// he keeps his place on the floor.
+    ///
+    /// Where you are not one of the answers — an inbound, which cannot be thrown to
+    /// yourself — the three who are left slide up the order and take square, cross and
+    /// circle. Three men on three buttons beats three men on three of four.
+    private var padSeats: [Seat] {
+        guard let choosable = padFaces else { return [] }
+        /// The floor, in the order the pad reads: left, near, right, far.
+        let floor: [Seat] = [.west, .south, .east, .north]
+        func place(_ seat: Seat) -> Int {
+            floor.firstIndex(of: seat.slot(viewedFrom: GameRules.localSeat)) ?? floor.count
+        }
+        return Seat.allCases.filter(choosable.contains).sorted { place($0) < place($1) }
+    }
+
+    /// Whether the game is asking which of them at all.
     private var padFaces: Set<Seat>? {
         guard pad.isAttached else { return nil }
         switch controller.gate {
@@ -1061,10 +1075,8 @@ struct GameView: View {
 
     /// The glyph each choosable man is wearing, when the faces are standing in for them.
     private var padGlyphs: [Seat: String] {
-        guard let choosable = padFaces else { return [:] }
         var worn: [Seat: String] = [:]
-        for (at, seat) in Seat.allCases.enumerated()
-        where at < Pad.faces.count && choosable.contains(seat) {
+        for (at, seat) in padSeats.enumerated() where at < Pad.faces.count {
             if let glyph = pad.glyph(for: Pad.faces[at]) { worn[seat] = glyph }
         }
         return worn
