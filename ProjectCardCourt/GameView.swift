@@ -16,6 +16,11 @@ struct GameView: View {
     @State private var cursor = Cursor()
 
     @State private var paused = false
+    /// The card taken off whichever sheet is up, before it is confirmed.
+    ///
+    /// **Outside the sheet.** Every "pick one of these" in the game used to hold its own
+    /// choice, which left a controller with nothing to write to — see `takeTheOffer(_:)`.
+    @State private var picked: CardPick?
     @State private var detail: Card?
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
@@ -82,7 +87,7 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.2), value: controller.cutscene)
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
-        .onChange(of: controller.gate) { detail = nil }
+        .onChange(of: controller.gate) { detail = nil; picked = nil }
         // **Every press lands in one place.** Only this screen knows what is over the
         // floor, so it is the only thing that can say whether a button was answering the
         // hand or the pause menu on top of it.
@@ -282,20 +287,9 @@ struct GameView: View {
                                    tint: CardPalette.orange,
                                    taking: "Play it!",
                                    declining: "No thanks",
-                                   onDecline: { controller.choose(counter: nil) },
-                                   onPick: { picked in
-                                       // `CardChoiceView` answers by name or by seat in
-                                       // the row it drew; either way it names one of the
-                                       // cards this hand was offered.
-                                       let taken: Card?
-                                       switch picked {
-                                       case .named(let id):
-                                           taken = cards.first { $0.descriptor.id == id }
-                                       case .position(let at):
-                                           taken = cards[safe: at]
-                                       }
-                                       controller.choose(counter: taken?.id)
-                                   })
+                                   chosen: $picked, ringed: cursor.at,
+                                   onDecline: declineTheOffer,
+                                   onPick: takeTheOffer)
                         .zIndex(11)
                 }
                 if browsingDiscard {
@@ -319,9 +313,8 @@ struct GameView: View {
                         ChunkyButton(title: named.isEmpty ? "Take it alone"
                                                           : "Shoot (+\(named.count * 10)%)",
                                      fill: CardPalette.gold, stroke: CardPalette.gold,
-                                     shade: CardPalette.orange, size: 20) {
-                            controller.choose(naming: nil)
-                        }
+                                     shade: CardPalette.orange, size: 20,
+                                     run: declineTheOffer)
                         .frame(width: 240)
                         .padding(.bottom, 130)
                     }
@@ -335,39 +328,41 @@ struct GameView: View {
                                    offered: controller.shown[victim].intangibles,
                                    backs: controller.shown[victim].bag.count,
                                    declining: "Leave it",
-                                   onDecline: { controller.choose(toll: nil) }) {
-                        controller.choose(toll: $0)
-                    }
+                                   chosen: $picked, ringed: cursor.at,
+                                   onDecline: declineTheOffer,
+                                   onPick: takeTheOffer)
                     .zIndex(12)
                 }
                 if case .awaitingIntangibleDrop(let offered) = controller.gate {
                     // The one that just arrived is in the row, so "just discard it" is a
                     // pick rather than a second button.
                     CardChoiceView(title: "Too Many", note: "One has to go", offered: offered,
-                                   tint: CardPalette.gold) { pick in
-                        if case .named(let id) = pick { controller.choose(dropping: id) }
-                    }
+                                   tint: CardPalette.gold,
+                                   chosen: $picked, ringed: cursor.at,
+                                   onPick: takeTheOffer)
                         .zIndex(12)
                 }
                 if case .awaitingInjuryPick(let card) = controller.gate {
                     CardChoiceView(title: card.name, note: "Take one",
                                    offered: controller.shown.injuriesOffered,
-                                   hidden: controller.shown.injuriesHidden) { pick in
-                        if case .named(let id) = pick { controller.choose(injury: id) }
-                    }
+                                   hidden: controller.shown.injuriesHidden,
+                                   chosen: $picked, ringed: cursor.at,
+                                   onPick: takeTheOffer)
                     .zIndex(12)
                 }
                 if case .awaitingCardFrom(let card, let victim) = controller.gate {
                     HandPickerView(card: card, victim: victim,
-                                   hand: controller.shown[victim].bag.count) { index in
-                        let hand = controller.shown[victim].bag
-                        guard hand.indices.contains(index) else { return }
-                        controller.choose(card: hand[index].id)
-                    }
+                                   hand: controller.shown[victim].bag.count,
+                                   chosen: $picked, ringed: cursor.at,
+                                   onPick: { takeTheOffer(.position($0)) })
                     .zIndex(12)
                 }
                 if case .awaitingMode(let card) = controller.gate {
-                    ModePickerView(card: card) { controller.choose(mode: $0) }
+                    ModePickerView(card: card,
+                                   ringed: { if case .mode(let at) = cursor.at { return at }
+                                             else { return nil } }()) {
+                        controller.choose(mode: $0)
+                    }
                         .zIndex(12)
                 }
                 if let scene = controller.reveal {
@@ -1007,23 +1002,29 @@ struct GameView: View {
             controller.pause()
             withAnimation(.easeOut(duration: 0.2)) { paused = true }
         case .previous, .next:
-            let row = Row.at(controller)
-            cursor.settle(on: row)
-            cursor.walk(action, along: row)
-            // The reading does not follow the ring. Walking away from a card you were
-            // holding up puts it back in the hand, which is what a finger does too.
-            detail = nil
+            walk(action)
         case .down:
-            detail = nil
+            // **A list of options runs down the screen.** Up and down walk it there, and
+            // the bumpers keep meaning what they mean everywhere else.
+            if Row.runsDown(controller) { walk(.next) } else { detail = nil }
         case .flick:
-            commit(cursor.at)
+            if Row.runsDown(controller) { walk(.previous) } else { commit(cursor.at) }
         case .tap:
             press(cursor.at)
         case .back:
-            if detail != nil { detail = nil } else { decline() }
+            if detail != nil { detail = nil } else { declineTheOffer() }
         case .inspect:
             look(at: cursor.at)
         }
+    }
+
+    private func walk(_ way: Pad.Action) {
+        let row = Row.at(controller)
+        cursor.settle(on: row)
+        cursor.walk(way, along: row)
+        // The reading does not follow the ring. Walking away from a card you were holding
+        // up puts it back in the hand, which is what a finger does too.
+        detail = nil
     }
 
     /// A press on whatever is focused. **The same two steps a finger gets**: a card comes
@@ -1041,8 +1042,12 @@ struct GameView: View {
         case .shoot:   controller.shoot()
         case .borrow:  controller.beginBorrow()
         case .confirm: confirm()
-        case .decline: decline()
+        case .decline: declineTheOffer()
         case .seat(let seat): select(seat)
+        // **Exactly what a finger does.** A tap on a sheet takes the card off the table;
+        // the button underneath is still what confirms it, and up is that button.
+        case .offer(let pick): picked = pick
+        case .mode(let at): controller.choose(mode: at)
         case nil: break
         }
     }
@@ -1055,6 +1060,11 @@ struct GameView: View {
             guard let card = focused(id) else { return }
             detail = nil
             controller.commit(card)
+        // Up is the button under the sheet. What is picked goes, and a sheet with nothing
+        // picked yet takes the one the ring is on — which is what the eye expects when
+        // there is only ever one card being pointed at.
+        case .offer(let pick):
+            takeTheOffer(picked ?? pick)
         default:
             press(spot)
         }
@@ -1081,22 +1091,52 @@ struct GameView: View {
         return nil
     }
 
+    /// **What taking a card off a sheet means, whichever sheet it is.** One owner: the
+    /// tap on the card, the button under it and up on a pad all land here, so the three
+    /// cannot answer the same question differently.
+    private func takeTheOffer(_ pick: CardPick) {
+        switch controller.gate {
+        case .awaitingCounter(let cards):
+            // A sheet answers by name where the card can be read and by its place in the
+            // row where it cannot; either way it names one this hand was offered.
+            let taken: Card?
+            switch pick {
+            case .named(let id):    taken = cards.first { $0.descriptor.id == id }
+            case .position(let at): taken = cards[safe: at]
+            }
+            controller.choose(counter: taken?.id)
+        case .awaitingToll:
+            controller.choose(toll: pick)
+        case .awaitingIntangibleDrop:
+            if case .named(let id) = pick { controller.choose(dropping: id) }
+        case .awaitingInjuryPick:
+            if case .named(let id) = pick { controller.choose(injury: id) }
+        case .awaitingCardFrom(_, let victim):
+            guard case .position(let at) = pick else { return }
+            let hand = controller.shown[victim].bag
+            guard hand.indices.contains(at) else { return }
+            controller.choose(card: hand[at].id)
+        default:
+            break
+        }
+    }
+
+    /// Saying no, where no is an answer — the button on the sheet, and circle.
+    private func declineTheOffer() {
+        switch controller.gate {
+        case .awaitingCounter: controller.choose(counter: nil)
+        case .awaitingToll:    controller.choose(toll: nil)
+        case .awaitingNaming:  controller.choose(naming: nil)
+        default: break
+        }
+    }
+
     /// The bar's single confirm, whichever question is asking it.
     private func confirm() {
         switch controller.gate {
         case .awaitingBid:      controller.submitBid()
         case .awaitingDiscard:  controller.submitDiscard()
         case .awaitingGiveUp:   controller.submitGiveUp()
-        default: break
-        }
-    }
-
-    /// Saying no, where no is an answer. Circle does this when there is nothing held up
-    /// to put down first.
-    private func decline() {
-        switch controller.gate {
-        case .awaitingCounter: controller.choose(counter: nil)
-        case .awaitingNaming:  controller.choose(naming: nil)
         default: break
         }
     }

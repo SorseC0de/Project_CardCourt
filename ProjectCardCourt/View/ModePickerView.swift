@@ -6,6 +6,8 @@ import SwiftUI
 /// against the thing offering them, rather than as three buttons with no context.
 struct ModePickerView: View {
     let card: CardDescriptor
+    /// The one a controller is pointing at. **A stack, not a row** — see `Row.runsDown`.
+    var ringed: Int?
     var onPick: (Int) -> Void
 
     var body: some View {
@@ -22,6 +24,7 @@ struct ModePickerView: View {
                         ChunkyButton(title: mode.label, fill: CardPalette.gold,
                                      stroke: CardPalette.gold, shade: CardPalette.orange,
                                      size: 20) { onPick(index) }
+                            .padRing(pill: ringed == index)
                     }
                 }
                 .padding(.horizontal, 40)

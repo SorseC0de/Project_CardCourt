@@ -37,10 +37,13 @@ struct CardChoiceView: View {
     var taking: String = "Take it"
     /// What declining is called, when declining is allowed at all.
     var declining: String?
+    /// **Held outside.** A pad picks the same way a finger does, and both have to be
+    /// picking the same card — see `GameView.picked`.
+    @Binding var chosen: CardPick?
+    /// The one a controller is pointing at, which is not the same as the one taken.
+    var ringed: PadSpot?
     var onDecline: () -> Void = {}
     var onPick: (CardPick) -> Void
-
-    @State private var chosen: CardPick?
 
     private enum Table {
         static let card: CGFloat = 66
@@ -65,6 +68,8 @@ struct CardChoiceView: View {
                 HStack(spacing: 8) {
                     ForEach(offered, id: \.id) { card in
                         face(card, pick: .named(card.id))
+                            .padRing(ringed == .offer(.named(card.id)),
+                                     corner: Table.card * CardLayout.cornerFraction)
                             .offset(y: chosen == .named(card.id) ? -Table.lift : 0)
                             .onTapGesture { chosen = .named(card.id) }
                     }
@@ -73,6 +78,8 @@ struct CardChoiceView: View {
                         CardBackFan(count: backs, width: Table.card, lift: Table.lift,
                                     tint: tint,
                                     isChosen: { chosen == .position($0) },
+                                    ringed: { if case .offer(.position(let at)) = ringed
+                                              { return at } else { return nil } }(),
                                     onPick: { chosen = .position($0) })
                     }
                 }

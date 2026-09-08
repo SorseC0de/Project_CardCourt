@@ -17,6 +17,11 @@ enum PadSpot: Hashable {
     case confirm
     /// Saying no to a question that allows it: stepping aside rather than countering.
     case decline
+    /// One of the cards a sheet is holding out — named where it can be read, and by its
+    /// place in the row where it cannot. See `CardChoiceView`.
+    case offer(CardPick)
+    /// One of the ways a card can be played, on the card that offers a choice.
+    case mode(Int)
 }
 
 /// Everything the pad may point at, in the order it is walked.
@@ -29,13 +34,14 @@ enum PadSpot: Hashable {
 enum Row {
     static func at(_ controller: GameController) -> [PadSpot] {
         let seat = GameRules.localSeat
+        // **Your hand is always yours.** A card you cannot play is still a card you are
+        // allowed to read, and so is one it is not your turn to play — exactly as it is
+        // on glass, where nothing ever stops a finger raising one.
         let hand = controller.shownBag(of: seat).map { PadSpot.card($0.id) }
 
         switch controller.gate {
         case .awaitingMove:
             let legal = Rules.legalMoves(controller.shown, for: seat)
-            // The whole hand, not only what is playable: a card you cannot play is still
-            // a card you are allowed to read, exactly as it is on glass.
             var row = hand
             if legal.contains(.shoot) { row.append(.shoot) }
             if legal.contains(where: { if case .borrow = $0 { return true }; return false }) {
@@ -44,27 +50,68 @@ enum Row {
             return row
 
         // Every "which of them" the game asks is answered on the floor, and the court
-        // already knows who is standing there to be picked.
+        // already knows who is standing there to be picked. The hand comes after the men,
+        // so the ring starts on the question and the cards are still there to be read.
         case .awaitingInbound, .awaitingTarget:
-            return floor(controller)
+            return floor(controller) + hand
 
-        // Wide-Open Three names as many as it likes and stops when it stops, so the row
-        // carries the way out as well as the men.
+        // Wide-Open Three names as many as it likes and stops when it stops. Stopping is
+        // circle rather than a spot — see `GameView.take(_:)`.
         case .awaitingNaming:
-            return floor(controller) + [.decline]
+            return floor(controller) + hand
 
-        // Cards out of your own hand, and the button that says how many.
+        // Cards out of your own hand, and the pill that says how many.
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
             return hand + [.confirm]
 
+        // **The sheets.** Every one of them is the same shape — a row of cards held out,
+        // one taken, and a button underneath — so the pad walks the cards and nothing
+        // else: up takes what is picked and circle declines, which is the same language
+        // a card in the hand already speaks. Walking past eight cards to reach a button
+        // in a box that only has one is a menu's idea of a row.
         case .awaitingCounter(let cards):
-            return cards.map { PadSpot.card($0.id) } + [.decline]
+            return cards.map { PadSpot.offer(.named($0.descriptor.id)) }
 
-        // Answered on a sheet of their own, which the pad does not drive yet.
-        case .thinking, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
-             .awaitingIntangibleDrop, .awaitingToll, .awaitingFreeThrow, .gameOver:
+        case .awaitingToll(let victim):
+            let board = controller.shown[victim].intangibles.map {
+                PadSpot.offer(.named($0.id))
+            }
+            // His hand is face down, so it is answered by position rather than by name.
+            return board + controller.shown[victim].bag.indices.map {
+                PadSpot.offer(.position($0))
+            }
+
+        case .awaitingIntangibleDrop(let offered):
+            return offered.map { PadSpot.offer(.named($0.id)) }
+
+        case .awaitingInjuryPick:
+            return controller.shown.injuriesOffered.map { PadSpot.offer(.named($0.id)) }
+
+        case .awaitingCardFrom(_, let victim):
+            return controller.shown[victim].bag.indices.map { PadSpot.offer(.position($0)) }
+
+        case .awaitingMode(let card):
+            return card.modes.indices.map(PadSpot.mode)
+
+        // Nothing to walk. A free throw is a pull rather than a choice, and a finished
+        // game is three buttons on three buttons — see `GameView.takeOnFinalCard(_:)`.
+        case .awaitingFreeThrow, .gameOver:
             return []
+
+        // Somebody else's turn. **The hand is still yours to read.**
+        case .thinking:
+            return hand
         }
+    }
+
+    /// Whether this row is stacked rather than laid out.
+    ///
+    /// **A list of options runs down the screen**, so up and down walk it and left and
+    /// right — and the bumpers with them — mean the same thing they do everywhere else.
+    /// Everything else in the game is a row of cards or a line of men on a floor.
+    static func runsDown(_ controller: GameController) -> Bool {
+        if case .awaitingMode = controller.gate { return true }
+        return false
     }
 
     /// The men on the floor who can be picked, walked in seating order so the ring goes

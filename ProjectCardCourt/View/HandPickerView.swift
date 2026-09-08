@@ -15,6 +15,8 @@ struct CardBackFan: View {
     var radius: CGFloat = 300
     var tint: Color = Theme.danger
     var isChosen: (Int) -> Bool
+    /// The one a controller is pointing at, which is not the same as the one taken.
+    var ringed: Int?
     var onPick: (Int) -> Void
 
     private var spread: Double { min(46, Double(max(count, 1)) * 7) }
@@ -37,6 +39,7 @@ struct CardBackFan: View {
             ForEach(0..<count, id: \.self) { index in
                 let at = placement(index)
                 back(index)
+                    .padRing(ringed == index, corner: width * CardLayout.cornerFraction)
                     .rotationEffect(.degrees(at.angle), anchor: .bottom)
                     .offset(x: at.x, y: at.y + (isChosen(index) ? -lift : 0))
                     .zIndex(isChosen(index) ? 1 : 0)
@@ -80,9 +83,11 @@ struct HandPickerView: View {
     let card: CardDescriptor
     let victim: Seat
     let hand: Int
+    /// **Held outside.** A pad picks the same way a finger does, and both have to be
+    /// picking the same card — see `GameView.picked`.
+    @Binding var chosen: CardPick?
+    var ringed: PadSpot?
     var onPick: (Int) -> Void
-
-    @State private var chosen: Int?
 
     var body: some View {
         ZStack {
@@ -105,15 +110,17 @@ struct HandPickerView: View {
     private var fan: some View {
         VStack(spacing: 14) {
             CardBackFan(count: hand,
-                        isChosen: { chosen == $0 },
-                        onPick: { chosen = $0 })
+                        isChosen: { chosen == .position($0) },
+                        ringed: { if case .offer(.position(let at)) = ringed { return at }
+                                  else { return nil } }(),
+                        onPick: { chosen = .position($0) })
                 .animation(.spring(response: 0.3, dampingFraction: 0.72), value: chosen)
 
             ChunkyButton(title: chosen == nil ? "Pick one" : "Take it",
                          fill: chosen == nil ? CardPalette.gray : CardPalette.red,
                          stroke: CardPalette.gold, shade: CardPalette.orange,
                          size: 18, isEnabled: chosen != nil) {
-                if let chosen { onPick(chosen) }
+                if case .position(let at) = chosen { onPick(at) }
             }
             .frame(width: 200)
         }

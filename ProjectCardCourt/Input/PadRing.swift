@@ -7,19 +7,16 @@ import SwiftUI
 /// Every caller passes `Pad.shared.isAttached` through with it, so the whole game gains
 /// and loses its cursor the moment a controller is plugged in or pulled out.
 ///
-/// **Hard, and still.** Every other mark in this game is a flat shape with a hard
-/// south-east drop and none of them breathe — a pulsing cursor would be the one animated
-/// border on a screen of painted card.
+/// **One stroke, and still.** Nothing else in the game breathes, and the ring carries no
+/// drop of its own: it sits over painted cards that already have theirs, and a second
+/// shadow on top of those read as a card lifting rather than as a cursor.
 struct PadRing: ViewModifier {
     var showing: Bool
     var corner: CGFloat
-    var tint: Color = CardPalette.gold
-    var drop: Color = CardPalette.orange
+    var tint: Color = CardPalette.lightBlue
 
     private enum Ring {
         static let weight: CGFloat = 3
-        /// South-east, and three deep like every other drop in the game.
-        static let drop: CGFloat = 3
         /// How far outside the thing it sits, so it frames rather than covers.
         static let stand: CGFloat = 3
     }
@@ -29,8 +26,23 @@ struct PadRing: ViewModifier {
             if showing {
                 RoundedRectangle(cornerRadius: corner + Ring.stand, style: .continuous)
                     .stroke(tint, lineWidth: Ring.weight)
-                    .shadow(color: drop, radius: 0, x: Ring.drop, y: Ring.drop)
                     .padding(-Ring.stand)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+/// The same ring round something with no corner to speak of.
+struct PadPillRing: ViewModifier {
+    var showing: Bool
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if showing {
+                Capsule()
+                    .stroke(CardPalette.lightBlue, lineWidth: 3)
+                    .padding(-3)
                     .allowsHitTesting(false)
             }
         }
@@ -42,5 +54,10 @@ extension View {
     /// is ringed as a card and a pill as a pill.
     func padRing(_ showing: Bool, corner: CGFloat) -> some View {
         modifier(PadRing(showing: showing, corner: corner))
+    }
+
+    /// For a capsule, whose corner is whatever half its height turns out to be.
+    func padRing(pill showing: Bool) -> some View {
+        modifier(PadPillRing(showing: showing))
     }
 }
