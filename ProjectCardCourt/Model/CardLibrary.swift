@@ -36,27 +36,27 @@ enum CardLibrary {
 
     static let nutmeg = CardDescriptor(
         id: "nutmeg", name: "Nutmeg", type: .pass,
-        effect: "Pass Left or Right. Knock 1 card to next player. SHOT +5%",
+        effect: "Pass Left or Right. Knock 1 card to next player. SHOT +10%",
         numberInDeck: 6,
-        passTarget: .leftOrRight, shotDelta: 5, stealsAlongPass: 1)
+        passTarget: .leftOrRight, shotDelta: 10, stealsAlongPass: 1)
 
     static let noLook = CardDescriptor(
         id: "no-look", name: "No-Look", type: .pass,
-        effect: "Pass to random other player. SHOT +5%", numberInDeck: 10,
-        passTarget: .random, shotDelta: 5)
+        effect: "Pass to random other player. SHOT +10%", numberInDeck: 10,
+        passTarget: .random, shotDelta: 10)
 
     static let touchPass = CardDescriptor(
         id: "touch-pass", name: "Touch Pass", type: .pass,
-        effect: "Pass to target player. SHOT +5%. #[Draw] 2 if it never stopped",
+        effect: "Pass to target player. SHOT +10%. #[Draw] 2 if it never stopped",
         numberInDeck: 5,
-        passTarget: .choice, shotDelta: 5, drawIfFirstAction: 2)
+        passTarget: .choice, shotDelta: 10, drawIfFirstAction: 2)
 
     static let rightBack = CardDescriptor(
         id: "right-back", name: "Right Back", type: .pass,
-        effect: "Pass to target player to pass right back. SHOT +5%.",
+        effect: "Pass to target player to pass right back. SHOT +10%.",
         numberInDeck: 7,
         passTarget: .choice, passesToOthersOnly: true,
-        shotDelta: 5, returnsImmediately: true)
+        shotDelta: 10, returnsImmediately: true)
 
     static let alleyOop = CardDescriptor(
         id: "alley-oop", name: "Alley-Oop", type: .pass,
@@ -66,9 +66,9 @@ enum CardLibrary {
 
     static let handOff = CardDescriptor(
         id: "hand-off", name: "Hand-Off", type: .pass,
-        effect: "Pass Left or Right. SHOT +5%. #[Draw] 1",
+        effect: "Pass Left or Right. SHOT +10%. #[Draw] 1",
         numberInDeck: 7,
-        passTarget: .leftOrRight, shotDelta: 5, drawCount: 1,
+        passTarget: .leftOrRight, shotDelta: 10, drawCount: 1,
         comboAfterDribble: true, comboBonus: 5, comboDraw: 1)
 
     static let outletPass = CardDescriptor(
@@ -86,9 +86,9 @@ enum CardLibrary {
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
-        effect: "Pass to target player. SHOT +5%. They #[Discard] 1 at random",
+        effect: "Pass to target player. SHOT +10%. They #[Discard] 1 at random",
         numberInDeck: 10,
-        passTarget: .choice, shotDelta: 5, receiverDiscards: 1)
+        passTarget: .choice, shotDelta: 10, receiverDiscards: 1)
 
     static let dribble = CardDescriptor(
         id: "dribble", name: "Dribble", type: .move,

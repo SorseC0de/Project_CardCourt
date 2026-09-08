@@ -51,7 +51,7 @@ extension MatchRules {
             madeShotPoints: 2,
             freeThrowPoints: 1,
             freeThrowChance: 75,
-            passShotBonus: 5,
+            passShotBonus: 10,
             shotFloor: 0,
             shotCeiling: 100,
             intangibleSlots: 3,

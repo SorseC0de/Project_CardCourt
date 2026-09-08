@@ -158,3 +158,40 @@ whole of `CardTextStyle` on the clipboard and into the console on the `[bench]` 
 Everything but four colours is one set of numbers across all seven types — see
 `CardTextStyle`. The four that are per type: the words, the mechanics inside them, the
 inner ring, and the drop under the name plate. The drop under the big icon is a fifth.
+
+## Base pass SHOT is 10%, not 5%
+
+Changed 2026-09-08, on evidence rather than feel.
+
+The base was nerfed to 5% back when the pool was mostly passes and Moves. It is not that
+pool any more: Game Breaks, Whistles and Clamps all push SHOT down, there are 31 / 20 / 5
+of them, and **more Clamps are planned**. Five was a number set against a game that no
+longer exists.
+
+What it does, measured over 500 Classic games:
+
+|                     |    +5 |   +10 |
+|---------------------|------:|------:|
+| PTS                 | 12.35 | 15.60 |
+| AST                 |  4.80 |  6.17 |
+| **TOV**             |  2.01 |  **0.39** |
+| shots/game          | 12.65 | 13.47 |
+| made                | 42.9% | 52.5% |
+| forced shots        |   48% |   34% |
+
+The turnover collapse is the point rather than a side effect. Every Move played is clock
+spent, and at 5% a hand had to spend a lot of it before a shot was worth taking — so
+possessions died on the shot clock. At 10% they end in a shot. Move counts fall right
+across the board (Dribble 1.09 → 0.87, Hesi 1.43 → 0.95, Pump Fake 1.74 → 1.14), which is
+the same fact from the other side.
+
+**The goal is a quick, exciting card game.** A possession that ends in a shot is the game
+happening; one that ends on the clock is the game not happening.
+
+Ten cards carry it: four take it from `MatchRules.passShotBonus` — Swing Left, Swing
+Right, Skip Pass, Behind-the-Back — and six name their own: Nutmeg, No-Look, Touch Pass,
+Right Back, Hand-Off, Bullet Pass. `standard` is built from `classic`, so the preset
+number is one place.
+
+Open: **Behind-the-Back's sheet row names no percentage at all**, so it silently takes the
+match bonus. Every other pass says its number. Worth deciding whether that is deliberate.
