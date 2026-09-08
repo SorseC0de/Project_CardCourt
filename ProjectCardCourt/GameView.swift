@@ -186,7 +186,7 @@ struct GameView: View {
                         // Down a little: the flanks stand right above them.
                         .offset(y: Panels.drop)
                         .animation(.easeInOut(duration: 0.28), value: standingAside)
-                        ActionBarView(controller: controller, ringed: cursor.at,
+                        ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) })
                     }
@@ -287,7 +287,7 @@ struct GameView: View {
                                    tint: CardPalette.orange,
                                    taking: "Play it!",
                                    declining: "No thanks",
-                                   chosen: $picked, ringed: cursor.at,
+                                   chosen: $picked, ringed: ring,
                                    onDecline: declineTheOffer,
                                    onPick: takeTheOffer)
                         .zIndex(11)
@@ -328,7 +328,7 @@ struct GameView: View {
                                    offered: controller.shown[victim].intangibles,
                                    backs: controller.shown[victim].bag.count,
                                    declining: "Leave it",
-                                   chosen: $picked, ringed: cursor.at,
+                                   chosen: $picked, ringed: ring,
                                    onDecline: declineTheOffer,
                                    onPick: takeTheOffer)
                     .zIndex(12)
@@ -338,7 +338,7 @@ struct GameView: View {
                     // pick rather than a second button.
                     CardChoiceView(title: "Too Many", note: "One has to go", offered: offered,
                                    tint: CardPalette.gold,
-                                   chosen: $picked, ringed: cursor.at,
+                                   chosen: $picked, ringed: ring,
                                    onPick: takeTheOffer)
                         .zIndex(12)
                 }
@@ -346,20 +346,20 @@ struct GameView: View {
                     CardChoiceView(title: card.name, note: "Take one",
                                    offered: controller.shown.injuriesOffered,
                                    hidden: controller.shown.injuriesHidden,
-                                   chosen: $picked, ringed: cursor.at,
+                                   chosen: $picked, ringed: ring,
                                    onPick: takeTheOffer)
                     .zIndex(12)
                 }
                 if case .awaitingCardFrom(let card, let victim) = controller.gate {
                     HandPickerView(card: card, victim: victim,
                                    hand: controller.shown[victim].bag.count,
-                                   chosen: $picked, ringed: cursor.at,
+                                   chosen: $picked, ringed: ring,
                                    onPick: { takeTheOffer(.position($0)) })
                     .zIndex(12)
                 }
                 if case .awaitingMode(let card) = controller.gate {
                     ModePickerView(card: card,
-                                   ringed: { if case .mode(let at) = cursor.at { return at }
+                                   ringed: { if case .mode(let at) = ring { return at }
                                              else { return nil } }()) {
                         controller.choose(mode: $0)
                     }
@@ -639,7 +639,7 @@ struct GameView: View {
                   onOpenDiscard: { browsingDiscard = true },
                   onSelect: select,
                   faces: padGlyphs,
-                  ringed: padFaces == nil ? cursor.seat : nil,
+                  ringed: pad.isAttached && padFaces == nil ? cursor.seat : nil,
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
                   spend: controller.spend,
@@ -1050,6 +1050,13 @@ struct GameView: View {
             return nil
         }
     }
+
+    /// Where the ring is drawn — **nowhere at all without a pad.**
+    ///
+    /// The cursor exists either way, because it is where the game's attention is; the ring
+    /// is the drawing of it, and a mark on the screen of somebody playing on glass is a
+    /// mark that means nothing. One place, so no view has to remember to ask.
+    private var ring: PadSpot? { pad.isAttached ? cursor.at : nil }
 
     /// The glyph each choosable man is wearing, when the faces are standing in for them.
     private var padGlyphs: [Seat: String] {

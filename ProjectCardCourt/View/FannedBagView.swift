@@ -35,8 +35,17 @@ struct FannedBagView: View {
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
-    @State private var dragging: Card.ID?
-    @State private var drag: CGSize = .zero
+    /// **The gesture's own state, not the view's.**
+    ///
+    /// SwiftUI puts these back the moment the drag ends *or is cancelled*, which is the
+    /// whole reason they are not `@State`. Held by hand they were cleared in `onEnded` —
+    /// and a gesture whose view is taken away never gets one: a cutscene opening over the
+    /// hand, a card leaving it, the floor being handed to a question. The drag then had
+    /// nothing to end on, and the card hung exactly where the finger left it — lifted,
+    /// upright, out of the fan and over the court — for the rest of the game, through
+    /// every screen after it.
+    @GestureState private var dragging: Card.ID?
+    @GestureState private var drag: CGSize = .zero
     @State private var refused: Card.ID?
     @State private var refusal: CGFloat = 0
 
@@ -120,14 +129,10 @@ struct FannedBagView: View {
                     // A minimum distance so a tap is never read as a drag.
                     .gesture(
                         DragGesture(minimumDistance: 12)
-                            .onChanged { value in
-                                dragging = card.id
-                                drag = value.translation
-                            }
+                            .updating($dragging) { _, held, _ in held = card.id }
+                            .updating($drag) { value, moved, _ in moved = value.translation }
                             .onEnded { value in
                                 let cleared = -value.translation.height > commitThreshold
-                                dragging = nil
-                                drag = .zero
                                 guard isSelecting || playable.contains(card.id) else {
                                     if cleared { refuse(card) }
                                     return

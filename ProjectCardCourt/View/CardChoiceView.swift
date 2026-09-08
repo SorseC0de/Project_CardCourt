@@ -96,6 +96,8 @@ struct CardChoiceView: View {
                              size: 18, isEnabled: chosen != nil) {
                     if let chosen { onPick(chosen) }
                 }
+                // The ring moves on once a card is taken — see `HandPickerView`.
+                .padRing(pill: chosen != nil && ringed != nil)
                 if let declining {
                     ChunkyButton(title: declining, fill: CardPalette.navy,
                                  stroke: CardPalette.gray, shade: CardPalette.black,

@@ -89,6 +89,13 @@ struct HandPickerView: View {
     var ringed: PadSpot?
     var onPick: (Int) -> Void
 
+    /// **What taking it is called.** A card pulled out along a pass is taken; a card the
+    /// play makes somebody give up is discarded, and calling that "Take it" described the
+    /// wrong half of it.
+    private var taking: String {
+        card.targetDiscards > 0 ? "Discard" : "Take it"
+    }
+
     var body: some View {
         ZStack {
             DimLayer(on: true, amount: Theme.dimBrowser)
@@ -116,12 +123,15 @@ struct HandPickerView: View {
                         onPick: { chosen = .position($0) })
                 .animation(.spring(response: 0.3, dampingFraction: 0.72), value: chosen)
 
-            ChunkyButton(title: chosen == nil ? "Pick one" : "Take it",
+            ChunkyButton(title: chosen == nil ? "Pick one" : taking,
                          fill: chosen == nil ? CardPalette.gray : CardPalette.red,
                          stroke: CardPalette.gold, shade: CardPalette.orange,
                          size: 18, isEnabled: chosen != nil) {
                 if case .position(let at) = chosen { onPick(at) }
             }
+            // **The ring moves on once a card is taken.** A pad has nowhere else to walk
+            // on a sheet, so nothing said the button was the next thing to press.
+            .padRing(pill: chosen != nil && ringed != nil)
             .frame(width: 200)
         }
         .fixedSize()
