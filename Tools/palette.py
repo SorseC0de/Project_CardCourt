@@ -19,7 +19,7 @@ SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 # follows the count — a ragged row was only ever a sign the palette was still unfinished.
 ROWS = [
     ["navy", "cobalt", "darkBlue", "blue", "azure", "lightBlue", "teal"],
-    ["red", "darkRed", "maroon", "magenta", "purple", "mauve", "orange", "tangerine"],
+    ["red", "darkRed", "maroon", "magenta", "purple", "plum", "orange", "tangerine"],
     ["gold", "tan", "brown", "green", "black", "gray", "cloud"],
 ]
 

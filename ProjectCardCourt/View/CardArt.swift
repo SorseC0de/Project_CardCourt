@@ -114,7 +114,7 @@ enum CardPalette {
     /// **Its chroma is the whole of it.** The same hue and lightness at 0.160 stops
     /// receding and starts announcing itself — that is a contrast drop, a different
     /// thing, and it is `orchid`.
-    static let mauve   = Color(red: 0x61 / 255, green: 0x48 / 255, blue: 0x65 / 255)
+    static let plum   = Color(red: 0x61 / 255, green: 0x48 / 255, blue: 0x65 / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///
