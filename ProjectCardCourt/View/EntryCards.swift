@@ -102,19 +102,31 @@ struct EntryCards: View {
     /// When the screen opened, so the deal runs from the first frame this is on screen
     /// rather than from whenever the app started.
     @State private var opened = Date.timeIntervalSinceReferenceDate
+    @Environment(\.accessibilityReduceMotion) private var stillness
 
     var body: some View {
-        TimelineView(.animation) { pass in
-            let since = pass.date.timeIntervalSinceReferenceDate - opened
-            let hand = slots
-            ZStack {
-                ForEach(Array(hand.enumerated()), id: \.offset) { index, slot in
-                    card(slot, index: index, since: since)
+        Group {
+            if stillness {
+                // The hand as it ends up, and no clock at all — a fan that breathes for
+                // ever is exactly what this setting is asking us not to draw.
+                fan(at: .infinity)
+            } else {
+                TimelineView(.animation) { pass in
+                    fan(at: pass.date.timeIntervalSinceReferenceDate - opened)
                 }
             }
         }
         .frame(width: width * (CGFloat(count - 1) * step + 1.6), height: height * 1.6)
         .allowsHitTesting(false)
+    }
+
+    private func fan(at since: TimeInterval) -> some View {
+        let hand = slots
+        return ZStack {
+            ForEach(Array(hand.enumerated()), id: \.offset) { index, slot in
+                card(slot, index: index, since: since)
+            }
+        }
     }
 
     private func card(_ slot: Slot, index: Int, since: TimeInterval) -> some View {
@@ -125,9 +137,10 @@ struct EntryCards: View {
 
         // The two idles only start once the card is down, so a card still in the air is
         // not also breathing.
-        let settled = flying >= 1 ? 1.0 : 0.0
-        let breath = sin(since * .pi * 2 / Breath.period + slot.phase) * settled
-        let wave = riffle(at: since, card: index) * settled
+        let ticking = since.isFinite
+        let settled = flying >= 1 && ticking ? 1.0 : 0.0
+        let breath = ticking ? sin(since * .pi * 2 / Breath.period + slot.phase) * settled : 0
+        let wave = ticking ? riffle(at: since, card: index) * settled : 0
 
         let x = slot.x + (1 - landed) * width * Deal.side
         let y = slot.y + (1 - landed) * height * Deal.from

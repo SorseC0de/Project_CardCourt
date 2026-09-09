@@ -141,8 +141,10 @@ everything is drawn over it, and it takes no taps at all.
 **The board** (`View/ScoreboardView.swift`) — the same pieces, at a smaller weight. It was
 the one thing still drawn as a spreadsheet: hairline columns, system type, two greys.
 
-- **A row is a slab.** `black` rather than navy, because the board's own ground is navy
-  and `black` is the palette's tone for a surface that has to sit *beside* navy.
+- **A row is a slab.** `black`, the palette's tone for a surface that sits *beside* the
+  dark rather than under it. The board keeps the screen's own `Theme.panel` ground: it is
+  a band between the status bar and the log, and a navy strip between two grey ones read
+  as a third thing wedged in.
 - **The rim says who the row is** — grey for a table you are watching, your own seat's
   colour for yours. A called-out row drops the black, is filled with the seat outright,
   and takes the gold rim and orange drop everything being offered in this game wears.

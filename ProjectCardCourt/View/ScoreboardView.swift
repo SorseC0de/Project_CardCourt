@@ -20,11 +20,11 @@ struct PointsCells: PreferenceKey {
 /// scoreboard drawn as a spreadsheet was the one place the game stopped looking like
 /// itself.
 ///
-/// **A row is a slab.** Black rather than navy, because the board's own ground is navy
-/// and the palette has one dark: `black` is the tone made for surfaces that have to sit
-/// *beside* navy rather than under it. The rim says who the row is — grey for a table
-/// you are only watching, your own seat's colour for yours — and a called-out row drops
-/// the black and is filled with the seat outright.
+/// **A row is a slab.** `black` rather than navy: it is the palette's tone for a surface
+/// that has to sit *beside* the dark rather than under it, which is exactly what a row on
+/// the game screen's ground is. The rim says who the row is — grey for a table you are
+/// only watching, your own seat's colour for yours — and a called-out row drops the black
+/// and is filled with the seat outright.
 ///
 /// **Everything is a share of `Board.row`.** The board is glanced at over the court at
 /// one size and read on the results screen at another, and one number moving its weight
@@ -95,7 +95,10 @@ struct ScoreboardView: View {
         }
         .padding(.horizontal, board.gap * 2)
         .padding(.vertical, board.gap * 1.5)
-        .background(Chrome.ground)
+        // **The screen's own ground, not the menus' navy.** The board is a band between
+        // the status bar and the log, both of which stand on `Theme.panel`; a navy strip
+        // between two grey ones read as a third thing wedged in. The rows do the work.
+        .background(Theme.panel)
     }
 
     /// What the columns are. Small caps in the rim's own grey, so the labels read as part
@@ -243,3 +246,28 @@ private struct StatCell: View {
             }
     }
 }
+
+#if DEBUG
+/// A table part-way through a round, so every column has something in it.
+private let previewTable = GameState(
+    rules: .classic,
+    players: [PlayerState(seat: .south, points: 12, assists: 3, rebounds: 4, turnovers: 1),
+              PlayerState(seat: .west, points: 9, assists: 5, rebounds: 2, turnovers: 2),
+              PlayerState(seat: .north, points: 8, assists: 2, rebounds: 6, turnovers: 3),
+              PlayerState(seat: .east, points: 4, assists: 1, rebounds: 3, turnovers: 4)],
+    rng: SeededRNG(seed: 1))
+
+#Preview("Scoreboard") {
+    let table = previewTable
+    VStack(spacing: 30) {
+        // Over the court, where it is glanced at.
+        ScoreboardView(state: table)
+        // And on the results screen, read, with the winner called out.
+        ScoreboardView(state: table, highlighted: [.south], totalLabel: "SCORE", row: 34)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 26)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Theme.panel)
+}
+#endif
