@@ -14,6 +14,8 @@ struct EntryScreenView: View {
     var onSettings: () -> Void = {}
 
     @State private var pad = Pad.shared
+    /// The middle of the wordmark, once it has been laid out — see `FlyingCards`.
+    @State private var markAt: CGPoint?
     /// Which door the ring is on. Opens on the game, which is the last of them.
     @State private var at = 5
 
@@ -29,10 +31,6 @@ struct EntryScreenView: View {
         static let gap: CGFloat = 20
         /// The slab's own corner, so the ring follows its edge rather than boxing it.
         static let corner: CGFloat = 18
-        /// Where the flying cards come from, down the mark from its own top. Behind the
-        /// lettering rather than above or below it, so a card is clear of the word by the
-        /// time it is big enough to see.
-        static let raysFromMark: CGFloat = 0.5
     }
 
     /// Everything on this screen a pad can press, top to bottom the way the eye reads it.
@@ -74,11 +72,24 @@ struct EntryScreenView: View {
             // **Card backs coming out of the mark.** Declared first, so the wordmark and
             // every button are drawn over them, and nothing here can be pressed — see
             // `FlyingCards`.
-            FlyingCards(originY: Front.titleTop + Front.title * Front.raysFromMark)
+            FlyingCards(from: markAt)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 SwisshWordmark(size: Front.title)
+                    // **Where the rays come from, measured rather than written down.**
+                    // In `.global`, which is the whole window — the same space the cards
+                    // are drawn in, since they ignore the safe area and this does not.
+                    // Read before the padding, or the middle of the mark comes out as the
+                    // middle of the mark *and the gap above it*.
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.onGeometryChange(for: CGPoint.self) { _ in
+                                let box = geo.frame(in: .global)
+                                return CGPoint(x: box.midX, y: box.midY)
+                            } action: { markAt = $0 }
+                        }
+                    }
                     .padding(.top, Front.titleTop)
 
                 Spacer()

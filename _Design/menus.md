@@ -139,6 +139,13 @@ and taking no taps.
   would cost an offscreen pass per card per frame.
 - **A card grows by distance travelled, not by trip fraction.** See `Parked revisions.md`
   for why, and for what it was compared against.
+- **They read as rays because of three things**: the spokes are evenly spaced with no
+  jitter, every ray is in step with every other, and each card lies along its own ray. Take
+  any one of those away and it goes back to being a swirl.
+- **Where they come from is measured, not written down.** `EntryScreenView` reads the
+  wordmark's middle in `.global` and hands it over. The cards ignore the safe area and the
+  mark does not, so a constant would be wrong by the height of the notch — and by a
+  different amount on every phone.
 
 **The board** (`View/ScoreboardView.swift`) — the same pieces, at a smaller weight. It was
 the one thing still drawn as a spreadsheet: hairline columns, system type, two greys.

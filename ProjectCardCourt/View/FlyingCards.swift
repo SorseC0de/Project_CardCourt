@@ -24,13 +24,18 @@ import SwiftUI
 ///   bitmap *down* — so nothing is redrawn as it grows. No shadow and no blur anywhere:
 ///   both would cost an offscreen pass per card per frame.
 struct FlyingCards: View {
-    /// Where the rays come from, in points down from the top. The middle of the wordmark,
-    /// so the cards are already clear of it by the time they can be seen.
-    var originY: CGFloat = 146
+    /// **Where the rays come from — the wordmark's own middle, measured.** Handed over in
+    /// the window's coordinates by whoever is drawing the mark, because this view ignores
+    /// the safe area and the mark does not: a number written down here is wrong by the
+    /// height of the notch, and by a different amount on every phone. Nil until the mark
+    /// has been laid out, and nothing is drawn until then.
+    var from: CGPoint?
     /// How many directions they go out in.
     var rays = 10
-    /// How many are on each ray at once. One leaves every `travel / deep` seconds.
-    var deep = 3
+    /// How many are on each ray at once. One leaves every `travel / deep` seconds, and
+    /// **they all leave together** — the rays are in step with each other, which is what
+    /// makes them read as rays rather than as a scatter.
+    var deep = 4
     /// A card's width at the end of the **longest** ray. Every other ray ends smaller, in
     /// proportion to how far it had to go.
     var size: CGFloat = 150
@@ -41,7 +46,11 @@ struct FlyingCards: View {
         /// which is what a thing further away looks like.
         static let travel: Double = 11
         /// How far it turns over that, in degrees. Slow, and signed by which back it is.
-        static let spin: Double = 74
+        ///
+        /// Small on purpose. A card lies along its own ray, so the ray is a line of cards
+        /// pointing the way they are going; turn them far enough and the line stops being
+        /// a line and the whole thing swirls.
+        static let spin: Double = 30
         /// How big it starts, against the size it ends at.
         static let from: CGFloat = 0.08
         /// How far past the edge the ray runs before it stops. It is long gone by then.
@@ -50,37 +59,37 @@ struct FlyingCards: View {
 
     var body: some View {
         GeometryReader { geo in
-            let from = CGPoint(x: geo.size.width / 2, y: originY)
-            ZStack {
-                ForEach(0..<(rays * deep), id: \.self) { index in
-                    let ray = index / deep
-                    let along = index % deep
-                    // A degree or two off the even spacing, so it reads as a scatter
-                    // rather than as a star. Fixed per ray, not random per launch.
-                    let turn = Double(ray) / Double(rays) * 360 + Double(ray % 3) * 4
-                    let far = reach(to: turn, in: geo.size, from: from)
-                    // **A card grows by how far it has actually gone**, not by how far
-                    // through its trip it is. The mark sits high on the screen, so a ray
-                    // pointing up has a fifth of the ground to cover that one pointing
-                    // into the bottom corner has — and a card that reached full size in
-                    // that fifth was a full-size card sitting on the wordmark. Growing
-                    // with distance instead reads as depth: the ones with somewhere to go
-                    // come forward, and the ones without stay small and fade out at the
-                    // top edge.
-                    let grows = Flight.from + (1 - Flight.from)
-                        * (far / longest(in: geo.size, from: from))
-                    FlyingCard(art: art(index),
-                               pixels: isPixels(index),
-                               angle: turn,
-                               reach: far,
-                               size: size * (isPixels(index) ? Self.pixelFrame : 1),
-                               spin: isPixels(index) ? -Flight.spin : Flight.spin,
-                               travel: Flight.travel,
-                               from: Flight.from,
-                               to: grows,
-                               delay: Flight.travel * (Double(along) / Double(deep)
-                                                       + Double(ray) / Double(rays * deep)))
-                        .position(from)
+            if let from {
+                ZStack {
+                    ForEach(0..<(rays * deep), id: \.self) { index in
+                        let ray = index / deep
+                        let along = index % deep
+                        // Evenly spaced, and no jitter: a spoke is only a spoke if the
+                        // cards on it are in a line.
+                        let turn = Double(ray) / Double(rays) * 360
+                        let far = reach(to: turn, in: geo.size, from: from)
+                        // **A card grows by how far it has actually gone**, not by how
+                        // far through its trip it is. The mark sits high on the screen,
+                        // so a ray pointing up has a fifth of the ground to cover that
+                        // one pointing into the bottom corner has — and a card reaching
+                        // full size in that fifth was a full-size card sitting on the
+                        // wordmark. Growing with distance reads as depth instead: the
+                        // ones with somewhere to go come forward, and the ones without
+                        // stay small and fade out at the top edge.
+                        let grows = Flight.from + (1 - Flight.from)
+                            * (far / longest(in: geo.size, from: from))
+                        FlyingCard(art: art(index),
+                                   pixels: isPixels(index),
+                                   angle: turn,
+                                   reach: far,
+                                   size: size * (isPixels(index) ? Self.pixelFrame : 1),
+                                   spin: isPixels(index) ? -Flight.spin : Flight.spin,
+                                   travel: Flight.travel,
+                                   from: Flight.from,
+                                   to: grows,
+                                   delay: Flight.travel * Double(along) / Double(deep))
+                            .position(from)
+                    }
                 }
             }
         }
@@ -150,7 +159,9 @@ private struct FlyingCard: View {
             // scales the bitmap down.
             .frame(width: size)
             .drawingGroup()
-            .rotationEffect(.degrees(out ? spin : 0))
+            // **Lying along its own ray**, so a spoke is a line of cards pointing the way
+            // they are going rather than a line of cards at odd angles to it.
+            .rotationEffect(.degrees(angle + 90 + (out ? spin : 0)))
             .scaleEffect(out ? to : from)
             .offset(x: out ? away.width : 0, y: out ? away.height : 0)
             .animation(.linear(duration: travel).repeatForever(autoreverses: false)
@@ -169,7 +180,7 @@ private struct FlyingCard: View {
 #Preview("Flying cards") {
     ZStack {
         CardPalette.blue.ignoresSafeArea()
-        FlyingCards()
+        FlyingCards(from: CGPoint(x: 196, y: 226))
         SwisshWordmark(size: SwisshWordmark.Mark.size)
             .frame(maxHeight: .infinity, alignment: .top)
             .padding(.top, 96)

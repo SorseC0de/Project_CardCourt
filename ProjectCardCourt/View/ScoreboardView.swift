@@ -44,7 +44,7 @@ struct ScoreboardView: View {
     /// Glanced at over a live court at one size and read on the results screen at
     /// another. Everything else is a share of it, so the board changes weight as one
     /// thing rather than as thirteen.
-    var row: CGFloat = 26
+    var row: CGFloat = 32
 
     /// The board's weights, all off the height of one row.
     ///
@@ -56,7 +56,7 @@ struct ScoreboardView: View {
         var rim: CGFloat { row * 0.08 }
         var drop: CGFloat { row * 0.09 }
         var corner: CGFloat { row * 0.28 }
-        var gap: CGFloat { row * 0.15 }
+        var gap: CGFloat { row * 0.1 }
         /// The seat's square at the head of a row.
         var seat: CGFloat { row * 0.52 }
         var name: CGFloat { row * 0.56 }
@@ -69,7 +69,7 @@ struct ScoreboardView: View {
         var score: CGFloat { row * 1.4 }
         /// The whole of the left-hand column: the seat's square, the air after it, and
         /// the billing. Written once because the header has to line up with it.
-        var head: CGFloat { seat + gap + billing }
+        var head: CGFloat { seat + (gap * 1.5) + billing }
     }
 
     private var board: Board { Board(row: row) }
@@ -87,14 +87,14 @@ struct ScoreboardView: View {
     }
 
     var body: some View {
-        VStack(spacing: board.gap) {
+        VStack(spacing: board.gap * 1.5) {
             header
             ForEach(ranked) { player in
                 row(player)
             }
         }
-        .padding(.horizontal, board.gap * 2)
-        .padding(.vertical, board.gap * 1.5)
+        .padding(.horizontal, board.gap * 2.5)
+        .padding(.vertical, board.gap * 2.0)
         // **The screen's own ground, not the menus' navy.** The board is a band between
         // the status bar and the log, both of which stand on `Theme.panel`; a navy strip
         // between two grey ones read as a third thing wedged in. The rows do the work.
@@ -125,13 +125,13 @@ struct ScoreboardView: View {
         // A called-out row is the seat itself, wearing the gold rim and orange drop every
         // other thing being offered in this game wears. The rest are black slabs, rimmed
         // in their own colour if you are sitting in them and in grey if you are not.
-        let fill = tint//isCalledOut ? tint : CardPalette.black
-        let rim = isCalledOut ? CardPalette.gold : (isLocal ? tint : CardPalette.black)
-        let shade = isCalledOut ? CardPalette.orange : CardPalette.black
-        let headScale = 3.0
+        let fill = isCalledOut ? tint : CardPalette.darkBlue//isCalledOut ? tint : CardPalette.black
+        let rim = isCalledOut ? CardPalette.gold : (isLocal ? tint : CardPalette.darkBlue)
+        let shade = isCalledOut ? CardPalette.orange : CardPalette.navy
+        let headScale = isCalledOut ? 3.0 : 2.0
 
         return HStack(spacing: 0) {
-            HStack(spacing: board.gap) {
+            HStack(spacing: board.gap * 2.0) {
                 // The seat, as a square rather than a dot: everything else with an edge
                 // in this game is a rounded rectangle, and a circle read as a bullet.
                 //
@@ -143,15 +143,26 @@ struct ScoreboardView: View {
                     .overlay(RoundedRectangle(cornerRadius: board.seat * Chrome.corner * 2)
                         .strokeBorder(isCalledOut ? CardPalette.gold : CardPalette.navy,
                                       lineWidth: board.rim))*/
-                SpriteAnimation(sprite: .heads, scale: headScale, isPlaying: false,
-                                restFrame: PlayerLook.shared.face(for: player.seat))
-                .paletteSwap(PlayerLook.shared.skin(for: player.seat))
+                if(!isCalledOut) {
+                    Circle().fill(tint)
+                        .frame(width: board.seat, height: board.seat)
+                        .offset(x: -1, y: 0)
+                        .overlay {
+                            SpriteAnimation(sprite: .heads, scale: headScale, isPlaying: false,
+                                            restFrame: PlayerLook.shared.face(for: player.seat))
+                            .paletteSwap(PlayerLook.shared.skin(for: player.seat)).offset(x: 2, y: 0)
+                        }
+                } else {
+                    SpriteAnimation(sprite: .heads, scale: headScale, isPlaying: false,
+                                    restFrame: PlayerLook.shared.face(for: player.seat))
+                    .paletteSwap(PlayerLook.shared.skin(for: player.seat))
+                }
                 SmallCapsText(text: PlayerLook.shared.billing(for: player.seat),
                               font: Chrome.display, size: board.name,
                               tracking: board.name * 0.02)
                     .foregroundStyle(.white)
-                    .shadow(color: CardPalette.navy, radius: 0,
-                            x: board.drop * 0.5, y: board.drop * 0.5)
+                    .shadow(color: CardPalette.black, radius: 0,
+                            x: board.drop * 0.75, y: board.drop * 0.75)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 Spacer(minLength: 0)
@@ -167,7 +178,7 @@ struct ScoreboardView: View {
                          size: board.stat,
                          accent: Self.accents[column],
                          rest: .white,
-                         drop: CardPalette.navy)
+                         drop: CardPalette.black)
                     // **Where the points actually are.** Anything flying to the board
                     // aims at the cell it is going to change, rather than at a place the
                     // cell is usually near — see `PointsCells`.
@@ -192,12 +203,12 @@ struct ScoreboardView: View {
                 // second colour, not a darker one. Navy behind a called-out row, whose
                 // own fill is the seat already.
                 .foregroundStyle(.white)
-                .shadow(color: isCalledOut ? CardPalette.navy : tint, radius: 0,
-                        x: board.drop * 0.6, y: board.drop * 0.6)
+                .shadow(color: isCalledOut ? CardPalette.orange : CardPalette.black, radius: 0,
+                        x: board.drop * 0.75, y: board.drop * 0.75)
                 .frame(width: board.score, alignment: .trailing)
                 .contentTransition(.numericText())
         }
-        .padding(.horizontal, board.gap * 1.5)
+        .padding(.horizontal, board.gap * 2.0)
         .frame(height: board.row)
         .background(RoundedRectangle(cornerRadius: board.corner).fill(fill))
         .overlay(RoundedRectangle(cornerRadius: board.corner)
@@ -210,7 +221,7 @@ struct ScoreboardView: View {
 
     /// What each column flashes when it goes up, in the order they are drawn.
     private static let accents: [Color] = [
-        CardPalette.gold, CardPalette.lightBlue, CardPalette.green, CardPalette.red,
+        CardPalette.gold, CardPalette.lightBlue, CardPalette.green, CardPalette.red
     ]
 
     private func stats(_ p: PlayerState) -> [Int] {
