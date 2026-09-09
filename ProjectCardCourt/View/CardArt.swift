@@ -52,9 +52,12 @@ enum CardPalette {
     /// Barely a colour at all: white with the blue's own hue left in it, for a ground
     /// that has to read as paper rather than as a light being shone on one.
     static let cloud   = Color(red: 0xE3 / 255, green: 0xF0 / 255, blue: 0xF8 / 255)
-    /// The warm pair. Light enough to be printed on and to be printed with, which the
-    /// saturated half of the palette is not.
-    static let sand    = Color(red: 0xF8 / 255, green: 0xD3 / 255, blue: 0xA0 / 255)
+    /// **Between orange and gold**, which was the last loud stretch of the warm run:
+    /// brown, tan and the rest of that arc are all quiet. Nearer gold than the wheel's
+    /// middle at ΔE 5.2 — the closest pair in the palette, and chosen that way.
+    static let tangerine = Color(red: 0xFA / 255, green: 0x8A / 255, blue: 0x0B / 255)
+    /// Light enough to be printed on and to be printed with, which the saturated half of
+    /// the palette is not.
     static let tan     = Color(red: 0xE6 / 255, green: 0xB7 / 255, blue: 0x92 / 255)
     /// The dark end of the warm run — where sand and tan go when they have to hold type.
     static let brown   = Color(red: 0xBC / 255, green: 0x80 / 255, blue: 0x51 / 255)

@@ -18,12 +18,12 @@
   <circle cx="94.0" cy="272.0" r="66.0" fill="#F55426"/>
   <text x="94.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#F55426</text>
   <text x="94.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">orange</text>
-  <circle cx="246.0" cy="272.0" r="66.0" fill="#F9A22F"/>
-  <text x="246.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#F9A22F</text>
-  <text x="246.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">gold</text>
-  <circle cx="398.0" cy="272.0" r="66.0" fill="#F8D3A0"/>
-  <text x="398.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#F8D3A0</text>
-  <text x="398.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">sand</text>
+  <circle cx="246.0" cy="272.0" r="66.0" fill="#FA8A0B"/>
+  <text x="246.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#FA8A0B</text>
+  <text x="246.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">tangerine</text>
+  <circle cx="398.0" cy="272.0" r="66.0" fill="#F9A22F"/>
+  <text x="398.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#F9A22F</text>
+  <text x="398.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">gold</text>
   <circle cx="550.0" cy="272.0" r="66.0" fill="#E6B792"/>
   <text x="550.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#E6B792</text>
   <text x="550.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">tan</text>

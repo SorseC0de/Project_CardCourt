@@ -19,7 +19,7 @@ SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 # cap, so the grid is exact — a ragged row was only ever a sign the palette was unfinished.
 ROWS = [
     ["navy", "darkBlue", "blue", "azure", "lightBlue"],
-    ["orange", "gold", "sand", "tan", "brown"],
+    ["orange", "tangerine", "gold", "tan", "brown"],
     ["red", "darkRed", "maroon", "magenta", "purple"],
     ["green", "teal", "black", "gray", "cloud"],
 ]
