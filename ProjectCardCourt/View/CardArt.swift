@@ -68,7 +68,10 @@ enum CardPalette {
     /// something — a teal picked for saturation would have joined the wrong group and
     /// read as a third thing.
     static let teal    = Color(red: 0x1B / 255, green: 0x8C / 255, blue: 0x85 / 255)
-    static let green   = Color(red: 0x2E / 255, green: 0xA9 / 255, blue: 0x3E / 255)
+    /// **Moved off the yellow-green it was.** At H 145 it sat closer to gold than the
+    /// wheel wanted and read crude beside teal; ten degrees round and a little quieter it
+    /// reads as the same family. Not a new colour — the old one, corrected.
+    static let green   = Color(red: 0x41 / 255, green: 0xA2 / 255, blue: 0x6A / 255)
     static let magenta = Color(red: 0xD3 / 255, green: 0x4B / 255, blue: 0xD2 / 255)
     static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)
 
