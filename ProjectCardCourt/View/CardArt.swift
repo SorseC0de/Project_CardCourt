@@ -367,6 +367,11 @@ enum CardLayout {
     /// How big a card's icon is drawn, for everything that is not a basic pass.
     /// Where it sits is `CardTextStyle.iconTop`, on the bench with the rest of the dials.
     static let iconSizeFraction: CGFloat = 0.40
+    /// **The clear band around a type icon's circle**, as a share of the drawing's side.
+    /// Every one of the nine is framed the same way — circle at 0.8 of the canvas, so a
+    /// tenth of it is margin on each edge — which is what lets the things spilling out of
+    /// a circle spill without being cut off. See `_Design/type-icons.md`.
+    static let iconRingInset: CGFloat = 0.10
     /// A touch further than the card's other shadows; the icons need the separation.
     static let iconShadowFraction: CGFloat = 22 / across
     /// Whistles print their icon in Zuphy32 21 over blue; the white-on-navy every other

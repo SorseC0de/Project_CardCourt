@@ -506,38 +506,39 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// True when the number is a target rather than a change.
     var setsShot: Bool { special?.shotOverride != nil }
 
-    /// A drawn icon for the types that have one. Whistles are mirrored, matching the
-    /// referee. nil falls through to `symbol`.
-    /// `scale` because a hand-drawn SVG arrives at whatever size its artboard was, and
-    /// they do not agree with each other.
     /// Drawn with a slash through it — the card says "no" to whatever the icon shows.
-    var isSlashed: Bool { id == "swallowed-whistle" }
+    ///
+    /// **Off while the icons are per type.** A slash belongs on a picture of the thing
+    /// being denied; over a Game Break's own mark it says nothing.
+    var isSlashed: Bool { false }
 
+    /// **The card's picture, which is its type's rather than its own.**
+    ///
+    /// Nine full-colour drawings, one per type, each built on the same circle in the same
+    /// place — see `_Design/type-icons.md`. That is what retired the per-card multiplier
+    /// this used to carry: every icon is drawn at one size now, and the size is a dial.
+    ///
+    /// Injuries are Game Breaks but read as their own thing, and the two of them differ
+    /// by how long they last, so they get a drawing each.
     var artwork: (name: String, mirrored: Bool, scale: CGFloat)? {
-        // It is a Game Break, but what it is *about* is Whistles — and with the slash
-        // through it the whistle says the whole effect without a word.
-        if id == "swallowed-whistle" { return ("WhistleIcon", true, 1.6) }
-        // Cards with art of their own. Each carries its own multiplier: the drawings are
-        // trimmed to their subject, so one shared number reads at different sizes.
-        switch id {
-        case "dribble":      return ("DribbleIcon", false, 1)
-        case "drive":        return ("DriveIcon", false, 1)
-        case "hesi":         return ("HesiIcon", false, 1)
-        case "full-court-heave": return ("HeaveIcon", false, 1)
-        case "contest":      return ("ContestIcon", false, 1)
-        case "all-swissh-selection": return ("PendingDrawIcon", false, 1)
-        case "off-night":    return ("OffNightIcon", false, 1)
-        case "benched":      return ("BenchIcon", false, 1)
-        case "crowd-noise":  return ("CrowdNoiseIcon", false, 1)
-        case "putback-tip":  return ("PutbackIcon", false, 1)
-        case "slam-dunk":    return ("DunkIcon", false, 1)
-        default: break
-        }
+        (name: Self.typeIcon(for: type, injury: gameBreak?.injury),
+         mirrored: false, scale: 1)
+    }
+
+    static func typeIcon(for type: CardType, injury: Injury?) -> String {
         switch type {
-        case .whistle:    return ("WhistleIcon", true, 1.6)
-        case .clamp:      return ("ClampIcon", false, 1.44)
-        case .gameBreak:  return ("GameBreakIcon", false, 1)
-        default:          return nil
+        case .pass:        return "TypePass"
+        case .move:        return "TypeMove"
+        case .specialMove: return "TypeSpecialMove"
+        case .clamp:       return "TypeClamp"
+        case .whistle:     return "TypeWhistle"
+        case .intangible:  return "TypeIntangible"
+        case .gameBreak:
+            switch injury {
+            case .round: return "TypeInjury"
+            case .game:  return "TypeDevaInjury"
+            case nil:    return "TypeGameBreak"
+            }
         }
     }
 
@@ -545,21 +546,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// size as a share of the icon's own, drawn left to right — so a Triple-Team is a
     /// defender at full size with a smaller one either side of him, and a Double-Team is
     /// two of equal size. Nil for every card that wears its mark once.
-    var iconRepeat: [CGFloat]? {
-        switch id {
-        case "double-team": return [0.62, 0.62]
-        case "triple-team": return [0.44, 0.66, 0.44]
-        default:            return nil
-        }
-    }
+    /// **Off while the icons are per type.** Two of the same type icon side by side says
+    /// the type twice, not that two men are on you.
+    var iconRepeat: [CGFloat]? { nil }
 
     /// Turning applied to the icon, in degrees clockwise.
-    var iconRotation: Double {
-        switch id {
-        case "shot-creator": return 90
-        default: return 0
-        }
-    }
+    /// **Off while the icons are per type.** It turned a symbol that had no upright.
+    var iconRotation: Double { 0 }
 
     /// A second, smaller symbol set off from the main one — the ball leaving the hand on
     /// a Fadeaway, or the ball a Putback tips back up. Sizes and offsets are fractions of
@@ -567,16 +560,11 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     ///
     /// Worn by drawn artwork as well as by symbols, so a card whose icon is an SVG can
     /// still take the game's own ball rather than one baked into the drawing.
+    ///
+    /// **Off while the icons are per type.** These were placed against a particular
+    /// drawing; over a type's own mark they land on whatever happens to be there.
     var accentSymbol: (name: String, scale: CGFloat, x: CGFloat, y: CGFloat, turn: Double)? {
-        switch id {
-        case "fadeaway": return ("basketball.fill", 0.21, 0.40, -0.46, 0)
-        // The hand is drawn art and the ball is not, which is the point — the ball a
-        // Putback tips is the same ball every other card draws.
-        case "putback-tip": return ("basketball.fill", 0.50, 0.24, -0.30, 0)
-        // A second pair of prints, so the walk is four steps rather than two.
-        case "travel":   return ("shoeprints.fill", 0.82, 0.34, 0.30, 14)
-        default:         return nil
-        }
+        nil
     }
 
     /// Turns the main symbol alone, leaving any accent to its own angle. Distinct from
@@ -586,9 +574,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     }
 
     /// Nudges an icon that turning has thrown off centre.
-    var iconYAdjust: CGFloat {
-        id == "shot-creator" ? 0.02 : 0
-    }
+    var iconYAdjust: CGFloat { 0 }
 
     /// Whether the card sends the ball **a way** rather than **at somebody**.
     ///

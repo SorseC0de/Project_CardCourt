@@ -151,7 +151,11 @@ enum CardTextStyle {
     /// The card's big icon, against `CardLayout.iconSizeFraction`.
     static let iconScale: CGFloat = 0.8
 
-    /// **Where the top of that icon sits**, down the card. The name plate ends at 0.186,
+    /// **Which side of the icon the name plate is drawn on.** On, and the plate is over
+    /// it and cuts the top off the circle; off, and the icon sits on top of the plate.
+    static let plateOverIcon = true
+
+    /// **Where the top of that icon's circle sits**, down the card. The name plate ends at 0.186,
     /// so anything smaller than that runs up behind it — which is the intent: the icon is
     /// cut off by the plate rather than parked under it.
     static let iconTop: CGFloat = 0.16
@@ -229,6 +233,7 @@ final class CardTextTuning {
     func footShadeInk(for type: CardType) -> Color { (footShade[type] ?? .navy).colour }
     var iconScale = CardTextStyle.iconScale
     var iconTop = CardTextStyle.iconTop
+    var plateOverIcon = CardTextStyle.plateOverIcon
     var iconShade = CardTextStyle.iconShade
     var highlight = CardTextStyle.highlight
 
@@ -259,7 +264,7 @@ final class CardTextTuning {
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
-        iconTop = CardTextStyle.iconTop
+        iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
         iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
         footDrop = CardTextStyle.footDrop; footShade = CardTextStyle.footShade
         minScale = CardTextStyle.minScale; maxLines = CardTextStyle.maxLines
@@ -296,6 +301,7 @@ final class CardTextTuning {
         static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
         static let iconScale: CGFloat = \(n(iconScale))
         static let iconTop: CGFloat = \(n(iconTop))
+        static let plateOverIcon = \(plateOverIcon)
         static let highlight = \(highlight)
         static let footScale: [FootMark: CGFloat] = [\(
             FootMark.allCases.map { ".\($0.rawValue): \(n(scale(of: $0)))" }
@@ -443,6 +449,16 @@ struct CardTextBench: View {
                         heading("the big icon")
                         dial("size", $tune.iconScale, 0.3...2)
                         dial("top", $tune.iconTop, 0...0.4)
+                        row("name plate", tune.plateOverIcon ? "over" : "under") {
+                            HStack(spacing: 3) {
+                                chip("over", on: tune.plateOverIcon) {
+                                    tune.plateOverIcon = true
+                                }
+                                chip("under", on: !tune.plateOverIcon) {
+                                    tune.plateOverIcon = false
+                                }
+                            }
+                        }
                         heading("\(type.shortLabel): under the icon")
                         inks(tune.iconShade[type] ?? .navy) { tune.iconShade[type] = $0 }
                         heading("the marks at the foot")

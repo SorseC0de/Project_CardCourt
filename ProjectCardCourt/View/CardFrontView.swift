@@ -43,6 +43,11 @@ struct CardFrontView: View {
 
             textOverlay
             border
+            // Every card carries its name. Which side of the icon the plate is drawn on
+            // is the question — over it the icon runs up behind the plate and is cut off,
+            // which puts the two on different planes; under it the icon sits on top and
+            // the plate is a band behind it. `plateOverIcon` on the bench.
+            if !set.plateOverIcon { namePlate }
             // The three basic passes say the rest with an icon alone; everything else
             // gets its symbol and effect text.
             if let art = passArt {
@@ -52,10 +57,7 @@ struct CardFrontView: View {
                 effectText
                 footMarks
             }
-            // Every card carries its name, and the plate it sits on goes over the icon
-            // rather than under it — the icon runs up behind the plate and is cut off by
-            // it, which is what puts the two on different planes.
-            namePlate
+            if set.plateOverIcon { namePlate }
             // A pass says what it is worth along the bottom with the rest of its marks;
             // everything else keeps the ball up in the corner.
             if let shot = descriptor.shotEffect, descriptor.type != .pass {
@@ -163,11 +165,14 @@ struct CardFrontView: View {
         .shadow(color: descriptor.id == "behind-the-back"
                     ? .clear : set.iconShadeInk(for: descriptor.type),
                 radius: 0, x: drop, y: drop)
-        // **Placed by its top edge, not its centre**, because what the number has to hold
-        // is how far the icon disappears behind the name plate. Anchored at the centre,
-        // every change of `iconScale` moved the top and changed the cut.
+        // **Placed by the top of its circle, not by its centre or its frame**, because
+        // what the number has to hold is how far the icon disappears behind the name
+        // plate. Anchored at the centre, every change of `iconScale` moved the top and
+        // changed the cut; anchored at the frame, the clear band every type icon carries
+        // around its circle counted as part of the drawing.
         .position(x: width / 2,
-                  y: height * (set.iconTop + descriptor.iconYAdjust) + side / 2)
+                  y: height * (set.iconTop + descriptor.iconYAdjust)
+                      + side * (0.5 - CardLayout.iconRingInset))
     }
 
     /// **Everything a card says without words, in one row along the bottom edge.**

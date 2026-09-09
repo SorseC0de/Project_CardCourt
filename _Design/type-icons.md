@@ -52,12 +52,40 @@ at all (its backdrop is `steel`), and **DevaInjury** is red and purple rather th
 
 The plate is drawn **over** the icon, and the icon runs up behind it and is cut off — the
 two are on different planes rather than stacked in a column. `CardTextStyle.iconTop` is
-where the icon's top edge sits, 0.16 down the card against the plate's bottom edge at
-0.186, so about a ninth of the icon is behind the plate at the default size.
+where the top of the circle sits, 0.16 down the card against the plate's bottom edge at
+0.186, so about an eighth of the circle is behind the plate at the default size.
 
-**The icon is placed by its top edge, not its centre.** What the number has to hold is how
-much of it the plate takes; anchored at the centre, every change of `iconScale` moved the
-top and changed the cut. There is a `top` dial beside `size` on the card text bench.
+**Placed by the top of the circle**, not by its centre and not by its frame. What the
+number has to hold is how much of it the plate takes: anchored at the centre, every change
+of `iconScale` moved the top and changed the cut; anchored at the frame, the clear tenth
+every icon carries around its circle counted as part of the drawing.
+
+`plateOverIcon` on the bench swaps the two, so the plate can be seen drawn under the icon
+instead — the A and the B.
+
+## In the game
+
+Imported as `TypePass`, `TypeMove`, `TypeSpecialMove`, `TypeClamp`, `TypeWhistle`,
+`TypeIntangible`, `TypeGameBreak`, `TypeInjury` and `TypeDevaInjury`, all **original**
+rendering rather than template — the old type icons are template-rendered and these are
+full colour. `Card.typeIcon(for:injury:)` is the map, and an Injury takes its own drawing
+by how long it lasts.
+
+`Card.artwork` answers for the type now, at scale 1, so **the size is one dial**. Four
+things that were built against particular drawings are off with it, each marked in
+`Card.swift` where it stands:
+
+- `iconRepeat` — two of the same type icon says the type twice, not that two men are on
+  you. Double-Team and Triple-Team.
+- `accentSymbol` — the ball on a Fadeaway, the prints on a Travel. Placed against a
+  drawing that is no longer there.
+- `iconRotation` and `iconYAdjust` — Shot Creator's symbol had no upright.
+- `isSlashed` — Swallowed Whistle. A slash belongs over a picture of the thing being
+  denied, not over a Game Break's own mark.
+
+**The three basic passes keep their arrows.** Swing Left, Swing Right, Skip Pass and
+Behind-the-Back are drawn by `passArt`, which is untouched — the arrow says a direction,
+which is the one thing a type icon cannot.
 
 ## Colour drift
 
@@ -72,10 +100,8 @@ Pure black and pure white count as palette members. Everything else has to be on
 
 ## Still to do
 
-- Import the nine into `Assets.xcassets` as **original** rendering, not template — the old
-  type icons are template-rendered and these are full colour.
-- Point `Card.artwork` at the type rather than the card, and collapse the per-icon scale
-  multipliers into the one knob.
-- Decide the two colour questions above.
+- Decide the two colour questions above, on the card rather than on the sheet.
+- The old per-card art is still in the catalog and nothing draws it. Leave it until the
+  type icons are settled.
 - **Intangibles may break the mould later**: the wish is a unique full-colour icon per
   Intangible rather than one for the type. A lot of drawing, so it is a maybe.
