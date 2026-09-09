@@ -160,9 +160,11 @@ struct CardInk {
 /// A card body: a flat colour, plus a striped band across the top for Whistles.
 struct CardBodyFill: View {
     let type: CardType
-    /// Injuries are a family inside Game Break with their own colour, so the fill takes
-    /// this rather than reading the type alone.
-    var isInjury = false
+    /// **Injuries are a family inside Game Break, and not one colour.** The sheet already
+    /// tells them apart — one is off at the end of the round, the other is on for the
+    /// rest of the game — so the card says which it is rather than saying only that it is
+    /// an injury. Nil is not an injury at all.
+    var injury: Injury?
     /// Playable but pointless. Only the body greys — draining the whole card made two
     /// Whistles indistinguishable, their stripes being white to begin with.
     var isDormant = false
@@ -171,11 +173,20 @@ struct CardBodyFill: View {
     var bandFraction: CGFloat = 0.10
     var glossFraction: CGFloat = 0.35
 
+    /// What this card is printed on. A knock that clears at the end of the round is the
+    /// medical green; one that is on you for the rest of the game is its own dark red.
+    private var ground: Color {
+        switch injury {
+        case .game:  return CardPalette.darkRed
+        case .round: return CardPalette.green
+        case nil:    return CardPalette.body(for: type)
+        }
+    }
+
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                Rectangle().fill(isDormant ? CardPalette.gray
-                                 : (isInjury ? CardPalette.green : CardPalette.body(for: type)))
+                Rectangle().fill(isDormant ? CardPalette.gray : ground)
                 if CardPalette.isStriped(type), !isDormant {
                     HStack(spacing: 0) {
                         ForEach(0..<stripes, id: \.self) { index in

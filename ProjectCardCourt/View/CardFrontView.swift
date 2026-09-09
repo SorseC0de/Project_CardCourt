@@ -35,7 +35,7 @@ struct CardFrontView: View {
     var body: some View {
         ZStack {
             CardBodyFill(type: descriptor.type,
-                         isInjury: descriptor.gameBreak?.isInjury == true,
+                         injury: descriptor.gameBreak?.injury,
                          isDormant: isDormant,
                          bandFraction: CardLayout.whistleBandFraction,
                          glossFraction: CardLayout.whistleGlossFraction)
