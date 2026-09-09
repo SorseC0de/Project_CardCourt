@@ -13,6 +13,7 @@ import sys
 
 SOURCE = "ProjectCardCourt/View/CardArt.swift"
 OUT = "_Graphic Assets/Vectors/CardCourt_Palette.svg"
+SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 
 # Grouped rather than gridded: cool, warm, the grounds and inks, then the ones a card
 # reaches for on purpose. A ragged last row reads better than a colour in the wrong family.
@@ -83,6 +84,34 @@ def draw(colours: dict[str, str]) -> str:
     return "\n".join(out) + "\n"
 
 
+def swatches(colours: dict[str, str]) -> bytes:
+    """The palette as an Adobe Swatch Exchange file, which Affinity imports.
+
+    **So the colours are never typed.** Every hex retyped into a drawing program is a
+    chance to fat-finger one, and three of these have already drifted between the code
+    and the artwork. Import this instead: File > Import Palette > From File.
+
+    The numbers written here are **sRGB**, because that is what
+    `Color(red:green:blue:)` means. A document set to any other profile will read them as
+    its own and show something else — see the note in `_Design/`.
+    """
+    import struct
+    body = b""
+    count = 0
+    for row in ROWS:
+        for name in row:
+            code = colours.get(name)
+            if code is None:
+                continue
+            label = name + "\0"
+            rgb = [int(code[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+            block = struct.pack(">H", len(label)) + label.encode("utf-16-be")
+            block += b"RGB " + struct.pack(">fff", *rgb) + struct.pack(">H", 2)
+            body += struct.pack(">HI", 1, len(block)) + block
+            count += 1
+    return b"ASEF" + struct.pack(">HHI", 1, 0, count) + body
+
+
 root = pathlib.Path(__file__).resolve().parent.parent
 colours = palette(root)
 listed = {name for row in ROWS for name in row}
@@ -90,4 +119,6 @@ for name in colours:
     if name not in listed:
         print(f"  ! {name} is in the palette but not on the sheet", file=sys.stderr)
 (root / OUT).write_text(draw(colours))
+(root / SWATCHES).write_bytes(swatches(colours))
 print(f"{len(listed)} swatches → {OUT}")
+print(f"{len(listed)} swatches → {SWATCHES}   (sRGB; import into Affinity)")
