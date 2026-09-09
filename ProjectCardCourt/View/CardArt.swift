@@ -115,6 +115,17 @@ enum CardPalette {
     /// receding and starts announcing itself — that is a contrast drop, a different
     /// thing, and it is `orchid`.
     static let plum   = Color(red: 0x61 / 255, green: 0x48 / 255, blue: 0x65 / 255)
+    /// **The warm half of the same idea.** Plum bridges red to blue through purple;
+    /// this bridges red to brown through purple, and the two reach opposite ways.
+    ///
+    /// Measured: after the reds, plum's nearest neighbour is azure at 20.7 and this
+    /// one's is brown at 16.5. Same corner of the wheel, 28 degrees and eight points of
+    /// lightness apart, pointing away from each other.
+    ///
+    /// It began as a reddish brown and rotated here. At hue 50 it was brown getting
+    /// darker; by 350 it had become its own thing — which is why it earns a slot rather
+    /// than filling the warm-mid gap it was drawn for. That gap is still open.
+    static let rosewood = Color(red: 0x8A / 255, green: 0x56 / 255, blue: 0x6F / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///
