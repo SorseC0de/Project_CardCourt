@@ -125,7 +125,7 @@ enum CardPalette {
     /// It began as a reddish brown and rotated here. At hue 50 it was brown getting
     /// darker; by 350 it had become its own thing — which is why it earns a slot rather
     /// than filling the warm-mid gap it was drawn for. That gap is still open.
-    static let rosewood = Color(red: 0x8A / 255, green: 0x56 / 255, blue: 0x6F / 255)
+    static let blood = Color(red: 0x8A / 255, green: 0x56 / 255, blue: 0x6F / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///
