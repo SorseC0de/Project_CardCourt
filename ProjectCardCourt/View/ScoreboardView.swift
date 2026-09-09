@@ -155,11 +155,15 @@ struct ScoreboardView: View {
             .frame(width: board.head, alignment: .leading)
 
             ForEach(Array(stats(player).enumerated()), id: \.offset) { column, value in
+                // **White with a hard navy drop, on every row.** Navy ink on a called-out
+                // row was legible and quiet, and the row it sits on is the loudest thing
+                // on the screen — the same pair every saturated fill in this game is
+                // lettered with.
                 StatCell(value: value,
                          size: board.stat,
                          accent: Self.accents[column],
-                         rest: isCalledOut ? CardPalette.navy : .white,
-                         drop: isCalledOut ? .clear : CardPalette.navy)
+                         rest: .white,
+                         drop: CardPalette.navy)
                     // **Where the points actually are.** Anything flying to the board
                     // aims at the cell it is going to change, rather than at a place the
                     // cell is usually near — see `PointsCells`.
@@ -177,8 +181,14 @@ struct ScoreboardView: View {
 
             Text("\(shownScore(player))")
                 .font(.custom(Chrome.display, size: board.total))
-                .foregroundStyle(isCalledOut ? CardPalette.navy : tint)
-                .shadow(color: isCalledOut ? .clear : CardPalette.navy, radius: 0,
+                // **White, with the seat's colour behind it.** The score is the number
+                // the board is read for, and a seat's colour on a black row is the
+                // dimmest thing on it — blue and red especially. So the colour moves to
+                // the drop, which is the rule everywhere else in this game: a drop is a
+                // second colour, not a darker one. Navy behind a called-out row, whose
+                // own fill is the seat already.
+                .foregroundStyle(.white)
+                .shadow(color: isCalledOut ? CardPalette.navy : tint, radius: 0,
                         x: board.drop * 0.6, y: board.drop * 0.6)
                 .frame(width: board.score, alignment: .trailing)
                 .contentTransition(.numericText())

@@ -149,6 +149,9 @@ the one thing still drawn as a spreadsheet: hairline columns, system type, two g
   colour for yours. A called-out row drops the black, is filled with the seat outright,
   and takes the gold rim and orange drop everything being offered in this game wears.
 - **The drop is cobalt**, since navy on navy is not a drop.
+- **The score is white with the seat's colour behind it.** It is the number the board is
+  read for, and a seat's colour on a black row is the dimmest thing on it — so the colour
+  goes in the drop, where a second colour belongs.
 - **One number sets the whole board.** `row` — 26 over the court, where it is glanced at,
   and 34 on the results screen, where it is read. Every other measurement is a share of
   it, which is the same rule the rest of the kit follows.

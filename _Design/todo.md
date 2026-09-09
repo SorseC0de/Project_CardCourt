@@ -196,6 +196,8 @@ number is one place.
 Open: **Behind-the-Back's sheet row names no percentage at all**, so it silently takes the
 match bonus. Every other pass says its number. Worth deciding whether that is deliberate.
 
+**Overnight 2026-09-09:** the scoreboard and the front screen's hand of cards — see [Overnight — the board and the front screen.md](Overnight%20—%20the%20board%20and%20the%20front%20screen.md).
+
 ## Next up: the card face
 
 **The words are jam-packed.** With the type icons in at 1.5 the face is fuller than it has
