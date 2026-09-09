@@ -15,13 +15,15 @@ SOURCE = "ProjectCardCourt/View/CardArt.swift"
 OUT = "_Graphic Assets/Vectors/CardCourt_Palette.svg"
 SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 
-# Eight by three, and grouped: the cool run, the reds and purples, then the warms and the
-# neutrals. The grid follows the count — a ragged row was only ever a sign the palette was
-# still unfinished, and at the cap of 24 it divides evenly.
+# Six by four, walking the wheel: the cool run, the purples, the reds into the golds, then
+# the quiets. Every row but the last climbs in hue, so a colour's neighbours on the sheet
+# are its neighbours in OKLCH. The grid follows the count — a ragged row was only ever a
+# sign the palette was still unfinished, and at the cap of 24 it divides evenly.
 ROWS = [
-    ["navy", "cobalt", "darkBlue", "blue", "azure", "lightBlue", "teal", "green"],
-    ["red", "darkRed", "maroon", "blood", "plum", "magenta", "purple", "orange"],
-    ["tangerine", "gold", "tan", "brown", "black", "gray", "steel", "cloud"],
+    ["green", "teal", "lightBlue", "blue", "darkBlue", "cobalt"],
+    ["navy", "azure", "purple", "plum", "magenta", "blood"],
+    ["maroon", "darkRed", "red", "orange", "tangerine", "gold"],
+    ["brown", "tan", "cloud", "steel", "gray", "black"],
 ]
 
 DIAMETER = 132
