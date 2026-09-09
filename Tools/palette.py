@@ -15,12 +15,13 @@ SOURCE = "ProjectCardCourt/View/CardArt.swift"
 OUT = "_Graphic Assets/Vectors/CardCourt_Palette.svg"
 SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 
-# Seven by three, and grouped: the cool run, the reds and warms, then the rest. The grid
-# follows the count — a ragged row was only ever a sign the palette was still unfinished.
+# Eight by three, and grouped: the cool run, the reds and purples, then the warms and the
+# neutrals. The grid follows the count — a ragged row was only ever a sign the palette was
+# still unfinished, and at the cap of 24 it divides evenly.
 ROWS = [
-    ["navy", "cobalt", "darkBlue", "blue", "azure", "lightBlue", "teal"],
+    ["navy", "cobalt", "darkBlue", "blue", "azure", "lightBlue", "teal", "green"],
     ["red", "darkRed", "maroon", "blood", "plum", "magenta", "purple", "orange"],
-    ["tangerine", "gold", "tan", "brown", "green", "black", "gray", "steel", "cloud"],
+    ["tangerine", "gold", "tan", "brown", "black", "gray", "steel", "cloud"],
 ]
 
 DIAMETER = 132
@@ -110,6 +111,9 @@ def swatches(colours: dict[str, str]) -> bytes:
             count += 1
     return b"ASEF" + struct.pack(">HHI", 1, 0, count) + body
 
+
+if len({len(row) for row in ROWS}) != 1:
+    print("  ! the rows are uneven; the sheet is a grid", file=sys.stderr)
 
 root = pathlib.Path(__file__).resolve().parent.parent
 colours = palette(root)
