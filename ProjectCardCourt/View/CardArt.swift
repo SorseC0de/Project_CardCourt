@@ -84,7 +84,7 @@ enum CardPalette {
         case .specialMove: return gold
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
-        case .gameBreak:   return purple
+        case .gameBreak:   return magenta
         // The not-black black rather than navy. Navy is what the ring is drawn in, so an
         // Intangible was a navy card with a navy border around it.
         case .intangible:  return black
