@@ -71,6 +71,19 @@ enum CardPalette {
     /// something — a teal picked for saturation would have joined the wrong group and
     /// read as a third thing.
     static let teal    = Color(red: 0x1B / 255, green: 0x8C / 255, blue: 0x85 / 255)
+    /// **The shadow that works under seven of them** — green, teal, blue, azure,
+    /// darkBlue, gray and purple.
+    ///
+    /// A drop does not have to be its base's own colour darkened; it has to be dark and
+    /// related. At L 0.42 and a chroma of 0.048 this is dark enough to sit under almost
+    /// anything cool and quiet enough not to argue with it, and hue 232 puts it between
+    /// teal and blue where it can lean either way.
+    ///
+    /// Arrived at by being wrong twice: called too near black at L 0.30, then too flat
+    /// once lightened. Neither held — a shadow is read against the thing it sits under,
+    /// not as a swatch beside black, and the numbers that judge swatches judge this
+    /// badly.
+    static let cobalt  = Color(red: 0x31 / 255, green: 0x52 / 255, blue: 0x63 / 255)
     /// **Moved off the yellow-green it was**, without leaving the loud group. At H 145
     /// it pulled toward gold and read crude beside teal. Four degrees round and four
     /// points darker, chroma held at 0.162 — the correction is the pull, not the volume.

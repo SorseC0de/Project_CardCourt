@@ -15,13 +15,12 @@ SOURCE = "ProjectCardCourt/View/CardArt.swift"
 OUT = "_Graphic Assets/Vectors/CardCourt_Palette.svg"
 SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 
-# Five by four, and grouped: the blues, the warms, the reds, and the rest. Twenty is the
-# cap, so the grid is exact — a ragged row was only ever a sign the palette was unfinished.
+# Seven by three, and grouped: the cool run, the reds and warms, then the rest. The grid
+# follows the count — a ragged row was only ever a sign the palette was still unfinished.
 ROWS = [
-    ["navy", "darkBlue", "blue", "azure", "lightBlue"],
-    ["orange", "tangerine", "gold", "tan", "brown"],
-    ["red", "darkRed", "maroon", "magenta", "purple"],
-    ["green", "teal", "black", "gray", "cloud"],
+    ["navy", "cobalt", "darkBlue", "blue", "azure", "lightBlue", "teal"],
+    ["red", "darkRed", "maroon", "magenta", "purple", "orange", "tangerine"],
+    ["gold", "tan", "brown", "green", "black", "gray", "cloud"],
 ]
 
 DIAMETER = 132
