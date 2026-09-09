@@ -121,22 +121,24 @@ the whole game before you are in it, which is the only thing a lobby is for.
 **Entry** (`View/EntryScreenView.swift`) — blue rather than navy, because it is the one
 screen that is not the game. The mark, three tiles, and the gold pill that starts a match.
 
-**The hand behind the mark** (`View/EntryCards.swift`) — a fan of seven backs across the
-top, dealt in when the screen opens and never quite still after that. Three routines off
-one clock, named the way `DeckStage`'s are:
+**The flying cards** (`View/FlyingCards.swift`) — card backs emanating in rays from a
+point behind the wordmark, travelling out slowly, turning slowly, growing, and fading to
+nothing at the edges. Drawn behind the mark and every button, looping while the menu is up,
+and taking no taps.
 
-- **Deal** — one card at a time from below and off to one side, each turning up into its
-  place and going a little past it before it settles. A card that decelerates cleanly
-  looks placed; one that overshoots looks thrown, which is what a deal is.
-- **Breathe** — every card sways on its own phase, so the arc reads as held rather than
-  printed. The phases are 1.618 apart, which is far enough that seven cards never line
-  back up.
-- **Riffle** — every seven seconds a lift runs from the first card to the last, the way a
-  thumb runs down a hand being squared up. A bump travelling once, not a standing wave.
-
-The fan is wider than the screen on purpose: one that fits inside the edges reads as a
-picture of a hand rather than as one being held out. It is declared first in the stack, so
-everything is drawn over it, and it takes no taps at all.
+- **Pixel backs turn counter-clockwise, the drawn one clockwise.** Two versions of the same
+  object turning the same way read as a mistake.
+- **The raster, never the vector.** A vector asset re-rasterises every time its drawn size
+  changes, and every card here changes size on every frame. `CardBackRaster` is a PNG of
+  the same drawing.
+- **One `Image` per card, animated by modifiers**, not a `TimelineView`: a timeline
+  re-evaluates every card's body sixty times a second, where a modifier animation is handed
+  to the render server once. The stagger is a `delay` on each card's own `repeatForever`.
+- **`drawingGroup` under the transforms**, so each card is rasterised once at the largest
+  size it will be drawn and the trip only scales that bitmap. No shadow and no blur: either
+  would cost an offscreen pass per card per frame.
+- **A card grows by distance travelled, not by trip fraction.** See `Parked revisions.md`
+  for why, and for what it was compared against.
 
 **The board** (`View/ScoreboardView.swift`) — the same pieces, at a smaller weight. It was
 the one thing still drawn as a spreadsheet: hairline columns, system type, two greys.

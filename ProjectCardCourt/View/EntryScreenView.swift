@@ -29,11 +29,10 @@ struct EntryScreenView: View {
         static let gap: CGFloat = 20
         /// The slab's own corner, so the ring follows its edge rather than boxing it.
         static let corner: CGFloat = 18
-        /// One card in the hand behind the mark, and how far the fan sits above the
-        /// mark's own top — enough that the arc runs behind the lettering rather than
-        /// starting under it.
-        static let hand: CGFloat = 100
-        static let handLift: CGFloat = 44
+        /// Where the flying cards come from, down the mark from its own top. Behind the
+        /// lettering rather than above or below it, so a card is clear of the word by the
+        /// time it is big enough to see.
+        static let raysFromMark: CGFloat = 0.5
     }
 
     /// Everything on this screen a pad can press, top to bottom the way the eye reads it.
@@ -72,15 +71,11 @@ struct EntryScreenView: View {
         ZStack {
             CardPalette.blue.ignoresSafeArea()
 
-            // **The hand behind the mark.** Declared first, so everything on the screen
-            // is drawn over it and nothing on it can be pressed — see `EntryCards`. It
-            // is deliberately wider than the screen: a fan that fits inside the edges
-            // reads as a picture of a hand rather than as one being held out.
-            VStack(spacing: 0) {
-                EntryCards(width: Front.hand)
-                    .padding(.top, Front.titleTop - Front.handLift)
-                Spacer(minLength: 0)
-            }
+            // **Card backs coming out of the mark.** Declared first, so the wordmark and
+            // every button are drawn over them, and nothing here can be pressed — see
+            // `FlyingCards`.
+            FlyingCards(originY: Front.titleTop + Front.title * Front.raysFromMark)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 SwisshWordmark(size: Front.title)

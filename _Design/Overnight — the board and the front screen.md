@@ -2,6 +2,11 @@
 
 ## Session log — 2026-09-09, overnight
 
+> **Correction, the morning after.** Neither of these was what was asked for. The brief was
+> already written down in `Parked revisions.md` and I did not read it. The front screen has
+> been rebuilt to that brief — see **Done** in that file, and `View/FlyingCards.swift`; the
+> fan of backs described in §2 below is gone. The board is being redesigned by hand.
+
 **What to look at when you wake up.** Two things were assigned and both are done, on the
 branch **`one-queue`**, unpushed. Build is clean, `./Tools/sim --test` is `ALL PASS`.
 Nothing about the rules moved: this is all drawing.

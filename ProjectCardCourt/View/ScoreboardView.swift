@@ -125,9 +125,10 @@ struct ScoreboardView: View {
         // A called-out row is the seat itself, wearing the gold rim and orange drop every
         // other thing being offered in this game wears. The rest are black slabs, rimmed
         // in their own colour if you are sitting in them and in grey if you are not.
-        let fill = isCalledOut ? tint : CardPalette.black
-        let rim = isCalledOut ? CardPalette.gold : (isLocal ? tint : Chrome.edge)
-        let shade = isCalledOut ? CardPalette.orange : CardPalette.cobalt
+        let fill = tint//isCalledOut ? tint : CardPalette.black
+        let rim = isCalledOut ? CardPalette.gold : (isLocal ? tint : CardPalette.black)
+        let shade = isCalledOut ? CardPalette.orange : CardPalette.black
+        let headScale = 3.0
 
         return HStack(spacing: 0) {
             HStack(spacing: board.gap) {
@@ -136,12 +137,15 @@ struct ScoreboardView: View {
                 //
                 // Navy on a called-out row, where the row is already the seat's colour
                 // and a square of it would be a square of nothing.
-                RoundedRectangle(cornerRadius: board.seat * Chrome.corner * 2)
+                /*RoundedRectangle(cornerRadius: board.seat * Chrome.corner * 2)
                     .fill(isCalledOut ? CardPalette.navy : tint)
                     .frame(width: board.seat, height: board.seat)
                     .overlay(RoundedRectangle(cornerRadius: board.seat * Chrome.corner * 2)
                         .strokeBorder(isCalledOut ? CardPalette.gold : CardPalette.navy,
-                                      lineWidth: board.rim))
+                                      lineWidth: board.rim))*/
+                SpriteAnimation(sprite: .heads, scale: headScale, isPlaying: false,
+                                restFrame: PlayerLook.shared.face(for: player.seat))
+                .paletteSwap(PlayerLook.shared.skin(for: player.seat))
                 SmallCapsText(text: PlayerLook.shared.billing(for: player.seat),
                               font: Chrome.display, size: board.name,
                               tracking: board.name * 0.02)
