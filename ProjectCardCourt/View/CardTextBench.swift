@@ -39,7 +39,7 @@ enum FootMark: String, CaseIterable, Hashable, Codable {
 /// palette; a card is never printed in anything else.
 enum CardTextInk: String, CaseIterable, Hashable, Codable {
     case navy, white, black, gold, orange, blue, red, lightBlue, gray,
-         sand, tan, brown, cloud, darkBlue, teal, darkRed, maroon
+         sand, tan, brown, cloud, darkBlue, azure, teal, darkRed, maroon
 
     var colour: Color {
         switch self {
@@ -57,6 +57,7 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
         case .brown:     return CardPalette.brown
         case .cloud:     return CardPalette.cloud
         case .darkBlue:  return CardPalette.darkBlue
+        case .azure:     return CardPalette.azure
         case .teal:      return CardPalette.teal
         case .darkRed:   return CardPalette.darkRed
         case .maroon:  return CardPalette.maroon

@@ -68,11 +68,25 @@ enum CardPalette {
     /// something — a teal picked for saturation would have joined the wrong group and
     /// read as a third thing.
     static let teal    = Color(red: 0x1B / 255, green: 0x8C / 255, blue: 0x85 / 255)
-    /// **Moved off the yellow-green it was.** At H 145 it sat closer to gold than the
-    /// wheel wanted and read crude beside teal; ten degrees round and a little quieter it
-    /// reads as the same family. Not a new colour — the old one, corrected.
-    static let green   = Color(red: 0x41 / 255, green: 0xA2 / 255, blue: 0x6A / 255)
+    /// **Moved off the yellow-green it was**, without leaving the loud group. At H 145
+    /// it pulled toward gold and read crude beside teal. Four degrees round and four
+    /// points darker, chroma held at 0.162 — the correction is the pull, not the volume.
+    /// Dropping chroma instead put green in with the quiet colours, which left the whole
+    /// cool half of the palette muted.
+    static let green   = Color(red: 0x1E / 255, green: 0x9E / 255, blue: 0x4A / 255)
     static let magenta = Color(red: 0xD3 / 255, green: 0x4B / 255, blue: 0xD2 / 255)
+    /// **The twentieth, and the one bare stretch of the wheel.** Nothing loud or quiet
+    /// sat between blue at 245 and purple at 300; this is at 274.
+    ///
+    /// **Chroma is what separates it from blue, not hue.** At 0.18 it fell inside blue's
+    /// reach — ΔE 8.5, the same distance blue and darkBlue get away with only by being a
+    /// fill and its shade. At 0.22 it clears everything by at least twelve. The optimum
+    /// for "furthest from all four blues" is out at hue 288, but that is a violet: it
+    /// wins the arithmetic and stops being the colour.
+    ///
+    /// Four blues is not an accident of the palette. The game's colour is blue, so having
+    /// several is the point rather than a redundancy.
+    static let azure   = Color(red: 0x4C / 255, green: 0x53 / 255, blue: 0xE7 / 255)
     static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.

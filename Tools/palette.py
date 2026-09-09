@@ -18,7 +18,7 @@ SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 # Grouped rather than gridded: cool, warm, the grounds and inks, then the ones a card
 # reaches for on purpose. A ragged last row reads better than a colour in the wrong family.
 ROWS = [
-    ["navy", "darkBlue", "blue", "lightBlue", "teal"],
+    ["navy", "darkBlue", "blue", "azure", "lightBlue", "teal"],
     ["orange", "gold", "sand", "tan", "brown"],
     ["red", "darkRed", "maroon", "magenta", "purple"],
     ["green", "black", "gray", "cloud"],
