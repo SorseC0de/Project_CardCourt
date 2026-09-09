@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="570" viewBox="0 0 1100 570">
-  <rect width="1100" height="570" fill="#FFFFFF"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1252" height="570" viewBox="0 0 1252 570">
+  <rect width="1252" height="570" fill="#FFFFFF"/>
   <circle cx="94.0" cy="94.0" r="66.0" fill="#1C3261"/>
   <text x="94.0" y="100.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#1C3261</text>
   <text x="94.0" y="179" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">navy</text>
@@ -36,12 +36,15 @@
   <circle cx="702.0" cy="272.0" r="66.0" fill="#A45FFF"/>
   <text x="702.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#A45FFF</text>
   <text x="702.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">purple</text>
-  <circle cx="854.0" cy="272.0" r="66.0" fill="#F55426"/>
-  <text x="854.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#F55426</text>
-  <text x="854.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">orange</text>
-  <circle cx="1006.0" cy="272.0" r="66.0" fill="#FA8A0B"/>
-  <text x="1006.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#FA8A0B</text>
-  <text x="1006.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">tangerine</text>
+  <circle cx="854.0" cy="272.0" r="66.0" fill="#614865"/>
+  <text x="854.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#614865</text>
+  <text x="854.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">mauve</text>
+  <circle cx="1006.0" cy="272.0" r="66.0" fill="#F55426"/>
+  <text x="1006.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#F55426</text>
+  <text x="1006.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">orange</text>
+  <circle cx="1158.0" cy="272.0" r="66.0" fill="#FA8A0B"/>
+  <text x="1158.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#FA8A0B</text>
+  <text x="1158.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">tangerine</text>
   <circle cx="94.0" cy="450.0" r="66.0" fill="#F9A22F"/>
   <text x="94.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#F9A22F</text>
   <text x="94.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">gold</text>

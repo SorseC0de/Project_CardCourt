@@ -104,6 +104,17 @@ enum CardPalette {
     /// several is the point rather than a redundancy.
     static let azure   = Color(red: 0x4C / 255, green: 0x53 / 255, blue: 0xE7 / 255)
     static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)
+    /// **The shadow that becomes whatever it is under.**
+    ///
+    /// L 0.44 at a chroma of 0.055, hue 322. Quiet enough that the base above it decides
+    /// what it reads as: depth under the warms, a cool cast under gray, a relative under
+    /// purple and magenta. Cobalt does the same job for the cool half of the palette;
+    /// this is its counterpart.
+    ///
+    /// **Its chroma is the whole of it.** The same hue and lightness at 0.160 stops
+    /// receding and starts announcing itself — that is a contrast drop, a different
+    /// thing, and it is `orchid`.
+    static let mauve   = Color(red: 0x61 / 255, green: 0x48 / 255, blue: 0x65 / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///
