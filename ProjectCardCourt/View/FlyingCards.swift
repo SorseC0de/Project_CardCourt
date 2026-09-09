@@ -48,10 +48,21 @@ struct FlyingCards: View {
         /// How far it turns over that, in degrees. Signed by which back it is: the pixel
         /// ones counter-clockwise, the drawn one the other way.
         ///
-        /// **One revolution, over the whole trip.** Slow — eleven seconds a turn — and it
-        /// leaves in the same place it started, so a card lies along its ray at both ends
-        /// of the flight and the spokes read the same going out as they do arriving.
+        /// **About one revolution, over the whole trip.** Slow — eleven seconds a turn —
+        /// and near enough a whole one that a card is lying along its ray again by the
+        /// time it goes, so the spokes read the same arriving as they do going out.
         static let spin: Double = 360
+        /// How much of that turn is given away to the scatter, as a share. At a half,
+        /// cards turn anywhere between three quarters of a revolution and a whole one and
+        /// a quarter, so no two are in step.
+        static let vary: Double = 0.5
+        /// How far a card is allowed to lie off its own ray, in degrees end to end.
+        ///
+        /// **The pattern was in the rotations, not the positions.** Every card starting
+        /// exactly along its ray and turning exactly the same amount made ten identical
+        /// spokes, and ten identical spokes is a wheel. Leaning each one differently
+        /// breaks that without moving a card off its line.
+        static let lean: Double = 70
         /// How big it starts, against the size it ends at.
         static let from: CGFloat = 0.08
         /// How far past the edge the ray runs before it stops. It is long gone by then.
@@ -79,12 +90,16 @@ struct FlyingCards: View {
                         // stay small and fade out at the top edge.
                         let grows = Flight.from + (1 - Flight.from)
                             * (far / longest(in: geo.size, from: from))
+                        let turns = Flight.spin
+                            * (1 - Flight.vary / 2 + scatter(index, 4.3) * Flight.vary)
                         FlyingCard(art: art(index),
                                    pixels: isPixels(index),
                                    angle: turn,
+                                   lie: turn + 90
+                                       + (scatter(index, 1.7) - 0.5) * Flight.lean,
                                    reach: far,
                                    size: size * (isPixels(index) ? Self.pixelFrame : 1),
-                                   spin: isPixels(index) ? -Flight.spin : Flight.spin,
+                                   spin: isPixels(index) ? -turns : turns,
                                    travel: Flight.travel,
                                    from: Flight.from,
                                    to: grows,
@@ -97,9 +112,18 @@ struct FlyingCards: View {
         .allowsHitTesting(false)
     }
 
-    /// **Two in three are pixel backs.** The drawn one is the odd one out, which is why it
-    /// is also the one turning the other way.
-    private func isPixels(_ index: Int) -> Bool { index % 3 != 2 }
+    /// **A fixed scatter, not a random one.** The same on every launch — a menu that
+    /// deals itself a different hand each time it opens is a menu nobody can describe.
+    /// The usual fractional-sine hash: cheap, spread evenly, and repeatable.
+    private func scatter(_ index: Int, _ salt: Double) -> Double {
+        let v = sin(Double(index) * 12.9898 + salt) * 43758.5453
+        return v - v.rounded(.down)
+    }
+
+    /// **Two in three are pixel backs**, scattered rather than every third one — a
+    /// repeating run of two-then-one is another pattern to see. The drawn one is the odd
+    /// one out, which is why it is also the one turning the other way.
+    private func isPixels(_ index: Int) -> Bool { scatter(index, 9.1) < 0.66 }
     private func art(_ index: Int) -> String { isPixels(index) ? "CardBack" : "CardBackRaster" }
 
     /// The pixel back is a card inside a square frame, and the card is half the frame
@@ -131,6 +155,8 @@ private struct FlyingCard: View {
     let art: String
     let pixels: Bool
     let angle: Double
+    /// The angle it starts at. Near its own ray, but not exactly on it — see `lean`.
+    let lie: Double
     let reach: CGFloat
     let size: CGFloat
     let spin: Double
@@ -160,9 +186,9 @@ private struct FlyingCard: View {
             // scales the bitmap down.
             .frame(width: size)
             .drawingGroup()
-            // **Lying along its own ray**, so a spoke is a line of cards pointing the way
-            // they are going rather than a line of cards at odd angles to it.
-            .rotationEffect(.degrees(angle + 90 + (out ? spin : 0)))
+            // **Roughly along its own ray**, so a spoke is a line of cards pointing the
+            // way they are going rather than a line of cards at odd angles to it.
+            .rotationEffect(.degrees(lie + (out ? spin : 0)))
             .scaleEffect(out ? to : from)
             .offset(x: out ? away.width : 0, y: out ? away.height : 0)
             .animation(.linear(duration: travel).repeatForever(autoreverses: false)

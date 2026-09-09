@@ -141,8 +141,12 @@ and taking no taps.
   for why, and for what it was compared against.
 - **They read as rays because of three things**: the spokes are evenly spaced with no
   jitter, every ray is in step with every other, and each card lies along its own ray. Take
-  any one of those away and it goes back to being a swirl. The turn is a **whole**
+  any one of those away and it goes back to being a swirl. The turn is about a **whole**
   revolution over the trip, so the third of those still holds at both ends of the flight.
+- **The scatter is in the rotations, not the positions.** Ten spokes turning in step were
+  ten identical spokes, which is a wheel. Each card leans up to 35° off its own ray and
+  turns anywhere between three quarters of a revolution and a whole one and a quarter, off
+  a fixed hash — the same every launch, so the screen can still be described.
 - **Where they come from is measured, not written down.** `EntryScreenView` reads the
   wordmark's middle in `.global` and hands it over. The cards ignore the safe area and the
   mark does not, so a constant would be wrong by the height of the notch — and by a
