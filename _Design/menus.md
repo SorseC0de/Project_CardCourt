@@ -118,5 +118,39 @@ chairs down the screen, one panel each in that seat's colour, filling with names
 arrive; an empty chair says "House". The seat you are in leans out of the row. You can see
 the whole game before you are in it, which is the only thing a lobby is for.
 
-Still to do: the card gallery (see `card-gallery.md` and `gallery_inspo`), and whatever
-front screen the game opens on.
+**Entry** (`View/EntryScreenView.swift`) — blue rather than navy, because it is the one
+screen that is not the game. The mark, three tiles, and the gold pill that starts a match.
+
+**The hand behind the mark** (`View/EntryCards.swift`) — a fan of seven backs across the
+top, dealt in when the screen opens and never quite still after that. Three routines off
+one clock, named the way `DeckStage`'s are:
+
+- **Deal** — one card at a time from below and off to one side, each turning up into its
+  place and going a little past it before it settles. A card that decelerates cleanly
+  looks placed; one that overshoots looks thrown, which is what a deal is.
+- **Breathe** — every card sways on its own phase, so the arc reads as held rather than
+  printed. The phases are 1.618 apart, which is far enough that seven cards never line
+  back up.
+- **Riffle** — every seven seconds a lift runs from the first card to the last, the way a
+  thumb runs down a hand being squared up. A bump travelling once, not a standing wave.
+
+The fan is wider than the screen on purpose: one that fits inside the edges reads as a
+picture of a hand rather than as one being held out. It is declared first in the stack, so
+everything is drawn over it, and it takes no taps at all.
+
+**The board** (`View/ScoreboardView.swift`) — the same pieces, at a smaller weight. It was
+the one thing still drawn as a spreadsheet: hairline columns, system type, two greys.
+
+- **A row is a slab.** `black` rather than navy, because the board's own ground is navy
+  and `black` is the palette's tone for a surface that has to sit *beside* navy.
+- **The rim says who the row is** — grey for a table you are watching, your own seat's
+  colour for yours. A called-out row drops the black, is filled with the seat outright,
+  and takes the gold rim and orange drop everything being offered in this game wears.
+- **The drop is cobalt**, since navy on navy is not a drop.
+- **One number sets the whole board.** `row` — 26 over the court, where it is glanced at,
+  and 34 on the results screen, where it is read. Every other measurement is a share of
+  it, which is the same rule the rest of the kit follows.
+
+`PointsCells` is untouched: a three still flies to the exact cell it is about to change.
+
+Still to do: the card gallery (see `card-gallery.md` and `gallery_inspo`).

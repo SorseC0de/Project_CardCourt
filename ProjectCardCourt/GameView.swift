@@ -925,8 +925,10 @@ struct GameView: View {
                     .lineLimit(2)
                     .padding(.horizontal, 20)
 
+                // Read rather than glanced at, so the board is given a taller row here
+                // than the one it wears over the court.
                 ScoreboardView(state: controller.shown, highlighted: Set(winners),
-                               totalLabel: "SCORE")
+                               totalLabel: "SCORE", row: 34)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .padding(.horizontal, 26)
                     .padding(.top, 4)
