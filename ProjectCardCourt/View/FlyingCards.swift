@@ -45,12 +45,13 @@ struct FlyingCards: View {
         /// same for every ray — a card with less ground to cover crosses it more gently,
         /// which is what a thing further away looks like.
         static let travel: Double = 11
-        /// How far it turns over that, in degrees. Slow, and signed by which back it is.
+        /// How far it turns over that, in degrees. Signed by which back it is: the pixel
+        /// ones counter-clockwise, the drawn one the other way.
         ///
-        /// Small on purpose. A card lies along its own ray, so the ray is a line of cards
-        /// pointing the way they are going; turn them far enough and the line stops being
-        /// a line and the whole thing swirls.
-        static let spin: Double = 30
+        /// **One revolution, over the whole trip.** Slow — eleven seconds a turn — and it
+        /// leaves in the same place it started, so a card lies along its ray at both ends
+        /// of the flight and the spokes read the same going out as they do arriving.
+        static let spin: Double = 360
         /// How big it starts, against the size it ends at.
         static let from: CGFloat = 0.08
         /// How far past the edge the ray runs before it stops. It is long gone by then.

@@ -141,7 +141,8 @@ and taking no taps.
   for why, and for what it was compared against.
 - **They read as rays because of three things**: the spokes are evenly spaced with no
   jitter, every ray is in step with every other, and each card lies along its own ray. Take
-  any one of those away and it goes back to being a swirl.
+  any one of those away and it goes back to being a swirl. The turn is a **whole**
+  revolution over the trip, so the third of those still holds at both ends of the flight.
 - **Where they come from is measured, not written down.** `EntryScreenView` reads the
   wordmark's middle in `.global` and hands it over. The cards ignore the safe area and the
   mark does not, so a constant would be wrong by the height of the notch — and by a
