@@ -11,6 +11,19 @@ enum CardPalette {
     /// which is what lets it sit beside gold instead of arguing with it.
     static let orange = Color(red: 0xF5 / 255, green: 0x54 / 255, blue: 0x26 / 255)
     static let red    = Color(red: 0xE4 / 255, green: 0x19 / 255, blue: 0x5F / 255)
+    /// **What a devastating injury is printed on**, and the drop under it.
+    ///
+    /// Hue 5 at L 0.44 — the red end of the arc between red and purple, made distinct by
+    /// being dark rather than by being a different hue. Magenta already sits dead centre
+    /// of that arc at 328, so a colour that is only "between" them is a dark magenta,
+    /// which this is not.
+    ///
+    /// **The pair is three points of lightness apart**, hue and chroma held, so the drop
+    /// is the same colour going down rather than a second one. Deliberately shallower
+    /// than the drops elsewhere — gold falls 45 points onto navy — because a card about
+    /// a season-ending injury should read heavier and flatter than the rest of the deck.
+    static let darkRed  = Color(red: 0x94 / 255, green: 0x18 / 255, blue: 0x47 / 255)
+    static let burgundy = Color(red: 0x69 / 255, green: 0x0E / 255, blue: 0x3E / 255)
     static let gray   = Color(red: 0x91 / 255, green: 0x9C / 255, blue: 0xB8 / 255)
     /// Not on the printed cards. Placed by measuring the six above rather than picked:
     /// every one of those sits in a chroma band of 0.137 to 0.228 in OKLCH, so these were

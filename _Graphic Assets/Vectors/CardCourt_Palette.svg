@@ -30,25 +30,31 @@
   <circle cx="702.0" cy="272.0" r="66.0" fill="#BC8051"/>
   <text x="702.0" y="278.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#BC8051</text>
   <text x="702.0" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">brown</text>
-  <circle cx="94.0" cy="450.0" r="66.0" fill="#2F3143"/>
-  <text x="94.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#2F3143</text>
-  <text x="94.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">black</text>
-  <circle cx="246.0" cy="450.0" r="66.0" fill="#919CB8"/>
-  <text x="246.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#919CB8</text>
-  <text x="246.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">gray</text>
-  <circle cx="398.0" cy="450.0" r="66.0" fill="#E3F0F8"/>
-  <text x="398.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#E3F0F8</text>
-  <text x="398.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">cloud</text>
-  <circle cx="94.0" cy="628.0" r="66.0" fill="#E4195F"/>
-  <text x="94.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#E4195F</text>
-  <text x="94.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">red</text>
-  <circle cx="246.0" cy="628.0" r="66.0" fill="#2EA93E"/>
-  <text x="246.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#2EA93E</text>
-  <text x="246.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">green</text>
-  <circle cx="398.0" cy="628.0" r="66.0" fill="#D34BD2"/>
-  <text x="398.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#D34BD2</text>
-  <text x="398.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">magenta</text>
-  <circle cx="550.0" cy="628.0" r="66.0" fill="#A45FFF"/>
-  <text x="550.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#A45FFF</text>
-  <text x="550.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">purple</text>
+  <circle cx="94.0" cy="450.0" r="66.0" fill="#E4195F"/>
+  <text x="94.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#E4195F</text>
+  <text x="94.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">red</text>
+  <circle cx="246.0" cy="450.0" r="66.0" fill="#941847"/>
+  <text x="246.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#941847</text>
+  <text x="246.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">darkRed</text>
+  <circle cx="398.0" cy="450.0" r="66.0" fill="#690E3E"/>
+  <text x="398.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#690E3E</text>
+  <text x="398.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">burgundy</text>
+  <circle cx="550.0" cy="450.0" r="66.0" fill="#D34BD2"/>
+  <text x="550.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#D34BD2</text>
+  <text x="550.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">magenta</text>
+  <circle cx="702.0" cy="450.0" r="66.0" fill="#A45FFF"/>
+  <text x="702.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#A45FFF</text>
+  <text x="702.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">purple</text>
+  <circle cx="94.0" cy="628.0" r="66.0" fill="#2EA93E"/>
+  <text x="94.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#2EA93E</text>
+  <text x="94.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">green</text>
+  <circle cx="246.0" cy="628.0" r="66.0" fill="#2F3143"/>
+  <text x="246.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#2F3143</text>
+  <text x="246.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">black</text>
+  <circle cx="398.0" cy="628.0" r="66.0" fill="#919CB8"/>
+  <text x="398.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#919CB8</text>
+  <text x="398.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">gray</text>
+  <circle cx="550.0" cy="628.0" r="66.0" fill="#E3F0F8"/>
+  <text x="550.0" y="634.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#1C3261">#E3F0F8</text>
+  <text x="550.0" y="713" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">cloud</text>
 </svg>
