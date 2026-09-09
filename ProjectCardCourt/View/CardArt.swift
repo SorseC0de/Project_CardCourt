@@ -364,8 +364,8 @@ enum CardLayout {
     static let arrowSizeFraction: CGFloat = 500 / across
     /// The chevrons read much heavier than the arrow at the same width.
     static let skipIconFraction: CGFloat = 300 / across
-    /// Where a card's icon and effect text sit, for everything that is not a basic pass.
-    static let iconYFraction: CGFloat = 0.40
+    /// How big a card's icon is drawn, for everything that is not a basic pass.
+    /// Where it sits is `CardTextStyle.iconTop`, on the bench with the rest of the dials.
     static let iconSizeFraction: CGFloat = 0.40
     /// A touch further than the card's other shadows; the icons need the separation.
     static let iconShadowFraction: CGFloat = 22 / across

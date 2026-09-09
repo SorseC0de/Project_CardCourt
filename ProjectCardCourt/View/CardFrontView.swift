@@ -43,9 +43,8 @@ struct CardFrontView: View {
 
             textOverlay
             border
-            // Every card carries its name. The three basic passes say the rest with an
-            // icon alone; everything else gets its symbol and effect text.
-            namePlate
+            // The three basic passes say the rest with an icon alone; everything else
+            // gets its symbol and effect text.
             if let art = passArt {
                 passMark(art)
             } else {
@@ -53,6 +52,10 @@ struct CardFrontView: View {
                 effectText
                 footMarks
             }
+            // Every card carries its name, and the plate it sits on goes over the icon
+            // rather than under it — the icon runs up behind the plate and is cut off by
+            // it, which is what puts the two on different planes.
+            namePlate
             // A pass says what it is worth along the bottom with the rest of its marks;
             // everything else keeps the ball up in the corner.
             if let shot = descriptor.shotEffect, descriptor.type != .pass {
@@ -160,8 +163,11 @@ struct CardFrontView: View {
         .shadow(color: descriptor.id == "behind-the-back"
                     ? .clear : set.iconShadeInk(for: descriptor.type),
                 radius: 0, x: drop, y: drop)
+        // **Placed by its top edge, not its centre**, because what the number has to hold
+        // is how far the icon disappears behind the name plate. Anchored at the centre,
+        // every change of `iconScale` moved the top and changed the cut.
         .position(x: width / 2,
-                  y: height * (CardLayout.iconYFraction + descriptor.iconYAdjust))
+                  y: height * (set.iconTop + descriptor.iconYAdjust) + side / 2)
     }
 
     /// **Everything a card says without words, in one row along the bottom edge.**

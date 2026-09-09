@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Frames the full-colour type icons on one circle, and snaps their colours.
+
+Run it after any re-export. **Affinity writes the artboard back out as the viewBox**, so
+an icon saved again loses its framing and reads a different size to the other eight —
+which is the whole thing this fixes.
+
+Two passes over `_Graphic Assets/Vectors/*_Icon_new.svg`:
+
+  1. Measure the backdrop circle — the first shape in the file — and set the viewBox so
+     it lands centred at a radius of 0.4 of the canvas side. See `_Design/type-icons.md`.
+  2. Snap any fill within `TOLERANCE` of a palette colour to that colour exactly. Affinity
+     rounds; a colour six points out is a decision and is left alone and reported.
+
+    ./Tools/icons.py
+
+Measures rather than reformats: the geometry is read with a parser and the file is edited
+by hand on the two things that change, so the drawing comes back to Affinity as it left.
+"""
+import math
+import pathlib
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+ICONS = "_Graphic Assets/Vectors"
+SOURCE = "ProjectCardCourt/View/CardArt.swift"
+
+MARGIN = 1.25       # half the canvas, in radii — the circle is 80% of the side
+TOLERANCE = 6       # how far off a palette colour still counts as rounding
+SVG = "{http://www.w3.org/2000/svg}"
+DRAWN = {SVG + t for t in ("path", "circle", "ellipse", "rect", "polygon")}
+
+# Pure black and white are honorary palette members: UI, and the whites inside a drawing.
+HONORARY = {"#000000", "#FFFFFF"}
+
+
+def matrix(node) -> tuple:
+    """The element's own transform. Affinity only ever writes `matrix(...)`."""
+    got = re.match(r"matrix\(([-\d.eE,\s]+)\)", node.get("transform", "") or "")
+    if not got:
+        return (1, 0, 0, 1, 0, 0)
+    a, b, c, d, e, f = (float(v) for v in re.split(r"[,\s]+", got.group(1).strip()))
+    return (a, b, c, d, e, f)
+
+
+def times(m, n) -> tuple:
+    """`m` applied after `n`, both as SVG's six numbers."""
+    a, b, c, d, e, f = m
+    A, B, C, D, E, F = n
+    return (a * A + c * B, b * A + d * B,
+            a * C + c * D, b * C + d * D,
+            a * E + c * F + e, b * E + d * F + f)
+
+
+def apply(m, x, y) -> tuple:
+    a, b, c, d, e, f = m
+    return (a * x + c * y + e, b * x + d * y + f)
+
+
+def points(node) -> list:
+    """Every on-curve point and control point, as cubic segments of four points each."""
+    if node.tag == SVG + "circle":
+        cx, cy = float(node.get("cx", 0)), float(node.get("cy", 0))
+        r = float(node.get("r", 0))
+        k = r * 0.5522847498
+        ring = [(cx, cy - r), (cx + k, cy - r), (cx + r, cy - k), (cx + r, cy),
+                (cx + r, cy + k), (cx + k, cy + r), (cx, cy + r), (cx - k, cy + r),
+                (cx - r, cy + k), (cx - r, cy), (cx - r, cy - k), (cx - k, cy - r)]
+        return [ring[i:i + 4] for i in (0, 3, 6)] + [[ring[9], ring[10], ring[11], ring[0]]]
+
+    d = node.get("d")
+    if not d:
+        return []
+    out, here, start = [], (0.0, 0.0), (0.0, 0.0)
+    for letter, body in re.findall(r"([MmLlCcZz])([^MmLlCcZz]*)", d):
+        nums = [float(v) for v in re.findall(r"-?\d*\.?\d+(?:[eE][-+]?\d+)?", body)]
+        rel = letter.islower()
+        if letter in "Zz":
+            here = start
+        elif letter in "Mm":
+            for i in range(0, len(nums) - 1, 2):
+                p = (here[0] + nums[i], here[1] + nums[i + 1]) if rel else (nums[i], nums[i + 1])
+                if i == 0:
+                    start = p
+                else:
+                    out.append([here, here, p, p])
+                here = p
+        elif letter in "Ll":
+            for i in range(0, len(nums) - 1, 2):
+                p = (here[0] + nums[i], here[1] + nums[i + 1]) if rel else (nums[i], nums[i + 1])
+                out.append([here, here, p, p])
+                here = p
+        else:
+            for i in range(0, len(nums) - 5, 6):
+                trio = [(here[0] + nums[i + j], here[1] + nums[i + j + 1]) if rel
+                        else (nums[i + j], nums[i + j + 1]) for j in (0, 2, 4)]
+                out.append([here] + trio)
+                here = trio[-1]
+    return out
+
+
+def span(a: float, b: float, c: float, d: float) -> tuple:
+    """One axis of a cubic, exactly: the ends, plus wherever its slope turns."""
+    lo, hi = min(a, d), max(a, d)
+    A = -a + 3 * b - 3 * c + d
+    B = 2 * (a - 2 * b + c)
+    C = -a + b
+    roots = []
+    if abs(A) < 1e-12:
+        if abs(B) > 1e-12:
+            roots = [-C / B]
+    else:
+        under = B * B - 4 * A * C
+        if under >= 0:
+            roots = [(-B + s * math.sqrt(under)) / (2 * A) for s in (1, -1)]
+    for t in roots:
+        if 0 < t < 1:
+            u = 1 - t
+            v = (u ** 3 * a + 3 * u * u * t * b + 3 * u * t * t * c + t ** 3 * d)
+            lo, hi = min(lo, v), max(hi, v)
+    return lo, hi
+
+
+def bounds(node, m):
+    got = None
+    for seg in points(node):
+        (x0, y0), (x1, y1), (x2, y2), (x3, y3) = [apply(m, *p) for p in seg]
+        xa, xb = span(x0, x1, x2, x3)
+        ya, yb = span(y0, y1, y2, y3)
+        got = (xa, ya, xb, yb) if got is None else (
+            min(got[0], xa), min(got[1], ya), max(got[2], xb), max(got[3], yb))
+    return got
+
+
+def measure(text: str) -> tuple:
+    """The backdrop circle and everything drawn, in the file's own coordinates."""
+    root = ET.fromstring(text)
+    backdrop, whole = None, None
+    stack = [(root, (1, 0, 0, 1, 0, 0))]
+    while stack:
+        node, up = stack.pop(0)
+        here = times(up, matrix(node))
+        if node.tag in DRAWN:
+            box = bounds(node, here)
+            if box:
+                backdrop = backdrop or box
+                whole = box if whole is None else (
+                    min(whole[0], box[0]), min(whole[1], box[1]),
+                    max(whole[2], box[2]), max(whole[3], box[3]))
+        stack = [(kid, here) for kid in node] + stack
+    return backdrop, whole
+
+
+def palette(root: pathlib.Path) -> dict:
+    text = (root / SOURCE).read_text()
+    found = re.findall(
+        r"static let (\w+)\s*= Color\(red: 0x(\w\w) / 255, "
+        r"green: 0x(\w\w) / 255, blue: 0x(\w\w) / 255\)", text)
+    known = {"#" + (r + g + b).upper(): name for name, r, g, b in found}
+    known.update({"#000000": "black (pure)", "#FFFFFF": "white (pure)"})
+    return known
+
+
+def channels(code: str) -> tuple:
+    return tuple(int(code[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def nearest(code: str, known: dict) -> tuple:
+    best = min(known, key=lambda p: sum((x - y) ** 2 for x, y in zip(channels(code), channels(p))))
+    off = math.dist(channels(code), channels(best))
+    return best, known[best], off
+
+
+def n(v: float) -> str:
+    return f"{v:.4f}".rstrip("0").rstrip(".")
+
+
+root = pathlib.Path(__file__).resolve().parent.parent
+known = palette(root)
+moved = snapped = 0
+
+for path in sorted((root / ICONS).glob("*_Icon_new.svg")):
+    text = path.read_text()
+    circle, whole = measure(text)
+    if circle is None:
+        print(f"  ! {path.name} draws nothing", file=sys.stderr)
+        continue
+
+    x0, y0, x1, y1 = circle
+    cx, cy, r = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2
+    if abs((y1 - y0) / 2 - r) > 0.5:
+        print(f"  ! {path.name}: the shape at the back is not a circle "
+              f"({x1 - x0:.1f} by {y1 - y0:.1f})", file=sys.stderr)
+
+    box = (f'viewBox="{n(cx - MARGIN * r)} {n(cy - MARGIN * r)} '
+           f'{n(2 * MARGIN * r)} {n(2 * MARGIN * r)}"')
+    text, hits = re.subn(r'viewBox="[^"]*"', box, text, count=1)
+    if hits != 1:
+        print(f"  ! {path.name} has no viewBox", file=sys.stderr)
+
+    # anything reaching past the canvas would be cut off at that framing
+    edge = max(abs(whole[0] - cx), abs(whole[1] - cy), abs(whole[2] - cx), abs(whole[3] - cy))
+    if edge > MARGIN * r + 0.5:
+        print(f"  ! {path.name} spills to {edge / r:.2f} radii, past the "
+              f"{MARGIN} the canvas holds", file=sys.stderr)
+
+    def snap(code: str) -> str:
+        global snapped
+        if code in known:
+            return code
+        best, name, off = nearest(code, known)
+        if off > TOLERANCE:
+            print(f"  ? {path.name}: {code} is {off:.0f} off {name}, left alone",
+                  file=sys.stderr)
+            return code
+        snapped += 1
+        return best
+
+    def as_rgb(m):
+        code = snap("#%02X%02X%02X" % tuple(int(v) for v in m.groups()))
+        return "rgb(%d,%d,%d)" % channels(code)
+
+    text = re.sub(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", as_rgb, text)
+    text = re.sub(r"(fill|stroke|stop-color)(\s*[:=]\s*\"?)(#[0-9A-Fa-f]{6})",
+                  lambda m: m.group(1) + m.group(2) + snap(m.group(3).upper()), text)
+
+    if text != path.read_text():
+        path.write_text(text)
+        moved += 1
+    print(f"{path.stem:24} circle ({cx:.1f}, {cy:.1f}) r {r:.1f}   {box}")
+
+print(f"\n{moved} file(s) rewritten, {snapped} fill(s) snapped to the palette")

@@ -151,6 +151,11 @@ enum CardTextStyle {
     /// The card's big icon, against `CardLayout.iconSizeFraction`.
     static let iconScale: CGFloat = 0.8
 
+    /// **Where the top of that icon sits**, down the card. The name plate ends at 0.186,
+    /// so anything smaller than that runs up behind it — which is the intent: the icon is
+    /// cut off by the plate rather than parked under it.
+    static let iconTop: CGFloat = 0.16
+
     /// **The hard drop under that icon**, per type — the one colour of the four that is
     /// not about the words.
     static let iconShade: [CardType: CardTextInk] = [
@@ -223,6 +228,7 @@ final class CardTextTuning {
 
     func footShadeInk(for type: CardType) -> Color { (footShade[type] ?? .navy).colour }
     var iconScale = CardTextStyle.iconScale
+    var iconTop = CardTextStyle.iconTop
     var iconShade = CardTextStyle.iconShade
     var highlight = CardTextStyle.highlight
 
@@ -253,6 +259,7 @@ final class CardTextTuning {
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
+        iconTop = CardTextStyle.iconTop
         iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
         footDrop = CardTextStyle.footDrop; footShade = CardTextStyle.footShade
         minScale = CardTextStyle.minScale; maxLines = CardTextStyle.maxLines
@@ -288,6 +295,7 @@ final class CardTextTuning {
         static let footDrop: CGFloat = \(n(footDrop))
         static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
         static let iconScale: CGFloat = \(n(iconScale))
+        static let iconTop: CGFloat = \(n(iconTop))
         static let highlight = \(highlight)
         static let footScale: [FootMark: CGFloat] = [\(
             FootMark.allCases.map { ".\($0.rawValue): \(n(scale(of: $0)))" }
@@ -434,6 +442,7 @@ struct CardTextBench: View {
                         dial("depth", $tune.shadowDrop, 0...0.05)
                         heading("the big icon")
                         dial("size", $tune.iconScale, 0.3...2)
+                        dial("top", $tune.iconTop, 0...0.4)
                         heading("\(type.shortLabel): under the icon")
                         inks(tune.iconShade[type] ?? .navy) { tune.iconShade[type] = $0 }
                         heading("the marks at the foot")

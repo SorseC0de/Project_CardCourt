@@ -25,7 +25,11 @@ where `cx, cy, r` are that file's own circle. Four of them were built on a full-
 circle (r = half the canvas) and four on a 0.4826 circle carrying a y offset of up to 14
 units — SpecialMove sat lowest — which is what made them read as different sizes.
 
-**If an icon is redrawn, re-check its circle**, and set the viewBox by that formula again.
+**Run `./Tools/icons.py` after every export.** Affinity writes the artboard back out as
+the viewBox, so a file saved again loses its framing — either reset to `0 0 800 800`, or,
+if it was opened with a negative origin, with that origin baked into the top transform and
+the box moved to zero. Both have happened already. The tool measures the circle out of the
+geometry, sets the viewBox from it, and snaps the colours in the same pass.
 
 ## Things spilling out of the circle are deliberate
 
@@ -44,12 +48,27 @@ Two do not obviously follow it and are worth a look: **Intangible** carries no `
 at all (its backdrop is `steel`), and **DevaInjury** is red and purple rather than
 `darkRed`.
 
+## They go behind the name plate
+
+The plate is drawn **over** the icon, and the icon runs up behind it and is cut off — the
+two are on different planes rather than stacked in a column. `CardTextStyle.iconTop` is
+where the icon's top edge sits, 0.16 down the card against the plate's bottom edge at
+0.186, so about a ninth of the icon is behind the plate at the default size.
+
+**The icon is placed by its top edge, not its centre.** What the number has to hold is how
+much of it the plate takes; anchored at the centre, every change of `iconScale` moved the
+top and changed the cut. There is a `top` dial beside `size` on the card text bench.
+
 ## Colour drift
 
-Most fills are one to five points off their palette value — Affinity rounding, the same
-drift `Tools/palette.py` exists to catch. Two are real: `#FEFFFE` in Clamp, which is a
-stray white rather than `cloud`, and `#F8D3A0` in SpecialMove, which is `sand` — the
-colour that was dropped when the palette closed at 24.
+**All nine are on exact palette values now**, and `./Tools/icons.py` keeps them there:
+anything within six points of a palette colour is rounding and gets snapped; anything
+further is a decision, and is left alone and named on stderr. Fifty-two fills were off by
+one to five points — one swatch drifting across four files at a time, `#A45FFD` for
+`purple` being the worst of it.
+
+Pure black and pure white count as palette members. Everything else has to be one of the
+24.
 
 ## Still to do
 
