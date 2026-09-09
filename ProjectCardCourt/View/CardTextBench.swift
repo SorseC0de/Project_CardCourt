@@ -38,7 +38,8 @@ enum FootMark: String, CaseIterable, Hashable, Codable {
 /// and a hex triple in a source file says nothing about what it is. The list is the
 /// palette; a card is never printed in anything else.
 enum CardTextInk: String, CaseIterable, Hashable, Codable {
-    case navy, white, black, gold, orange, blue, red, lightBlue, gray
+    case navy, white, black, gold, orange, blue, red, lightBlue, gray,
+         sand, tan, cloud, darkBlue
 
     var colour: Color {
         switch self {
@@ -51,11 +52,21 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
         case .red:       return CardPalette.red
         case .lightBlue: return CardPalette.lightBlue
         case .gray:      return CardPalette.gray
+        case .sand:      return CardPalette.sand
+        case .tan:       return CardPalette.tan
+        case .cloud:     return CardPalette.cloud
+        case .darkBlue:  return CardPalette.darkBlue
         }
     }
 
     /// What the bench shows on a chip.
-    var label: String { self == .lightBlue ? "lt blue" : rawValue }
+    var label: String {
+        switch self {
+        case .lightBlue: return "lt blue"
+        case .darkBlue:  return "dk blue"
+        default:         return rawValue
+        }
+    }
 }
 
 /// **How a card's effect text is set.** The frozen printing, and the only copy of it.
