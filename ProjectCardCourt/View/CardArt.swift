@@ -23,7 +23,7 @@ enum CardPalette {
     /// than the drops elsewhere — gold falls 45 points onto navy — because a card about
     /// a season-ending injury should read heavier and flatter than the rest of the deck.
     static let darkRed  = Color(red: 0x94 / 255, green: 0x18 / 255, blue: 0x47 / 255)
-    static let burgundy = Color(red: 0x69 / 255, green: 0x0E / 255, blue: 0x3E / 255)
+    static let maroon = Color(red: 0x69 / 255, green: 0x0E / 255, blue: 0x3E / 255)
     static let gray   = Color(red: 0x91 / 255, green: 0x9C / 255, blue: 0xB8 / 255)
     /// Not on the printed cards. Placed by measuring the six above rather than picked:
     /// every one of those sits in a chroma band of 0.137 to 0.228 in OKLCH, so these were

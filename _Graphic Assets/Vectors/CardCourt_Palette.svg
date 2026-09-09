@@ -38,7 +38,7 @@
   <text x="246.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">darkRed</text>
   <circle cx="398.0" cy="450.0" r="66.0" fill="#690E3E"/>
   <text x="398.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#690E3E</text>
-  <text x="398.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">burgundy</text>
+  <text x="398.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">maroon</text>
   <circle cx="550.0" cy="450.0" r="66.0" fill="#D34BD2"/>
   <text x="550.0" y="456.0" text-anchor="middle" font-family="Menlo, monospace" font-size="19" font-weight="600" fill="#FFFFFF">#D34BD2</text>
   <text x="550.0" y="535" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#1C3261">magenta</text>

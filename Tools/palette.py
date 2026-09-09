@@ -20,7 +20,7 @@ SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 ROWS = [
     ["navy", "darkBlue", "blue", "lightBlue", "teal"],
     ["orange", "gold", "sand", "tan", "brown"],
-    ["red", "darkRed", "burgundy", "magenta", "purple"],
+    ["red", "darkRed", "maroon", "magenta", "purple"],
     ["green", "black", "gray", "cloud"],
 ]
 
