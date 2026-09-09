@@ -20,7 +20,7 @@ SWATCHES = "_Graphic Assets/CardCourt_Palette.ase"
 ROWS = [
     ["navy", "cobalt", "darkBlue", "blue", "azure", "lightBlue", "teal"],
     ["red", "darkRed", "maroon", "blood", "plum", "magenta", "purple", "orange"],
-    ["tangerine", "gold", "tan", "brown", "green", "black", "gray", "cloud"],
+    ["tangerine", "gold", "tan", "brown", "green", "black", "gray", "steel", "cloud"],
 ]
 
 DIAMETER = 132

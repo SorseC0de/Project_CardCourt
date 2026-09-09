@@ -91,6 +91,16 @@ OKLab distance of 0.061 from navy. Worth knowing that lightness and separation-f
 pull directly against each other: every step lighter closes the gap, so chroma is the only
 lever that buys distance without going darker.
 
+### The light surface
+
+`steel` `#C4C2D1` on `cloud`, dropping onto `gray`. The one light counterpart to the navy
+ground: a steel panel on a cloud screen, its drop in grey, reads as a raised chip rather
+than as a pale rectangle, which is what light UI usually fails at here.
+
+It works because steel is the OKLab midpoint of cloud and gray turned to hue 294 — 12.9
+from each — so the three make an even ladder with no two of them arguing, and the drop is
+still a second colour rather than a dimmer fill.
+
 ## The kit
 
 `View/Chrome.swift`. `Panel`, `ChunkyButton`, `Chip`, `RibbonTag`, `StatPill`,

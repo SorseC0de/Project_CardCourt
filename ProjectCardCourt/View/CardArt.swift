@@ -52,6 +52,11 @@ enum CardPalette {
     /// Barely a colour at all: white with the blue's own hue left in it, for a ground
     /// that has to read as paper rather than as a light being shone on one.
     static let cloud   = Color(red: 0xE3 / 255, green: 0xF0 / 255, blue: 0xF8 / 255)
+    /// **The midpoint of cloud and gray**, mixed in OKLab and then turned to hue 294 —
+    /// far enough off both neighbours' 235 and 268 to read as its own neutral rather than
+    /// a dimmer cloud, and the only tone in the palette that is neither warm nor cool.
+    /// Sits 12.9 from each of them, which is what makes it usable as either one's drop.
+    static let steel   = Color(red: 0xC4 / 255, green: 0xC2 / 255, blue: 0xD1 / 255)
     /// **Between orange and gold**, which was the last loud stretch of the warm run:
     /// brown, tan and the rest of that arc are all quiet. Nearer gold than the wheel's
     /// middle at ΔE 5.2 — the closest pair in the palette, and chosen that way.
