@@ -43,6 +43,18 @@ enum CardPalette {
     /// saturated half of the palette is not.
     static let sand    = Color(red: 0xF8 / 255, green: 0xD3 / 255, blue: 0xA0 / 255)
     static let tan     = Color(red: 0xE6 / 255, green: 0xB7 / 255, blue: 0x92 / 255)
+    /// The dark end of the warm run — where sand and tan go when they have to hold type.
+    static let brown   = Color(red: 0xBC / 255, green: 0x80 / 255, blue: 0x51 / 255)
+    /// **The cool one that lives with orange.** Hue 188 — green sits at 145 and blue at
+    /// 250, so this is the band that is genuinely neither.
+    ///
+    /// Chosen at the top of the quiet half rather than the bottom of the loud one, which
+    /// is the palette's own character: **it is two groups with a gap between them.**
+    /// Seven colours carry a chroma of 0.14 to 0.23 and nine carry 0.02 to 0.10, and
+    /// almost nothing sits in the middle. Punchy where it speaks, muted where it holds
+    /// something — a teal picked for saturation would have joined the wrong group and
+    /// read as a third thing.
+    static let teal    = Color(red: 0x1B / 255, green: 0x8C / 255, blue: 0x85 / 255)
     static let green   = Color(red: 0x2E / 255, green: 0xA9 / 255, blue: 0x3E / 255)
     static let magenta = Color(red: 0xD3 / 255, green: 0x4B / 255, blue: 0xD2 / 255)
     static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)

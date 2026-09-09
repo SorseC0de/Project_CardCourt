@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1094" viewBox="0 0 760 1094">
+  <rect width="760" height="1094" fill="#FFFFFF"/>
+  <circle cx="92" cy="92" r="62" fill="#0C6566"/>
+  <text x="92" y="98" text-anchor="middle" font-family="Menlo, monospace" font-size="17" font-weight="600" fill="#FFFFFF">#0C6566</text>
+  <text x="92" y="174" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1C3261">deep</text>
+  <circle cx="238" cy="92" r="62" fill="#F55426"/>
+  <circle cx="362" cy="92" r="62" fill="#F9A22F"/>
+  <circle cx="486" cy="92" r="62" fill="#1C3261"/>
+  <rect x="570" y="30" width="160" height="124" rx="10" fill="#0C6566"/>
+  <text x="650" y="86" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F55426">SHOT +10%</text>
+  <text x="650" y="114" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F9A22F">SHOT +10%</text>
+  <circle cx="92" cy="268" r="62" fill="#2E7579"/>
+  <text x="92" y="274" text-anchor="middle" font-family="Menlo, monospace" font-size="17" font-weight="600" fill="#FFFFFF">#2E7579</text>
+  <text x="92" y="350" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1C3261">slate</text>
+  <circle cx="238" cy="268" r="62" fill="#F55426"/>
+  <circle cx="362" cy="268" r="62" fill="#F9A22F"/>
+  <circle cx="486" cy="268" r="62" fill="#1C3261"/>
+  <rect x="570" y="206" width="160" height="124" rx="10" fill="#2E7579"/>
+  <text x="650" y="262" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F55426">SHOT +10%</text>
+  <text x="650" y="290" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F9A22F">SHOT +10%</text>
+  <circle cx="92" cy="444" r="62" fill="#358989"/>
+  <text x="92" y="450" text-anchor="middle" font-family="Menlo, monospace" font-size="17" font-weight="600" fill="#FFFFFF">#358989</text>
+  <text x="92" y="526" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1C3261">mid</text>
+  <circle cx="238" cy="444" r="62" fill="#F55426"/>
+  <circle cx="362" cy="444" r="62" fill="#F9A22F"/>
+  <circle cx="486" cy="444" r="62" fill="#1C3261"/>
+  <rect x="570" y="382" width="160" height="124" rx="10" fill="#358989"/>
+  <text x="650" y="438" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F55426">SHOT +10%</text>
+  <text x="650" y="466" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F9A22F">SHOT +10%</text>
+  <circle cx="92" cy="620" r="62" fill="#1B8C85"/>
+  <text x="92" y="626" text-anchor="middle" font-family="Menlo, monospace" font-size="17" font-weight="600" fill="#FFFFFF">#1B8C85</text>
+  <text x="92" y="702" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1C3261">sea</text>
+  <circle cx="238" cy="620" r="62" fill="#F55426"/>
+  <circle cx="362" cy="620" r="62" fill="#F9A22F"/>
+  <circle cx="486" cy="620" r="62" fill="#1C3261"/>
+  <rect x="570" y="558" width="160" height="124" rx="10" fill="#1B8C85"/>
+  <text x="650" y="614" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F55426">SHOT +10%</text>
+  <text x="650" y="642" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F9A22F">SHOT +10%</text>
+  <circle cx="92" cy="796" r="62" fill="#579294"/>
+  <text x="92" y="802" text-anchor="middle" font-family="Menlo, monospace" font-size="17" font-weight="600" fill="#FFFFFF">#579294</text>
+  <text x="92" y="878" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1C3261">dusty</text>
+  <circle cx="238" cy="796" r="62" fill="#F55426"/>
+  <circle cx="362" cy="796" r="62" fill="#F9A22F"/>
+  <circle cx="486" cy="796" r="62" fill="#1C3261"/>
+  <rect x="570" y="734" width="160" height="124" rx="10" fill="#579294"/>
+  <text x="650" y="790" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F55426">SHOT +10%</text>
+  <text x="650" y="818" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F9A22F">SHOT +10%</text>
+  <circle cx="92" cy="972" r="62" fill="#50A2A1"/>
+  <text x="92" y="978" text-anchor="middle" font-family="Menlo, monospace" font-size="17" font-weight="600" fill="#1C3261">#50A2A1</text>
+  <text x="92" y="1054" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#1C3261">level</text>
+  <circle cx="238" cy="972" r="62" fill="#F55426"/>
+  <circle cx="362" cy="972" r="62" fill="#F9A22F"/>
+  <circle cx="486" cy="972" r="62" fill="#1C3261"/>
+  <rect x="570" y="910" width="160" height="124" rx="10" fill="#50A2A1"/>
+  <text x="650" y="966" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F55426">SHOT +10%</text>
+  <text x="650" y="994" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#F9A22F">SHOT +10%</text>
+</svg>
