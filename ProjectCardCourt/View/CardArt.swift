@@ -2,16 +2,16 @@ import SwiftUI
 
 /// Every colour on the printed cards. These are the game's palette, not just the cards'.
 enum CardPalette {
-    static var navy   : Color { Palette.pick("1C3261", "21315E") }
-    static var blue   : Color { Palette.pick("147CC1", "397ABC") }
-    static var gold   : Color { Palette.pick("F9A22F", "EDA64A") }
+    static let navy   = Color(red: 0x1C / 255, green: 0x32 / 255, blue: 0x61 / 255)
+    static let blue   = Color(red: 0x14 / 255, green: 0x7C / 255, blue: 0xC1 / 255)
+    static let gold   = Color(red: 0xF9 / 255, green: 0xA2 / 255, blue: 0x2F / 255)
     /// **The art's own orange**, which the code had never carried. Every SVG in the
     /// project that oranges anything uses this; nothing anywhere used the old value but
     /// this line. A sixteenth lighter, at the same chroma and half a degree of hue —
     /// which is what lets it sit beside gold instead of arguing with it.
-    static var orange : Color { Palette.pick("F55426", "E36038") }
-    static var red    : Color { Palette.pick("E4195F", "D13560") }
-    static var gray   : Color { Palette.pick("919CB8", "9AA2B8") }
+    static let orange = Color(red: 0xF5 / 255, green: 0x54 / 255, blue: 0x26 / 255)
+    static let red    = Color(red: 0xE4 / 255, green: 0x19 / 255, blue: 0x5F / 255)
+    static let gray   = Color(red: 0x91 / 255, green: 0x9C / 255, blue: 0xB8 / 255)
     /// Not on the printed cards. Placed by measuring the six above rather than picked:
     /// every one of those sits in a chroma band of 0.137 to 0.228 in OKLCH, so these were
     /// built at a chosen hue and dropped into the same band. Anything outside it reads as
@@ -25,26 +25,26 @@ enum CardPalette {
     /// Navy's hue turned toward red to 279 at a sixth of the chroma the gamut allows, at
     /// L 0.32. Drop the chroma further and it goes grey; raise it and navy has a rival;
     /// darken it and it stops being a surface. Not a ground — navy keeps that.
-    static var black   : Color { Palette.pick("2F3143", "363845") }
+    static let black   = Color(red: 0x2F / 255, green: 0x31 / 255, blue: 0x43 / 255)
     /// A tint of the blue rather than a rival to it: the wordmark's lower half, where a
     /// second saturated colour would have read as a different mark stuck to the first.
-    static var lightBlue : Color { Palette.pick("89D7ED", "9BD5EA") }
+    static let lightBlue = Color(red: 0x89 / 255, green: 0xD7 / 255, blue: 0xED / 255)
     /// **Between the blue and the navy, two thirds of the way toward the blue.**
     ///
     /// Mixed in OKLab rather than in sRGB — a straight channel average of these two comes
     /// out muddy, because the blue carries far more chroma than the navy and averaging
     /// the numbers throws most of it away. L 0.48, against the blue's 0.57 and the navy's
     /// 0.33: dark enough to sit under the blue without becoming the ground navy is.
-    static var darkBlue : Color { Palette.pick("1D619E", "326099") }
+    static let darkBlue = Color(red: 0x1D / 255, green: 0x61 / 255, blue: 0x9E / 255)
     /// Barely a colour at all: white with the blue's own hue left in it, for a ground
     /// that has to read as paper rather than as a light being shone on one.
-    static var cloud   : Color { Palette.pick("E3F0F8", "E6F0F7") }
+    static let cloud   = Color(red: 0xE3 / 255, green: 0xF0 / 255, blue: 0xF8 / 255)
     /// The warm pair. Light enough to be printed on and to be printed with, which the
     /// saturated half of the palette is not.
-    static var sand    : Color { Palette.pick("F8D3A0", "F2D4A6") }
-    static var tan     : Color { Palette.pick("E6B792", "DFB997") }
+    static let sand    = Color(red: 0xF8 / 255, green: 0xD3 / 255, blue: 0xA0 / 255)
+    static let tan     = Color(red: 0xE6 / 255, green: 0xB7 / 255, blue: 0x92 / 255)
     /// The dark end of the warm run — where sand and tan go when they have to hold type.
-    static var brown   : Color { Palette.pick("BC8051", "B38359") }
+    static let brown   = Color(red: 0xBC / 255, green: 0x80 / 255, blue: 0x51 / 255)
     /// **The cool one that lives with orange.** Hue 188 — green sits at 145 and blue at
     /// 250, so this is the band that is genuinely neither.
     ///
@@ -54,10 +54,10 @@ enum CardPalette {
     /// almost nothing sits in the middle. Punchy where it speaks, muted where it holds
     /// something — a teal picked for saturation would have joined the wrong group and
     /// read as a third thing.
-    static var teal    : Color { Palette.pick("1B8C85", "438A85") }
-    static var green   : Color { Palette.pick("2EA93E", "56A74C") }
-    static var magenta : Color { Palette.pick("D34BD2", "C354CC") }
-    static var purple  : Color { Palette.pick("A45FFF", "9B62F6") }
+    static let teal    = Color(red: 0x1B / 255, green: 0x8C / 255, blue: 0x85 / 255)
+    static let green   = Color(red: 0x2E / 255, green: 0xA9 / 255, blue: 0x3E / 255)
+    static let magenta = Color(red: 0xD3 / 255, green: 0x4B / 255, blue: 0xD2 / 255)
+    static let purple  = Color(red: 0xA4 / 255, green: 0x5F / 255, blue: 0xFF / 255)
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///

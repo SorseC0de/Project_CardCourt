@@ -124,7 +124,6 @@ struct DebugActionsView: View {
     @State private var dunks = DunkTuning.shared
     /// The card's face lives on the printing dial now — see `CardTextStyle`.
     @State private var printing = CardTextTuning.shared
-    @State private var palette = Palette.shared
     /// Observed, or the switch's own label never changes and it reads as dead.
     @State private var render = RenderDebug.shared
     /// Who a practice pass goes to. Always from the player, so this is the whole choice.
@@ -170,9 +169,6 @@ struct DebugActionsView: View {
                     deckReadout = deckReadout.next
                 }
                 action("unsee") { SeenCards.shared.forgetAll() }
-                // **The two palettes, on the only screen that has been honest.** See
-                // `Palette` — the muted one is what a screenshot of this game recorded.
-                action(palette.muted ? "muted ✓" : "muted ✗") { palette.muted.toggle() }
                 action("Aa \(printing.weight.label)") {
                     printing.weight = printing.weight.next
                 }
