@@ -149,16 +149,16 @@ enum CardTextStyle {
     ]
 
     /// The card's big icon, against `CardLayout.iconSizeFraction`.
-    static let iconScale: CGFloat = 0.8
+    static let iconScale: CGFloat = 1.5
 
     /// **Which side of the icon the name plate is drawn on.** On, and the plate is over
     /// it and cuts the top off the circle; off, and the icon sits on top of the plate.
-    static let plateOverIcon = true
+    static let plateOverIcon = false
 
     /// **Where the top of that icon's circle sits**, down the card. The name plate ends at 0.186,
     /// so anything smaller than that runs up behind it — which is the intent: the icon is
     /// cut off by the plate rather than parked under it.
-    static let iconTop: CGFloat = 0.16
+    static let iconTop: CGFloat = 0.175
 
     /// **The hard drop under that icon**, per type — the one colour of the four that is
     /// not about the words.

@@ -195,3 +195,21 @@ number is one place.
 
 Open: **Behind-the-Back's sheet row names no percentage at all**, so it silently takes the
 match bonus. Every other pass says its number. Worth deciding whether that is deliberate.
+
+## Next up: the card face
+
+**The words are jam-packed.** With the type icons in at 1.5 the face is fuller than it has
+ever been, and the effect text is the part that suffers. Not a tuning problem — every dial
+is already at a value that was chosen. What has to be decided is what comes off the card,
+or where the words go instead. Picking this up first.
+
+**Intangibles wear gold twice.** The ask: *the outer stroke should always be the card's own
+body colour.* Where it stands, a card front has exactly one stroke — `CardFrontView.border`,
+drawn in `CardInk.ring` (gold for Intangibles, navy for everything else) — and outside it
+sits a band of the body colour, which is already the rule being asked for. So the second
+gold is somewhere I have not found: needs a pointer to the screen it was seen on.
+
+Worth knowing while looking: `Theme.color(for: CardType)` is a **second, stale copy** of the
+type colours that says Intangibles are gold and Moves are green, against `CardPalette`'s
+black and orange. Only the gallery's filter capsule reads it, but it is exactly the kind of
+duplicate that produces a gold card edge nobody can find in the drawing code.
