@@ -300,6 +300,7 @@ struct CardTextBench: View {
     var onDismiss: () -> Void = {}
 
     @State private var tune = CardTextTuning.shared
+    @State private var palette = Palette.shared
     @State private var type: CardType = .move
     @State private var raised = false
     @State private var open = true
@@ -352,6 +353,9 @@ struct CardTextBench: View {
                 }
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(CardPalette.gold)
+                chip(palette.muted ? "muted" : "shipped", on: palette.muted) {
+                    palette.muted.toggle()
+                }
                 Button("reset") { tune.reset() }
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(CardPalette.red)
