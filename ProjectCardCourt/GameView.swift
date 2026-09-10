@@ -16,6 +16,8 @@ struct GameView: View {
     @State private var cursor = Cursor()
 
     @State private var paused = false
+    /// Which of the two flank plates is in front — see `debuffPlates`.
+    @State private var injuriesForward = false
     /// The card taken off whichever sheet is up, before it is confirmed.
     ///
     /// **Outside the sheet.** Every "pick one of these" in the game used to hold its own
@@ -187,8 +189,7 @@ struct GameView: View {
                                                 onSelect: { inspecting = (card: $0, from: $1) })
                                 .offset(x: standingAside ? -Panels.aside : 0)
                             Spacer()
-                            DebuffSlotsView(cards: controller.human.clamps.map(\.card),
-                                            onSelect: { inspecting = (card: $0, from: $1) })
+                            debuffPlates
                                 .offset(x: standingAside ? Panels.aside : 0)
                         }
                         .padding(.bottom, 4)
@@ -528,6 +529,43 @@ struct GameView: View {
         onFloor != nil || inspecting != nil || browsingDiscard
     }
 
+    /// **Clamps and Injuries, one behind the other.**
+    ///
+    /// Two full plates on the same flank would take the whole side of the screen, and an
+    /// Injury is the thing that explains a greyed-out card — Torn Achilles holds a hand
+    /// down and nothing on screen said so. Stacked, the one behind reads as the drop
+    /// under the one in front, and tapping the back one brings it forward.
+    ///
+    /// Only the front plate takes taps on its slots; the back one takes one tap, which is
+    /// the swap.
+    private var debuffPlates: some View {
+        ZStack(alignment: .topLeading) {
+            plate(injuries: !injuriesForward)
+                .offset(x: Panels.stack, y: Panels.stack)
+                .allowsHitTesting(false)
+                .overlay {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .offset(x: Panels.stack, y: Panels.stack)
+                        .onTapGesture {
+                            withAnimation(.easeOut(duration: 0.22)) {
+                                injuriesForward.toggle()
+                            }
+                        }
+                }
+            plate(injuries: injuriesForward)
+        }
+    }
+
+    private func plate(injuries: Bool) -> some View {
+        DebuffSlotsView(cards: injuries ? controller.human.injuries
+                                        : controller.human.clamps.map(\.card),
+                        title: injuries ? "Injuries" : "Clamps",
+                        fill: injuries ? CardPalette.teal : CardPalette.red,
+                        shade: injuries ? CardPalette.darkRed : CardPalette.purple,
+                        onSelect: { inspecting = (card: $0, from: $1) })
+    }
+
     /// Opens a floor sheet, where that is allowed. The hold is the `onChange`'s job.
     private func open(_ inspection: Inspection) {
         guard controller.canInspect else { return }
@@ -545,6 +583,9 @@ struct GameView: View {
         static let peek: CGFloat = 14
         /// And how far down they sit, out from under the flanks' feet.
         static let drop: CGFloat = 8
+        /// How far the plate behind shows past the one in front — see `debuffPlates`.
+        /// A drop's worth, because that is what it is standing in for.
+        static let stack: CGFloat = 7
     }
 
     /// Whether the floor's own readings should get out of the way: something is being
@@ -660,7 +701,10 @@ struct GameView: View {
                   bound: controller.boundSeats,
                   spend: controller.spend,
                   // Nothing on the floor moves while something else has the screen.
-                  frozen: dim > 0 || onFloor != nil || beingRead != nil,
+                  // **Held still only when the screen is taken away from him.** Reading a
+                  // card is not that: the game is still on, and a referee who stops
+                  // moving every time somebody looks at their hand reads as a bug.
+                  frozen: dim > 0 || onFloor != nil,
                   // The crew's two moments. He is stood behind whatever is on screen for
                   // both, which is the point — the floor is what the call is about.
                   calling: controller.whistleReveal != nil,

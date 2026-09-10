@@ -8,6 +8,12 @@ import SwiftUI
 /// neither one changes width as the game goes on.
 struct DebuffSlotsView: View {
     let cards: [CardDescriptor]
+    /// **What the plate is called and what it is made of.** Clamps by default, because
+    /// that is what it was built for; Injuries wear the same plate in their own colours,
+    /// stacked behind it — see `GameView.debuffPlates`.
+    var title: String = "Clamps"
+    var fill: Color = CardPalette.red
+    var shade: Color = CardPalette.purple
     /// The cap, so the plate is the same size whatever is standing in it.
     var slots: Int = 3
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
@@ -21,8 +27,8 @@ struct DebuffSlotsView: View {
     var topLip: CGFloat = Well.topLip
 
     var body: some View {
-        SlantPanel(title: "Clamps", fill: CardPalette.red,
-                   shade: CardPalette.purple, titleDrop: CardPalette.red,
+        SlantPanel(title: title, fill: fill,
+                   shade: shade, titleDrop: fill,
                    titleSize: titleSize, titleY: titleY, lean: lean,
                    edge: .trailing) {
             HStack(spacing: 4) {
