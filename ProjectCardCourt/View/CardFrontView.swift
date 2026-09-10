@@ -385,9 +385,10 @@ struct CardFrontView: View {
     /// What this card is printed in. One table, asked once — see `CardInk`.
     private var ink: CardInk { CardInk.of(descriptor.type) }
     private var ringColour: Color { ink.ring }
-    /// The name sits on the plate, so it stays navy whatever the body is. This is the
+    /// The name sits on the gold plate, so it stays navy whatever the body is. This is the
     /// effect text, which sits on the body itself.
     private var effectColour: Color { ink.text }
+    private var namePlateShadow: Color { ink.plate }
 
     private var border: some View {
         RoundedRectangle(cornerRadius: width * CardLayout.strokeCornerFraction, style: .continuous)
@@ -399,15 +400,16 @@ struct CardFrontView: View {
     private var namePlate: some View {
         VStack(spacing: 0) {
             ZStack {
-                // **No drop.** The plate is a full-width band, so its drop was a band
-                // too — a second line across the top of every card, directly above the
-                // ring. The plate sits on the body now and the only line up there is the
-                // ring, which is the one that means something.
+                // The shadow is drawn here rather than baked into the SVG, so a card can
+                // choose its colour. Zero blur, straight down — the offset is the one the
+                // baked artwork used, scaled to however wide the plate is drawn.
                 let plateWidth = width * CardLayout.nameOverlayWidthFraction
                 Image("NamePlaceholder")
                     .resizable()
                     .scaledToFit()
                     .frame(width: plateWidth)
+                    .shadow(color: namePlateShadow, radius: 0, x: 0,
+                            y: plateWidth * CardLayout.namePlateShadowFraction)
                 let nameSize = width * CardLayout.nameSizeFraction
                 SmallCapsText(text: descriptor.name,
                               font: "AvenirNextCondensed-Heavy",

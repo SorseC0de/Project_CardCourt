@@ -220,6 +220,13 @@ enum CardTextStyle {
         .whistle: .navy, .gameBreak: .navy, .intangible: .gold,
     ]
 
+    /// **The drop under the name plate**, per type. The plate itself is white whatever the
+    /// body is; what falls behind it is the question, and blue behind it on a dark body
+    /// reads as nothing at all.
+    static let plate: [CardType: CardTextInk] = [
+        .pass: .gold, .move: .blue, .specialMove: .blue, .clamp: .blue,
+        .whistle: .blue, .gameBreak: .gold, .intangible: .gold,
+    ]
 }
 
 /// Every number in a card's printing, on a dial.
@@ -266,10 +273,12 @@ final class CardTextTuning {
     var text = CardTextStyle.text
     var keyword = CardTextStyle.keyword
     var ring = CardTextStyle.ring
+    var plate = CardTextStyle.plate
 
     func ink(for type: CardType) -> Color { (text[type] ?? .navy).colour }
     func keywordInk(for type: CardType) -> Color { (keyword[type] ?? .orange).colour }
     func ringInk(for type: CardType) -> Color { (ring[type] ?? .navy).colour }
+    func plateInk(for type: CardType) -> Color { (plate[type] ?? .blue).colour }
 
     func reset() {
         size = CardTextStyle.size; inset = CardTextStyle.inset
@@ -280,7 +289,7 @@ final class CardTextTuning {
         footBottom = CardTextStyle.footBottom
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
-        ring = CardTextStyle.ring
+        ring = CardTextStyle.ring; plate = CardTextStyle.plate
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
         iconDrop = CardTextStyle.iconDrop
@@ -316,6 +325,7 @@ final class CardTextTuning {
         static let text: [CardType: CardTextInk] = [\(table(text))]
         static let keyword: [CardType: CardTextInk] = [\(table(keyword))]
         static let ring: [CardType: CardTextInk] = [\(table(ring))]
+        static let plate: [CardType: CardTextInk] = [\(table(plate))]
         static let iconShade: [CardType: CardTextInk] = [\(table(iconShade))]
         static let footDrop: CGFloat = \(n(footDrop))
         static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
@@ -524,6 +534,8 @@ struct CardTextBench: View {
                         inks(tune.keyword[type] ?? .orange) { tune.keyword[type] = $0 }
                         heading("\(type.shortLabel): the inner ring")
                         inks(tune.ring[type] ?? .navy) { tune.ring[type] = $0 }
+                        heading("\(type.shortLabel): under the name")
+                        inks(tune.plate[type] ?? .blue) { tune.plate[type] = $0 }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)
                 }
