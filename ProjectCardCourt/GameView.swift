@@ -719,17 +719,21 @@ struct GameView: View {
 
     private var statusBar: some View {
         HStack {
-            Text("ROUND \(controller.shown.round)/\(controller.shown.rules.roundsPerGame)")
-                .font(.system(size: 11, weight: .heavy)).tracking(1)
-                .foregroundStyle(Theme.ink)
+            // **Which round it is, at a size that says so.** Eleven points of system
+            // type in the corner was there all along and nobody could find it.
+            SmallCapsText(text: "Round \(controller.shown.round)"
+                          + "/\(controller.shown.rules.roundsPerGame)",
+                          font: Chrome.display, size: 19, tracking: 0.6)
+                .foregroundStyle(.white)
+                .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             shotClock
 
             HStack(spacing: 8) {
-                Text("HALF \(controller.shown.half)")
-                    .font(.system(size: 11, weight: .bold)).tracking(1)
-                    .foregroundStyle(Theme.inkDim)
+                SmallCapsText(text: "Half \(controller.shown.half)",
+                              font: Chrome.display, size: 15, tracking: 0.6)
+                    .foregroundStyle(CardPalette.gray)
                 pauseButton
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -899,6 +903,10 @@ struct GameView: View {
                     .allowsHitTesting(false)
             }
 
+            // **Scrolled, because the card grew.** The winners, the verdict, a nine-row
+            // board at its reading size and three buttons do not fit a phone between
+            // them — and what went off the bottom was the way out of the screen.
+            ScrollView {
             VStack(spacing: 14) {
                 HStack(spacing: 22) {
                     ForEach(Array(winners.enumerated()), id: \.element) { place, seat in
@@ -944,13 +952,16 @@ struct GameView: View {
                         finalButton("GAME LOG", fill: CardPalette.blue, ink: .white) {
                             withAnimation(.easeOut(duration: 0.2)) { reviewingLog = true }
                         }
-                        finalButton("QUIT", fill: CardPalette.red, ink: .white) {
+                        finalButton("BACK TO TITLE", fill: CardPalette.red, ink: .white) {
                             onQuit()
                         }
                     }
                 }
                 .padding(.top, 4)
+                .padding(.bottom, 24)
             }
+            }
+            .scrollBounceBehavior(.basedOnSize)
             .opacity(reviewingLog ? 0 : 1)
 
             if reviewingLog { logReview }

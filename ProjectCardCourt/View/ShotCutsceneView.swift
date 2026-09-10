@@ -152,6 +152,13 @@ struct ShotCutsceneView: View {
         /// How much further one the iron kept travels on its way down. It is leaving,
         /// not arriving.
         static let carom: CGFloat = 1.6
+        /// **And how far off the ring it is carried as it goes.**
+        ///
+        /// Every rim drama ends back over the middle of the ring — a rattle damps to
+        /// nothing, a high bounce comes back down where it went up — so a ball that then
+        /// fell straight down fell *through*, and every miss at the iron read as a make.
+        /// A miss has to leave sideways. Shares of the ring's own width.
+        static let away: CGFloat = 0.55
         /// A beat on the rim before it goes anywhere, so there is a ball there to watch
         /// come off it. One frame at sixty is not a beat; three is.
         static let leaves: Double = 3.0 / 60
@@ -388,7 +395,9 @@ struct ShotCutsceneView: View {
                         .modifier(DramaPath(progress: dunkBallFell ? 1 : 0,
                                             drama: scene.drama,
                                             rim: tuning.rimWidth * 0.5))
-                        .offset(y: dunkBallFell
+                        .offset(x: dunkBallFell && !scene.made
+                                ? tuning.rimWidth * DunkBall.away : 0,
+                                y: dunkBallFell
                                 ? tuning.rimWidth * DunkBall.fall * caromAway : 0)
                         .animation(DunkBall.curve, value: dunkBallFell)
                         .opacity(dunkBallFell ? 0 : 1)
