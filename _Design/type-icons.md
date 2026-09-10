@@ -87,6 +87,13 @@ things that were built against particular drawings are off with it, each marked 
 Behind-the-Back are drawn by `passArt`, which is untouched — the arrow says a direction,
 which is the one thing a type icon cannot.
 
+## The plate is at the bottom, the subject at the top
+
+Front to back, a card is: the body, **the icon's plate**, the court and the black wash over
+it, the ring, the name banner, the words and the ball at the foot, and then **the icon's
+subject**. So the circle can be made as large as it likes — it is under everything except
+its own subject, and the wash darkens whatever part of it the words are read against.
+
 ## The plate is printed between two layers of the icon
 
 The circle belongs **behind** the name plate and the thing standing in it belongs **over**

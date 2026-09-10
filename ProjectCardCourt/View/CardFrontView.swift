@@ -41,19 +41,21 @@ struct CardFrontView: View {
                          glossFraction: CardLayout.whistleGlossFraction)
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
 
+            // **The icon's plate, at the bottom of the drawing.** Everything else on the
+            // card prints on top of it — the court, the wash the words are read on, the
+            // name banner — so the circle can be made as big as it likes without
+            // swallowing anything. Only its subject comes back over the top, below.
+            if passArt == nil { icon }
             textOverlay
             border
-            // Every card carries its name. Which side of the icon the plate is drawn on
-            // is the question — over it the icon runs up behind the plate and is cut off,
-            // which puts the two on different planes; under it the icon sits on top and
-            // the plate is a band behind it. `plateOverIcon` on the bench.
+            // Every card carries its name. Which side of the icon's plate the banner is
+            // drawn on is the question — `plateOverIcon` on the bench.
             if !set.plateOverIcon { namePlate }
             // The three basic passes say the rest with an icon alone; everything else
-            // gets its symbol and effect text.
+            // gets its words.
             if let art = passArt {
                 passMark(art)
             } else {
-                icon
                 effectText
                 footMarks
             }
@@ -63,7 +65,7 @@ struct CardFrontView: View {
             // the ankle on a Move — so the drawing is in two layers and the plate is
             // printed between them. Nothing is drawn until that second layer exists; see
             // `Card.typeIconFront`.
-            if !passArtIsDrawn, hasIconFront { iconFront }
+            if passArt == nil, hasIconFront { iconFront }
             // The corner badge is for a card whose number is not already at its foot.
             // Nothing wears one today; it is kept because a type may yet want the number
             // up top rather than down there.
@@ -181,10 +183,6 @@ struct CardFrontView: View {
                   y: height * (set.iconTop + descriptor.iconYAdjust)
                       + side * (0.5 - CardLayout.iconRingInset))
     }
-
-    /// Whether this card is one of the three basic passes, which are drawn by `passArt`
-    /// and have no type icon to put in front of anything.
-    private var passArtIsDrawn: Bool { passArt != nil }
 
     /// The icon's front layer, drawn over the name plate and lined up with the icon
     /// underneath it exactly — same size, same anchor, same nudges.

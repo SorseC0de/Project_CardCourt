@@ -174,9 +174,12 @@ enum CardTextStyle {
     /// drawing that already has a ground is a second edge nobody asked for.
     static let iconDrop: CGFloat = 0
 
-    /// **Which side of the icon the name plate is drawn on.** On, and the plate is over
-    /// it and cuts the top off the circle; off, and the icon sits on top of the plate.
-    static let plateOverIcon = false
+    /// **Which side of the icon's plate the name banner is drawn on.** On, and the banner
+    /// is over the circle and cuts its top off; off, and the circle covers the banner.
+    ///
+    /// The icon's **subject** goes over the banner either way — that is what the split is
+    /// for. This is only about the circle behind it.
+    static let plateOverIcon = true
 
     /// **Where the top of that icon's circle sits**, down the card. The name plate ends at 0.186,
     /// so anything smaller than that runs up behind it — which is the intent: the icon is
