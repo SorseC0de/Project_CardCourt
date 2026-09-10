@@ -155,7 +155,49 @@ enum CardPalette {
     static func isStriped(_ type: CardType) -> Bool { type == .whistle }
 }
 
-/// **Every colour the printing of a card turns on, per type, in one place.**
+/// **What a card is printed as.**
+///
+/// Not the same question as what type it is. Injuries are Game Breaks by the rules — they
+/// are drawn from the same pile and they interrupt the same way — but they are printed as
+/// their own thing, on their own colour, with their own drawing, and the two of them are
+/// told apart by how long they last. `CardType` answers to the rules; this answers to the
+/// printer, and it is what every per-type colour on the bench is actually keyed by.
+enum CardFace: String, CaseIterable, Hashable, Codable {
+    case pass, move, specialMove, clamp, whistle, gameBreak, intangible
+    /// A knock that clears at the end of the round.
+    case injury
+    /// One that is on the man for the rest of the game.
+    case devastatingInjury
+
+    init(of card: CardDescriptor) {
+        switch (card.type, card.gameBreak?.injury) {
+        case (.gameBreak, .round): self = .injury
+        case (.gameBreak, .game):  self = .devastatingInjury
+        case (.pass, _):           self = .pass
+        case (.move, _):           self = .move
+        case (.specialMove, _):    self = .specialMove
+        case (.clamp, _):          self = .clamp
+        case (.whistle, _):        self = .whistle
+        case (.gameBreak, nil):    self = .gameBreak
+        case (.intangible, _):     self = .intangible
+        }
+    }
+
+    /// The type it is by the rules, for anything that has to ask that instead.
+    var type: CardType {
+        switch self {
+        case .pass:        return .pass
+        case .move:        return .move
+        case .specialMove: return .specialMove
+        case .clamp:       return .clamp
+        case .whistle:     return .whistle
+        case .intangible:  return .intangible
+        case .gameBreak, .injury, .devastatingInjury: return .gameBreak
+        }
+    }
+}
+
+/// **Every colour the printing of a card turns on, per face, in one place.**
 ///
 /// The rules have to be per type because the bodies are: what reads on orange does not
 /// read on navy, and a keyword inked orange on a blue card disappears on an orange one.
@@ -184,20 +226,21 @@ struct CardInk {
     /// own words and the mechanics inside them — come off the dials so the bench can move
     /// them; everything else here is settled. See `CardTextStyle`.
     @MainActor
-    static func of(_ type: CardType) -> CardInk {
-        var ink = frozen(type)
+    static func of(_ face: CardFace) -> CardInk {
+        var ink = frozen(face)
         let tuned = CardTextTuning.shared
-        ink.text = tuned.ink(for: type)
-        ink.keyword = tuned.keywordInk(for: type)
-        ink.ring = tuned.ringInk(for: type)
-        ink.plate = tuned.plateInk(for: type)
+        ink.text = tuned.ink(for: face)
+        ink.keyword = tuned.keywordInk(for: face)
+        ink.ring = tuned.ringInk(for: face)
+        ink.plate = tuned.plateInk(for: face)
         return ink
     }
 
-    private static func frozen(_ type: CardType) -> CardInk {
+    private static func frozen(_ face: CardFace) -> CardInk {
+        let type = face.type
         // The two dark bodies. Navy lettering on either is lettering nobody can find, and
         // navy is also what the ring is drawn in — so both turn over together.
-        let dark = type == .intangible || type == .gameBreak
+        let dark = face == .intangible || type == .gameBreak
         return CardInk(
             // A Whistle's stripes are black and white and its body is nearly white, so
             // navy sits between the two rather than on either side of them.
@@ -219,37 +262,28 @@ struct CardInk {
 
 /// A card body: a flat colour, plus a striped band across the top for Whistles.
 struct CardBodyFill: View {
-    let type: CardType
-    /// **Injuries are a family inside Game Break, and not one colour.** The sheet already
-    /// tells them apart — one is off at the end of the round, the other is on for the
-    /// rest of the game — so the card says which it is rather than saying only that it is
-    /// an injury. Nil is not an injury at all.
-    var injury: Injury?
+    let face: CardFace
     /// Playable but pointless. Only the body greys — draining the whole card made two
     /// Whistles indistinguishable, their stripes being white to begin with.
     var isDormant = false
     var stripes = 11
     /// Observed, so a body picked on the bench repaints the deck — see `CardTextBench`.
-    @State private var set = CardTextTuning.shared
+    /// **Named `tuning` rather than `set`**: `set` at the head of a computed property is
+    /// read by the compiler as the start of a setter.
+    @State private var tuning = CardTextTuning.shared
     /// How far down the card the stripes run.
     var bandFraction: CGFloat = 0.10
     var glossFraction: CGFloat = 0.35
 
-    /// What this card is printed on. A knock that clears at the end of the round is the
-    /// medical green; one that is on you for the rest of the game is its own dark red.
-    private var ground: Color {
-        switch injury {
-        case .game:  return CardPalette.darkRed
-        case .round: return CardPalette.green
-        case nil:    return set.bodyInk(for: type)
-        }
-    }
+    /// What this card is printed on — the face's own colour, injuries included, so a
+    /// knock and a season-ender are picked on the bench like everything else.
+    private var ground: Color { tuning.bodyInk(for: face) }
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
                 Rectangle().fill(isDormant ? CardPalette.gray : ground)
-                if CardPalette.isStriped(type), !isDormant {
+                if CardPalette.isStriped(face.type), !isDormant {
                     HStack(spacing: 0) {
                         ForEach(0..<stripes, id: \.self) { index in
                             Rectangle()
@@ -381,12 +415,12 @@ enum CardLayout {
     static let iconShadowFraction: CGFloat = 22 / across
     /// Whistles print their icon in Zuphy32 21 over blue; the white-on-navy every other
     /// type uses disappears against their stripes.
-    static func iconTint(for type: CardType) -> Color {
-        type == .whistle ? PixelPalette.midnight : .white
+    static func iconTint(for face: CardFace) -> Color {
+        face == .whistle ? PixelPalette.midnight : .white
     }
 
     @MainActor
-    static func iconShadow(for type: CardType) -> Color { CardInk.of(type).iconShade }
+    static func iconShadow(for face: CardFace) -> Color { CardInk.of(face).iconShade }
 
     /// The mark a Dribble card wears at its foot, and the one that goes before the word
     /// wherever another card names it.
@@ -402,11 +436,11 @@ enum CardLayout {
     // The overlay is solid black and templated, so tint decides its colour entirely.
     // Tinting with the body colour and multiplying gives a darker, more saturated
     // version of that colour.
-    static func blend(for type: CardType) -> BlendMode { .multiply }
-    static func tint(for type: CardType) -> OverlayTint { .body }
+    static func blend(for face: CardFace) -> BlendMode { .multiply }
+    static func tint(for face: CardFace) -> OverlayTint { .body }
 
-    static func opacity(for type: CardType) -> Double {
-        switch type {
+    static func opacity(for face: CardFace) -> Double {
+        switch face.type {
         case .gameBreak, .intangible: return 0.40
         case .move, .specialMove:     return 0.30
         case .pass:                   return 0.25
@@ -421,9 +455,10 @@ enum CardLayout {
 enum OverlayTint: String, CaseIterable, Hashable {
     case body, black, white
 
-    func colour(on type: CardType) -> Color {
+    @MainActor
+    func colour(on face: CardFace) -> Color {
         switch self {
-        case .body:  return CardPalette.body(for: type)
+        case .body:  return CardTextTuning.shared.bodyInk(for: face)
         case .black: return .black
         case .white: return .white
         }

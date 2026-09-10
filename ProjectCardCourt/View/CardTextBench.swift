@@ -1,9 +1,10 @@
 import Observation
 import SwiftUI
 
-extension CardType {
+extension CardFace {
     /// How the case is spelled in Swift, for printing a table back into source. The raw
-    /// value is what the sheet calls it — "Special Move" — which is not a case name.
+    /// value happens to match, and is kept separate so a renamed case cannot quietly
+    /// change what the dump prints.
     var caseName: String {
         switch self {
         case .pass: return "pass"
@@ -13,10 +14,20 @@ extension CardType {
         case .whistle: return "whistle"
         case .gameBreak: return "gameBreak"
         case .intangible: return "intangible"
+        case .injury: return "injury"
+        case .devastatingInjury: return "devastatingInjury"
         }
     }
+
     /// Short enough for a chip on the bench.
-    var shortLabel: String { self == .specialMove ? "special" : rawValue.lowercased() }
+    var shortLabel: String {
+        switch self {
+        case .specialMove: return "special"
+        case .gameBreak: return "break"
+        case .devastatingInjury: return "deva"
+        default: return caseName
+        }
+    }
 }
 
 /// One of the marks that can stand in the row along the foot of a card.
@@ -155,9 +166,10 @@ enum CardTextStyle {
     /// not the big icon's: they sit on a different part of the card and one of them is
     /// twice the size of the other.
     static let footDrop: CGFloat = 0.014
-    static let footShade: [CardType: CardTextInk] = [
+    static let footShade: [CardFace: CardTextInk] = [
         .pass: .blue, .move: .navy, .specialMove: .navy, .clamp: .navy,
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
+        .injury: .navy, .devastatingInjury: .navy,
     ]
 
     /// **Each mark against the row's own size.** Separate drawings on separate artboards
@@ -188,9 +200,10 @@ enum CardTextStyle {
 
     /// **The hard drop under that icon**, per type — the one colour of the four that is
     /// not about the words.
-    static let iconShade: [CardType: CardTextInk] = [
+    static let iconShade: [CardFace: CardTextInk] = [
         .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .black,
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
+        .injury: .navy, .devastatingInjury: .navy,
     ]
 
     /// Whether the marked spans inside the words are inked.
@@ -203,17 +216,19 @@ enum CardTextStyle {
 
     /// **What the body text is printed in, per type.** The one thing that has to differ:
     /// navy on a near-black Intangible is lettering nobody can find.
-    static let text: [CardType: CardTextInk] = [
+    static let text: [CardFace: CardTextInk] = [
         .pass: .white, .move: .white, .specialMove: .white, .clamp: .white,
         .whistle: .black, .gameBreak: .white, .intangible: .white,
+        .injury: .white, .devastatingInjury: .white,
     ]
 
     /// **And what a named mechanic inside it is printed in.** Orange on an orange body is
     /// the card saying its own mechanic in its own colour, which is the same as not
     /// saying it.
-    static let keyword: [CardType: CardTextInk] = [
+    static let keyword: [CardFace: CardTextInk] = [
         .pass: .gold, .move: .lightBlue, .specialMove: .lightBlue, .clamp: .green,
         .whistle: .red, .gameBreak: .tangerine, .intangible: .orange,
+        .injury: .tangerine, .devastatingInjury: .tangerine,
     ]
 
     /// **How thick that ring is drawn**, per type, against `CardLayout.strokeFraction`.
@@ -222,16 +237,18 @@ enum CardTextStyle {
     /// ring is the only **light** line on a **dark** body — every other type is navy on a
     /// mid or light one — and a light line on a dark ground reads fatter than the same
     /// line the other way round. The number is the same; the eye is not.
-    static let ringWidth: [CardType: CGFloat] = [
+    static let ringWidth: [CardFace: CGFloat] = [
         .pass: 1, .move: 1, .specialMove: 1, .clamp: 1,
         .whistle: 1, .gameBreak: 1, .intangible: 0.75,
+        .injury: 1, .devastatingInjury: 1,
     ]
 
     /// **What the card is printed on**, per type. The frozen bodies to begin with — this
     /// is here so a body can be tried against a ring and a keyword without a rebuild.
-    static let body: [CardType: CardTextInk] = [
+    static let body: [CardFace: CardTextInk] = [
         .pass: .blue, .move: .orange, .specialMove: .gold, .clamp: .red,
         .whistle: .white, .gameBreak: .magenta, .intangible: .black,
+        .injury: .green, .devastatingInjury: .darkRed,
     ]
 
     /// **The card's name, in one colour or two.**
@@ -246,17 +263,19 @@ enum CardTextStyle {
 
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
     /// in, so the one body that *is* that navy has to turn it over.
-    static let ring: [CardType: CardTextInk] = [
+    static let ring: [CardFace: CardTextInk] = [
         .pass: .gold, .move: .darkBlue, .specialMove: .blue, .clamp: .azure,
         .whistle: .black, .gameBreak: .navy, .intangible: .green,
+        .injury: .cloud, .devastatingInjury: .tangerine,
     ]
 
     /// **The drop under the name plate**, per type. The plate itself is white whatever the
     /// body is; what falls behind it is the question, and blue behind it on a dark body
     /// reads as nothing at all.
-    static let plate: [CardType: CardTextInk] = [
+    static let plate: [CardFace: CardTextInk] = [
         .pass: .navy, .move: .lightBlue, .specialMove: .orange, .clamp: .magenta,
         .whistle: .magenta, .gameBreak: .azure, .intangible: .gold,
+        .injury: .azure, .devastatingInjury: .azure,
     ]
 }
 
@@ -284,7 +303,7 @@ final class CardTextTuning {
     var minScale = CardTextStyle.minScale
     var maxLines = CardTextStyle.maxLines
 
-    func footShadeInk(for type: CardType) -> Color { (footShade[type] ?? .navy).colour }
+    func footShadeInk(for face: CardFace) -> Color { (footShade[face] ?? .navy).colour }
     var iconScale = CardTextStyle.iconScale
     var iconTop = CardTextStyle.iconTop
     var iconDrop = CardTextStyle.iconDrop
@@ -296,7 +315,7 @@ final class CardTextTuning {
     var highlight = CardTextStyle.highlight
 
     func scale(of mark: FootMark) -> CGFloat { footScale[mark] ?? 1 }
-    func iconShadeInk(for type: CardType) -> Color { (iconShade[type] ?? .navy).colour }
+    func iconShadeInk(for face: CardFace) -> Color { (iconShade[face] ?? .navy).colour }
     var footBottom = CardTextStyle.footBottom
     var footLift = CardTextStyle.footLift
 
@@ -312,12 +331,12 @@ final class CardTextTuning {
     var ringWidth = CardTextStyle.ringWidth
     var plate = CardTextStyle.plate
 
-    func ink(for type: CardType) -> Color { (text[type] ?? .navy).colour }
-    func keywordInk(for type: CardType) -> Color { (keyword[type] ?? .orange).colour }
-    func ringInk(for type: CardType) -> Color { (ring[type] ?? .navy).colour }
-    func ringWeight(for type: CardType) -> CGFloat { ringWidth[type] ?? 1 }
-    func bodyInk(for type: CardType) -> Color { (body[type] ?? .blue).colour }
-    func plateInk(for type: CardType) -> Color { (plate[type] ?? .blue).colour }
+    func ink(for face: CardFace) -> Color { (text[face] ?? .navy).colour }
+    func keywordInk(for face: CardFace) -> Color { (keyword[face] ?? .orange).colour }
+    func ringInk(for face: CardFace) -> Color { (ring[face] ?? .navy).colour }
+    func ringWeight(for face: CardFace) -> CGFloat { ringWidth[face] ?? 1 }
+    func bodyInk(for face: CardFace) -> Color { (body[face] ?? .blue).colour }
+    func plateInk(for face: CardFace) -> Color { (plate[face] ?? .blue).colour }
 
     func reset() {
         size = CardTextStyle.size; inset = CardTextStyle.inset
@@ -346,8 +365,8 @@ final class CardTextTuning {
     /// The dials as `CardTextStyle`, ready to paste over it.
     var source: String {
         func n(_ value: CGFloat) -> String { String(format: "%g", value) }
-        func table(_ inks: [CardType: CardTextInk]) -> String {
-            CardType.allCases.map { ".\($0.caseName): .\((inks[$0] ?? .navy).rawValue)" }
+        func table(_ inks: [CardFace: CardTextInk]) -> String {
+            CardFace.allCases.map { ".\($0.caseName): .\((inks[$0] ?? .navy).rawValue)" }
                 .joined(separator: ", ")
         }
         return """
@@ -365,21 +384,21 @@ final class CardTextTuning {
         static let footGap: CGFloat = \(n(footGap))
         static let footBottom: CGFloat = \(n(footBottom))
         static let footLift: CGFloat = \(n(footLift))
-        static let text: [CardType: CardTextInk] = [\(table(text))]
-        static let keyword: [CardType: CardTextInk] = [\(table(keyword))]
-        static let ring: [CardType: CardTextInk] = [\(table(ring))]
-        static let body: [CardType: CardTextInk] = [\(table(body))]
+        static let text: [CardFace: CardTextInk] = [\(table(text))]
+        static let keyword: [CardFace: CardTextInk] = [\(table(keyword))]
+        static let ring: [CardFace: CardTextInk] = [\(table(ring))]
+        static let body: [CardFace: CardTextInk] = [\(table(body))]
         static let twoToneName = \(twoToneName)
         static let nameInk: CardTextInk = .\(nameInk.rawValue)
         static let nameTop: CardTextInk = .\(nameTop.rawValue)
         static let nameBottom: CardTextInk = .\(nameBottom.rawValue)
-        static let ringWidth: [CardType: CGFloat] = [\(
-            CardType.allCases.map { ".\($0.caseName): \(n(ringWeight(for: $0)))" }
+        static let ringWidth: [CardFace: CGFloat] = [\(
+            CardFace.allCases.map { ".\($0.caseName): \(n(ringWeight(for: $0)))" }
                 .joined(separator: ", "))]
-        static let plate: [CardType: CardTextInk] = [\(table(plate))]
-        static let iconShade: [CardType: CardTextInk] = [\(table(iconShade))]
+        static let plate: [CardFace: CardTextInk] = [\(table(plate))]
+        static let iconShade: [CardFace: CardTextInk] = [\(table(iconShade))]
         static let footDrop: CGFloat = \(n(footDrop))
-        static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
+        static let footShade: [CardFace: CardTextInk] = [\(table(footShade))]
         static let iconScale: CGFloat = \(n(iconScale))
         static let iconDrop: CGFloat = \(n(iconDrop))
         static let iconTop: CGFloat = \(n(iconTop))
@@ -406,7 +425,7 @@ struct CardTextBench: View {
     var onDismiss: () -> Void = {}
 
     @State private var tune = CardTextTuning.shared
-    @State private var type: CardType = .move
+    @State private var face: CardFace = .move
     @State private var raised = false
     /// Which card is being held up. **Tap any other one to promote it** — the rows under
     /// the presented card run behind the dials, and the wordiest card of a type is not
@@ -417,7 +436,7 @@ struct CardTextBench: View {
     /// The wordiest card of each type — the one that has to fit. A dial settled on a
     /// three-word card is a dial that has not been tested.
     private var cards: [CardDescriptor] {
-        let ofType = CardLibrary.all.filter { $0.type == type }
+        let ofType = CardLibrary.all.filter { CardFace(of: $0) == face }
         return ofType
             .sorted { $0.printedEffect.count > $1.printedEffect.count }
             .prefix(3)
@@ -496,15 +515,18 @@ struct CardTextBench: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 5) {
                         heading("which card")
+                        // **Nine, not seven.** Injuries are Game Breaks by the rules and
+                        // their own thing on paper — see `CardFace`.
                         row("type", "") {
-                            HStack(spacing: 3) {
-                                ForEach(CardType.allCases, id: \.self) { kind in
-                                    chip(kind.shortLabel, on: type == kind) { type = kind }
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 52),
+                                                         spacing: 3)], spacing: 3) {
+                                ForEach(CardFace.allCases, id: \.self) { kind in
+                                    chip(kind.shortLabel, on: face == kind) { face = kind }
                                 }
                             }
                         }
-                        // **One set for all seven.** Only the colours below are per
-                        // type — see `CardTextStyle`.
+                        // **One set for all nine.** Only the colours below are per
+                        // face — see `CardTextStyle`.
                         heading("the words")
                         dial("size", $tune.size, 0.04...0.16)
                         dial("padding", $tune.inset, 0...0.2)
@@ -572,16 +594,16 @@ struct CardTextBench: View {
                                 }
                             }
                         }
-                        heading("\(type.shortLabel): under the icon")
-                        inks(tune.iconShade[type] ?? .navy) { tune.iconShade[type] = $0 }
+                        heading("\(face.shortLabel): under the icon")
+                        inks(tune.iconShade[face] ?? .navy) { tune.iconShade[face] = $0 }
                         heading("the marks at the foot")
                         dial("row size", $tune.footSize, 0.05...0.6)
                         dial("gap", $tune.footGap, 0...1)
                         dial("off bottom", $tune.footBottom, 0...0.2)
                         dial("words lift", $tune.footLift, 0...0.3)
                         dial("drop", $tune.footDrop, 0...0.05)
-                        heading("\(type.shortLabel): under the marks")
-                        inks(tune.footShade[type] ?? .navy) { tune.footShade[type] = $0 }
+                        heading("\(face.shortLabel): under the marks")
+                        inks(tune.footShade[face] ?? .navy) { tune.footShade[face] = $0 }
                         heading("each mark")
                         // **Each one against the row.** They are separate drawings on
                         // separate artboards — see `FootMark`.
@@ -591,12 +613,12 @@ struct CardTextBench: View {
                                          set: { tune.footScale[mark] = $0 }),
                                  0.2...2.5)
                         }
-                        heading("\(type.shortLabel): the ink")
-                        inks(tune.text[type] ?? .navy) { tune.text[type] = $0 }
-                        heading("\(type.shortLabel): the mechanics")
-                        inks(tune.keyword[type] ?? .orange) { tune.keyword[type] = $0 }
-                        heading("\(type.shortLabel): the body")
-                        inks(tune.body[type] ?? .blue) { tune.body[type] = $0 }
+                        heading("\(face.shortLabel): the ink")
+                        inks(tune.text[face] ?? .navy) { tune.text[face] = $0 }
+                        heading("\(face.shortLabel): the mechanics")
+                        inks(tune.keyword[face] ?? .orange) { tune.keyword[face] = $0 }
+                        heading("\(face.shortLabel): the body")
+                        inks(tune.body[face] ?? .blue) { tune.body[face] = $0 }
                         heading("the name")
                         row("two-tone", tune.twoToneName ? "on" : "off") {
                             HStack(spacing: 3) {
@@ -610,13 +632,13 @@ struct CardTextBench: View {
                         } else {
                             inks(tune.nameInk) { tune.nameInk = $0 }
                         }
-                        heading("\(type.shortLabel): the inner ring")
-                        inks(tune.ring[type] ?? .navy) { tune.ring[type] = $0 }
+                        heading("\(face.shortLabel): the inner ring")
+                        inks(tune.ring[face] ?? .navy) { tune.ring[face] = $0 }
                         dial("thickness", Binding(
-                            get: { tune.ringWidth[type] ?? 1 },
-                            set: { tune.ringWidth[type] = $0 }), 0.3...1.6)
-                        heading("\(type.shortLabel): under the name")
-                        inks(tune.plate[type] ?? .blue) { tune.plate[type] = $0 }
+                            get: { tune.ringWidth[face] ?? 1 },
+                            set: { tune.ringWidth[face] = $0 }), 0.3...1.6)
+                        heading("\(face.shortLabel): under the name")
+                        inks(tune.plate[face] ?? .blue) { tune.plate[face] = $0 }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)
                 }

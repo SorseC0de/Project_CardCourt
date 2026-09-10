@@ -25,8 +25,8 @@ enum Marked {
         /// a keyword inked the body's own colour is a keyword nobody can see, and which
         /// colour that is depends entirely on what the card is. See `CardInk`.
         @MainActor
-        func colour(on type: CardType) -> Color {
-            let ink = CardInk.of(type)
+        func colour(on face: CardFace) -> Color {
+            let ink = CardInk.of(face)
             switch self {
             case .name:    return ink.name
             case .keyword: return ink.keyword
@@ -36,8 +36,8 @@ enum Marked {
         /// The hard drop under it. A colour needs the one under it as much as itself —
         /// gold on orange and orange on navy are two different signals, not one twice.
         @MainActor
-        func shade(on type: CardType) -> Color {
-            let ink = CardInk.of(type)
+        func shade(on face: CardFace) -> Color {
+            let ink = CardInk.of(face)
             switch self {
             case .name:    return ink.nameShade
             case .keyword: return ink.keywordShade

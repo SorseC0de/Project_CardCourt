@@ -41,7 +41,7 @@ struct CardText: View {
     /// Whether the marked spans are inked at all. Off prints the lot in `ink`.
     var highlight = true
     /// What this card is, which is what decides the two marked colours — see `CardInk`.
-    var type: CardType = .pass
+    var face: CardFace = .pass
     /// Handed the keyword a reader pressed, where pressing is possible.
     var onKeyword: ((String) -> Void)?
 
@@ -59,7 +59,7 @@ struct CardText: View {
             var piece = AttributedString(run.text)
             piece.font = .custom(font, size: size)
             piece.foregroundColor = highlight
-                ? (run.ink?.colour(on: type) ?? ink)
+                ? (run.ink?.colour(on: face) ?? ink)
                 : ink
             // **Only a keyword is worth explaining.** A card named inside the text is
             // already a card you can go and read; a mechanic is a rule you may never

@@ -30,12 +30,14 @@ struct CardFrontView: View {
     private var width: CGFloat { displayWidth * CardLayout.rasterScale }
     private var height: CGFloat { width / CardMetrics.aspect }
     private var corner: CGFloat { width * CardLayout.cornerFraction }
+    /// **What this card is printed as** — its type, except that the two Injuries are their
+    /// own faces. Everything about the printing is asked of this rather than of the type.
+    private var face: CardFace { CardFace(of: descriptor) }
 
 
     var body: some View {
         ZStack {
-            CardBodyFill(type: descriptor.type,
-                         injury: descriptor.gameBreak?.injury,
+            CardBodyFill(face: face,
                          isDormant: isDormant,
                          bandFraction: CardLayout.whistleBandFraction,
                          glossFraction: CardLayout.whistleGlossFraction)
@@ -157,15 +159,15 @@ struct CardFrontView: View {
                     .font(.system(size: side, weight: .semibold))
             }
         }
-        .foregroundStyle(CardLayout.iconTint(for: descriptor.type))
+        .foregroundStyle(CardLayout.iconTint(for: face))
         // The *drawn* side, not the nominal one. `SlashedMark` frames its content and
         // masks against that frame, so a drawing bigger than the icon slot — every piece
         // of artwork carries its own multiplier — was being cut off at the slot's edge.
         .modifier(SlashIfNeeded(on: descriptor.isSlashed,
                                 side: side * (descriptor.artwork?.scale ?? 1),
-                                slash: set.iconShadeInk(for: descriptor.type)))
+                                slash: set.iconShadeInk(for: face)))
         .rotationEffect(.degrees(descriptor.iconRotation))
-        .shadow(color: set.iconShadeInk(for: descriptor.type), radius: 0, x: drop, y: drop)
+        .shadow(color: set.iconShadeInk(for: face), radius: 0, x: drop, y: drop)
         // **Placed by the top of its circle, not by its centre or its frame**, because
         // what the number has to hold is how far the icon disappears behind the name
         // plate. Anchored at the centre, every change of `iconScale` moved the top and
@@ -190,7 +192,7 @@ struct CardFrontView: View {
             .resizable()
             .scaledToFit()
             .frame(width: side, height: side)
-            .shadow(color: set.iconShadeInk(for: descriptor.type),
+            .shadow(color: set.iconShadeInk(for: face),
                     radius: 0, x: drop, y: drop)
             .position(x: width / 2,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
@@ -210,7 +212,7 @@ struct CardFrontView: View {
             VStack {
                 Spacer()
                 footBall(ball, side: side * set.scale(of: .ball))
-                    .shadow(color: set.footShadeInk(for: descriptor.type), radius: 0,
+                    .shadow(color: set.footShadeInk(for: face), radius: 0,
                             x: width * set.footDrop, y: width * set.footDrop)
                     .padding(.bottom, height * set.footBottom)
             }
@@ -328,7 +330,7 @@ struct CardFrontView: View {
                         minScale: set.minScale,
                         ink: effectColour,
                         highlight: set.highlight,
-                        type: descriptor.type,
+                        face: face,
                         // **Only where a finger can reach it.** A card in the hand is
                         // flattened to a texture and takes no taps at all; one raised to
                         // be read is not, which is the only size the words can be
@@ -357,10 +359,10 @@ struct CardFrontView: View {
                 Image("CardTextOverlay")
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(CardLayout.tint(for: descriptor.type)
-                        .colour(on: descriptor.type))
-                    .blendMode(CardLayout.blend(for: descriptor.type))
-                    .opacity(CardLayout.opacity(for: descriptor.type))
+                    .foregroundStyle(CardLayout.tint(for: face)
+                        .colour(on: face))
+                    .blendMode(CardLayout.blend(for: face))
+                    .opacity(CardLayout.opacity(for: face))
                 // Over the court rather than under it: the lines are as much of what the
                 // words have to be read against as the body colour is.
                 if set.panel {
@@ -382,7 +384,7 @@ struct CardFrontView: View {
     /// navy the ring is drawn in, which is Intangibles alone. The text changes on any card
     /// dark enough to swallow navy lettering, which is Intangibles and Game Breaks both.
     /// What this card is printed in. One table, asked once — see `CardInk`.
-    private var ink: CardInk { CardInk.of(descriptor.type) }
+    private var ink: CardInk { CardInk.of(face) }
     private var ringColour: Color { ink.ring }
     /// The name sits on the gold plate, so it stays navy whatever the body is. This is the
     /// effect text, which sits on the body itself.
@@ -397,7 +399,7 @@ struct CardFrontView: View {
                          style: .continuous)
             .strokeBorder(ringColour,
                           lineWidth: width * CardLayout.strokeFraction
-                              * set.ringWeight(for: descriptor.type))
+                              * set.ringWeight(for: face))
             .padding(width * CardLayout.strokeInsetFraction)
     }
 
