@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// A card in flight is not a particular card yet — the printed one only appears once it
 /// has landed and `CardFlip` takes over — so it wears the card's own furniture with
-/// nothing filled in: the black body, the gold inner stroke, and an empty name plate.
+/// nothing filled in: the black body, the gold ring, and an empty name plate.
 /// Drawn rather than exported so it tracks `CardPalette` and `CardLayout` by itself.
 struct BlankCardFace: View {
     /// Raster width in pixels. Everything else is a share of it, as on a real card.
@@ -28,8 +28,6 @@ struct BlankCardFace: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: plate)
-                    .shadow(color: CardPalette.gold, radius: 0, x: 0,
-                            y: plate * CardLayout.namePlateShadowFraction)
                 Spacer()
             }
             .padding(.top, height * CardLayout.nameOverlayYFraction)

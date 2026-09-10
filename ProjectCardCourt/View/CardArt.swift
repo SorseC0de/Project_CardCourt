@@ -178,7 +178,6 @@ struct CardInk {
     var keywordShade: Color
     /// The inner ring, and the drop under the name plate.
     var ring: Color
-    var plate: Color
 
     /// **The printing, as it is being tuned.** The two colours a card is read by — its
     /// own words and the mechanics inside them — come off the dials so the bench can move
@@ -190,7 +189,6 @@ struct CardInk {
         ink.text = tuned.ink(for: type)
         ink.keyword = tuned.keywordInk(for: type)
         ink.ring = tuned.ringInk(for: type)
-        ink.plate = tuned.plateInk(for: type)
         return ink
     }
 
@@ -210,10 +208,7 @@ struct CardInk {
             // it. Everywhere else orange is the accent that is not the body.
             keyword: type == .move ? CardPalette.blue : CardPalette.orange,
             keywordShade: CardPalette.navy,
-            ring: type == .intangible ? CardPalette.gold : CardPalette.navy,
-            // Blue is what the artwork used to carry baked in; only the dark bodies
-            // change it, because blue on either would not read at all.
-            plate: dark ? CardPalette.gold : CardPalette.blue)
+            ring: type == .intangible ? CardPalette.gold : CardPalette.navy)
     }
 }
 
@@ -341,12 +336,6 @@ enum CardLayout {
     static let nameOverlayWidthFraction: CGFloat = 1.0
     static let nameSizeFraction: CGFloat = 75 / across
     static let nameTracking: CGFloat = -0.04
-    /// The name box's drop shadow, as a share of the plate's own width.
-    ///
-    /// Measured off the artwork that used to carry it baked in: two identical paths,
-    /// the lower one offset 12.5 down in a 638-wide artboard and filled with the card
-    /// blue. Written as the measurement so it reads back as what it came from.
-    static let namePlateShadowFraction: CGFloat = 12.5 / 638
     /// Affinity counts negative as clockwise; SwiftUI counts positive that way.
     static let nameRotation: Double = 3
     static let nameCapHeight: CGFloat = 0.75
