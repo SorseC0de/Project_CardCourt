@@ -456,7 +456,8 @@ struct GameView: View {
                         .zIndex(41)
                 }
                 if let round = controller.roundCall {
-                    RoundCallView(call: round)
+                    RoundCallView(call: round,
+                                  onFinished: { controller.roundCallFinished() })
                         .transition(.opacity)
                         .zIndex(42)
                 }

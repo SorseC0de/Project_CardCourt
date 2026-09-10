@@ -2602,7 +2602,14 @@ final class GameController {
         for event in events {
             switch event {
             case .halftime:
+                // **The Z card keeps its own clock.** It flies in, holds and leaves on
+                // its own beats, so it says when it is done rather than being timed from
+                // out here — the same way an `ActionCall` is.
                 roundCall = RoundCall(round: state.round, isHalftime: true)
+                while roundCall != nil, !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(60))
+                }
+                continue
             case .roundBegan(let round, _):
                 roundCall = RoundCall(round: round)
             default:
@@ -2612,6 +2619,9 @@ final class GameController {
             roundCall = nil
         }
     }
+
+    /// The Z card has finished its trip and taken itself off.
+    func roundCallFinished() { roundCall = nil }
 
     private func announce(_ call: ActionCall, clamps: [ClampBrief] = []) async {
         guard GameRules.announcesPhases else { return }

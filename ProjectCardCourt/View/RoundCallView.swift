@@ -2,15 +2,20 @@ import SwiftUI
 
 /// What the game says between rounds, and at the half.
 ///
-/// A slab of the game's own furniture rather than a line of text: a parallelogram in the
-/// card blue, the type icon of the family the round is about to be played with standing on
-/// it, and the round said over the top in the lettering every other call uses.
+/// **Two shapes, because they are two different sizes of moment.**
 ///
-/// **The drop is two colours, not one.** Gold first and orange beyond it — the pair the
-/// cards' own gold wears everywhere else — so the slab reads as printed rather than as a
-/// rectangle with a shadow.
+/// A *round* gets a slab of the game's own furniture: one parallelogram in the card blue,
+/// the Pass icon standing on it, and the round said over the top in the lettering every
+/// other call uses. The drop is two colours rather than one — gold first and orange beyond
+/// it, the pair the cards' own gold wears everywhere else — so it reads as printed rather
+/// than as a rectangle with a shadow.
+///
+/// The *half* gets the **Z card**: the two black bars that cross the screen and meet in
+/// the middle, which is how this game names a moment rather than a number. It is
+/// `ModeCardView`, the same one the mode splash and the phase calls wear.
 struct RoundCallView: View {
     let call: RoundCall
+    var onFinished: () -> Void = {}
     /// The slab's width against the screen's, and its height against its own width.
     var acrossShare: CGFloat = 0.78
     var tallShare: CGFloat = 0.42
@@ -32,6 +37,16 @@ struct RoundCallView: View {
     }
 
     var body: some View {
+        if call.isHalftime {
+            ModeCardView(title: call.word, subtitle: "Shuffle up",
+                         ink: .white, subtitleInk: CardPalette.gold,
+                         isLeaving: false, onLanded: {}, onFinished: onFinished)
+        } else {
+            slab
+        }
+    }
+
+    private var slab: some View {
         GeometryReader { screen in
             let across = screen.size.width * acrossShare
             let tall = across * tallShare
