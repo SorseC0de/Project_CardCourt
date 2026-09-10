@@ -486,21 +486,32 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
 
     var isPass: Bool { passTarget != nil }
 
-    /// Every way a card can touch SHOT. Cards that touch none of them show no percentage.
+    /// **What this card does to SHOT**, for the ball at the foot of it. Nil on a card
+    /// that does not touch SHOT at all, which is most of them.
+    ///
+    /// Four types carry it: Passes and Special Moves, whose number lands on the man
+    /// holding the ball; Game Breaks, whose lands on the possession; and Clamps, whose
+    /// lands on **whoever gets the ball next** rather than on the holder. That last one
+    /// is why a Clamp's percentage is printed in gold rather than white — see
+    /// `CardFrontView.percentage`. Intangibles are left out: theirs is a standing bonus
+    /// rather than something the card does when it is played.
     var shotEffect: Int? {
-        // Passes only. On any other type the figure would sit beside a second, unbadged
-        // modifier and read as the whole story.
-        guard type == .pass else { return nil }
-        if let override = special?.shotOverride { return override }
-        if baseShotDelta != 0 { return baseShotDelta }
-        if let per = special?.discardForShotBonus, per != 0 { return per }
-        if let per = special?.coinRunShot, per != 0 { return per }
-        // Not Clamps. Their percentage lands on whoever gets the ball next, so putting it
-        // on the badge would read as the holder's own number.
-        _ = clamp?.shotDebuff
-        if let bonus = intangible?.shotBonus, bonus != 0 { return bonus }
-        if let shift = gameBreak?.shotThisPossession, shift != 0 { return shift }
-        return nil
+        switch type {
+        case .pass, .specialMove:
+            if let override = special?.shotOverride { return override }
+            if baseShotDelta != 0 { return baseShotDelta }
+            if let per = special?.discardForShotBonus, per != 0 { return per }
+            if let per = special?.coinRunShot, per != 0 { return per }
+            return nil
+        case .clamp:
+            if let debuff = clamp?.shotDebuff, debuff != 0 { return debuff }
+            return nil
+        case .gameBreak:
+            if let shift = gameBreak?.shotThisPossession, shift != 0 { return shift }
+            return nil
+        case .move, .whistle, .intangible:
+            return nil
+        }
     }
 
     /// True when the number is a target rather than a change.

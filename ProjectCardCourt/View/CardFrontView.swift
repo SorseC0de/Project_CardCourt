@@ -64,9 +64,10 @@ struct CardFrontView: View {
             // printed between them. Nothing is drawn until that second layer exists; see
             // `Card.typeIconFront`.
             if !passArtIsDrawn, hasIconFront { iconFront }
-            // A pass says what it is worth along the bottom with the rest of its marks;
-            // everything else keeps the ball up in the corner.
-            if let shot = descriptor.shotEffect, descriptor.type != .pass {
+            // The corner badge is for a card whose number is not already at its foot.
+            // Nothing wears one today; it is kept because a type may yet want the number
+            // up top rather than down there.
+            if let shot = descriptor.shotEffect, footBallShot == nil {
                 shotBadge(shot)
             }
         }
@@ -112,7 +113,7 @@ struct CardFrontView: View {
 
     @ViewBuilder private var icon: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
-        let drop = width * CardLayout.iconShadowFraction
+        let drop = width * set.iconDrop
         Group {
             if descriptor.id == "behind-the-back" {
                 // The swing arrow turned upright and shrunk, shadowed twice — navy then
@@ -194,7 +195,7 @@ struct CardFrontView: View {
 
     private var iconFront: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
-        let drop = width * CardLayout.iconShadowFraction
+        let drop = width * set.iconDrop
         return Image(descriptor.artworkFront)
             .resizable()
             .scaledToFit()
@@ -206,56 +207,35 @@ struct CardFrontView: View {
                           + side * (0.5 - CardLayout.iconRingInset))
     }
 
-    /// **Everything a card says without words, in one row along the bottom edge.**
+    /// **The ball at the foot of the card, and nothing else.**
     ///
-    /// The pictures used to be set inside the sentence: the line had to leave room for
-    /// them, a card naming two mechanics read as a rebus, and what the ball was worth was
-    /// somewhere else again. They are a row at the foot now — what it is worth, what it
-    /// makes you do, and whether it shoots — so the words are only words and the marks
-    /// are only marks.
+    /// It used to be a row: what the card is worth, what it makes you do, whether it
+    /// shoots. The rest have gone — a card that says Draw in words does not also need a
+    /// picture of it, and a row of small drawings under a full-colour icon was two
+    /// pictures arguing. What is left is the one thing the words cannot say as quickly:
+    /// **the number**.
     @ViewBuilder private var footMarks: some View {
         let side = width * set.footSize
-        let glyphs = footGlyphs
-        let ball = footBallShot
-        if hasFootMarks {
+        if let ball = footBallShot {
             VStack {
                 Spacer()
-                HStack(spacing: side * set.footGap) {
-                    if let ball {
-                        footBall(ball, side: side * set.scale(of: .ball))
-                    }
-                    ForEach(glyphs, id: \.self) { art in
-                        let mark = FootMark.art[art] ?? .draw
-                        Image(art)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: side * set.scale(of: mark),
-                                   height: side * set.scale(of: mark))
-                    }
-                    if descriptor.takesShot { shootMark(side) }
-                    if descriptor.isDribble {
-                        dribbleMark(side * set.scale(of: .dribble))
-                    }
-                }
-                // One drop for the whole row, so six drawings fall the same way.
-                .shadow(color: set.footShadeInk(for: descriptor.type), radius: 0,
-                        x: width * set.footDrop, y: width * set.footDrop)
-                .padding(.bottom, height * set.footBottom)
+                footBall(ball, side: side * set.scale(of: .ball))
+                    .shadow(color: set.footShadeInk(for: descriptor.type), radius: 0,
+                            x: width * set.footDrop, y: width * set.footDrop)
+                    .padding(.bottom, height * set.footBottom)
             }
         }
     }
 
     /// What a pass is worth, when it is a pass. Everything else keeps its ball in the
     /// corner, where there is room for it above the words.
-    private var footBallShot: Int? {
-        descriptor.type == .pass ? descriptor.shotEffect : nil
-    }
+    /// **Every type whose number lands somewhere.** Passes and Special Moves put it on
+    /// the man, Game Breaks on the possession, Clamps on whoever gets the ball next —
+    /// see `Card.shotEffect`, which is the one place that is decided.
+    private var footBallShot: Int? { descriptor.shotEffect }
 
-    /// Whether the row has anything in it — which is what the words lift for.
-    private var hasFootMarks: Bool {
-        footBallShot != nil || !footGlyphs.isEmpty
-            || descriptor.takesShot || descriptor.isDribble
-    }
+    /// Whether there is a mark at the foot — which is what the words lift for.
+    private var hasFootMarks: Bool { footBallShot != nil }
 
     /// The pictures this card's words call for, in the order it says them and without
     /// repeats — a card that says Draw twice is still one Draw to look at.
@@ -280,7 +260,8 @@ struct CardFrontView: View {
                 .scaledToFit()
                 .frame(width: side, height: side)
             percentage(shot, across: side)
-                .shadow(color: .black, radius: 0,
+                .shadow(color: descriptor.type == .clamp ? CardPalette.orange : .black,
+                        radius: 0,
                         x: width * CardLayout.badgeShadowFraction,
                         y: width * CardLayout.badgeShadowFraction)
         }
@@ -305,7 +286,7 @@ struct CardFrontView: View {
     /// its own colours had it fighting the card under it on three of the seven bodies. It
     /// takes the card's own ink like everything else printed on the face.
     private func shootMark(_ row: CGFloat) -> some View {
-        let drop = width * CardLayout.iconShadowFraction
+        let drop = width * set.iconDrop
         let shoot = row * set.scale(of: .shoot)
         return HStack(spacing: row * 0.18) {
             Image("ShootIcon")
@@ -544,6 +525,9 @@ struct CardFrontView: View {
             Text("%")
                 .font(.custom("AvenirNextCondensed-Heavy", size: small))
         }
-        .foregroundStyle(.white)
+        // **A Clamp's number is gold, not white.** It is the one percentage on a card
+        // that does not land on the man holding it — it lands on whoever gets the ball
+        // next — and a second colour is what says so without a sentence.
+        .foregroundStyle(descriptor.type == .clamp ? CardPalette.gold : .white)
     }
 }

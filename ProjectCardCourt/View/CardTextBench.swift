@@ -88,18 +88,18 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
 /// See `CardTextBench`, where all of it is on a dial.
 enum CardTextStyle {
     /// Against the card's width, so a hand card and a gallery card are one drawing.
-    static let size: CGFloat = 0.1
+    static let size: CGFloat = 0.075
     /// How far in from each edge the column sits.
-    static let inset: CGFloat = 0.05
+    static let inset: CGFloat = 0.12
     /// Line to line, against the face's own line height. Under one is tighter than the
     /// font was drawn to be, which is what a card wants.
     static let lineHeight: CGFloat = 0.75
     /// Letter to letter, against the type size.
-    static let tracking: CGFloat = -0.05
+    static let tracking: CGFloat = 0
     /// Where the column's middle sits down the card.
     static let y: CGFloat = 0.75
     /// The cut the words are set in.
-    static let weight: CardFont.Weight = .condensed
+    static let weight: CardFont.Weight = .geoform
 
     /// **A wash over the court, behind the words.**
     ///
@@ -113,7 +113,7 @@ enum CardTextStyle {
     /// Its corner, against the card's width.
     static let panelCorner: CGFloat = 0.05
     /// How black it is.
-    static let panelDark: CGFloat = 0.33
+    static let panelDark: CGFloat = 0.15
 
     /// **How small a card is allowed to shrink to fit, and how many lines it may take.**
     ///
@@ -164,6 +164,10 @@ enum CardTextStyle {
 
     /// The card's big icon, against `CardLayout.iconSizeFraction`.
     static let iconScale: CGFloat = 2
+    /// **How far the drop under it falls**, against the card's width. Nothing, now that
+    /// the icons are full-colour drawings on their own circle: a hard shadow under a
+    /// drawing that already has a ground is a second edge nobody asked for.
+    static let iconDrop: CGFloat = 0
 
     /// **Which side of the icon the name plate is drawn on.** On, and the plate is over
     /// it and cuts the top off the circle; off, and the icon sits on top of the plate.
@@ -172,7 +176,7 @@ enum CardTextStyle {
     /// **Where the top of that icon's circle sits**, down the card. The name plate ends at 0.186,
     /// so anything smaller than that runs up behind it — which is the intent: the icon is
     /// cut off by the plate rather than parked under it.
-    static let iconTop: CGFloat = 0.175
+    static let iconTop: CGFloat = 0.1
 
     /// **The hard drop under that icon**, per type — the one colour of the four that is
     /// not about the words.
@@ -247,6 +251,7 @@ final class CardTextTuning {
     func footShadeInk(for type: CardType) -> Color { (footShade[type] ?? .navy).colour }
     var iconScale = CardTextStyle.iconScale
     var iconTop = CardTextStyle.iconTop
+    var iconDrop = CardTextStyle.iconDrop
     var panel = CardTextStyle.panel
     var panelCorner = CardTextStyle.panelCorner
     var panelDark = CardTextStyle.panelDark
@@ -282,6 +287,7 @@ final class CardTextTuning {
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
+        iconDrop = CardTextStyle.iconDrop
         panel = CardTextStyle.panel; panelCorner = CardTextStyle.panelCorner
         panelDark = CardTextStyle.panelDark
         iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
@@ -319,6 +325,7 @@ final class CardTextTuning {
         static let footDrop: CGFloat = \(n(footDrop))
         static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
         static let iconScale: CGFloat = \(n(iconScale))
+        static let iconDrop: CGFloat = \(n(iconDrop))
         static let iconTop: CGFloat = \(n(iconTop))
         static let panel = \(panel)
         static let panelCorner: CGFloat = \(n(panelCorner))
@@ -486,6 +493,7 @@ struct CardTextBench: View {
                         heading("the big icon")
                         dial("size", $tune.iconScale, 0.3...2)
                         dial("top", $tune.iconTop, 0...0.4)
+                        dial("drop", $tune.iconDrop, 0...0.05)
                         row("name plate", tune.plateOverIcon ? "over" : "under") {
                             HStack(spacing: 3) {
                                 chip("over", on: tune.plateOverIcon) {

@@ -200,10 +200,13 @@ match bonus. Every other pass says its number. Worth deciding whether that is de
 
 ## Next up: the card face
 
-**The words are jam-packed.** With the type icons in at 1.5 the face is fuller than it has
-ever been, and the effect text is the part that suffers. Not a tuning problem — every dial
-is already at a value that was chosen. What has to be decided is what comes off the card,
-or where the words go instead. Picking this up first.
+**The words are jam-packed.** ~~Every dial is already at a value that was chosen; what has
+to be decided is what comes off the card.~~ **Done.** What came off: the row of small marks
+at the foot, all but the ball. What changed: the face is **Geoform**, set smaller (0.075)
+in a wider column (padding 0.120) with no tracking, on a black wash over the court at 0.15.
+The big icon lost its drop shadow and moved up to 0.100.
+
+Still open on the face: the icons' front layers, being drawn now — see `type-icons.md`.
 
 **Intangibles wear gold twice.** The ask: *the outer stroke should always be the card's own
 body colour.* Where it stands, a card front has exactly one stroke — `CardFrontView.border`,
