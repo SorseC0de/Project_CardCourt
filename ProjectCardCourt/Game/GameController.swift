@@ -2539,8 +2539,23 @@ final class GameController {
             helpers.append(passer)
         }
         scoreCall = ScoreCall(seat: seat, points: points, assists: helpers)
+        // **Together.** The call is what says the basket counted, so the board changes on
+        // the same frame it goes up rather than a beat ahead of it.
+        withheldPoints = nil
         try? await Task.sleep(for: .seconds(Pacing.scoreCall))
         scoreCall = nil
+    }
+
+    /// Keeps a basket off the board until it has been called.
+    ///
+    /// A three withholds already, so that it can be flown to the cell it changes — see
+    /// `celebrateThree`. This is the same hold for every other make, and both are let go
+    /// in `callTheScore`.
+    private func holdTheScore(in events: [GameEvent]) {
+        for case .shotMade(let seat, let points, _, _) in events {
+            withheldPoints = (seat, points)
+            return
+        }
     }
 
     private func celebrateThree(in events: [GameEvent]) async {
@@ -2558,6 +2573,8 @@ final class GameController {
     func dismissReveal() { reveal = nil }
     func dismissWhistleReveal() { whistleReveal = nil }
 
+    /// The flying number has landed, so the cell it changed may show it. A three only —
+    /// every other make is let go by `callTheScore`.
     func threeScoreLanded() { withheldPoints = nil }
     func threeCelebrationFinished() { celebratingThree = nil }
     func actionCallFinished() { actionCall = nil }
@@ -2756,6 +2773,11 @@ final class GameController {
         if let scene = ShotCutscene(events: events, defenders: defenders,
                                     lastPlay: state.lastPlayThisPossession,
                                     dunk: state.dunking) {
+            // **The board waits for the call.** The points are in the state the moment
+            // the shot is folded, so without this the number climbed while the ball was
+            // still in the air and the call that announces it arrived seconds later,
+            // saying something the board had already given away.
+            holdTheScore(in: events)
             cutscene = scene
             try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
             // The board goes up **behind** the shot before the shot comes down. Clearing
