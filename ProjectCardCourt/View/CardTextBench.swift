@@ -101,24 +101,19 @@ enum CardTextStyle {
     /// The cut the words are set in.
     static let weight: CardFont.Weight = .condensed
 
-    /// **A slab behind the words.**
+    /// **A wash over the court, behind the words.**
     ///
-    /// The card body is a saturated colour with a court printed over it, and heavy type
-    /// on top of that is type competing with a picture. A flat panel under the column
-    /// takes the picture away from behind the letters and leaves it everywhere else,
-    /// which is the cheapest legibility there is.
+    /// The body is a saturated colour with a court printed over it, and heavy type on top
+    /// of that is type competing with a picture. Black at a third takes the contrast out
+    /// from behind the letters and leaves the drawing everywhere else.
+    ///
+    /// **The same box the court overlay is drawn in**, corner aside — see
+    /// `CardLayout.textOverlay*`, which both of them are laid out by.
     static let panel = true
     /// Its corner, against the card's width.
     static let panelCorner: CGFloat = 0.05
-    /// How much room it leaves around the column, against the card's width.
-    static let panelPad: CGFloat = 0.03
-    /// **What it is filled with, per type.** Dark behind the types printed in white and
-    /// light behind the ones printed in navy — it has to be the opposite of the ink or it
-    /// is not doing anything.
-    static let panelInk: [CardType: CardTextInk] = [
-        .pass: .navy, .move: .cloud, .specialMove: .cloud, .clamp: .cloud,
-        .whistle: .cloud, .gameBreak: .navy, .intangible: .navy,
-    ]
+    /// How black it is.
+    static let panelDark: CGFloat = 0.33
 
     /// **How small a card is allowed to shrink to fit, and how many lines it may take.**
     ///
@@ -254,9 +249,7 @@ final class CardTextTuning {
     var iconTop = CardTextStyle.iconTop
     var panel = CardTextStyle.panel
     var panelCorner = CardTextStyle.panelCorner
-    var panelPad = CardTextStyle.panelPad
-    var panelInk = CardTextStyle.panelInk
-    func panelFill(for type: CardType) -> Color { (panelInk[type] ?? .navy).colour }
+    var panelDark = CardTextStyle.panelDark
     var plateOverIcon = CardTextStyle.plateOverIcon
     var iconShade = CardTextStyle.iconShade
     var highlight = CardTextStyle.highlight
@@ -290,7 +283,7 @@ final class CardTextTuning {
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
         panel = CardTextStyle.panel; panelCorner = CardTextStyle.panelCorner
-        panelPad = CardTextStyle.panelPad; panelInk = CardTextStyle.panelInk
+        panelDark = CardTextStyle.panelDark
         iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
         footDrop = CardTextStyle.footDrop; footShade = CardTextStyle.footShade
         minScale = CardTextStyle.minScale; maxLines = CardTextStyle.maxLines
@@ -329,8 +322,7 @@ final class CardTextTuning {
         static let iconTop: CGFloat = \(n(iconTop))
         static let panel = \(panel)
         static let panelCorner: CGFloat = \(n(panelCorner))
-        static let panelPad: CGFloat = \(n(panelPad))
-        static let panelInk: [CardType: CardTextInk] = [\(table(panelInk))]
+        static let panelDark: CGFloat = \(n(panelDark))
         static let plateOverIcon = \(plateOverIcon)
         static let highlight = \(highlight)
         static let footScale: [FootMark: CGFloat] = [\(
@@ -370,6 +362,12 @@ struct CardTextBench: View {
             CardPalette.navy.ignoresSafeArea()
             VStack(spacing: 18) {
                 Spacer(minLength: 8)
+                // **Presented** — the size a card is held up at when it is played, which
+                // is where most of a game's reading happens. One card, because at this
+                // size a row of them is a row of nothing.
+                if let card = cards.first {
+                    CardFrontView(descriptor: card, displayWidth: 210, expanded: raised)
+                }
                 // Raised, where the wording is longest and the reading actually happens.
                 HStack(alignment: .top, spacing: 14) {
                     ForEach(cards, id: \.id) { card in
@@ -476,17 +474,15 @@ struct CardTextBench: View {
                             }
                         }
                         dial("depth", $tune.shadowDrop, 0...0.05)
-                        heading("the slab behind the words")
-                        row("slab", tune.panel ? "on" : "off") {
+                        heading("the wash over the court")
+                        row("wash", tune.panel ? "on" : "off") {
                             HStack(spacing: 3) {
                                 chip("on", on: tune.panel) { tune.panel = true }
                                 chip("off", on: !tune.panel) { tune.panel = false }
                             }
                         }
                         dial("corner", $tune.panelCorner, 0...0.2)
-                        dial("room", $tune.panelPad, 0...0.12)
-                        heading("\(type.shortLabel): the slab")
-                        inks(tune.panelInk[type] ?? .navy) { tune.panelInk[type] = $0 }
+                        dial("black", $tune.panelDark, 0...1)
                         heading("the big icon")
                         dial("size", $tune.iconScale, 0.3...2)
                         dial("top", $tune.iconTop, 0...0.4)

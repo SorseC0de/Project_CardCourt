@@ -333,6 +333,9 @@ enum CardLayout {
 
     static let textOverlayWidthFraction: CGFloat = 0.75
     static let textOverlayBottomFraction: CGFloat = 51 / down
+    /// The court overlay's own shape — 1792 by 1063 on its artboard. Written down so the
+    /// dark panel can be given the same box without laying the drawing out to find it.
+    static let textOverlayAspect: CGFloat = 1063 / 1792
 
     static let nameOverlayYFraction: CGFloat = 11 / down
     static let nameOverlayWidthFraction: CGFloat = 1.0

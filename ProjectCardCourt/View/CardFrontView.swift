@@ -338,7 +338,6 @@ struct CardFrontView: View {
     private var effectText: some View {
         let size = width * set.size
         let inset = width * set.inset
-        let room = width * set.panelPad
         return CardText(text: expanded ? descriptor.detailedEffect
                                       : descriptor.printedEffect,
                         font: CardFont.name(set.weight),
@@ -355,18 +354,7 @@ struct CardFrontView: View {
                         // be read is not, which is the only size the words can be
                         // pressed at anyway.
                         onKeyword: expanded ? onKeyword : nil)
-            // **The column, and the slab under it.** The words keep the width they had;
-            // the slab is that plus the room it is given, so turning it on does not
-            // re-wrap a single card.
-            .frame(width: width - inset * 2 - (set.panel ? room * 2 : 0))
-            .padding(set.panel ? room : 0)
-            .background {
-                if set.panel {
-                    RoundedRectangle(cornerRadius: width * set.panelCorner,
-                                     style: .continuous)
-                        .fill(set.panelFill(for: descriptor.type))
-                }
-            }
+            .frame(width: width - inset * 2)
             .position(x: width / 2,
                       y: height * (set.y - (hasFootMarks ? set.footLift : 0)))
     }
@@ -375,17 +363,35 @@ struct CardFrontView: View {
 
     /// Bottom-centre, blended into the body. SwiftUI has no vivid light, so hard light —
     /// the nearest of the two the spec allows.
+    /// The court printed on the body, and the wash over it that the words are read on.
+    ///
+    /// **One box, laid out once.** The wash is the overlay's own area and nothing else —
+    /// giving it a frame of its own is how the two end up a few points apart on a card
+    /// nobody thinks to check.
     private var textOverlay: some View {
-        VStack {
+        let across = width * CardLayout.textOverlayWidthFraction
+        let down = across * CardLayout.textOverlayAspect
+        return VStack {
             Spacer()
-            Image("CardTextOverlay")
-                .resizable()
-                .scaledToFit()
-                .frame(width: width * CardLayout.textOverlayWidthFraction)
-                .foregroundStyle(CardLayout.tint(for: descriptor.type).colour(on: descriptor.type))
-                .blendMode(CardLayout.blend(for: descriptor.type))
-                .opacity(CardLayout.opacity(for: descriptor.type))
-                .padding(.bottom, height * CardLayout.textOverlayBottomFraction)
+            ZStack {
+                Image("CardTextOverlay")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(CardLayout.tint(for: descriptor.type)
+                        .colour(on: descriptor.type))
+                    .blendMode(CardLayout.blend(for: descriptor.type))
+                    .opacity(CardLayout.opacity(for: descriptor.type))
+                // Over the court rather than under it: the lines are as much of what the
+                // words have to be read against as the body colour is.
+                if set.panel {
+                    RoundedRectangle(cornerRadius: width * set.panelCorner,
+                                     style: .continuous)
+                        .fill(.black)
+                        .opacity(Double(set.panelDark))
+                }
+            }
+            .frame(width: across, height: down)
+            .padding(.bottom, height * CardLayout.textOverlayBottomFraction)
         }
     }
 
