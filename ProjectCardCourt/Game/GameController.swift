@@ -646,6 +646,8 @@ final class GameController {
     /// missed *at*.
     private(set) var lastChance: Int?
     private(set) var withheldPoints: (seat: Seat, amount: Int)?
+    /// Whether the log has already said this device has nobody to broadcast to.
+    private var toldNobodyIsListening = false
     private(set) var flightDuration = Pacing.drawFlight
     /// Set for a beat after a rebound so the reveal can be shown, then cleared.
     private(set) var revealedBids: [Seat: Int]?
@@ -944,8 +946,16 @@ final class GameController {
     /// One snapshot each, redacted for its own seat — the host holds the only complete
     /// state and never sends it anywhere.
     private func broadcast(_ events: [GameEvent]) {
+        // **Silently, when there is nobody to talk to.** A solo game refuses every batch
+        // it plays, and saying so each time buried the log it shares with everything else
+        // — twenty lines, then a play, then twenty more, all game. Said once, when the
+        // first batch finds no transport, and never again.
         guard let match else {
-            DevLog.say(.net, "broadcast REFUSED: no transport — this device is solo")
+            if !toldNobodyIsListening {
+                toldNobodyIsListening = true
+                DevLog.say(.net, "solo: nothing is broadcast, and this is the only line "
+                           + "that will say so")
+            }
             return
         }
         guard match.isHost else {

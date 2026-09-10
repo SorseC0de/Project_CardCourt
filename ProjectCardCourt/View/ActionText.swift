@@ -43,6 +43,16 @@ struct ActionText: View {
     /// exactly where the letter would have.
     var blanked: Set<Int> = []
 
+    /// **Whether to publish where each character landed.**
+    ///
+    /// Off unless somebody is listening, and exactly one thing ever is — the wordmark,
+    /// which puts a ball on the dot of the i. It was on for every `ActionText` in the
+    /// game: a `GeometryReader` and a preference write **per character**, on every layout
+    /// pass, for every phase call, plate title and mode card on screen. That is what
+    /// "Bound preference LetterFrames tried to update multiple times per frame" was, and
+    /// it is a real cost rather than a warning about one.
+    var reports = false
+
     /// The coordinate space letter frames are reported in. Declare it on whatever
     /// contains the text and read `LetterFrames`.
     static let space = "action-text"
@@ -121,11 +131,15 @@ struct ActionText: View {
     }
 
     /// Publishes where a character landed, for anything that has to sit on one — see
-    /// `SwisshWordmark`, which puts a ball on the dot of the i.
-    private func reporter(_ index: Int) -> some View {
-        GeometryReader { box in
-            Color.clear.preference(key: LetterFrames.self,
-                                   value: [index: box.frame(in: .named(ActionText.space))])
+    /// `SwisshWordmark`, which puts a ball on the dot of the i. Nothing at all unless it
+    /// was asked for; see `reports`.
+    @ViewBuilder private func reporter(_ index: Int) -> some View {
+        if reports {
+            GeometryReader { box in
+                Color.clear.preference(
+                    key: LetterFrames.self,
+                    value: [index: box.frame(in: .named(ActionText.space))])
+            }
         }
     }
 }

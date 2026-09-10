@@ -185,10 +185,15 @@ struct SwisshWordmark: View {
         }
     }
 
-    /// The word with no treatment on it at all — the shape everything else is built from.
+    /// The word with no treatment on it at all — the shape everything else is built from,
+    /// and **the one pass that reports where its letters landed**. The ball on the i is
+    /// placed from that; every other pass is the same word again and would publish the
+    /// same frames a second and third time in the same layout.
     private func word(_ ink: Color) -> some View {
-        ActionText(text, size: size, ink: ink, drop: .clear, taper: taper,
-                   blanked: blanked)
+        var text = ActionText(self.text, size: size, ink: ink, drop: .clear, taper: taper,
+                              blanked: blanked)
+        text.reports = true
+        return text
     }
 
     /// One stroke. The glyph itself is drawn in nothing — only the ring behind it shows,
