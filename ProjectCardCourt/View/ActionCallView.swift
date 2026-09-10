@@ -65,7 +65,6 @@ struct ActionCallView: View {
                      emblem: call.emblem,
                      accessory: clamps.isEmpty ? nil
                                 : AnyView(ClampRosterView(clamps: clamps)),
-                     passesThrough: call.passesThrough,
                      isLeaving: leaving,
                      onLanded: {},
                      onFinished: onFinished)
@@ -76,8 +75,6 @@ struct ActionCallView: View {
             // never raise `leaving` — and `announce` waits on that, forever.
             .task(id: call) {
                 leaving = false
-                // A card that does not stop times its own exit — see `passesThrough`.
-                guard !call.passesThrough else { return }
                 try? await Task.sleep(for: .seconds(Pacing.actionCall))
                 leaving = true
             }
@@ -86,17 +83,34 @@ struct ActionCallView: View {
 
 #if DEBUG
 #Preview("Action call") {
+    /// **Every call the game can make**, not only the ones that are `ActionCall`s — the
+    /// round slab and the half's Z card are announcements too, and a bench that leaves
+    /// them out is a bench you have to remember the gaps in.
     struct Bench: View {
-        @State private var call: ActionCall? = .inbound
+        @State private var call: ActionCall?
+        @State private var round: RoundCall?
         var body: some View {
             ZStack {
                 Theme.courtFloor.ignoresSafeArea()
                 if let call {
                     ActionCallView(call: call) { self.call = nil }
+                } else if let round {
+                    RoundCallView(call: round) { self.round = nil }
+                        .onTapGesture { self.round = nil }
                 } else {
                     VStack(spacing: 10) {
                         ForEach(ActionCall.allCases) { one in
                             ChunkyButton(title: one.title) { call = one }
+                        }
+                        ChunkyButton(title: "Round 3", fill: CardPalette.blue,
+                                     stroke: CardPalette.gold,
+                                     shade: CardPalette.orange) {
+                            round = RoundCall(round: 3)
+                        }
+                        ChunkyButton(title: "Halftime", fill: CardPalette.black,
+                                     stroke: CardPalette.gray,
+                                     shade: CardPalette.navy) {
+                            round = RoundCall(round: 4, isHalftime: true)
                         }
                     }
                     .padding(40)

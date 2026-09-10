@@ -27,21 +27,12 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
     var blurb: String {
         switch self {
         case .inbound:   return "Put the ball back in play"
-        // Deliberately silent. It says nothing a player needs and reads as an
-        // explanation of something that has not happened yet.
-        case .gameBreak: return ""
+        case .gameBreak: return "The game has something to say"
         // The whistle says it with the whistle. See `emblem`.
         case .whistle:   return ""
         case .clamped:   return "Defenders are guarding you closely"
         }
     }
-
-    /// Whether the bars cross without stopping.
-    ///
-    /// A Game Break is the game telling you something happened, not asking anything, and
-    /// it fires often enough that a card holding its position is a card in the way. The
-    /// rest have something to read on them — a whistle, a roster of Clamps — and are held.
-    var passesThrough: Bool { self == .gameBreak }
 
     /// A call that shows a picture rather than a word. The gold whistle is the same art
     /// the reveal opens with, moved up onto the call so the two are one moment instead of
