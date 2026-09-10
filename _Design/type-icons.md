@@ -87,6 +87,23 @@ things that were built against particular drawings are off with it, each marked 
 Behind-the-Back are drawn by `passArt`, which is untouched — the arrow says a direction,
 which is the one thing a type icon cannot.
 
+## The plate is printed between two layers of the icon
+
+The circle belongs **behind** the name plate and the thing standing in it belongs **over**
+it — the ball on a Pass, the ankle on a Move, the star and the ball on a Special Move,
+clipping the banner's top edge. So the drawing is in two layers with the plate between
+them.
+
+`TypePass` and the rest are the back layer, as now. The front layer is the same name plus
+**`Front`** — `TypePassFront`, `TypeMoveFront`, and so on — **on the same artboard**, so
+the two line up by being drawn at the same size in the same place rather than by carrying
+offsets of their own. Export it with everything that stays behind the plate erased and the
+canvas untouched, then run `./Tools/icons.py`.
+
+`Card.artworkFront` looks the asset up and returns nil when it is not there, so a type
+without a front layer keeps its whole icon behind the banner and nothing has to be
+switched on.
+
 ## Colour drift
 
 **All nine are on exact palette values now**, and `./Tools/icons.py` keeps them there:

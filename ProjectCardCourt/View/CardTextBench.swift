@@ -99,7 +99,26 @@ enum CardTextStyle {
     /// Where the column's middle sits down the card.
     static let y: CGFloat = 0.75
     /// The cut the words are set in.
-    static let weight: CardFont.Weight = .semibold
+    static let weight: CardFont.Weight = .condensed
+
+    /// **A slab behind the words.**
+    ///
+    /// The card body is a saturated colour with a court printed over it, and heavy type
+    /// on top of that is type competing with a picture. A flat panel under the column
+    /// takes the picture away from behind the letters and leaves it everywhere else,
+    /// which is the cheapest legibility there is.
+    static let panel = true
+    /// Its corner, against the card's width.
+    static let panelCorner: CGFloat = 0.05
+    /// How much room it leaves around the column, against the card's width.
+    static let panelPad: CGFloat = 0.03
+    /// **What it is filled with, per type.** Dark behind the types printed in white and
+    /// light behind the ones printed in navy — it has to be the opposite of the ink or it
+    /// is not doing anything.
+    static let panelInk: [CardType: CardTextInk] = [
+        .pass: .navy, .move: .cloud, .specialMove: .cloud, .clamp: .cloud,
+        .whistle: .cloud, .gameBreak: .navy, .intangible: .navy,
+    ]
 
     /// **How small a card is allowed to shrink to fit, and how many lines it may take.**
     ///
@@ -149,7 +168,7 @@ enum CardTextStyle {
     ]
 
     /// The card's big icon, against `CardLayout.iconSizeFraction`.
-    static let iconScale: CGFloat = 1.5
+    static let iconScale: CGFloat = 2
 
     /// **Which side of the icon the name plate is drawn on.** On, and the plate is over
     /// it and cuts the top off the circle; off, and the icon sits on top of the plate.
@@ -233,6 +252,11 @@ final class CardTextTuning {
     func footShadeInk(for type: CardType) -> Color { (footShade[type] ?? .navy).colour }
     var iconScale = CardTextStyle.iconScale
     var iconTop = CardTextStyle.iconTop
+    var panel = CardTextStyle.panel
+    var panelCorner = CardTextStyle.panelCorner
+    var panelPad = CardTextStyle.panelPad
+    var panelInk = CardTextStyle.panelInk
+    func panelFill(for type: CardType) -> Color { (panelInk[type] ?? .navy).colour }
     var plateOverIcon = CardTextStyle.plateOverIcon
     var iconShade = CardTextStyle.iconShade
     var highlight = CardTextStyle.highlight
@@ -265,6 +289,8 @@ final class CardTextTuning {
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
+        panel = CardTextStyle.panel; panelCorner = CardTextStyle.panelCorner
+        panelPad = CardTextStyle.panelPad; panelInk = CardTextStyle.panelInk
         iconShade = CardTextStyle.iconShade; highlight = CardTextStyle.highlight
         footDrop = CardTextStyle.footDrop; footShade = CardTextStyle.footShade
         minScale = CardTextStyle.minScale; maxLines = CardTextStyle.maxLines
@@ -301,6 +327,10 @@ final class CardTextTuning {
         static let footShade: [CardType: CardTextInk] = [\(table(footShade))]
         static let iconScale: CGFloat = \(n(iconScale))
         static let iconTop: CGFloat = \(n(iconTop))
+        static let panel = \(panel)
+        static let panelCorner: CGFloat = \(n(panelCorner))
+        static let panelPad: CGFloat = \(n(panelPad))
+        static let panelInk: [CardType: CardTextInk] = [\(table(panelInk))]
         static let plateOverIcon = \(plateOverIcon)
         static let highlight = \(highlight)
         static let footScale: [FootMark: CGFloat] = [\(
@@ -446,6 +476,17 @@ struct CardTextBench: View {
                             }
                         }
                         dial("depth", $tune.shadowDrop, 0...0.05)
+                        heading("the slab behind the words")
+                        row("slab", tune.panel ? "on" : "off") {
+                            HStack(spacing: 3) {
+                                chip("on", on: tune.panel) { tune.panel = true }
+                                chip("off", on: !tune.panel) { tune.panel = false }
+                            }
+                        }
+                        dial("corner", $tune.panelCorner, 0...0.2)
+                        dial("room", $tune.panelPad, 0...0.12)
+                        heading("\(type.shortLabel): the slab")
+                        inks(tune.panelInk[type] ?? .navy) { tune.panelInk[type] = $0 }
                         heading("the big icon")
                         dial("size", $tune.iconScale, 0.3...2)
                         dial("top", $tune.iconTop, 0...0.4)
