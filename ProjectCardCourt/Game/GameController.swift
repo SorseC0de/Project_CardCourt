@@ -1343,6 +1343,10 @@ final class GameController {
             broadcast(openingDraws)
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
+            // **Round one is called here or not at all.** Its `roundBegan` is dealt with
+            // the opening hand rather than folded out of a possession, so it never
+            // reaches `present` — which is where every later round is announced from.
+            await callTheRound(in: openingDraws)
             openingDraws = []
             DevLog.say(.input, "begin: dealt, entering the loop")
             await run()
