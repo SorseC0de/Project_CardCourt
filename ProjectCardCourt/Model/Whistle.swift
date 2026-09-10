@@ -12,7 +12,10 @@ enum WhistleTrigger: String, Hashable, Codable {
     case dribblePlayed
     case clampPlayed
     case whistlePlayed
-    case intangiblePlayed
+    /// **A passive landing on somebody's board.** Named for what happens rather than for
+    /// a play, because an Intangible is never played: it is turned over in a draw and it
+    /// activates itself. Raised where it lands, like `injuryDrawn`.
+    case intangibleRevealed
     case anyNonWhistlePlayed
     case shotAttempt
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
@@ -54,8 +57,6 @@ enum WhistleTrigger: String, Hashable, Codable {
             return card.descriptor.type == .clamp
         case (.whistlePlayed, .playCard(_, let card)):
             return card.descriptor.type == .whistle
-        case (.intangiblePlayed, .playCard(_, let card)):
-            return card.descriptor.type == .intangible
         case (.anyNonWhistlePlayed, .playCard(_, let card)):
             return card.descriptor.type != .whistle
         case (.shotClockLowered, .playCard(_, let card)):

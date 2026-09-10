@@ -1690,14 +1690,8 @@ enum Rules {
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
             state[whistle.owner].bag.append(state.discard.remove(at: index))
         }
-        if effect.stripsIntangibles, !state[offender].intangibles.isEmpty {
-            let stripped = state[offender].intangibles
-            state[offender].intangibles.removeAll()
-            events.append(.intangiblesStripped(seat: offender))
-            clockCatchesUp(offender, state: &state, events: &events)
-            for card in stripped {
-                rehome(card, from: offender, state: &state, events: &events)
-            }
+        if effect.stripsIntangibles {
+            stripIntangibles(from: offender, state: &state, events: &events)
         }
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
         if effect.offenderDraws > 0 {
@@ -2849,6 +2843,44 @@ enum Rules {
                                  state: inout GameState, events: inout [GameEvent]) {
         events.append(.intangibleRevealed(seat: seat, card: card.descriptor))
         state[seat].intangibles.append(card.descriptor)
+
+        // **The one Whistle that waits for a passive**, blown here rather than by
+        // `interceptor` — an Intangible is never *played*, so there was no action to
+        // match and Official Review sat armed for the whole game.
+        //
+        // It lands before the board is cleared: "all theirs" is all of them, the one that
+        // tripped it included.
+        guard let called = intangibleInterceptor(in: state) else { return }
+        state.armedWhistles.removeAll { $0.id == called.id }
+        state.discard.append(called.card)
+        // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+        state.possessionWasInterrupted = true
+        events.append(.whistleBlew(owner: called.owner, card: called.card.descriptor,
+                                   cancelled: card.descriptor.name,
+                                   cancelledCard: card.descriptor, against: seat))
+        if called.card.descriptor.whistle?.stripsIntangibles == true {
+            stripIntangibles(from: seat, state: &state, events: &events)
+        }
+    }
+
+    /// A Whistle waiting on a passive landing, if one is set. Its own reader for the same
+    /// reason `drawInterceptor` is: a card arriving is not something anybody did.
+    private static func intangibleInterceptor(in state: GameState) -> ArmedWhistle? {
+        guard !state.whistlesSilenced else { return nil }
+        return state.armedWhistles.first { $0.trigger == .intangibleRevealed }
+    }
+
+    /// Everything off a board, each of them rehomed. A reputation does not go in the bin.
+    private static func stripIntangibles(from seat: Seat, state: inout GameState,
+                                         events: inout [GameEvent]) {
+        guard !state[seat].intangibles.isEmpty else { return }
+        let stripped = state[seat].intangibles
+        state[seat].intangibles.removeAll()
+        events.append(.intangiblesStripped(seat: seat))
+        clockCatchesUp(seat, state: &state, events: &events)
+        for card in stripped {
+            rehome(card, from: seat, state: &state, events: &events)
+        }
     }
 
     /// One passive off a full board, chosen. Taking the one that just arrived is a

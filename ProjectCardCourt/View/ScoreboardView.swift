@@ -44,7 +44,10 @@ struct ScoreboardView: View {
     /// Glanced at over a live court at one size and read on the results screen at
     /// another. Everything else is a share of it, so the board changes weight as one
     /// thing rather than as thirteen.
-    var row: CGFloat = 32
+    /// **Back to the height the old table was**, which was 12pt type in two points of
+    /// padding either side. The board over the court is glanced at, and every point it
+    /// takes is a point off the court.
+    var row: CGFloat = 21
 
     /// The board's weights, all off the height of one row.
     ///

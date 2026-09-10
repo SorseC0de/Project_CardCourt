@@ -254,7 +254,7 @@ enum CardLibrary {
     static let officialReview = CardDescriptor(
         id: "official-review", name: "Official Review", type: .whistle,
         effect: "Next ~[Intangible]: #[Discard] all theirs", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .intangiblePlayed, stripsIntangibles: true))
+        whistle: WhistleEffect(trigger: .intangibleRevealed, stripsIntangibles: true))
 
     static let goaltending = CardDescriptor(
         id: "goaltending", name: "Goaltending", type: .whistle,
