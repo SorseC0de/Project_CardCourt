@@ -137,5 +137,8 @@ Pure black and pure white count as palette members. Everything else has to be on
 - Decide the two colour questions above, on the card rather than on the sheet.
 - The old per-card art is still in the catalog and nothing draws it. Leave it until the
   type icons are settled.
-- **Intangibles may break the mould later**: the wish is a unique full-colour icon per
-  Intangible rather than one for the type. A lot of drawing, so it is a maybe.
+- **Individual icons are coming back, after crowdfunding.** Not a maybe: one drawing per
+  card rather than one per type. **They will all wear the plate**, which is the point of
+  this whole update — the plate is the consistency that per-card art was missing and whose
+  absence is what sent the icons to per-type in the first place. So the two-layer split
+  survives the change: what varies is the subject, and the circle behind it never does.

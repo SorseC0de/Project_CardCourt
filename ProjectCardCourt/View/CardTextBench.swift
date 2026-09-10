@@ -227,6 +227,23 @@ enum CardTextStyle {
         .whistle: 1, .gameBreak: 1, .intangible: 0.75,
     ]
 
+    /// **What the card is printed on**, per type. The frozen bodies to begin with — this
+    /// is here so a body can be tried against a ring and a keyword without a rebuild.
+    static let body: [CardType: CardTextInk] = [
+        .pass: .blue, .move: .orange, .specialMove: .gold, .clamp: .red,
+        .whistle: .white, .gameBreak: .magenta, .intangible: .black,
+    ]
+
+    /// **The card's name, in one colour or two.**
+    ///
+    /// Two is the wordmark's trick — the fill changes colour at a line four fifths of the
+    /// way up the capitals, so the word reads as lettering drawn in two inks rather than
+    /// as type with a gradient on it. See `LinearGradient.hardSplit`.
+    static let twoToneName = false
+    static let nameInk: CardTextInk = .navy
+    static let nameTop: CardTextInk = .white
+    static let nameBottom: CardTextInk = .blue
+
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
     /// in, so the one body that *is* that navy has to turn it over.
     static let ring: [CardType: CardTextInk] = [
@@ -287,6 +304,11 @@ final class CardTextTuning {
     var text = CardTextStyle.text
     var keyword = CardTextStyle.keyword
     var ring = CardTextStyle.ring
+    var body = CardTextStyle.body
+    var twoToneName = CardTextStyle.twoToneName
+    var nameInk = CardTextStyle.nameInk
+    var nameTop = CardTextStyle.nameTop
+    var nameBottom = CardTextStyle.nameBottom
     var ringWidth = CardTextStyle.ringWidth
     var plate = CardTextStyle.plate
 
@@ -294,6 +316,7 @@ final class CardTextTuning {
     func keywordInk(for type: CardType) -> Color { (keyword[type] ?? .orange).colour }
     func ringInk(for type: CardType) -> Color { (ring[type] ?? .navy).colour }
     func ringWeight(for type: CardType) -> CGFloat { ringWidth[type] ?? 1 }
+    func bodyInk(for type: CardType) -> Color { (body[type] ?? .blue).colour }
     func plateInk(for type: CardType) -> Color { (plate[type] ?? .blue).colour }
 
     func reset() {
@@ -306,6 +329,9 @@ final class CardTextTuning {
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
+        body = CardTextStyle.body; twoToneName = CardTextStyle.twoToneName
+        nameInk = CardTextStyle.nameInk; nameTop = CardTextStyle.nameTop
+        nameBottom = CardTextStyle.nameBottom
         ringWidth = CardTextStyle.ringWidth
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
@@ -342,8 +368,13 @@ final class CardTextTuning {
         static let text: [CardType: CardTextInk] = [\(table(text))]
         static let keyword: [CardType: CardTextInk] = [\(table(keyword))]
         static let ring: [CardType: CardTextInk] = [\(table(ring))]
+        static let body: [CardType: CardTextInk] = [\(table(body))]
+        static let twoToneName = \(twoToneName)
+        static let nameInk: CardTextInk = .\(nameInk.rawValue)
+        static let nameTop: CardTextInk = .\(nameTop.rawValue)
+        static let nameBottom: CardTextInk = .\(nameBottom.rawValue)
         static let ringWidth: [CardType: CGFloat] = [\(
-            CardType.allCases.map { ".\($0.rawValue): \(n(ringWeight(for: $0)))" }
+            CardType.allCases.map { ".\($0.caseName): \(n(ringWeight(for: $0)))" }
                 .joined(separator: ", "))]
         static let plate: [CardType: CardTextInk] = [\(table(plate))]
         static let iconShade: [CardType: CardTextInk] = [\(table(iconShade))]
@@ -377,6 +408,10 @@ struct CardTextBench: View {
     @State private var tune = CardTextTuning.shared
     @State private var type: CardType = .move
     @State private var raised = false
+    /// Which card is being held up. **Tap any other one to promote it** — the rows under
+    /// the presented card run behind the dials, and the wordiest card of a type is not
+    /// always the one worth looking at.
+    @State private var presenting: String?
     @State private var open = true
 
     /// The wordiest card of each type — the one that has to fit. A dial settled on a
@@ -389,6 +424,12 @@ struct CardTextBench: View {
             .map { $0 }
     }
 
+    /// The card being held up: whichever was last tapped, and the wordiest of the type
+    /// until one is.
+    private var presented: CardDescriptor? {
+        cards.first { $0.id == presenting } ?? cards.first
+    }
+
     var body: some View {
         ZStack {
             CardPalette.navy.ignoresSafeArea()
@@ -397,7 +438,7 @@ struct CardTextBench: View {
                 // **Presented** — the size a card is held up at when it is played, which
                 // is where most of a game's reading happens. One card, because at this
                 // size a row of them is a row of nothing.
-                if let card = cards.first {
+                if let card = presented {
                     CardFrontView(descriptor: card, displayWidth: 210, expanded: raised)
                 }
                 // Raised, where the wording is longest and the reading actually happens.
@@ -405,12 +446,14 @@ struct CardTextBench: View {
                     ForEach(cards, id: \.id) { card in
                         CardFrontView(descriptor: card, displayWidth: 108,
                                       expanded: raised)
+                            .onTapGesture { presenting = card.id }
                     }
                 }
                 // And in the hand, which is the size a player sees ninety times a game.
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(cards, id: \.id) { card in
                         CardFrontView(descriptor: card, displayWidth: 76)
+                            .onTapGesture { presenting = card.id }
                     }
                 }
                 Spacer(minLength: 8)
@@ -552,6 +595,21 @@ struct CardTextBench: View {
                         inks(tune.text[type] ?? .navy) { tune.text[type] = $0 }
                         heading("\(type.shortLabel): the mechanics")
                         inks(tune.keyword[type] ?? .orange) { tune.keyword[type] = $0 }
+                        heading("\(type.shortLabel): the body")
+                        inks(tune.body[type] ?? .blue) { tune.body[type] = $0 }
+                        heading("the name")
+                        row("two-tone", tune.twoToneName ? "on" : "off") {
+                            HStack(spacing: 3) {
+                                chip("on", on: tune.twoToneName) { tune.twoToneName = true }
+                                chip("off", on: !tune.twoToneName) { tune.twoToneName = false }
+                            }
+                        }
+                        if tune.twoToneName {
+                            inks(tune.nameTop) { tune.nameTop = $0 }
+                            inks(tune.nameBottom) { tune.nameBottom = $0 }
+                        } else {
+                            inks(tune.nameInk) { tune.nameInk = $0 }
+                        }
                         heading("\(type.shortLabel): the inner ring")
                         inks(tune.ring[type] ?? .navy) { tune.ring[type] = $0 }
                         dial("thickness", Binding(
@@ -573,20 +631,22 @@ struct CardTextBench: View {
 
     /// The palette, as chips. Each one wearing its own colour, so the choice is made by
     /// looking rather than by reading a word.
+    /// **Swatches, not names.** Twenty-five colours spelled out took three lines and read
+    /// as a paragraph; the same twenty-five as squares fit on one and are picked by eye,
+    /// which is how a colour is picked anyway.
     private func inks(_ chosen: CardTextInk,
                       _ pick: @escaping (CardTextInk) -> Void) -> some View {
-        HStack(spacing: 4) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 17), spacing: 3)], spacing: 3) {
             ForEach(CardTextInk.allCases, id: \.self) { ink in
                 Button { pick(ink) } label: {
-                    Text(ink.label)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(ink == .white || ink == .gold ? .black : .white)
-                        .padding(.horizontal, 5).padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(ink.colour))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(ink.colour)
+                        .frame(height: 17)
                         .overlay(RoundedRectangle(cornerRadius: 3)
-                            .stroke(CardPalette.lightBlue,
-                                    lineWidth: ink == chosen ? 2.5 : 0))
+                            .strokeBorder(CardPalette.lightBlue,
+                                          lineWidth: ink == chosen ? 3 : 0))
                 }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -198,6 +198,24 @@ match bonus. Every other pass says its number. Worth deciding whether that is de
 
 **Overnight 2026-09-09:** the scoreboard and the front screen's hand of cards — see [Overnight — the board and the front screen.md](Overnight%20—%20the%20board%20and%20the%20front%20screen.md).
 
+## Name things explicitly, everywhere
+
+**A global pass over the project to make every name say what it is.** Not a style
+preference — a legibility one: the project has to be readable without me sitting next to
+it.
+
+The fault, in the user's own example from `ScoreboardView`: a `Board` struct with members
+called `head` and `row`. *Head what? Row what?* They should be `headScale`, `rowSize`.
+Shorthand saves characters nobody is paying for — this is an IDE with autocomplete — and
+costs the one thing that matters, which is knowing what a thing is for six months later.
+
+Rules: **no one-character names**, no bare nouns that need their context to make sense, and
+a name that says what it measures rather than what it sits next to. Applies to locals,
+members, parameters and closure arguments alike.
+
+Scope: the whole project, in one deliberate pass rather than opportunistically — a rename
+half-done is worse than not started.
+
 ## Next up: the card face
 
 **The words are jam-packed.** ~~Every dial is already at a value that was chosen; what has

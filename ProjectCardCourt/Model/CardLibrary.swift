@@ -7,86 +7,86 @@ enum CardLibrary {
 
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "Pass Left. SHOT +5%", numberInDeck: 30, passTarget: .left)
+        effect: "#[Pass] Left. SHOT +5%", numberInDeck: 30, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "Pass Right. SHOT +5%", numberInDeck: 30, passTarget: .right)
+        effect: "#[Pass] Right. SHOT +5%", numberInDeck: 30, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,
-        effect: "Pass Across. SHOT +5%", numberInDeck: 20, passTarget: .across)
+        effect: "#[Pass] Across. SHOT +5%", numberInDeck: 20, passTarget: .across)
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
-        effect: "Pass back to last player. Gains what the pass to you gained",
+        effect: "#[Pass] back to last player. Gains what the pass to you gained",
         numberInDeck: 5, passTarget: .backToPasser, matchesArrivingPass: true)
 
     static let dime = CardDescriptor(
         id: "dime", name: "Dime", type: .pass,
-        effect: "Pass to target player. SHOT +10%", numberInDeck: 5,
+        effect: "#[Pass] to target player. SHOT +10%", numberInDeck: 5,
         passTarget: .choice, passesToOthersOnly: true,
         shotDelta: 10, bonusAssistOnScore: true)
 
     static let lob = CardDescriptor(
         id: "lob", name: "Lob", type: .pass,
-        effect: "SHOT +10%. Pass to target player. They must shoot.",
+        effect: "SHOT +10%. #[Pass] to target player. They must shoot.",
         numberInDeck: 6,
         passTarget: .choice, shotDelta: 10, forcesReceiverShot: true)
 
     static let nutmeg = CardDescriptor(
         id: "nutmeg", name: "Nutmeg", type: .pass,
-        effect: "Pass Left or Right. Knock 1 card to next player. SHOT +10%",
+        effect: "#[Pass] Left or Right. Knock 1 card to next player. SHOT +10%",
         numberInDeck: 6,
         passTarget: .leftOrRight, shotDelta: 10, stealsAlongPass: 1)
 
     static let noLook = CardDescriptor(
         id: "no-look", name: "No-Look", type: .pass,
-        effect: "Pass to random other player. SHOT +10%", numberInDeck: 10,
+        effect: "#[Pass] to random other player. SHOT +10%", numberInDeck: 10,
         passTarget: .random, shotDelta: 10)
 
     static let touchPass = CardDescriptor(
         id: "touch-pass", name: "Touch Pass", type: .pass,
-        effect: "Pass to target player. SHOT +10%. #[Draw] 2 if it never stopped",
+        effect: "#[Pass] to target player. SHOT +10%. #[Draw] 2 if it never stopped",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 10, drawIfFirstAction: 2)
 
     static let rightBack = CardDescriptor(
         id: "right-back", name: "Right Back", type: .pass,
-        effect: "Pass to target player to pass right back. SHOT +10%.",
+        effect: "#[Pass] to target player to pass right back. SHOT +10%.",
         numberInDeck: 7,
         passTarget: .choice, passesToOthersOnly: true,
         shotDelta: 10, returnsImmediately: true)
 
     static let alleyOop = CardDescriptor(
         id: "alley-oop", name: "Alley-Oop", type: .pass,
-        effect: "Pass to target player. SHOT +20%. They must shoot.",
+        effect: "#[Pass] to target player. SHOT +20%. They must shoot.",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 20, forcesImmediateShot: true)
 
     static let handOff = CardDescriptor(
         id: "hand-off", name: "Hand-Off", type: .pass,
-        effect: "Pass Left or Right. SHOT +10%. #[Draw] 1",
+        effect: "#[Pass] Left or Right. SHOT +10%. #[Draw] 1",
         numberInDeck: 7,
         passTarget: .leftOrRight, shotDelta: 10, drawCount: 1,
         comboAfterDribble: true, comboBonus: 5, comboDraw: 1)
 
     static let outletPass = CardDescriptor(
         id: "outlet-pass", name: "Outlet Pass", type: .pass,
-        effect: "Pass to target player. SHOT +10%. #[Shot Clock] +01",
+        effect: "#[Pass] to target player. SHOT +10%. #[Shot Clock] +01",
         numberInDeck: 3,
         passTarget: .choice, shotDelta: 10, clockDelta: 1, replacesClockTick: true)
 
     static let kickOut = CardDescriptor(
         id: "kick-out", name: "Kick-Out", type: .pass,
-        effect: "Pass to target player. SHOT +10%. The shot becomes a three",
+        effect: "#[Pass] to target player. SHOT +10%. The shot becomes a three",
         numberInDeck: 3,
         passTarget: .choice, shotDelta: 10, comboAfter: "drive",
         comboDraw: 1, comboAssist: 1, upgradesToThree: true)
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
-        effect: "Pass to target player. SHOT +10%. They #[Discard] 1 at random",
+        effect: "#[Pass] to target player. SHOT +10%. They #[Discard] 1 at random",
         numberInDeck: 10,
         passTarget: .choice, shotDelta: 10, receiverDiscards: 1)
 
@@ -146,7 +146,7 @@ enum CardLibrary {
 
     static let tripleThreat = CardDescriptor(
         id: "triple-threat", name: "Triple Threat", type: .move,
-        effect: "Choose: #[Draw] 1 / Pass (+5%) / SHOT +10%.\nCan use no further Moves this possession",
+        effect: "Choose: #[Draw] 1 / #[Pass] (+5%) / SHOT +10%.\nCan use no further #[Moves] this possession",
         numberInDeck: 15,
         modes: [CardMode(label: "Draw 1", draws: 1),
                 CardMode(label: "Pass (+5%)", shotDelta: 5, passes: .choice),
@@ -182,7 +182,7 @@ enum CardLibrary {
 
     static let trap = CardDescriptor(
         id: "trap", name: "Trap", type: .clamp,
-        effect: "Next player can only Pass or Shoot", numberInDeck: 5,
+        effect: "Next player can only #[Pass] or Shoot", numberInDeck: 5,
         clamp: ClampEffect(defenders: 3, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
@@ -212,7 +212,7 @@ enum CardLibrary {
 
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
-        effect: "Cancel Next Move. #[TOV] +1. Side-out.", numberInDeck: 1,
+        effect: "Cancel Next #[Move]. #[TOV] +1. Side-out.", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true))
 
     static let playOn = CardDescriptor(
@@ -234,7 +234,7 @@ enum CardLibrary {
 
     static let backCourtViolation = CardDescriptor(
         id: "back-court-violation", name: "Back Court Violation", type: .whistle,
-        effect: "Cancel Next Pass. #[TOV] +1. Side-out.",
+        effect: "Cancel Next #[Pass]. #[TOV] +1. Side-out.",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .passPlayed, turnoverOnOffender: true,
                                setterChoosesInbound: true))
@@ -353,7 +353,7 @@ enum CardLibrary {
 
     static let foxLikeFirstStep = CardDescriptor(
         id: "fox-like-first-step", name: "Fox-Like First Step", type: .intangible,
-        effect: "Moves that cost SHOT pay it instead", numberInDeck: 1,
+        effect: "#[Moves] that cost SHOT pay it instead", numberInDeck: 1,
         intangible: IntangibleEffect(invertsMoveDebuffs: true))
 
     static let gravity = CardDescriptor(
@@ -374,7 +374,7 @@ enum CardLibrary {
 
     static let noBag = CardDescriptor(
         id: "no-bag", name: "No Bag", type: .intangible,
-        effect: "No Move cards this round", numberInDeck: 1,
+        effect: "No #[Move] cards this round", numberInDeck: 1,
         intangible: IntangibleEffect(blocksMoves: true, lastsRound: true))
 
     static let pointGod = CardDescriptor(
@@ -448,7 +448,7 @@ enum CardLibrary {
 
     static let fundamentalist = CardDescriptor(
         id: "fundamentalist", name: "Fundamentalist", type: .intangible,
-        effect: "No Special Moves. Each Move once a turn. Swings, @[Skip Pass] and @[Dribble] are never spent",
+        effect: "No #[Special Moves]. Each #[Move] once a turn. Swings, @[Skip Pass] and @[Dribble] are never spent",
         numberInDeck: 1,
         intangible: IntangibleEffect(blocksSpecialMoves: true, oneOfEachMovePerTurn: true,
                                      keepsOnPlay: ["swing-left", "swing-right",

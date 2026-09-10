@@ -109,6 +109,9 @@ struct CardFrontView: View {
         case "swing-right": return .swingRight
         case "swing-left":  return .swingLeft
         case "skip-pass":   return .skip
+        // **Its own arrow, like the other three.** Left out of this list, it fell through
+        // to the type icon — and then took the Pass subject over the top of its arrow.
+        case "behind-the-back": return .backPass
         default:            return nil
         }
     }
@@ -117,16 +120,7 @@ struct CardFrontView: View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
         let drop = width * set.iconDrop
         Group {
-            if descriptor.id == "behind-the-back" {
-                // The swing arrow turned upright and shrunk, shadowed twice — navy then
-                // red over it. Both east, applied after the flip so they stay east. Red
-                // rather than blue, since the card body is already CardBlue.
-                arrowImage(side * CardLayout.backPassArrowScale)
-                    // Both flips before the shadows, so the shadows stay east.
-                    .scaleEffect(x: -1, y: -1)
-                    .shadow(color: CardPalette.navy, radius: 0, x: drop, y: 0)
-                    .shadow(color: CardPalette.red, radius: 0, x: drop, y: 0)
-            } else if let copies = descriptor.iconRepeat, let art = descriptor.artwork {
+            if let copies = descriptor.iconRepeat, let art = descriptor.artwork {
                 // Two defenders, or three. Touching rather than spaced: it is one mark
                 // saying how many are on you, not a row of separate icons.
                 HStack(spacing: 0) {
@@ -171,9 +165,7 @@ struct CardFrontView: View {
                                 side: side * (descriptor.artwork?.scale ?? 1),
                                 slash: set.iconShadeInk(for: descriptor.type)))
         .rotationEffect(.degrees(descriptor.iconRotation))
-        .shadow(color: descriptor.id == "behind-the-back"
-                    ? .clear : set.iconShadeInk(for: descriptor.type),
-                radius: 0, x: drop, y: drop)
+        .shadow(color: set.iconShadeInk(for: descriptor.type), radius: 0, x: drop, y: drop)
         // **Placed by the top of its circle, not by its centre or its frame**, because
         // what the number has to hold is how far the icon disappears behind the name
         // plate. Anchored at the centre, every change of `iconScale` moved the top and
@@ -257,7 +249,11 @@ struct CardFrontView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: side, height: side)
+            // **Its own size, not the ball's.** Framed to the ball, a number wider than
+            // the ball is offered the ball's width and truncates — which is what was
+            // eating the sign off a −25%.
             percentage(shot, across: side)
+                .fixedSize()
                 .shadow(color: descriptor.type == .clamp ? CardPalette.orange : .black,
                         radius: 0,
                         x: width * CardLayout.badgeShadowFraction,
@@ -400,6 +396,16 @@ struct CardFrontView: View {
             .padding(width * CardLayout.strokeInsetFraction)
     }
 
+    /// One ink or two, as one style. A gradient of a colour against itself is that
+    /// colour, so the single-ink case is the two-ink case with both stops the same —
+    /// which keeps this one type rather than two.
+    private func nameFill(size: CGFloat) -> LinearGradient {
+        let top = set.twoToneName ? set.nameTop.colour : set.nameInk.colour
+        let bottom = set.twoToneName ? set.nameBottom.colour : set.nameInk.colour
+        return .hardSplit(top, bottom,
+                          in: UIFont(name: "AvenirNextCondensed-Heavy", size: size))
+    }
+
     /// The plate carries its own curve on the left, so it only sits right at one Y.
     private var namePlate: some View {
         VStack(spacing: 0) {
@@ -420,7 +426,13 @@ struct CardFrontView: View {
                               size: nameSize,
                               capHeight: CardLayout.nameCapHeight,
                               tracking: nameSize * CardLayout.nameTracking)
-                    .foregroundStyle(CardPalette.navy)
+                    // **One ink or two.** Two is the wordmark's own trick: the fill
+                    // changes colour at a line drawn across the capitals rather than
+                    // walking between them, so it reads as lettering in two inks and not
+                    // as type with a gradient on it. See `LinearGradient.hardSplit`,
+                    // which wants the face itself — the split is measured against the cap
+                    // band and lands under the letters entirely without it.
+                    .foregroundStyle(nameFill(size: nameSize))
                     .minimumScaleFactor(0.4)
                     .lineLimit(1)
                     .padding(.horizontal, width * 0.10)

@@ -229,6 +229,8 @@ struct CardBodyFill: View {
     /// Whistles indistinguishable, their stripes being white to begin with.
     var isDormant = false
     var stripes = 11
+    /// Observed, so a body picked on the bench repaints the deck — see `CardTextBench`.
+    @State private var set = CardTextTuning.shared
     /// How far down the card the stripes run.
     var bandFraction: CGFloat = 0.10
     var glossFraction: CGFloat = 0.35
@@ -239,7 +241,7 @@ struct CardBodyFill: View {
         switch injury {
         case .game:  return CardPalette.darkRed
         case .round: return CardPalette.green
-        case nil:    return CardPalette.body(for: type)
+        case nil:    return set.bodyInk(for: type)
         }
     }
 
