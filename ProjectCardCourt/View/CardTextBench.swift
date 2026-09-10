@@ -213,6 +213,17 @@ enum CardTextStyle {
         .whistle: .orange, .gameBreak: .orange, .intangible: .orange,
     ]
 
+    /// **How thick that ring is drawn**, per type, against `CardLayout.strokeFraction`.
+    ///
+    /// One width for all seven was one width on paper and not on screen. An Intangible's
+    /// ring is the only **light** line on a **dark** body — every other type is navy on a
+    /// mid or light one — and a light line on a dark ground reads fatter than the same
+    /// line the other way round. The number is the same; the eye is not.
+    static let ringWidth: [CardType: CGFloat] = [
+        .pass: 1, .move: 1, .specialMove: 1, .clamp: 1,
+        .whistle: 1, .gameBreak: 1, .intangible: 0.75,
+    ]
+
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
     /// in, so the one body that *is* that navy has to turn it over.
     static let ring: [CardType: CardTextInk] = [
@@ -273,11 +284,13 @@ final class CardTextTuning {
     var text = CardTextStyle.text
     var keyword = CardTextStyle.keyword
     var ring = CardTextStyle.ring
+    var ringWidth = CardTextStyle.ringWidth
     var plate = CardTextStyle.plate
 
     func ink(for type: CardType) -> Color { (text[type] ?? .navy).colour }
     func keywordInk(for type: CardType) -> Color { (keyword[type] ?? .orange).colour }
     func ringInk(for type: CardType) -> Color { (ring[type] ?? .navy).colour }
+    func ringWeight(for type: CardType) -> CGFloat { ringWidth[type] ?? 1 }
     func plateInk(for type: CardType) -> Color { (plate[type] ?? .blue).colour }
 
     func reset() {
@@ -290,6 +303,7 @@ final class CardTextTuning {
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plate = CardTextStyle.plate
+        ringWidth = CardTextStyle.ringWidth
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
         iconDrop = CardTextStyle.iconDrop
@@ -325,6 +339,9 @@ final class CardTextTuning {
         static let text: [CardType: CardTextInk] = [\(table(text))]
         static let keyword: [CardType: CardTextInk] = [\(table(keyword))]
         static let ring: [CardType: CardTextInk] = [\(table(ring))]
+        static let ringWidth: [CardType: CGFloat] = [\(
+            CardType.allCases.map { ".\($0.rawValue): \(n(ringWeight(for: $0)))" }
+                .joined(separator: ", "))]
         static let plate: [CardType: CardTextInk] = [\(table(plate))]
         static let iconShade: [CardType: CardTextInk] = [\(table(iconShade))]
         static let footDrop: CGFloat = \(n(footDrop))
@@ -534,6 +551,9 @@ struct CardTextBench: View {
                         inks(tune.keyword[type] ?? .orange) { tune.keyword[type] = $0 }
                         heading("\(type.shortLabel): the inner ring")
                         inks(tune.ring[type] ?? .navy) { tune.ring[type] = $0 }
+                        dial("thickness", Binding(
+                            get: { tune.ringWidth[type] ?? 1 },
+                            set: { tune.ringWidth[type] = $0 }), 0.3...1.6)
                         heading("\(type.shortLabel): under the name")
                         inks(tune.plate[type] ?? .blue) { tune.plate[type] = $0 }
                     }

@@ -390,9 +390,15 @@ struct CardFrontView: View {
     private var effectColour: Color { ink.text }
     private var namePlateShadow: Color { ink.plate }
 
+    /// **The one line round the card.** Its weight is per type — see
+    /// `CardTextStyle.ringWidth`, which says why the same number does not look the same
+    /// on a dark body as on a light one.
     private var border: some View {
-        RoundedRectangle(cornerRadius: width * CardLayout.strokeCornerFraction, style: .continuous)
-            .strokeBorder(ringColour, lineWidth: width * CardLayout.strokeFraction)
+        RoundedRectangle(cornerRadius: width * CardLayout.strokeCornerFraction,
+                         style: .continuous)
+            .strokeBorder(ringColour,
+                          lineWidth: width * CardLayout.strokeFraction
+                              * set.ringWeight(for: descriptor.type))
             .padding(width * CardLayout.strokeInsetFraction)
     }
 
