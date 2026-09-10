@@ -100,9 +100,10 @@ the two line up by being drawn at the same size in the same place rather than by
 offsets of their own. Export it with everything that stays behind the plate erased and the
 canvas untouched, then run `./Tools/icons.py`.
 
-`Card.artworkFront` looks the asset up and returns nil when it is not there, so a type
-without a front layer keeps its whole icon behind the banner and nothing has to be
-switched on.
+`Card.artworkFront` only **names** it — the model is built headless and compiled by
+`./Tools/sim` on a Mac, where there is no UIKit and no asset catalog. `CardFrontView` asks
+whether the drawing is actually there, so a type without a front layer keeps its whole icon
+behind the banner and nothing has to be switched on.
 
 ## Colour drift
 

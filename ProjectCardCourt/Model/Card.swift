@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 
 /// Where a pass sends the ball. `backToPasser` resolves against state, not geometry.
 /// One branch of a card that offers a choice. Triple Threat is the only one so far.
@@ -526,16 +525,15 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          mirrored: false, scale: 1)
     }
 
-    /// **The half of the drawing that goes in front of the name plate**, when there is
-    /// one: the ball on a Pass, the ankle on a Move, the star and the ball on a Special
-    /// Move. Nil until that layer has been drawn and imported, so a type without one
-    /// simply keeps its whole icon behind the banner.
+    /// **The half of the drawing that goes in front of the name plate**: the ball on a
+    /// Pass, the ankle on a Move, the star and the ball on a Special Move. The same
+    /// artboard as the back layer, so the two line up by being drawn at the same size in
+    /// the same place rather than by carrying offsets of their own.
     ///
-    /// The two layers are the same artboard, so they line up by being drawn at the same
-    /// size in the same place rather than by carrying any offsets of their own.
-    var artworkFront: String? {
-        let name = Self.typeIcon(for: type, injury: gameBreak?.injury) + "Front"
-        return UIImage(named: name) == nil ? nil : name
+    /// A name only. **Whether the drawing exists is the view's question** — the model is
+    /// built headless and knows nothing about an asset catalog. See `CardFrontView`.
+    var artworkFront: String {
+        Self.typeIcon(for: type, injury: gameBreak?.injury) + "Front"
     }
 
     static func typeIcon(for type: CardType, injury: Injury?) -> String {

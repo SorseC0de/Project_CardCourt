@@ -63,7 +63,7 @@ struct CardFrontView: View {
             // the ankle on a Move — so the drawing is in two layers and the plate is
             // printed between them. Nothing is drawn until that second layer exists; see
             // `Card.typeIconFront`.
-            if !passArtIsDrawn, descriptor.artworkFront != nil { iconFront }
+            if !passArtIsDrawn, hasIconFront { iconFront }
             // A pass says what it is worth along the bottom with the rest of its marks;
             // everything else keeps the ball up in the corner.
             if let shot = descriptor.shotEffect, descriptor.type != .pass {
@@ -187,20 +187,23 @@ struct CardFrontView: View {
 
     /// The icon's front layer, drawn over the name plate and lined up with the icon
     /// underneath it exactly — same size, same anchor, same nudges.
-    @ViewBuilder private var iconFront: some View {
+    /// Whether this type's front layer has been drawn yet. The model only names it — an
+    /// asset catalog is the view's business — so a type without one keeps its whole icon
+    /// behind the banner and nothing has to be switched on.
+    private var hasIconFront: Bool { UIImage(named: descriptor.artworkFront) != nil }
+
+    private var iconFront: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
         let drop = width * CardLayout.iconShadowFraction
-        if let art = descriptor.artworkFront {
-            Image(art)
-                .resizable()
-                .scaledToFit()
-                .frame(width: side, height: side)
-                .shadow(color: set.iconShadeInk(for: descriptor.type),
-                        radius: 0, x: drop, y: drop)
-                .position(x: width / 2,
-                          y: height * (set.iconTop + descriptor.iconYAdjust)
-                              + side * (0.5 - CardLayout.iconRingInset))
-        }
+        return Image(descriptor.artworkFront)
+            .resizable()
+            .scaledToFit()
+            .frame(width: side, height: side)
+            .shadow(color: set.iconShadeInk(for: descriptor.type),
+                    radius: 0, x: drop, y: drop)
+            .position(x: width / 2,
+                      y: height * (set.iconTop + descriptor.iconYAdjust)
+                          + side * (0.5 - CardLayout.iconRingInset))
     }
 
     /// **Everything a card says without words, in one row along the bottom edge.**
