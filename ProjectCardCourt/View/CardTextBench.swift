@@ -39,7 +39,8 @@ enum FootMark: String, CaseIterable, Hashable, Codable {
 /// palette; a card is never printed in anything else.
 enum CardTextInk: String, CaseIterable, Hashable, Codable {
     case navy, white, black, gold, orange, blue, red, lightBlue, gray,
-         tangerine, tan, brown, cloud, darkBlue, azure, cobalt, teal, darkRed, maroon, plum, blood
+         tangerine, tan, brown, cloud, darkBlue, azure, cobalt, teal, darkRed, maroon, plum, blood,
+         magenta, green, purple, steel
 
     var colour: Color {
         switch self {
@@ -64,6 +65,10 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
         case .blood: return CardPalette.blood
         case .darkRed:   return CardPalette.darkRed
         case .maroon:  return CardPalette.maroon
+        case .magenta: return CardPalette.magenta
+        case .green:   return CardPalette.green
+        case .purple:  return CardPalette.purple
+        case .steel:   return CardPalette.steel
         }
     }
 
@@ -215,12 +220,19 @@ enum CardTextStyle {
         .whistle: .navy, .gameBreak: .navy, .intangible: .gold,
     ]
 
-    /// **The drop under the name plate**, per type. The plate itself is gold whatever the
-    /// body is; what falls behind it is the question, and blue behind gold on a dark body
-    /// reads as nothing at all.
+    /// **The drop under the name plate — the card's own body colour, every type.**
+    ///
+    /// It used to be an accent, and on the two dark bodies that accent was gold. The
+    /// plate is a full-width band, so its drop is a full-width band too: gold under the
+    /// plate and gold in the ring below it put **two gold lines across the top of every
+    /// Intangible**, which is what made the card's edge unreadable.
+    ///
+    /// A drop in the body's own colour is a drop that disappears into the card, which is
+    /// the point — the plate meets the body and the only line across the top is the ring.
+    /// The one place in this game where a drop is *not* a second colour, and deliberately.
     static let plate: [CardType: CardTextInk] = [
-        .pass: .gold, .move: .blue, .specialMove: .blue, .clamp: .blue,
-        .whistle: .blue, .gameBreak: .gold, .intangible: .gold,
+        .pass: .blue, .move: .orange, .specialMove: .gold, .clamp: .red,
+        .whistle: .white, .gameBreak: .magenta, .intangible: .black,
     ]
 }
 
