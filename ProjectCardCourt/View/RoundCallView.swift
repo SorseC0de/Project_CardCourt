@@ -46,11 +46,16 @@ struct RoundCallView: View {
         /// The word, against the slab's width.
         static let word: CGFloat = 0.126
         static let wordX: CGFloat = 0.10
-        /// **The number, on its own and much larger than the bar it is standing on.**
+        /// **The number, on its own and larger than the bar it is standing on.**
         /// Drawn before the word, so the word sits over it; drawn after the slab, so it
         /// spills off the top and bottom of it rather than being buried.
-        static let number: CGFloat = 0.42
-        static let numberX: CGFloat = 0.34
+        ///
+        /// **Kept under the icon's height on purpose.** A figure at the bar's old height
+        /// carries a line box half as tall again, so the call came out taller than the
+        /// one it replaced — the bar halved and the thing on screen grew. The icon is the
+        /// tallest part of this now, which is what it was before.
+        static let number: CGFloat = 0.30
+        static let numberX: CGFloat = 0.36
         static let numberY: CGFloat = -0.02
     }
 
