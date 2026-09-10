@@ -118,7 +118,7 @@ enum CardTextStyle {
     /// Its corner, against the card's width.
     static let panelCorner: CGFloat = 0.05
     /// How black it is.
-    static let panelDark: CGFloat = 0.15
+    static let panelDark: CGFloat = 0.25
 
     /// **How small a card is allowed to shrink to fit, and how many lines it may take.**
     ///
@@ -184,12 +184,12 @@ enum CardTextStyle {
     /// **Where the top of that icon's circle sits**, down the card. The name plate ends at 0.186,
     /// so anything smaller than that runs up behind it — which is the intent: the icon is
     /// cut off by the plate rather than parked under it.
-    static let iconTop: CGFloat = 0.1
+    static let iconTop: CGFloat = 0.15
 
     /// **The hard drop under that icon**, per type — the one colour of the four that is
     /// not about the words.
     static let iconShade: [CardType: CardTextInk] = [
-        .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .black,
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
     ]
 
@@ -204,7 +204,7 @@ enum CardTextStyle {
     /// **What the body text is printed in, per type.** The one thing that has to differ:
     /// navy on a near-black Intangible is lettering nobody can find.
     static let text: [CardType: CardTextInk] = [
-        .pass: .white, .move: .navy, .specialMove: .navy, .clamp: .navy,
+        .pass: .white, .move: .white, .specialMove: .white, .clamp: .white,
         .whistle: .black, .gameBreak: .white, .intangible: .white,
     ]
 
@@ -212,8 +212,8 @@ enum CardTextStyle {
     /// the card saying its own mechanic in its own colour, which is the same as not
     /// saying it.
     static let keyword: [CardType: CardTextInk] = [
-        .pass: .gold, .move: .blue, .specialMove: .orange, .clamp: .orange,
-        .whistle: .orange, .gameBreak: .orange, .intangible: .orange,
+        .pass: .gold, .move: .lightBlue, .specialMove: .lightBlue, .clamp: .green,
+        .whistle: .red, .gameBreak: .tangerine, .intangible: .orange,
     ]
 
     /// **How thick that ring is drawn**, per type, against `CardLayout.strokeFraction`.
@@ -247,16 +247,16 @@ enum CardTextStyle {
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
     /// in, so the one body that *is* that navy has to turn it over.
     static let ring: [CardType: CardTextInk] = [
-        .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .navy,
-        .whistle: .navy, .gameBreak: .navy, .intangible: .gold,
+        .pass: .gold, .move: .darkBlue, .specialMove: .blue, .clamp: .azure,
+        .whistle: .black, .gameBreak: .navy, .intangible: .green,
     ]
 
     /// **The drop under the name plate**, per type. The plate itself is white whatever the
     /// body is; what falls behind it is the question, and blue behind it on a dark body
     /// reads as nothing at all.
     static let plate: [CardType: CardTextInk] = [
-        .pass: .gold, .move: .blue, .specialMove: .blue, .clamp: .blue,
-        .whistle: .blue, .gameBreak: .gold, .intangible: .gold,
+        .pass: .navy, .move: .lightBlue, .specialMove: .orange, .clamp: .magenta,
+        .whistle: .magenta, .gameBreak: .azure, .intangible: .gold,
     ]
 }
 
