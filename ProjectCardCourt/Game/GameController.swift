@@ -10,6 +10,9 @@ enum Pacing {
     /// floor set and waiting. At the ordinary think the court snapped into position and
     /// the ball was gone again before anybody could read who was where.
     static var inboundThink: ClosedRange<Double> = 1.5...2.5
+    /// How long the round slab holds. Long enough to read a two-word line and see what
+    /// is standing on it, short enough that it is not a gate between rounds.
+    static let roundCall = 1.6
     /// How long a shot's scene holds, on top of whatever its drama costs. Long enough
     /// for the burst at the rim to have its life — that is the celebration, and it was
     /// being cut off with the view.
@@ -555,6 +558,8 @@ final class GameController {
     private(set) var clampSwipe: (seat: Seat, id: UUID)?
     /// The phase or event currently announcing itself. See `ActionCall`.
     private(set) var actionCall: ActionCall?
+    /// The slab said between rounds and at the half — see `RoundCallView`.
+    private(set) var roundCall: RoundCall?
     /// The Clamps the `.clamped` call is holding up. Alongside the call rather than
     /// inside it: every other call is a word and nothing else.
     private(set) var clampCall: [ClampBrief] = []
@@ -2590,6 +2595,24 @@ final class GameController {
     func actionCallFinished() { actionCall = nil }
 
     /// Puts a call up and waits for it to take itself off again.
+    /// **The round, said out loud.** Its own call rather than an `ActionCall`: those are
+    /// four words on a scrim and this is a slab with a card's own icon standing on it.
+    private func callTheRound(in events: [GameEvent]) async {
+        guard GameRules.announcesPhases else { return }
+        for event in events {
+            switch event {
+            case .halftime:
+                roundCall = RoundCall(round: state.round, isHalftime: true)
+            case .roundBegan(let round, _):
+                roundCall = RoundCall(round: round)
+            default:
+                continue
+            }
+            try? await Task.sleep(for: .seconds(Pacing.roundCall))
+            roundCall = nil
+        }
+    }
+
     private func announce(_ call: ActionCall, clamps: [ClampBrief] = []) async {
         guard GameRules.announcesPhases else { return }
         clampCall = clamps
@@ -2771,6 +2794,9 @@ final class GameController {
         // Named before anybody swipes: the call is what the possession opens with, and a
         // Clamp taking cards out of the bag first leaves the announcement explaining
         // something that has already happened.
+        // The round, before anything is asked of anybody in it.
+        await callTheRound(in: events)
+        if Task.isCancelled { return }
         for case .clampedPossession(let seat, let clamps) in events {
             await announce(.clamped, clamps: clamps)
             boundSeats.insert(seat)

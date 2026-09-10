@@ -455,6 +455,11 @@ struct GameView: View {
                         .transition(.opacity)
                         .zIndex(41)
                 }
+                if let round = controller.roundCall {
+                    RoundCallView(call: round)
+                        .transition(.opacity)
+                        .zIndex(42)
+                }
                 if let call = controller.actionCall {
                     ActionCallView(call: call, clamps: controller.clampCall) {
                         controller.actionCallFinished()
