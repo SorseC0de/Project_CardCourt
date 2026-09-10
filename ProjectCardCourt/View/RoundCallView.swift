@@ -18,31 +18,56 @@ struct RoundCallView: View {
     var onFinished: () -> Void = {}
     /// The slab's width against the screen's, and its height against its own width.
     var acrossShare: CGFloat = 0.78
-    var tallShare: CGFloat = 0.42
+    var tallShare: CGFloat = 0.21
 
+    /// **Raised so the Z card can leave.** `ModeCardView` fires `onFinished` at the end of
+    /// its trip *out*, and it never starts that trip until it is told to — so a card
+    /// handed a constant `false` arrives, holds, and holds, and the controller waiting on
+    /// it waits forever. That is the hang: the same trap `ActionCallView` names in its
+    /// own `task`, walked into a second time.
+    @State private var leaving = false
+
+    /// **Everything is a share of the slab's width, not its height.**
+    ///
+    /// The slab is half as tall as it was and the icon and the lettering did not change
+    /// with it — they are the same size on a thinner bar, standing proud of it top and
+    /// bottom. Measured against the height, halving the bar would have halved them too.
     private enum Slab {
         /// The rake, as a share of the slab's height. Positive leans the top to the east.
-        static let lean: CGFloat = 0.26
-        /// The two drops, as shares of the slab's height. The second is beyond the first
+        static let lean: CGFloat = 0.52
+        /// The two drops, as shares of the slab's width. The second is beyond the first
         /// rather than instead of it — see the note above.
-        static let nearDrop: CGFloat = 0.055
-        static let farDrop: CGFloat = 0.11
-        /// The icon standing on the slab, against the slab's height.
-        static let icon: CGFloat = 0.86
+        static let nearDrop: CGFloat = 0.023
+        static let farDrop: CGFloat = 0.046
+        /// The icon standing on the slab, against the slab's width.
+        static let icon: CGFloat = 0.36
         /// And how far the icon sits off the middle, so the lettering has the other half.
         static let iconX: CGFloat = -0.26
-        /// The word, against the slab's height.
-        static let word: CGFloat = 0.30
-        static let wordX: CGFloat = 0.16
+        /// The word, against the slab's width.
+        static let word: CGFloat = 0.126
+        static let wordX: CGFloat = 0.10
+        /// **The number, on its own and much larger than the bar it is standing on.**
+        /// Drawn before the word, so the word sits over it; drawn after the slab, so it
+        /// spills off the top and bottom of it rather than being buried.
+        static let number: CGFloat = 0.42
+        static let numberX: CGFloat = 0.34
+        static let numberY: CGFloat = -0.02
     }
 
     var body: some View {
-        if call.isHalftime {
-            ModeCardView(title: call.word, subtitle: "Shuffle up",
-                         ink: .white, subtitleInk: CardPalette.gold,
-                         isLeaving: false, onLanded: {}, onFinished: onFinished)
-        } else {
-            slab
+        Group {
+            if call.isHalftime {
+                ModeCardView(title: call.word, subtitle: "Shuffle up",
+                             ink: .white, subtitleInk: CardPalette.gold,
+                             isLeaving: leaving, onLanded: {}, onFinished: onFinished)
+            } else {
+                slab
+            }
+        }
+        .task(id: call.id) {
+            leaving = false
+            try? await Task.sleep(for: .seconds(Pacing.actionCall))
+            leaving = true
         }
     }
 
@@ -53,9 +78,9 @@ struct RoundCallView: View {
             ZStack {
                 // Far drop first, then the near one over it, then the slab itself.
                 shape(tall).fill(CardPalette.orange)
-                    .offset(x: tall * Slab.farDrop, y: tall * Slab.farDrop)
+                    .offset(x: across * Slab.farDrop, y: across * Slab.farDrop)
                 shape(tall).fill(CardPalette.gold)
-                    .offset(x: tall * Slab.nearDrop, y: tall * Slab.nearDrop)
+                    .offset(x: across * Slab.nearDrop, y: across * Slab.nearDrop)
                 shape(tall).fill(CardPalette.blue)
 
                 // The family the round is played with, standing on the slab. Both layers
@@ -64,12 +89,17 @@ struct RoundCallView: View {
                     Image("TypePass").resizable().scaledToFit()
                     Image("TypePassFront").resizable().scaledToFit()
                 }
-                .frame(width: tall * Slab.icon, height: tall * Slab.icon)
-                .offset(x: tall * Slab.iconX)
+                .frame(width: across * Slab.icon, height: across * Slab.icon)
+                .offset(x: across * Slab.iconX)
 
-                ActionText(call.word, size: tall * Slab.word,
+                // The number, then the word over it.
+                ActionText("\(call.round)", size: across * Slab.number,
+                           ink: CardPalette.gold, drop: CardPalette.navy)
+                    .offset(x: across * Slab.numberX, y: across * Slab.numberY)
+
+                ActionText(call.word, size: across * Slab.word,
                            ink: .white, drop: CardPalette.navy)
-                    .offset(x: tall * Slab.wordX)
+                    .offset(x: across * Slab.wordX)
             }
             .frame(width: across, height: tall)
             .position(x: screen.size.width / 2, y: screen.size.height / 2)
@@ -91,7 +121,9 @@ struct RoundCall: Equatable, Identifiable {
     var isHalftime = false
 
     var id: String { isHalftime ? "half" : "round-\(round)" }
-    var word: String { isHalftime ? "Halftime" : "Round \(round)" }
+    /// **The word only.** The number is its own lettering on the slab, drawn large and
+    /// behind it — see `RoundCallView.Slab.number`.
+    var word: String { isHalftime ? "Halftime" : "Round" }
 }
 
 #if DEBUG

@@ -2808,9 +2808,6 @@ final class GameController {
         // Named before anybody swipes: the call is what the possession opens with, and a
         // Clamp taking cards out of the bag first leaves the announcement explaining
         // something that has already happened.
-        // The round, before anything is asked of anybody in it.
-        await callTheRound(in: events)
-        if Task.isCancelled { return }
         for case .clampedPossession(let seat, let clamps) in events {
             await announce(.clamped, clamps: clamps)
             boundSeats.insert(seat)
@@ -2855,6 +2852,12 @@ final class GameController {
             release(.reveal, from: &ledger)
         }
         release(.shot, from: &ledger)
+        // **The round is called last, and it has to be.** The batch that begins a round is
+        // the same one that ended the last — the shot, the score, the halftime deal, all
+        // of it — so a round announced at the top of it says a possession is over before
+        // the ball has been watched, which is the make given away.
+        await callTheRound(in: events)
+        if Task.isCancelled { return }
         // Whatever the shot did to the number, once there is nothing left to give away.
         if events.holdsAShot, !state.phase.isMidPlay {
             shownShot = state.shot + state.holderShot
