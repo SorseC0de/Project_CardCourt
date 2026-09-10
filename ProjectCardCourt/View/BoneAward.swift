@@ -191,15 +191,18 @@ struct BoneAward: View {
 /// The strips a Swisshbone comes in. One drawing, four ramps — see `Tools/bones`, which
 /// writes the assets from the palette indices.
 enum Bone: String, CaseIterable, Identifiable {
-    case plain, gold, copper, crystal
+    /// **Declared in the order they are worth**, because that is the order every screen
+    /// walks them in — the bench, the preview, and whatever hands one over.
+    case plain, bronze, silver, gold, crystal
 
     var id: String { rawValue }
 
     var asset: String {
         switch self {
         case .plain:   return "Swisshbone"
+        case .bronze:  return "SwisshboneBronze"
+        case .silver:  return "SwisshboneSilver"
         case .gold:    return "SwisshboneGold"
-        case .copper:  return "SwisshboneCopper"
         case .crystal: return "SwisshboneCrystal"
         }
     }
@@ -207,8 +210,9 @@ enum Bone: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .plain:   return "bone"
+        case .bronze:  return "bronze"
+        case .silver:  return "silver"
         case .gold:    return "gold"
-        case .copper:  return "copper"
         case .crystal: return "crystal"
         }
     }
@@ -224,8 +228,9 @@ enum Bone: String, CaseIterable, Identifiable {
         self == .crystal ? [.softLight, .softLight] : [.normal]
     }
 
-    /// Whether it throws light off itself. Gold catches the room and glass splits it;
-    /// copper is a working metal and bone is bone.
+    /// Whether it throws light off itself. **Gold catches the room and glass splits it.**
+    /// The two below them do not: bronze and silver are working metals, and the sparkle is
+    /// what separates a prize from a payment. Bone is bone.
     var sparkles: Bool { self == .gold || self == .crystal }
 
     /// Whether the glow cycles rather than holding one colour.
@@ -241,7 +246,8 @@ enum Bone: String, CaseIterable, Identifiable {
     var bloom: Double {
         switch self {
         case .plain:   return 0
-        case .copper:  return 0.75
+        case .bronze:  return 0.75
+        case .silver:  return 0.85
         default:       return 1
         }
     }
@@ -252,8 +258,11 @@ enum Bone: String, CaseIterable, Identifiable {
     var glow: Color {
         switch self {
         case .plain:   return .white
+        case .bronze:  return PixelPalette.khaki
+        // The one whose own ramp has no colour in it — the highlight rather than the
+        // metal, so the light off it reads as light and not as a grey lamp.
+        case .silver:  return PixelPalette.ice
         case .gold:    return PixelPalette.gold
-        case .copper:  return PixelPalette.khaki
         case .crystal: return PixelPalette.aqua
         }
     }
