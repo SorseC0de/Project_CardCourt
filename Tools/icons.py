@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """Frames the full-colour type icons on one circle, and snaps their colours.
 
+**A type is drawn in two layers.** `X_plate.svg` is everything behind the name banner —
+the circle and what stands in it — and `X_subject.svg` is what is printed over the banner,
+the ball on a Pass, the ankle on a Move. The two are exported from one canvas, so the
+plate's circle frames **both**: the subject is never measured on its own, because a ball
+on its own has no circle to be measured against.
+
+A type with no `_subject` is drawn whole in `X_Icon_new.svg` and framed by itself.
+
 Run it after any re-export. **Affinity writes the artboard back out as the viewBox**, so
 an icon saved again loses its framing and reads a different size to the other eight —
 which is the whole thing this fixes.
@@ -23,7 +31,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-ICONS = "_Graphic Assets/Vectors"
+ICONS = "_Graphic Assets/Vectors/Card Icons"
 SOURCE = "ProjectCardCourt/View/CardArt.swift"
 
 MARGIN = 1.25       # half the canvas, in radii — the circle is 80% of the side
@@ -180,7 +188,51 @@ root = pathlib.Path(__file__).resolve().parent.parent
 known = palette(root)
 moved = snapped = 0
 
-for path in sorted((root / ICONS).glob("*_Icon_new.svg")):
+def frame(path: pathlib.Path, box: str) -> bool:
+    """Writes one viewBox, and snaps every colour in the file. True if it changed."""
+    was = path.read_text()
+    text, hits = re.subn(r'viewBox="[^"]*"', box, was, count=1)
+    if hits != 1:
+        print(f"  ! {path.name} has no viewBox", file=sys.stderr)
+
+    def snap(code: str) -> str:
+        global snapped
+        if code in known:
+            return code
+        best, name, off = nearest(code, known)
+        if off > TOLERANCE:
+            print(f"  ? {path.name}: {code} is {off:.0f} off {name}, left alone",
+                  file=sys.stderr)
+            return code
+        snapped += 1
+        return best
+
+    text = re.sub(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)",
+                  lambda m: "rgb(%d,%d,%d)" % channels(
+                      snap("#%02X%02X%02X" % tuple(int(v) for v in m.groups()))), text)
+    text = re.sub(r"(fill|stroke|stop-color)(\s*[:=]\s*\"?)(#[0-9A-Fa-f]{6})",
+                  lambda m: m.group(1) + m.group(2) + snap(m.group(3).upper()), text)
+    if text == was:
+        return False
+    path.write_text(text)
+    return True
+
+
+# One entry per type: what is drawn behind the banner, and what is printed over it.
+layers: dict[str, dict[str, pathlib.Path]] = {}
+for path in sorted((root / ICONS).glob("*.svg")):
+    for tail, part in (("_plate", "back"), ("_subject", "front"), ("_Icon_new", "whole")):
+        if path.stem.endswith(tail):
+            layers.setdefault(path.stem[: -len(tail)], {})[part] = path
+            break
+
+for name in sorted(layers):
+    parts = layers[name]
+    # The plate is what carries the circle. A type that was never split is framed by the
+    # one drawing it has.
+    path = parts.get("back") or parts.get("whole")
+    if path is None:
+        continue
     text = path.read_text()
     circle, whole = measure(text)
     if circle is None:
@@ -195,9 +247,6 @@ for path in sorted((root / ICONS).glob("*_Icon_new.svg")):
 
     box = (f'viewBox="{n(cx - MARGIN * r)} {n(cy - MARGIN * r)} '
            f'{n(2 * MARGIN * r)} {n(2 * MARGIN * r)}"')
-    text, hits = re.subn(r'viewBox="[^"]*"', box, text, count=1)
-    if hits != 1:
-        print(f"  ! {path.name} has no viewBox", file=sys.stderr)
 
     # anything reaching past the canvas would be cut off at that framing
     edge = max(abs(whole[0] - cx), abs(whole[1] - cy), abs(whole[2] - cx), abs(whole[3] - cy))
@@ -205,29 +254,12 @@ for path in sorted((root / ICONS).glob("*_Icon_new.svg")):
         print(f"  ! {path.name} spills to {edge / r:.2f} radii, past the "
               f"{MARGIN} the canvas holds", file=sys.stderr)
 
-    def snap(code: str) -> str:
-        global snapped
-        if code in known:
-            return code
-        best, name, off = nearest(code, known)
-        if off > TOLERANCE:
-            print(f"  ? {path.name}: {code} is {off:.0f} off {name}, left alone",
-                  file=sys.stderr)
-            return code
-        snapped += 1
-        return best
-
-    def as_rgb(m):
-        code = snap("#%02X%02X%02X" % tuple(int(v) for v in m.groups()))
-        return "rgb(%d,%d,%d)" % channels(code)
-
-    text = re.sub(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", as_rgb, text)
-    text = re.sub(r"(fill|stroke|stop-color)(\s*[:=]\s*\"?)(#[0-9A-Fa-f]{6})",
-                  lambda m: m.group(1) + m.group(2) + snap(m.group(3).upper()), text)
-
-    if text != path.read_text():
-        path.write_text(text)
-        moved += 1
-    print(f"{path.stem:24} circle ({cx:.1f}, {cy:.1f}) r {r:.1f}   {box}")
+    # **Every layer of this type takes the plate's box**, so they line up by being drawn
+    # at the same size in the same place.
+    for part in ("back", "front", "whole"):
+        if part in parts and frame(parts[part], box):
+            moved += 1
+    print(f"{name:16} circle ({cx:.1f}, {cy:.1f}) r {r:.1f}  "
+          f"{'+'.join(sorted(parts))}   {box}")
 
 print(f"\n{moved} file(s) rewritten, {snapped} fill(s) snapped to the palette")

@@ -94,11 +94,20 @@ it — the ball on a Pass, the ankle on a Move, the star and the ball on a Speci
 clipping the banner's top edge. So the drawing is in two layers with the plate between
 them.
 
-`TypePass` and the rest are the back layer, as now. The front layer is the same name plus
-**`Front`** — `TypePassFront`, `TypeMoveFront`, and so on — **on the same artboard**, so
-the two line up by being drawn at the same size in the same place rather than by carrying
-offsets of their own. Export it with everything that stays behind the plate erased and the
-canvas untouched, then run `./Tools/icons.py`.
+The drawings live in `_Graphic Assets/Vectors/Card Icons/`, two files per type:
+
+- **`X_plate.svg`** — everything behind the banner: the circle and what stands in it.
+- **`X_subject.svg`** — what is printed over the banner.
+
+They are exported from one canvas, so **the plate's circle frames both** — a subject is
+never measured on its own, because a ball on its own has no circle to be measured against.
+`./Tools/icons.py` reads the circle out of the plate and writes that viewBox into every
+layer of the type, then snaps the colours.
+
+A type with no `_subject` keeps `X_Icon_new.svg` and is drawn whole, behind the banner.
+**Move is the one still like that.**
+
+They import as `TypePass` and `TypePassFront`, and so on.
 
 `Card.artworkFront` only **names** it — the model is built headless and compiled by
 `./Tools/sim` on a Mac, where there is no UIKit and no asset catalog. `CardFrontView` asks
