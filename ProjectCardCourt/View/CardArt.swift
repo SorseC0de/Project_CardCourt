@@ -183,6 +183,22 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         }
     }
 
+    /// **The face a card's words are pointing at**, when they name a type. Plural and
+    /// singular both, because a card says whichever reads better.
+    init?(named word: String) {
+        switch word.lowercased() {
+        case "pass", "passes":               self = .pass
+        case "move", "moves":                self = .move
+        case "special move", "special moves": self = .specialMove
+        case "clamp", "clamps":              self = .clamp
+        case "whistle", "whistles":          self = .whistle
+        case "game break", "game breaks":    self = .gameBreak
+        case "intangible", "intangibles":    self = .intangible
+        case "injury", "injuries":           self = .injury
+        default: return nil
+        }
+    }
+
     /// The type it is by the rules, for anything that has to ask that instead.
     var type: CardType {
         switch self {
@@ -231,8 +247,9 @@ struct CardInk {
         let tuned = CardTextTuning.shared
         ink.text = tuned.ink(for: face)
         ink.keyword = tuned.keywordInk(for: face)
+        ink.name = tuned.nameReferenceInk(for: face)
         ink.ring = tuned.ringInk(for: face)
-        ink.plate = tuned.plateInk(for: face)
+        ink.plate = tuned.plateDropInk(for: face)
         return ink
     }
 

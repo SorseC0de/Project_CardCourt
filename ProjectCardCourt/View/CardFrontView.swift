@@ -425,6 +425,9 @@ struct CardFrontView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: plateWidth)
+                    // The drawing is one flat shape, so its colour is a tint rather than
+                    // anything baked in — see `CardTextStyle.plateFill`.
+                    .foregroundStyle(set.plateFillInk(for: face))
                     .shadow(color: namePlateShadow, radius: 0, x: 0,
                             y: plateWidth * CardLayout.namePlateShadowFraction)
                 let nameSize = width * CardLayout.nameSizeFraction

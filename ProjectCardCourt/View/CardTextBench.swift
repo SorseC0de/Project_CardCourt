@@ -222,13 +222,13 @@ enum CardTextStyle {
         .injury: .white, .devastatingInjury: .white,
     ]
 
-    /// **And what a named mechanic inside it is printed in.** Orange on an orange body is
-    /// the card saying its own mechanic in its own colour, which is the same as not
-    /// saying it.
+    /// **And what a named mechanic inside it is printed in.** One colour on every body:
+    /// a mechanic is the same mechanic wherever it is written, and a reader looking for
+    /// what a card *does* should not have to learn a colour per type to find it.
     static let keyword: [CardFace: CardTextInk] = [
-        .pass: .gold, .move: .lightBlue, .specialMove: .lightBlue, .clamp: .green,
-        .whistle: .red, .gameBreak: .tangerine, .intangible: .orange,
-        .injury: .tangerine, .devastatingInjury: .tangerine,
+        .pass: .tangerine, .move: .tangerine, .specialMove: .tangerine,
+        .clamp: .tangerine, .whistle: .tangerine, .gameBreak: .tangerine,
+        .intangible: .tangerine, .injury: .tangerine, .devastatingInjury: .tangerine,
     ]
 
     /// **How thick that ring is drawn**, per type, against `CardLayout.strokeFraction`.
@@ -248,7 +248,7 @@ enum CardTextStyle {
     static let body: [CardFace: CardTextInk] = [
         .pass: .blue, .move: .orange, .specialMove: .gold, .clamp: .red,
         .whistle: .white, .gameBreak: .magenta, .intangible: .black,
-        .injury: .green, .devastatingInjury: .darkRed,
+        .injury: .teal, .devastatingInjury: .darkRed,
     ]
 
     /// **The card's name, in one colour or two.**
@@ -256,26 +256,55 @@ enum CardTextStyle {
     /// Two is the wordmark's trick — the fill changes colour at a line four fifths of the
     /// way up the capitals, so the word reads as lettering drawn in two inks rather than
     /// as type with a gradient on it. See `LinearGradient.hardSplit`.
-    static let twoToneName = false
+    static let twoToneName = true
     static let nameInk: CardTextInk = .navy
-    static let nameTop: CardTextInk = .white
-    static let nameBottom: CardTextInk = .blue
+    static let nameTop: CardTextInk = .darkBlue
+    static let nameBottom: CardTextInk = .navy
+
+    /// **What another card's name is printed in**, where a card's words name one. One
+    /// colour on every body, for the same reason the keywords are.
+    static let nameReference: [CardFace: CardTextInk] = [
+        .pass: .lightBlue, .move: .lightBlue, .specialMove: .lightBlue,
+        .clamp: .lightBlue, .whistle: .lightBlue, .gameBreak: .lightBlue,
+        .intangible: .lightBlue, .injury: .lightBlue, .devastatingInjury: .lightBlue,
+    ]
+
+    /// **What a named type is printed in — keyed by the type being named**, not by the
+    /// card doing the naming. That is the whole point: a Whistle saying "no Special
+    /// Moves" prints those two words in the Special Move's own colour, so the sentence
+    /// says which family it means without spelling it twice.
+    ///
+    /// Seeded from each face's body and lightened where a body is too dark to read as
+    /// lettering — a Pass's blue and an Intangible's black both go up a step.
+    static let typeReference: [CardFace: CardTextInk] = [
+        .pass: .lightBlue, .move: .orange, .specialMove: .gold, .clamp: .red,
+        .whistle: .cloud, .gameBreak: .magenta, .intangible: .gray,
+        .injury: .teal, .devastatingInjury: .darkRed,
+    ]
 
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
     /// in, so the one body that *is* that navy has to turn it over.
     static let ring: [CardFace: CardTextInk] = [
         .pass: .gold, .move: .darkBlue, .specialMove: .blue, .clamp: .azure,
         .whistle: .black, .gameBreak: .navy, .intangible: .green,
-        .injury: .cloud, .devastatingInjury: .tangerine,
+        .injury: .darkRed, .devastatingInjury: .teal,
     ]
 
-    /// **The drop under the name plate**, per type. The plate itself is white whatever the
+    /// **The name banner itself**, per face. White on all of them to begin with, which is
+    /// what the drawing was filled with before it could be asked.
+    static let plateFill: [CardFace: CardTextInk] = [
+        .pass: .white, .move: .white, .specialMove: .white, .clamp: .white,
+        .whistle: .white, .gameBreak: .white, .intangible: .white,
+        .injury: .white, .devastatingInjury: .white,
+    ]
+
+    /// **The drop under the name banner**, per type. The plate itself is white whatever the
     /// body is; what falls behind it is the question, and blue behind it on a dark body
     /// reads as nothing at all.
-    static let plate: [CardFace: CardTextInk] = [
+    static let plateDrop: [CardFace: CardTextInk] = [
         .pass: .navy, .move: .lightBlue, .specialMove: .orange, .clamp: .magenta,
         .whistle: .magenta, .gameBreak: .azure, .intangible: .gold,
-        .injury: .azure, .devastatingInjury: .azure,
+        .injury: .gray, .devastatingInjury: .gray,
     ]
 }
 
@@ -322,6 +351,8 @@ final class CardTextTuning {
     /// The only half that is per type.
     var text = CardTextStyle.text
     var keyword = CardTextStyle.keyword
+    var nameReference = CardTextStyle.nameReference
+    var typeReference = CardTextStyle.typeReference
     var ring = CardTextStyle.ring
     var body = CardTextStyle.body
     var twoToneName = CardTextStyle.twoToneName
@@ -329,14 +360,25 @@ final class CardTextTuning {
     var nameTop = CardTextStyle.nameTop
     var nameBottom = CardTextStyle.nameBottom
     var ringWidth = CardTextStyle.ringWidth
-    var plate = CardTextStyle.plate
+    var plateDrop = CardTextStyle.plateDrop
+    var plateFill = CardTextStyle.plateFill
 
     func ink(for face: CardFace) -> Color { (text[face] ?? .navy).colour }
     func keywordInk(for face: CardFace) -> Color { (keyword[face] ?? .orange).colour }
+    func nameReferenceInk(for face: CardFace) -> Color {
+        (nameReference[face] ?? .lightBlue).colour
+    }
+    /// **Asked of the type being named**, not of the card naming it.
+    func typeReferenceInk(for named: CardFace) -> Color {
+        (typeReference[named] ?? .cloud).colour
+    }
     func ringInk(for face: CardFace) -> Color { (ring[face] ?? .navy).colour }
     func ringWeight(for face: CardFace) -> CGFloat { ringWidth[face] ?? 1 }
     func bodyInk(for face: CardFace) -> Color { (body[face] ?? .blue).colour }
-    func plateInk(for face: CardFace) -> Color { (plate[face] ?? .blue).colour }
+    /// What falls behind the banner.
+    func plateDropInk(for face: CardFace) -> Color { (plateDrop[face] ?? .blue).colour }
+    /// And the banner itself.
+    func plateFillInk(for face: CardFace) -> Color { (plateFill[face] ?? .white).colour }
 
     func reset() {
         size = CardTextStyle.size; inset = CardTextStyle.inset
@@ -347,7 +389,8 @@ final class CardTextTuning {
         footBottom = CardTextStyle.footBottom
         footLift = CardTextStyle.footLift
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
-        ring = CardTextStyle.ring; plate = CardTextStyle.plate
+        ring = CardTextStyle.ring; plateDrop = CardTextStyle.plateDrop
+        plateFill = CardTextStyle.plateFill
         body = CardTextStyle.body; twoToneName = CardTextStyle.twoToneName
         nameInk = CardTextStyle.nameInk; nameTop = CardTextStyle.nameTop
         nameBottom = CardTextStyle.nameBottom
@@ -386,6 +429,8 @@ final class CardTextTuning {
         static let footLift: CGFloat = \(n(footLift))
         static let text: [CardFace: CardTextInk] = [\(table(text))]
         static let keyword: [CardFace: CardTextInk] = [\(table(keyword))]
+        static let nameReference: [CardFace: CardTextInk] = [\(table(nameReference))]
+        static let typeReference: [CardFace: CardTextInk] = [\(table(typeReference))]
         static let ring: [CardFace: CardTextInk] = [\(table(ring))]
         static let body: [CardFace: CardTextInk] = [\(table(body))]
         static let twoToneName = \(twoToneName)
@@ -395,7 +440,7 @@ final class CardTextTuning {
         static let ringWidth: [CardFace: CGFloat] = [\(
             CardFace.allCases.map { ".\($0.caseName): \(n(ringWeight(for: $0)))" }
                 .joined(separator: ", "))]
-        static let plate: [CardFace: CardTextInk] = [\(table(plate))]
+        static let plateDrop: [CardFace: CardTextInk] = [\(table(plateDrop))]
         static let iconShade: [CardFace: CardTextInk] = [\(table(iconShade))]
         static let footDrop: CGFloat = \(n(footDrop))
         static let footShade: [CardFace: CardTextInk] = [\(table(footShade))]
@@ -632,13 +677,21 @@ struct CardTextBench: View {
                         } else {
                             inks(tune.nameInk) { tune.nameInk = $0 }
                         }
+                        heading("\(face.shortLabel): the name banner")
+                        inks(tune.plateFill[face] ?? .white) { tune.plateFill[face] = $0 }
+                        heading("a card named in the words")
+                        inks(tune.nameReference[face] ?? .lightBlue) {
+                            tune.nameReference[face] = $0
+                        }
+                        heading("\(face.shortLabel) named in another card's words")
+                        inks(tune.typeReference[face] ?? .cloud) { tune.typeReference[face] = $0 }
                         heading("\(face.shortLabel): the inner ring")
                         inks(tune.ring[face] ?? .navy) { tune.ring[face] = $0 }
                         dial("thickness", Binding(
                             get: { tune.ringWidth[face] ?? 1 },
                             set: { tune.ringWidth[face] = $0 }), 0.3...1.6)
                         heading("\(face.shortLabel): under the name")
-                        inks(tune.plate[face] ?? .blue) { tune.plate[face] = $0 }
+                        inks(tune.plateDrop[face] ?? .blue) { tune.plateDrop[face] = $0 }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)
                 }

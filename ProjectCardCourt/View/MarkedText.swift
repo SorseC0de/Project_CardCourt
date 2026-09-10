@@ -20,6 +20,11 @@ enum Marked {
         case name = "@"
         /// A mechanic the rules name: Discard, Draw, Injury, Clear.
         case keyword = "#"
+        /// **A card type, by name** — a Pass, a Move, the Special Moves. Not a mechanic
+        /// and not a card: a family, and it is printed in that family's own colour so the
+        /// sentence says which one without spelling it twice. `~` because every other
+        /// punctuation mark already appears in a card's words.
+        case type = "~"
 
         /// What this reads as on a given card. **Asked of the card, not of the marker**:
         /// a keyword inked the body's own colour is a keyword nobody can see, and which
@@ -30,6 +35,11 @@ enum Marked {
             switch self {
             case .name:    return ink.name
             case .keyword: return ink.keyword
+            // **The type being named, not the card doing the naming.** A Whistle that
+            // says "no Special Moves" prints those two words in the Special Move's
+            // colour — see `CardText`, which is the only place that knows which type a
+            // run is pointing at.
+            case .type:    return ink.keyword
             }
         }
 
@@ -39,8 +49,8 @@ enum Marked {
         func shade(on face: CardFace) -> Color {
             let ink = CardInk.of(face)
             switch self {
-            case .name:    return ink.nameShade
-            case .keyword: return ink.keywordShade
+            case .name:            return ink.nameShade
+            case .keyword, .type:  return ink.keywordShade
             }
         }
     }

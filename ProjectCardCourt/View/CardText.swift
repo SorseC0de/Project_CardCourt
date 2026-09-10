@@ -53,14 +53,22 @@ struct CardText: View {
         UIFont(name: font, size: size) ?? .systemFont(ofSize: size, weight: .bold)
     }
 
+    private func colour(of run: Marked.Run) -> Color {
+        if run.ink == .type, let named = CardFace(named: run.word ?? run.text) {
+            return CardTextTuning.shared.typeReferenceInk(for: named)
+        }
+        return run.ink?.colour(on: face) ?? ink
+    }
+
     private var written: AttributedString {
         var whole = AttributedString()
         for run in Marked.runs(of: text) {
             var piece = AttributedString(run.text)
             piece.font = .custom(font, size: size)
-            piece.foregroundColor = highlight
-                ? (run.ink?.colour(on: face) ?? ink)
-                : ink
+            // **A named type takes the named type's colour**, which is the one thing the
+            // run itself has to be asked about — every other ink is a property of the
+            // card doing the printing. See `CardTextStyle.typeReference`.
+            piece.foregroundColor = highlight ? colour(of: run) : ink
             // **Only a keyword is worth explaining.** A card named inside the text is
             // already a card you can go and read; a mechanic is a rule you may never
             // have been told.
