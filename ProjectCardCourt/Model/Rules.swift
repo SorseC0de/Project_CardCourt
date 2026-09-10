@@ -858,7 +858,7 @@ enum Rules {
     /// — any phase set there is overwritten the moment the draw returns. Queuing here and
     /// converting in `takeTheLine` is what keeps the two from fighting.
     private static func awardFreeThrows(_ count: Int, to seat: Seat, offender: Seat?,
-                                        source: String,
+                                        source: String, endsPossession: Bool = false,
                                         state: inout GameState, events: inout [GameEvent]) {
         guard count > 0 else { return }
 
@@ -868,6 +868,9 @@ enum Rules {
             return false
         }), case .takeTheLine(var trip) = state.pending[at] {
             trip.remaining += count
+            // A called foul on top of a card's trip still ends the possession: the
+            // whistle went, whatever else put him there first.
+            trip.endsPossession = trip.endsPossession || endsPossession
             state.pending[at] = .takeTheLine(trip)
             events.append(.freeThrowsAwarded(seat: seat, count: count, source: source))
             return
@@ -876,7 +879,9 @@ enum Rules {
         // Generational Whistle pays once per trip, not once per attempt.
         let bonus = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.bonusFreeThrows ?? 0) }
         state.owe(.takeTheLine(FreeThrowTrip(shooter: seat, offender: offender,
-                                             source: source, remaining: count + bonus)))
+                                             source: source,
+                                             endsPossession: endsPossession,
+                                             remaining: count + bonus)))
         events.append(.freeThrowsAwarded(seat: seat, count: count + bonus, source: source))
         if bonus > 0, let card = state[seat].intangibles.first(where: {
             ($0.intangible?.bonusFreeThrows ?? 0) > 0
@@ -942,12 +947,15 @@ enum Rules {
         }
         events.append(.freeThrowsEnded(seat: trip.shooter, made: trip.made, of: trip.total))
 
-        // Every miss is a dead ball, so a trip never becomes a rebound. Whoever fouled
-        // hands it back in, and the round does not advance.
-        if let offender = trip.offender {
+        // Every miss is a dead ball, so a trip never becomes a rebound.
+        //
+        // **Whether it also ends the possession is the trip's own answer.** A called foul
+        // does: the offender hands it back in and the round does not advance. A trip a
+        // card handed out does not — play picks up where it left off, with two shots in
+        // the middle of it. See `FreeThrowTrip.endsPossession`.
+        if trip.endsPossession, let offender = trip.offender {
             reinbound(by: offender, state: &state, events: &events)
         } else if let holder = state.ball {
-            // Nobody fouled — a Foul off the deck. Play picks up where it left off.
             state.phase = .possession(holder: holder)
         } else {
             reinbound(by: trip.shooter, state: &state, events: &events)
@@ -1740,11 +1748,15 @@ enum Rules {
 
         let earned = effect.freeThrowsToVictim
             + (calls > 1 ? effect.freeThrowsOnRepeatCall : 0)
+        // **The one kind of trip that ends a possession.** A Whistle blew: it is a dead
+        // ball, the offender inbounds, and whatever was being played is over.
         awardFreeThrows(earned, to: whistle.owner, offender: offender,
-                        source: whistle.card.name, state: &state, events: &events)
+                        source: whistle.card.name, endsPossession: true,
+                        state: &state, events: &events)
         // The man who was fouled, which for a Clear Path is the man who tripped it.
         awardFreeThrows(effect.freeThrowsToOffender, to: offender, offender: nil,
-                        source: whistle.card.name, state: &state, events: &events)
+                        source: whistle.card.name, endsPossession: true,
+                        state: &state, events: &events)
 
         if effect.endsRound {
             endRound(state: &state, events: &events)

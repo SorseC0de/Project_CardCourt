@@ -429,6 +429,14 @@ enum CardLayout {
     /// tenth of it is margin on each edge — which is what lets the things spilling out of
     /// a circle spill without being cut off. See `_Design/type-icons.md`.
     static let iconRingInset: CGFloat = 0.10
+    /// **The three's hand on the big icon**: how big it is against the icon's side, and
+    /// where its middle sits from the icon's own middle. Bottom-right, on the circle's
+    /// edge rather than off it — a mark hanging clear of the drawing reads as a sticker.
+    static let threeMarkShare: CGFloat = 0.30
+    static let threeMarkX: CGFloat = 0.28
+    static let threeMarkY: CGFloat = 0.26
+    /// Its hard drop, as a share of the card's width.
+    static let threeMarkDrop: CGFloat = 0.012
     /// A touch further than the card's other shadows; the icons need the separation.
     static let iconShadowFraction: CGFloat = 22 / across
     /// Whistles print their icon in Zuphy32 21 over blue; the white-on-navy every other

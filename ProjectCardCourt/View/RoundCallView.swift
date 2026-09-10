@@ -57,6 +57,8 @@ struct RoundCallView: View {
         static let number: CGFloat = 0.30
         static let numberX: CGFloat = 0.36
         static let numberY: CGFloat = -0.02
+        /// Its hard drop, drawn as a second copy behind it.
+        static let numberDrop: CGFloat = 0.012
     }
 
     var body: some View {
@@ -97,10 +99,21 @@ struct RoundCallView: View {
                 .frame(width: across * Slab.icon, height: across * Slab.icon)
                 .offset(x: across * Slab.iconX)
 
-                // The number, then the word over it.
-                ActionText("\(call.round)", size: across * Slab.number,
-                           ink: CardPalette.gold, drop: CardPalette.navy)
-                    .offset(x: across * Slab.numberX, y: across * Slab.numberY)
+                // The number, then the word over it. **The number is lit** — Project
+                // Stars' Start button, turned into a fill: the spectrum turns inside the
+                // figure rather than behind a pane. Its drop is drawn as a second copy,
+                // because a `shadow` under a masked view shadows the mask.
+                ZStack {
+                    ActionText("\(call.round)", size: across * Slab.number,
+                               ink: CardPalette.navy, drop: .clear)
+                        .offset(x: across * Slab.numberDrop,
+                                y: across * Slab.numberDrop)
+                    SpectrumFill(resting: CardPalette.gold) {
+                        ActionText("\(call.round)", size: across * Slab.number,
+                                   ink: .white, drop: .clear)
+                    }
+                }
+                .offset(x: across * Slab.numberX, y: across * Slab.numberY)
 
                 ActionText(call.word, size: across * Slab.word,
                            ink: .white, drop: CardPalette.navy)

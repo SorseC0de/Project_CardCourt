@@ -68,6 +68,10 @@ struct CardFrontView: View {
             // printed between them. Nothing is drawn until that second layer exists; see
             // `Card.typeIconFront`.
             if passArt == nil, hasIconFront { iconFront }
+            // **A three says so on the icon.** Bottom-right of the big drawing, over
+            // everything it stands on, so a card worth an extra point is one glance rather
+            // than a line of text.
+            if descriptor.isThree { threeMark }
             // The corner badge is for a card whose number is not already at its foot.
             // Nothing wears one today; it is kept because a type may yet want the number
             // up top rather than down there.
@@ -197,6 +201,19 @@ struct CardFrontView: View {
             .position(x: width / 2,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
                           + side * (0.5 - CardLayout.iconRingInset))
+    }
+
+    /// The three's hand, pinned to the icon's bottom-right corner.
+    private var threeMark: some View {
+        let side = width * CardLayout.iconSizeFraction * set.iconScale
+        return ThreeHandMark(width: side * CardLayout.threeMarkShare,
+                             tint: CardPalette.lightBlue,
+                             shadow: CardPalette.blue,
+                             shadowOffset: width * CardLayout.threeMarkDrop)
+            .position(x: width / 2 + side * CardLayout.threeMarkX,
+                      y: height * (set.iconTop + descriptor.iconYAdjust)
+                          + side * (0.5 - CardLayout.iconRingInset)
+                          + side * CardLayout.threeMarkY)
     }
 
     /// **The ball at the foot of the card, and nothing else.**

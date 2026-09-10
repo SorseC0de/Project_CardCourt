@@ -46,19 +46,19 @@ struct ThreeCelebrationView: View {
     var body: some View {
         GeometryReader { geo in
             let centre = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.42)
+            // **The cell, in this view's own space.** `scoreTarget` is measured on the
+            // board in `Chrome.screen`, and `position` is read against whatever this
+            // reader happens to be standing in — the two are the same point only if this
+            // view starts at the screen's own origin, which it does not. Unconverted, the
+            // number flew to the same place whoever had scored.
+            let mine = geo.frame(in: .named(Chrome.screen))
+            let landing = CGPoint(x: scoreTarget.x - mine.minX,
+                                  y: scoreTarget.y - mine.minY)
 
             ZStack {
                 ZStack {
                     ForEach(0..<4, id: \.self) { layer in
-                        // The art is filled black in the file, so each layer is a
-                        // template in the catalogue — without that the tint is silently
-                        // ignored, all four draw as identical black silhouettes over one
-                        // another, and the sequence is invisible. Which is how it looked.
-                        Image("ThreeHand_\(layer)")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: side, height: side)
-                            .foregroundStyle(handGradient)
+                        hand(layer)
                             // **No `drawingGroup` here.** It rasterises at the layer's own
                             // bounds, and the spring that lands each finger settles from
                             // past 1 — so the overshoot was drawn against the edge of its
@@ -88,7 +88,7 @@ struct ThreeCelebrationView: View {
                         // Ticks over rather than being replaced — one number counting up,
                         // not three numbers taking turns.
                         .contentTransition(.numericText())
-                        .position(numberFlying ? scoreTarget : centre)
+                        .position(numberFlying ? landing : centre)
                 }
             }
             .opacity(fading ? 0 : 1)
@@ -97,11 +97,33 @@ struct ThreeCelebrationView: View {
         .allowsHitTesting(false)
     }
 
-    /// Warm at the fingertips, cooling into the palm.
+    /// One layer of the hand: the palm, then a finger at a time. The art is filled black
+    /// in the file, so each layer is a template in the catalogue — without that the tint
+    /// is silently ignored, all four draw as identical black silhouettes over one another,
+    /// and the sequence is invisible. Which is how it looked.
+    @ViewBuilder private func hand(_ layer: Int) -> some View {
+        let art = Image("ThreeHand_\(layer)")
+            .resizable()
+            .scaledToFit()
+            .frame(width: side, height: side)
+        if lit {
+            SpectrumFill(resting: CardPalette.gold) { art }
+        } else {
+            art.foregroundStyle(handGradient)
+        }
+    }
+
+    /// **Warm at the fingertips, cooling into the palm.** The hand's first look, kept:
+    /// set `lit` to false and this is what is drawn. Worth having both — this one is the
+    /// game's own colours and the lit one is borrowed.
     private var handGradient: LinearGradient {
         LinearGradient(colors: [CardPalette.gold, CardPalette.orange, CardPalette.red],
                        startPoint: .top, endPoint: .bottom)
     }
+
+    /// **Whether the hand takes the spectrum.** Project Stars' Start button, turned into
+    /// a fill — see `SpectrumFill`. Off, it wears `handGradient` as it always did.
+    var lit = true
 
     private func run() async {
         // The palm lands first and the burst goes off with it, not before it — the sparkle

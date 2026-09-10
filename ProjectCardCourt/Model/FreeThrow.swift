@@ -13,6 +13,15 @@ struct FreeThrowTrip: Hashable, Codable {
     let offender: Seat?
     /// The card that awarded it, named on the banner and in the log.
     let source: String
+    /// **Whether the trip hands the ball back in when it is over.**
+    ///
+    /// A *called foul* is a dead ball: the whistle went, so the offender inbounds and the
+    /// possession is finished. Everything else that puts a man on the line — shaking a
+    /// Clamp off with a Flop, a Break off the deck, a passive that pays in free throws —
+    /// is play carrying on with two shots in the middle of it. Ending the possession for
+    /// all of them turned every card that grants a trip into a card that costs you your
+    /// turn, which is the opposite of what they are for.
+    var endsPossession = false
     var attempted = 0
     var made = 0
     var remaining: Int
