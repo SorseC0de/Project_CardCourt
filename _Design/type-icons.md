@@ -104,8 +104,8 @@ never measured on its own, because a ball on its own has no circle to be measure
 `./Tools/icons.py` reads the circle out of the plate and writes that viewBox into every
 layer of the type, then snaps the colours.
 
-A type with no `_subject` keeps `X_Icon_new.svg` and is drawn whole, behind the banner.
-**Move is the one still like that.**
+A type with no `_subject` keeps `X_Icon_new.svg` and is drawn whole, behind the banner —
+which is the fallback rather than a state any type is in: **all nine are split.**
 
 They import as `TypePass` and `TypePassFront`, and so on.
 

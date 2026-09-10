@@ -513,7 +513,7 @@ struct CardTextBench: View {
                         dial("corner", $tune.panelCorner, 0...0.2)
                         dial("black", $tune.panelDark, 0...1)
                         heading("the big icon")
-                        dial("size", $tune.iconScale, 0.3...2)
+                        dial("size", $tune.iconScale, 0.3...4)
                         dial("top", $tune.iconTop, 0...0.4)
                         dial("drop", $tune.iconDrop, 0...0.05)
                         row("name plate", tune.plateOverIcon ? "over" : "under") {
