@@ -241,17 +241,22 @@ struct CardFrontView: View {
         return found
     }
 
-    /// What a pass is worth, down with the rest of its marks. The same ball the corner
-    /// badge draws, sized to the row it is standing in.
+    /// What a pass is worth. The same ball the corner badge draws, sized to the row it is
+    /// standing in.
+    ///
+    /// **The number is laid over the ball and is meant to run past it.** That is the mark:
+    /// a ball with a figure across it, not a figure fitted inside a ball. The ball alone
+    /// sets the size of the slot — `frame` below — so a long number never moves anything
+    /// else on the card.
     private func footBall(_ shot: Int, side: CGFloat) -> some View {
         ZStack {
             Image("BallVector")
                 .resizable()
                 .scaledToFit()
                 .frame(width: side, height: side)
-            // **Its own size, not the ball's.** Framed to the ball, a number wider than
-            // the ball is offered the ball's width and truncates — which is what was
-            // eating the sign off a −25%.
+            // **Its own size, never the ball's.** Offered the ball's width it truncates,
+            // which is what was eating the sign off a Clamp's −25%. Nothing here should
+            // ever be made to fit: see above.
             percentage(shot, across: side)
                 .fixedSize()
                 .shadow(color: descriptor.type == .clamp ? CardPalette.orange : .black,
