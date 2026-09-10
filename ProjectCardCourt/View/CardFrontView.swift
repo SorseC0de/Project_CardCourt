@@ -403,14 +403,12 @@ struct CardFrontView: View {
             .padding(width * CardLayout.strokeInsetFraction)
     }
 
-    /// One ink or two, as one style. A gradient of a colour against itself is that
-    /// colour, so the single-ink case is the two-ink case with both stops the same —
-    /// which keeps this one type rather than two.
+    /// **Two inks, per face.** A name in one colour is that colour top and bottom, which
+    /// is a gradient of a colour against itself — so there is no separate single-ink case
+    /// to keep in step with this one.
     private func nameFill(size: CGFloat) -> LinearGradient {
-        let top = set.twoToneName ? set.nameTop.colour : set.nameInk.colour
-        let bottom = set.twoToneName ? set.nameBottom.colour : set.nameInk.colour
-        return .hardSplit(top, bottom,
-                          in: UIFont(name: "AvenirNextCondensed-Heavy", size: size))
+        .hardSplit(set.nameTopInk(for: face), set.nameBottomInk(for: face),
+                   in: UIFont(name: "AvenirNextCondensed-Heavy", size: size))
     }
 
     /// The plate carries its own curve on the left, so it only sits right at one Y.

@@ -247,19 +247,28 @@ enum CardTextStyle {
     /// is here so a body can be tried against a ring and a keyword without a rebuild.
     static let body: [CardFace: CardTextInk] = [
         .pass: .blue, .move: .orange, .specialMove: .gold, .clamp: .red,
-        .whistle: .white, .gameBreak: .magenta, .intangible: .black,
-        .injury: .teal, .devastatingInjury: .darkRed,
+        .whistle: .cloud, .gameBreak: .purple, .intangible: .black,
+        .injury: .teal, .devastatingInjury: .maroon,
     ]
 
-    /// **The card's name, in one colour or two.**
+    /// **The card's name, per face, in two inks.**
     ///
-    /// Two is the wordmark's trick — the fill changes colour at a line four fifths of the
-    /// way up the capitals, so the word reads as lettering drawn in two inks rather than
-    /// as type with a gradient on it. See `LinearGradient.hardSplit`.
-    static let twoToneName = true
-    static let nameInk: CardTextInk = .navy
-    static let nameTop: CardTextInk = .darkBlue
-    static let nameBottom: CardTextInk = .navy
+    /// The wordmark's trick: the fill changes colour at a line four fifths of the way up
+    /// the capitals, so the word reads as lettering drawn in two inks rather than as type
+    /// with a gradient on it. See `LinearGradient.hardSplit`.
+    ///
+    /// **There is no one-colour switch.** A name in one ink is the same ink top and
+    /// bottom, which is a gradient of a colour against itself — one rule instead of two.
+    static let nameTop: [CardFace: CardTextInk] = [
+        .pass: .darkBlue, .move: .darkBlue, .specialMove: .blue, .clamp: .cloud,
+        .whistle: .maroon, .gameBreak: .azure, .intangible: .cobalt,
+        .injury: .tan, .devastatingInjury: .magenta,
+    ]
+    static let nameBottom: [CardFace: CardTextInk] = [
+        .pass: .navy, .move: .navy, .specialMove: .darkBlue, .clamp: .lightBlue,
+        .whistle: .black, .gameBreak: .navy, .intangible: .black,
+        .injury: .maroon, .devastatingInjury: .red,
+    ]
 
     /// **What another card's name is printed in**, where a card's words name one. One
     /// colour on every body, for the same reason the keywords are.
@@ -277,7 +286,7 @@ enum CardTextStyle {
     /// Seeded from each face's body and lightened where a body is too dark to read as
     /// lettering — a Pass's blue and an Intangible's black both go up a step.
     static let typeReference: [CardFace: CardTextInk] = [
-        .pass: .lightBlue, .move: .orange, .specialMove: .gold, .clamp: .red,
+        .pass: .lightBlue, .move: .orange, .specialMove: .gold, .clamp: .darkRed,
         .whistle: .cloud, .gameBreak: .magenta, .intangible: .gray,
         .injury: .teal, .devastatingInjury: .darkRed,
     ]
@@ -293,18 +302,18 @@ enum CardTextStyle {
     /// **The name banner itself**, per face. White on all of them to begin with, which is
     /// what the drawing was filled with before it could be asked.
     static let plateFill: [CardFace: CardTextInk] = [
-        .pass: .white, .move: .white, .specialMove: .white, .clamp: .white,
-        .whistle: .white, .gameBreak: .white, .intangible: .white,
-        .injury: .white, .devastatingInjury: .white,
+        .pass: .white, .move: .white, .specialMove: .lightBlue, .clamp: .darkRed,
+        .whistle: .tan, .gameBreak: .gold, .intangible: .gold,
+        .injury: .black, .devastatingInjury: .black,
     ]
 
     /// **The drop under the name banner**, per type. The plate itself is white whatever the
     /// body is; what falls behind it is the question, and blue behind it on a dark body
     /// reads as nothing at all.
     static let plateDrop: [CardFace: CardTextInk] = [
-        .pass: .navy, .move: .lightBlue, .specialMove: .orange, .clamp: .magenta,
-        .whistle: .magenta, .gameBreak: .azure, .intangible: .gold,
-        .injury: .gray, .devastatingInjury: .gray,
+        .pass: .lightBlue, .move: .lightBlue, .specialMove: .blue, .clamp: .maroon,
+        .whistle: .blood, .gameBreak: .orange, .intangible: .orange,
+        .injury: .cobalt, .devastatingInjury: .cobalt,
     ]
 }
 
@@ -355,8 +364,6 @@ final class CardTextTuning {
     var typeReference = CardTextStyle.typeReference
     var ring = CardTextStyle.ring
     var body = CardTextStyle.body
-    var twoToneName = CardTextStyle.twoToneName
-    var nameInk = CardTextStyle.nameInk
     var nameTop = CardTextStyle.nameTop
     var nameBottom = CardTextStyle.nameBottom
     var ringWidth = CardTextStyle.ringWidth
@@ -375,6 +382,8 @@ final class CardTextTuning {
     func ringInk(for face: CardFace) -> Color { (ring[face] ?? .navy).colour }
     func ringWeight(for face: CardFace) -> CGFloat { ringWidth[face] ?? 1 }
     func bodyInk(for face: CardFace) -> Color { (body[face] ?? .blue).colour }
+    func nameTopInk(for face: CardFace) -> Color { (nameTop[face] ?? .navy).colour }
+    func nameBottomInk(for face: CardFace) -> Color { (nameBottom[face] ?? .navy).colour }
     /// What falls behind the banner.
     func plateDropInk(for face: CardFace) -> Color { (plateDrop[face] ?? .blue).colour }
     /// And the banner itself.
@@ -391,9 +400,8 @@ final class CardTextTuning {
         text = CardTextStyle.text; keyword = CardTextStyle.keyword
         ring = CardTextStyle.ring; plateDrop = CardTextStyle.plateDrop
         plateFill = CardTextStyle.plateFill
-        body = CardTextStyle.body; twoToneName = CardTextStyle.twoToneName
-        nameInk = CardTextStyle.nameInk; nameTop = CardTextStyle.nameTop
-        nameBottom = CardTextStyle.nameBottom
+        body = CardTextStyle.body
+        nameTop = CardTextStyle.nameTop; nameBottom = CardTextStyle.nameBottom
         ringWidth = CardTextStyle.ringWidth
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
         iconTop = CardTextStyle.iconTop; plateOverIcon = CardTextStyle.plateOverIcon
@@ -433,10 +441,8 @@ final class CardTextTuning {
         static let typeReference: [CardFace: CardTextInk] = [\(table(typeReference))]
         static let ring: [CardFace: CardTextInk] = [\(table(ring))]
         static let body: [CardFace: CardTextInk] = [\(table(body))]
-        static let twoToneName = \(twoToneName)
-        static let nameInk: CardTextInk = .\(nameInk.rawValue)
-        static let nameTop: CardTextInk = .\(nameTop.rawValue)
-        static let nameBottom: CardTextInk = .\(nameBottom.rawValue)
+        static let nameTop: [CardFace: CardTextInk] = [\(table(nameTop))]
+        static let nameBottom: [CardFace: CardTextInk] = [\(table(nameBottom))]
         static let ringWidth: [CardFace: CGFloat] = [\(
             CardFace.allCases.map { ".\($0.caseName): \(n(ringWeight(for: $0)))" }
                 .joined(separator: ", "))]
@@ -664,19 +670,9 @@ struct CardTextBench: View {
                         inks(tune.keyword[face] ?? .orange) { tune.keyword[face] = $0 }
                         heading("\(face.shortLabel): the body")
                         inks(tune.body[face] ?? .blue) { tune.body[face] = $0 }
-                        heading("the name")
-                        row("two-tone", tune.twoToneName ? "on" : "off") {
-                            HStack(spacing: 3) {
-                                chip("on", on: tune.twoToneName) { tune.twoToneName = true }
-                                chip("off", on: !tune.twoToneName) { tune.twoToneName = false }
-                            }
-                        }
-                        if tune.twoToneName {
-                            inks(tune.nameTop) { tune.nameTop = $0 }
-                            inks(tune.nameBottom) { tune.nameBottom = $0 }
-                        } else {
-                            inks(tune.nameInk) { tune.nameInk = $0 }
-                        }
+                        heading("\(face.shortLabel): the name, top then bottom")
+                        inks(tune.nameTop[face] ?? .navy) { tune.nameTop[face] = $0 }
+                        inks(tune.nameBottom[face] ?? .navy) { tune.nameBottom[face] = $0 }
                         heading("\(face.shortLabel): the name banner")
                         inks(tune.plateFill[face] ?? .white) { tune.plateFill[face] = $0 }
                         heading("a card named in the words")

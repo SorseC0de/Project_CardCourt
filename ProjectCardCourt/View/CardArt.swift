@@ -304,7 +304,8 @@ struct CardBodyFill: View {
                     HStack(spacing: 0) {
                         ForEach(0..<stripes, id: \.self) { index in
                             Rectangle()
-                                .fill(index.isMultiple(of: 2) ? Color(white: 0.09) : Color(white: 0.94))
+                                .fill(index.isMultiple(of: 2)
+                                      ? CardPalette.black : Color(white: 0.94))
                                 .frame(width: geo.size.width / CGFloat(stripes))
                         }
                     }
