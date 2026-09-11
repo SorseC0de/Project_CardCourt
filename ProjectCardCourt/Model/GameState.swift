@@ -255,7 +255,9 @@ struct GameState: Codable {
     /// **Off the Backboard: whose next miss comes straight back to them.** No bid and no
     /// scramble — the shooter takes his own board. Spent the moment it is used, and shown
     /// in the corner of the HUD until then.
-    var freeRebound: Set<Seat> = []
+    /// **Who has called the glass, and with what.** The card is kept rather than a bare
+    /// seat so the moment it pays can show the card that paid — see `GameEvent.calledGlass`.
+    var freeRebound: [Seat: CardDescriptor] = [:]
     /// Boards holding more passives than the rules allow, waiting to be asked which goes.
     /// Queued for the same reason a hand is: the phase set where the overflow happens is
     /// overwritten by whatever the draw chain does next.

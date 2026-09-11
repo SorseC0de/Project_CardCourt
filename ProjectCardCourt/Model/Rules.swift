@@ -1563,9 +1563,11 @@ enum Rules {
             events.append(.shotMissed(seat: seat, roll: roll, chance: chance))
             // **Off the Backboard: he called it, so it comes back to him.** No bid and
             // no scramble — the board is his, and the card is spent taking it.
-            if state.freeRebound.contains(seat) {
-                state.freeRebound.remove(seat)
+            if let called = state.freeRebound.removeValue(forKey: seat) {
                 state[seat].rebounds += 1
+                // **The card says so again, as it pays.** A Break drawn a possession ago
+                // and then quietly honoured is a possession nobody can account for.
+                events.append(.calledGlass(seat: seat, card: called))
                 events.append(.rebounded(seat))
                 beginPossession(seat, tickClock: false, fromRebound: true,
                                 fromOwnMiss: true, state: &state, events: &events)
@@ -2840,7 +2842,7 @@ enum Rules {
             drawTogether(Seat.allCases.filter { $0 != seat }, count: effect.othersDraw,
                          state: &state, events: &events, depth: depth + 1)
         }
-        if effect.reboundsNextMiss { state.freeRebound.insert(seat) }
+        if effect.reboundsNextMiss { state.freeRebound[seat] = rotatingCard }
         if effect.waivesBreaks > 0 { state.breaksWaived += effect.waivesBreaks }
         if effect.givesBallAway, let holder = state.ball {
             // Handed over, not taken away: whoever is benched decides where the ball

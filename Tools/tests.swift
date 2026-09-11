@@ -409,7 +409,7 @@ func runTests() {
     print("Off the Backboard")
     do {
         var (state, seat, _) = openPossession(seed: 85, cards: [])
-        state.freeRebound.insert(seat)
+        state.freeRebound[seat] = CardLibrary.offTheBackboard
         state.shot = 0
         var events: [GameEvent] = []
         Rules.testShot(by: seat, state: &state, events: &events)

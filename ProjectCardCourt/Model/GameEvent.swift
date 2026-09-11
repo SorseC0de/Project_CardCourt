@@ -66,6 +66,9 @@ enum GameEvent: Hashable, Codable {
     /// rebound parted the digest, and nothing else ever did.
     case reboundBids(bids: [SeatBid], order: [Seat])
     case rebounded(Seat)
+    /// **A called board paying off.** Off the Backboard was drawn a possession ago; this
+    /// is the miss it was waiting for, and it names the card so the moment can show it.
+    case calledGlass(seat: Seat, card: CardDescriptor)
     /// `cause` is the card that took the ball away, or nil when the clock did. Without
     /// it every turnover in the log claimed to be a shot-clock violation, whatever had
     /// actually happened.
@@ -183,6 +186,8 @@ enum GameEvent: Hashable, Codable {
             return "Crash the glass: " + parts.joined(separator: " · ")
         case .rebounded(let seat):
             return "\(seat.playerName) \(seat.verb("grabs", "grab")) the board. +1 REB."
+        case .calledGlass(let seat, let card):
+            return "\(seat.playerName) called it off the glass — \(card.name)."
         case .turnover(let seat, let cause):
             return "\(cause ?? "Shot clock violation")! \(seat.playerName) +1 TOV."
         case .freeThrowsAwarded(let seat, let count, let source):

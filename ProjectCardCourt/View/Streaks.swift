@@ -44,8 +44,11 @@ enum StreakStyle {
     static let warpThickness: CGFloat = 7.00
     /// Past the corners, so a streak is still travelling when it leaves.
     static let reach: CGFloat = 3.0
-    static let speed: Double = 0.50
-    static let paceSlowest: Double = 0.45
+    /// **How fast the floor runs at you.** Raised from a half: the court is meant to
+    /// read as ground going past rather than as a pattern drifting, and the slowest of
+    /// them came up with it so the spread stays the same shape.
+    static let speed: Double = 0.85
+    static let paceSlowest: Double = 0.55
     /// Out faster than time goes — this is what reads as depth rather than a firework.
     static let curve: Double = 2.4
     static let stretch: Double = 0.34
@@ -117,7 +120,7 @@ enum StreakStyle {
     static let sideBloom: CGFloat = 2.6
     static let sideBloomGain: Double = 0.35
     static let sideLength: CGFloat = 0.18
-    static let sideSpeed: CGFloat = 2.2
+    static let sideSpeed: CGFloat = 3.4
 }
 
 /// Streaks that ride the court's own curvature, from the horizon out past the viewer.

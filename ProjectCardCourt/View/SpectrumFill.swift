@@ -28,21 +28,26 @@ struct SpectrumFill<Content: View>: View {
                 if isLive {
                     GeometryReader { box in
                         let side = hypot(box.size.width, box.size.height)
-                        ZStack {
-                            Rectangle()
-                                .fill(AngularGradient(colors: Spectrum.ring, center: .center))
-                                .frame(width: side, height: side)
-                                .rotationEffect(.degrees(turned ? 360 : 0))
-                                .blur(radius: Spectrum.softness)
-                                .opacity(Spectrum.strength)
-                                .animation(.linear(duration: Spectrum.period)
-                                    .repeatForever(autoreverses: false), value: turned)
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-                                .environment(\.colorScheme, .dark)
-                        }
-                        .frame(width: box.size.width, height: box.size.height)
+                        Rectangle()
+                            .fill(AngularGradient(colors: Spectrum.ring, center: .center))
+                            .frame(width: side, height: side)
+                            .rotationEffect(.degrees(turned ? 360 : 0))
+                            // **Softened against its own size, not a fixed radius.**
+                            // Stars blurs by 33 points across a button the width of a
+                            // panel. The same 33 across a letter is wider than the letter
+                            // — every hue averages into the same mud, which is why the
+                            // number came out grey.
+                            .blur(radius: side * Spectrum.softness)
+                            .opacity(Spectrum.strength)
+                            .animation(.linear(duration: Spectrum.period)
+                                .repeatForever(autoreverses: false), value: turned)
+                            .frame(width: box.size.width, height: box.size.height)
                     }
+                    // **No glass.** Stars puts `.ultraThinMaterial` over the sweep, and a
+                    // material samples what is *behind* it — inside an overlay that is
+                    // then masked there is nothing behind it to sample, so it renders as
+                    // flat grey and covers the spectrum entirely. On a button it is glass;
+                    // here it was a lid.
                     .mask { content }
                     .allowsHitTesting(false)
                 }
@@ -70,9 +75,10 @@ enum Spectrum {
     /// One turn of the sweep.
     static let period: Double = 4.5
     /// How hard the light is, and how soft its bands are. The blur is what stops the ring
-    /// reading as a pie chart.
-    static let strength: Double = 0.85
-    static let softness: CGFloat = 33
+    /// reading as a pie chart — **as a share of what it is being drawn across**, so a
+    /// figure and a whole button are softened by the same amount of themselves.
+    static let strength: Double = 1
+    static let softness: CGFloat = 0.09
 }
 
 #if DEBUG

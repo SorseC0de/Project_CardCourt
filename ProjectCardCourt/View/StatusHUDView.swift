@@ -106,7 +106,7 @@ struct StatusHUDView: View {
         VStack(alignment: .trailing, spacing: ballSize * 0.10) {
             HStack(alignment: .center, spacing: ballSize * 0.16) {
                 if owed > 0 { pending }
-                if state.freeRebound.contains(GameRules.localSeat) { calledGlass }
+                if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
                 if state.whistlesSilenced { silenced }
                 if !state.armedWhistles.isEmpty { watching }
                 ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize)

@@ -2840,6 +2840,21 @@ final class GameController {
             await celebrateThree(in: events)
             await callTheScore(in: events)
         }
+        // **A called board pays in the open.** Off the Backboard is drawn a possession
+        // before it is worth anything, and it used to be honoured in silence: the miss
+        // came down, the ball went back to the man who missed it, and nothing on screen
+        // said why. The card says itself again, and then he goes up for it.
+        for case .calledGlass(let seat, let card) in events {
+            catchUp()
+            reveal = RevealCutscene(seat: seat, card: card, isIntangible: false,
+                                    isNew: SeenCards.shared.meet(card.id))
+            await hold(false, seconds: Pacing.reveal) { self.reveal }
+            reveal = nil
+            reboundLeap = ReboundLeap(seat: seat, offTheGlass: true)
+            try? await Task.sleep(for: .seconds(ReboundTiming.run))
+            reboundLeap = nil
+            if Task.isCancelled { return }
+        }
         // **Whatever the shot set off, now that it has been watched.** Outside the
         // cutscene's own branch: a batch carrying an attempt that builds no scene would
         // otherwise strand every card the shot dealt, and a stranded draw is a card
