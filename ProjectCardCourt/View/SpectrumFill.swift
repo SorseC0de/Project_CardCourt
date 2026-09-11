@@ -46,9 +46,11 @@ struct SpectrumFill<Content: View>: View {
     /// circles do that on their own — where two meet the blur has already mixed them, and
     /// the mixture moves when they do.
     ///
-    /// **Each is a gradient out to nothing rather than a disc with a blur over it.** Same
-    /// look, and it costs a fill instead of an offscreen pass per frame — which matters
-    /// here, where this is masked into lettering that is already being redrawn.
+    /// **Flat discs under one blur, not gradients.** Tried the cheaper way — a radial
+    /// gradient per blob, no blur — and it comes out one colour: a gradient is opaque at
+    /// its centre, so nine of them stacked means the last one drawn wins the middle and
+    /// the rest are a rim around it. The mixing *is* the blur. One pass over the whole
+    /// field, which is also cheaper than nine gradients.
     private func drift(in size: CGSize) -> some View {
         ZStack {
             ForEach(0..<Spectrum.blobs, id: \.self) { index in
@@ -62,9 +64,7 @@ struct SpectrumFill<Content: View>: View {
                     * (Spectrum.smallest + seed * (Spectrum.largest - Spectrum.smallest))
 
                 Circle()
-                    .fill(RadialGradient(colors: [colour, colour.opacity(0)],
-                                         center: .center,
-                                         startRadius: 0, endRadius: across / 2))
+                    .fill(colour)
                     .frame(width: across, height: across)
                     // **All of them the same way.** Alternating the direction made two
                     // pass each other, which reads as things crossing rather than as one
@@ -78,6 +78,11 @@ struct SpectrumFill<Content: View>: View {
                         .repeatForever(autoreverses: true), value: drifted)
             }
         }
+        // **Softened against the field's own height**, so lettering and a button are
+        // blurred by the same amount of themselves. Stars' twenty points is a third of
+        // its button; a flat twenty across a letter is the whole letter.
+        .blur(radius: size.height * Spectrum.softness)
+        // The blur reaches past the field; the frame outside puts it back.
         .frame(width: size.width, height: size.height)
         .opacity(Spectrum.strength)
     }
@@ -115,6 +120,9 @@ enum Spectrum {
     /// they travel as one row however their timings differ.
     static let period: Double = 5.2
     static let spread: Double = 3.4
+    /// How far the blobs are softened, as a share of the field's height. Stars' own
+    /// twenty points over a button that tall.
+    static let softness: CGFloat = 0.36
     /// How hard the light is.
     static let strength: Double = 0.75
 }

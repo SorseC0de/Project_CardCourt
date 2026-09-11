@@ -2605,15 +2605,6 @@ final class GameController {
         guard GameRules.announcesPhases else { return }
         for event in events {
             switch event {
-            case .halftime:
-                // **The Z card keeps its own clock.** It flies in, holds and leaves on
-                // its own beats, so it says when it is done rather than being timed from
-                // out here — the same way an `ActionCall` is.
-                roundCall = RoundCall(round: state.round, isHalftime: true)
-                while roundCall != nil, !Task.isCancelled {
-                    try? await Task.sleep(for: .milliseconds(60))
-                }
-                continue
             case .roundBegan(let round, _):
                 roundCall = RoundCall(round: round)
             default:
@@ -2622,6 +2613,21 @@ final class GameController {
             try? await Task.sleep(for: .seconds(Pacing.roundCall))
             roundCall = nil
         }
+    }
+
+    /// **The half, said before its deal goes out.**
+    ///
+    /// Its own call rather than part of `callTheRound`, and run at a different point: a
+    /// round is announced once everything the last one did has been watched, and the half
+    /// has to land *before* twenty cards fly, or the cards arrive from nowhere and the
+    /// half explains them afterwards.
+    private func callTheHalf(in events: [GameEvent]) async {
+        guard GameRules.announcesPhases else { return }
+        guard events.contains(where: { if case .halftime = $0 { return true }; return false })
+        else { return }
+        roundCall = RoundCall(round: state.round, isHalftime: true)
+        try? await Task.sleep(for: .seconds(Pacing.roundCall))
+        roundCall = nil
     }
 
     /// The Z card has finished its trip and taken itself off.
@@ -2859,6 +2865,9 @@ final class GameController {
         // cutscene's own branch: a batch carrying an attempt that builds no scene would
         // otherwise strand every card the shot dealt, and a stranded draw is a card
         // missing from a hand for the rest of the game.
+        // The half lands before its own deal — see `callTheHalf`.
+        await callTheHalf(in: afterShot)
+        if Task.isCancelled { return }
         if !afterShot.isEmpty {
             await playDrawsAndReveals(in: afterShot)
             if Task.isCancelled { return }

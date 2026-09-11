@@ -10,9 +10,9 @@ import SwiftUI
 /// it, the pair the cards' own gold wears everywhere else — so it reads as printed rather
 /// than as a rectangle with a shadow.
 ///
-/// The *half* gets the **Z card**: the two black bars that cross the screen and meet in
-/// the middle, which is how this game names a moment rather than a number. It is
-/// `ModeCardView`, the same one the mode splash and the phase calls wear.
+/// The *half* wears the same slab with neither the icon nor the number on it — there is no
+/// family being played and no figure to say — and its word takes the light instead. Same
+/// furniture, stripped to the one thing it is announcing.
 struct RoundCallView: View {
     let call: RoundCall
     var onFinished: () -> Void = {}
@@ -20,12 +20,6 @@ struct RoundCallView: View {
     var acrossShare: CGFloat = 0.78
     var tallShare: CGFloat = 0.21
 
-    /// **Raised so the Z card can leave.** `ModeCardView` fires `onFinished` at the end of
-    /// its trip *out*, and it never starts that trip until it is told to — so a card
-    /// handed a constant `false` arrives, holds, and holds, and the controller waiting on
-    /// it waits forever. That is the hang: the same trap `ActionCallView` names in its
-    /// own `task`, walked into a second time.
-    @State private var leaving = false
 
     /// **Everything is a share of the slab's width, not its height.**
     ///
@@ -61,22 +55,7 @@ struct RoundCallView: View {
         static let numberDrop: CGFloat = 0.012
     }
 
-    var body: some View {
-        Group {
-            if call.isHalftime {
-                ModeCardView(title: call.word, subtitle: "Shuffle up",
-                             ink: .white, subtitleInk: CardPalette.gold,
-                             isLeaving: leaving, onLanded: {}, onFinished: onFinished)
-            } else {
-                slab
-            }
-        }
-        .task(id: call.id) {
-            leaving = false
-            try? await Task.sleep(for: .seconds(Pacing.actionCall))
-            leaving = true
-        }
-    }
+    var body: some View { slab }
 
     private var slab: some View {
         GeometryReader { screen in
@@ -90,34 +69,52 @@ struct RoundCallView: View {
                     .offset(x: across * Slab.nearDrop, y: across * Slab.nearDrop)
                 shape(tall).fill(CardPalette.blue)
 
-                // The family the round is played with, standing on the slab. Both layers
-                // of it — the plate and its subject — since the icon is drawn in two.
-                ZStack {
-                    Image("TypePass").resizable().scaledToFit()
-                    Image("TypePassFront").resizable().scaledToFit()
+                // **A round wears its family and its figure; the half wears neither.**
+                // Nothing is being played and there is no number to say, so the word is
+                // the whole announcement — it takes the middle, and it takes the light.
+                if !call.isHalftime {
+                    ZStack {
+                        Image("TypePass").resizable().scaledToFit()
+                        Image("TypePassFront").resizable().scaledToFit()
+                    }
+                    .frame(width: across * Slab.icon, height: across * Slab.icon)
+                    .offset(x: across * Slab.iconX)
                 }
-                .frame(width: across * Slab.icon, height: across * Slab.icon)
-                .offset(x: across * Slab.iconX)
 
                 // The number, then the word over it. **The number is lit** — Project
                 // Stars' Start button, turned into a fill: the spectrum turns inside the
                 // figure rather than behind a pane. Its drop is drawn as a second copy,
                 // because a `shadow` under a masked view shadows the mask.
-                ZStack {
-                    ActionText("\(call.round)", size: across * Slab.number,
-                               ink: CardPalette.navy, drop: .clear)
-                        .offset(x: across * Slab.numberDrop,
-                                y: across * Slab.numberDrop)
-                    SpectrumFill(resting: CardPalette.gold) {
+                if !call.isHalftime {
+                    ZStack {
                         ActionText("\(call.round)", size: across * Slab.number,
-                                   ink: .white, drop: .clear)
+                                   ink: CardPalette.navy, drop: .clear)
+                            .offset(x: across * Slab.numberDrop,
+                                    y: across * Slab.numberDrop)
+                        SpectrumFill(resting: CardPalette.gold) {
+                            ActionText("\(call.round)", size: across * Slab.number,
+                                       ink: .white, drop: .clear)
+                        }
+                    }
+                    .offset(x: across * Slab.numberX, y: across * Slab.numberY)
+
+                    ActionText(call.word, size: across * Slab.word,
+                               ink: .white, drop: CardPalette.navy)
+                        .offset(x: across * Slab.wordX)
+                } else {
+                    // The half's own word, lit and centred, with its drop drawn as a
+                    // second copy — a `shadow` under a masked view shadows the mask.
+                    ZStack {
+                        ActionText(call.word, size: across * Slab.word,
+                                   ink: CardPalette.navy, drop: .clear)
+                            .offset(x: across * Slab.numberDrop,
+                                    y: across * Slab.numberDrop)
+                        SpectrumFill(resting: .white) {
+                            ActionText(call.word, size: across * Slab.word,
+                                       ink: .white, drop: .clear)
+                        }
                     }
                 }
-                .offset(x: across * Slab.numberX, y: across * Slab.numberY)
-
-                ActionText(call.word, size: across * Slab.word,
-                           ink: .white, drop: CardPalette.navy)
-                    .offset(x: across * Slab.wordX)
             }
             .frame(width: across, height: tall)
             .position(x: screen.size.width / 2, y: screen.size.height / 2)

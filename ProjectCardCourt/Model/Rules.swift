@@ -2296,9 +2296,12 @@ enum Rules {
         }
         state.deck = state.shuffled(pool)
         state.discard.removeAll()
+        // **Called before it deals.** The half is the moment; the deal is what the half
+        // does. Appended after the cards, it read as twenty cards arriving from nowhere
+        // and *then* being explained.
+        events.append(.halftime)
         deal(to: Seat.allCases, count: state.rules.startingBagSize, state: &state, events: &events)
         settleHands(state: &state, events: &events)
-        events.append(.halftime)
     }
 
     private static func deal(to seats: [Seat], count: Int,
