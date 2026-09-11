@@ -119,9 +119,10 @@ enum ReboundStyle {
     static var landFPS: Double { ReboundTiming.landFPS }
     static var hang: Double { ReboundTiming.hang }
     static var drop: Double { ReboundTiming.drop }
-    /// Art pixels. Two was the sheet's own head-room and no more, which is why he never
-    /// looked like he left the floor.
-    static let lift: CGFloat = 13
+    /// Art pixels, and **even** — an odd number of them lands a 32-pixel sprite on a half
+    /// pixel at half the scales the court draws it at. Two was the sheet's own head-room
+    /// and no more, which is why he never looked like he left the floor.
+    static let lift: CGFloat = 14
 }
 
 // MARK: - Bench
