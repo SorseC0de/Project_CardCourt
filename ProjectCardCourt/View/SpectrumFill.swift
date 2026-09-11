@@ -59,8 +59,20 @@ struct SpectrumFill<Content: View>: View {
                 let seed = wobble(index, 1)
                 let lane = wobble(index, 2)
                 let colour = Spectrum.ring[index % Spectrum.ring.count]
+                // **Sized off the short side, not the height.**
+                //
+                // Stars sizes a blob off the button's height and drifts it across the
+                // button's width, which works there because a button is five times wider
+                // than it is tall: a blob is a fraction of the width, and three or four
+                // are in view at once. A numeral is barely wider than it is tall, so the
+                // same numbers make every blob wider than the whole box — one of them
+                // fills it, and the figure comes out that one colour. Which is exactly
+                // what was happening, twice over.
+                //
+                // Off the short side, the field looks the same on a pill as on a letter.
+                let unit = min(size.width, size.height)
                 let reach = size.width * Spectrum.drift
-                let across = size.height
+                let across = unit
                     * (Spectrum.smallest + seed * (Spectrum.largest - Spectrum.smallest))
 
                 Circle()
@@ -81,7 +93,7 @@ struct SpectrumFill<Content: View>: View {
         // **Softened against the field's own height**, so lettering and a button are
         // blurred by the same amount of themselves. Stars' twenty points is a third of
         // its button; a flat twenty across a letter is the whole letter.
-        .blur(radius: size.height * Spectrum.softness)
+        .blur(radius: min(size.width, size.height) * Spectrum.softness)
         // The blur reaches past the field; the frame outside puts it back.
         .frame(width: size.width, height: size.height)
         .opacity(Spectrum.strength)
@@ -109,20 +121,22 @@ enum Spectrum {
         CardPalette.blue, CardPalette.azure, CardPalette.purple,
     ]
 
-    /// How many are drifting, and how far across they go.
-    static let blobs = 9
-    static let drift: CGFloat = 0.85
-    /// Their size, against the height of what they are filling. Bigger than the box on
-    /// purpose — a blob smaller than its field reads as a dot, not as weather.
-    static let smallest: CGFloat = 0.9
-    static let largest: CGFloat = 3.4
+    /// How many are drifting, and how far across they go. Two more than Stars uses, and
+    /// a shorter trip: the point is that several are in frame at once whatever shape the
+    /// thing being filled is.
+    static let blobs = 11
+    static let drift: CGFloat = 0.45
+    /// Their size, against the **short** side of what they are filling — see `drift(in:)`
+    /// for why it is not the height.
+    static let smallest: CGFloat = 0.7
+    static let largest: CGFloat = 1.8
     /// One drift, and how much the slowest differs from the fastest. Different periods or
     /// they travel as one row however their timings differ.
     static let period: Double = 5.2
     static let spread: Double = 3.4
     /// How far the blobs are softened, as a share of the field's height. Stars' own
     /// twenty points over a button that tall.
-    static let softness: CGFloat = 0.36
+    static let softness: CGFloat = 0.30
     /// How hard the light is.
     static let strength: Double = 0.75
 }
