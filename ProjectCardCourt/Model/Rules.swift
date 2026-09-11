@@ -1918,7 +1918,9 @@ enum Rules {
             if state.skipsNextDraw {
                 state.skipsNextDraw = false
             } else {
-                drawOnce(seat, state: &state, events: &events)
+                // **The possession's own card.** Marked, so Discontinued Dribble knows
+                // not to call a dribble on a ball nobody has put down yet.
+                drawOnce(seat, state: &state, events: &events, opening: true)
             }
         }
 
@@ -2560,14 +2562,17 @@ enum Rules {
     /// A card that draws two draws twice and then deals with both, rather than dealing
     /// with the first before the second is off the deck.
     private static func drawOnce(_ seat: Seat, state: inout GameState,
-                                 events: inout [GameEvent], depth: Int = 0) {
-        drawTogether([seat], count: 1, state: &state, events: &events, depth: depth)
+                                 events: inout [GameEvent], depth: Int = 0,
+                                 opening: Bool = false) {
+        drawTogether([seat], count: 1, state: &state, events: &events, depth: depth,
+                     opening: opening)
     }
 
     /// Draws for several seats as one act. **"Everyone draws 1" is a draw, not four** —
     /// nothing any of them turns up may land while somebody is still owed a card.
     private static func drawTogether(_ seats: [Seat], count: Int, state: inout GameState,
-                                     events: inout [GameEvent], depth: Int = 0) {
+                                     events: inout [GameEvent], depth: Int = 0,
+                                     opening: Bool = false) {
         guard count > 0, !seats.isEmpty else { return }
         state.drawChain += 1
         for seat in seats {
@@ -2576,7 +2581,8 @@ enum Rules {
             // possession that no longer exists — and Benched hands the ball away the
             // same way. Nobody after that point gets one.
             guard !state.chainBroken else { break }
-            drawCards(seat, count: count, state: &state, events: &events, depth: depth)
+            drawCards(seat, count: count, state: &state, events: &events, depth: depth,
+                      opening: opening)
         }
         state.drawChain -= 1
         guard state.drawChain == 0 else { return }
@@ -2591,11 +2597,12 @@ enum Rules {
     /// them say.
     private static func drawCards(_ seat: Seat, count: Int,
                                   state: inout GameState, events: inout [GameEvent],
-                                  depth: Int = 0) {
+                                  depth: Int = 0, opening: Bool = false) {
         guard count > 0 else { return }
         for _ in 0..<count {
             guard !state.chainBroken else { return }
-            draw(seat, state: &state, events: &events, allowBonus: false, depth: depth)
+            draw(seat, state: &state, events: &events, allowBonus: false, depth: depth,
+                 opening: opening)
         }
         guard !state.chainBroken else { return }
         let bonus = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.bonusDraw ?? 0) }
@@ -2607,7 +2614,7 @@ enum Rules {
 
     private static func draw(_ seat: Seat, state: inout GameState, events: inout [GameEvent],
                              allowBonus: Bool = true, depth: Int = 0, duringDeal: Bool = false,
-                             wavingBreaks: Bool = false) {
+                             wavingBreaks: Bool = false, opening: Bool = false) {
         // A Game Break can draw, and what it draws can be another Game Break. Bounded so
         // a run of them cannot recurse without end. Dealing gets a longer rope because it
         // reshuffles past every Break it turns up.
@@ -2658,7 +2665,12 @@ enum Rules {
             // called on the draw itself, so it fires here rather than in the queue — and
             // it takes the queue with it: whatever else was coming was being drawn for a
             // possession that has just ended. See `drainBreaks`.
-            if let whistle = drawInterceptor(in: state) {
+            //
+            // **Not on the draw a possession opens with.** That card is owed to whoever
+            // has the ball before they have done anything, and calling a dribble on it is
+            // calling one before the ball has been put down. What it is for is a card
+            // pulled *mid-possession* — off a Move, off a pass, off a passive.
+            if !opening, let whistle = drawInterceptor(in: state) {
                 blowOnDraw(whistle, against: seat, state: &state, events: &events)
             }
         }
