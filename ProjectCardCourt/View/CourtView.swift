@@ -299,7 +299,8 @@ struct CourtView: View {
                         .scaleEffect(court.scale(of: swipe.seat), anchor: .bottom)
                         .position(x: footing.x,
                                   y: footing.y - Theme.Figure.height / 2
-                                     + Theme.Figure.height * Perspective.playerDrop)
+                                     + Perspective.footDrop(
+                                        at: court.scale(of: swipe.seat)))
                         .zIndex(swipeInFront ? 250 : Layer.behind)
                 }
 
@@ -322,7 +323,7 @@ struct CourtView: View {
                         .scaleEffect(court.scale(at: depth), anchor: .bottom)
                         .position(x: court.centreX + prompt.throwerX * court.scale(at: depth),
                                   y: court.y(at: depth) - nodeHeight / 2
-                                     + Theme.Figure.height * Perspective.playerDrop)
+                                     + Perspective.footDrop(at: court.scale(at: depth)))
                         // Behind everybody, wedges included — but in front of the dim.
                         .zIndex(Layer.thrower)
                         // He arrives on the line the way he left the floor.
@@ -884,7 +885,7 @@ struct CourtView: View {
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .top)
                 .position(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,
                           y: court.y(at: post.depth) - nodeHeight / 2
-                             + Theme.Figure.height * Perspective.playerDrop)
+                             + Perspective.footDrop(at: court.scale(at: post.depth)))
                 // Referees do not walk on. They are there or they are not.
                 .transition(.columnWarp())
         case .deck:
@@ -909,7 +910,7 @@ struct CourtView: View {
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .bottom)
                 .position(x: footing.x,
                           y: footing.y - nodeHeight / 2
-                             + Theme.Figure.height * Perspective.playerDrop)
+                             + Perspective.footDrop(at: scale))
 
             // Being clamped is drawn on the player rather than beside them. Two little
             // red bodies on the floor read as two more players; the coils read as
@@ -920,7 +921,7 @@ struct CourtView: View {
                     .scaleEffect(scale, anchor: .bottom)
                     .position(x: footing.x,
                               y: footing.y - Theme.Figure.height / 2
-                                 + Theme.Figure.height * Perspective.playerDrop)
+                                 + Perspective.footDrop(at: scale))
                     .transition(.scale(scale: 0.4).combined(with: .opacity))
                     .id("bind-\(seat.rawValue)")
                     .animation(.spring(response: 0.34, dampingFraction: 0.68),

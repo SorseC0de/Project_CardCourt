@@ -54,7 +54,24 @@ enum Perspective {
     /// flank players.
     /// How far a figure is dropped below its footing, as a share of its own height. The
     /// sprite frame is mostly padding above the character, so it floats without this.
+    ///
+    /// **Private, and spent only through `footDrop(at:)`.** It is a share of the figure's
+    /// *drawn* height, and every one of the five places that placed a figure spelled that
+    /// out by hand — `Theme.Figure.height * playerDrop`, with no scale on it. So every
+    /// seat was dropped the same number of points however small it was drawn, and the
+    /// furthest one stood a fifth of his own body too low: his hands came down under a
+    /// ball aimed where his hands should have been. One function, and there is nowhere
+    /// left to forget the scale.
     static let playerDrop: CGFloat = 0.25
+
+    /// How far below its footing a figure drawn at this scale sits, in points.
+    ///
+    /// **The only way the drop is ever spent.** On the rebound bench while the four of
+    /// them are being judged against each other — see `ReboundTuning.footDrop`.
+    @MainActor
+    static func footDrop(at scale: CGFloat) -> CGFloat {
+        Theme.Figure.height * scale * ReboundTuning.shared.footDrop
+    }
 
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.

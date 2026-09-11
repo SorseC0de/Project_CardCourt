@@ -2640,8 +2640,12 @@ final class GameController {
         guard events.contains(where: { if case .halftime = $0 { return true }; return false })
         else { return }
         roundCall = RoundCall(round: state.round, isHalftime: true)
-        try? await Task.sleep(for: .seconds(Pacing.roundCall))
-        roundCall = nil
+        // **Held until somebody taps it.** The deal is behind this, so the half is a
+        // stoppage rather than a caption: nothing is dealt, nothing moves, and the game
+        // waits — which is what a half is.
+        while roundCall != nil, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(60))
+        }
     }
 
     /// The Z card has finished its trip and taken itself off.

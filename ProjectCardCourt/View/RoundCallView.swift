@@ -16,6 +16,9 @@ import SwiftUI
 struct RoundCallView: View {
     let call: RoundCall
     var onFinished: () -> Void = {}
+    /// **The half waits to be dismissed.** A round is a marker and goes on its own; the
+    /// half is the game stopping, which is the one moment worth being allowed to sit in.
+    /// Nothing is dealt behind it — see `GameController.callTheHalf`.
     /// The slab's width against the screen's, and its height against its own width.
     var acrossShare: CGFloat = 0.78
     var tallShare: CGFloat = 0.21
@@ -55,7 +58,12 @@ struct RoundCallView: View {
         static let numberDrop: CGFloat = 0.012
     }
 
-    var body: some View { slab }
+    var body: some View {
+        slab
+            .contentShape(Rectangle())
+            .allowsHitTesting(call.isHalftime)
+            .onTapGesture { if call.isHalftime { onFinished() } }
+    }
 
     private var slab: some View {
         GeometryReader { screen in
@@ -119,7 +127,6 @@ struct RoundCallView: View {
             .frame(width: across, height: tall)
             .position(x: screen.size.width / 2, y: screen.size.height / 2)
         }
-        .allowsHitTesting(false)
     }
 
     /// A parallelogram raked to the east. `Parallelogram` is the mode cards' own shape —

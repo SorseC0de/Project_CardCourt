@@ -47,6 +47,11 @@ final class ReboundTuning {
     var drop: Double = ReboundStyle.drop
     /// How much higher he goes than the sheet can draw, in art pixels.
     var lift: CGFloat = ReboundStyle.lift
+    /// **How far a figure sits below its footing**, as a share of its *drawn* height —
+    /// the sprite's own empty rows, pulled back through. Here rather than in the geometry
+    /// because it is judged by looking at the four of them standing together, and that is
+    /// what this bench is for.
+    var footDrop: CGFloat = Perspective.playerDrop
 
     /// How long the rise takes, which is the sheet's, not a number of its own. The ball
     /// is thrown to arrive on the last cell of it.
@@ -187,6 +192,7 @@ struct ReboundBench: View {
                         time("hang", $tune.hang, 0...1.5)
                         time("drop", $tune.drop, 0.05...1.5)
                         dial("lift (px)", $tune.lift, 0...40)
+                        dial("foot drop", $tune.footDrop, 0...0.6)
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)
                 }
