@@ -1864,6 +1864,12 @@ enum Rules {
         // The play a Lob owed a shot to is over. Carrying it into the throw-in leaves a
         // man barred from his own hand for a possession the pass never reached.
         state.mustShootFirst = nil
+        // **And so is anything else the play still owed.** A dead ball ends the play, so
+        // a Right Back's second leg and a forced shot go with it — a Clear Out charging
+        // the passer a turnover and then the ball flying home anyway is the return leg
+        // outliving the pass that owed it. `endRound` already did this; a throw-in that
+        // does not advance the round has exactly the same claim.
+        state.forget(.shootAtOnce, .returnBall)
         // **Clamps are not cleared here.** `beginPossession` is the one place that ends
         // them, because ending a possession is the only thing that does — and a dead ball
         // clearing them early handed a cancelled card its effect for free: a Whistle that

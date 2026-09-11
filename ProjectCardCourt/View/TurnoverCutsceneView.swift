@@ -285,6 +285,7 @@ struct TurnoverCutsceneView: View {
         case .shotClock:            return "Shot Clock Violation"
         case .badReturn:            return "Nobody to give it back to"
         case .whistle(let name):    return name
+        case .named(let name):      return name
         }
     }
 

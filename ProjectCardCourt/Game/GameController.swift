@@ -245,10 +245,17 @@ struct ThrowIn: Identifiable, Equatable {
 /// A turnover, played as a beat rather than processed instantly.
 struct TurnoverCutscene: Identifiable, Equatable {
     enum Kind: Equatable {
+        /// The clock running out, which is the one turnover with nobody to blame and its
+        /// own close-up to say so.
         case shotClock
         /// Behind-the-Back with nobody to give it back to.
         case badReturn
         case whistle(String)
+        /// **Anything else the rules charged, by the name they charged it under** — a
+        /// Travel, a Clear Out to nobody, a card that cost the ball. It was defaulting to
+        /// `shotClock`, so every one of them played the dying-clock close-up and read
+        /// "Shot Clock Violation" whatever had actually happened.
+        case named(String)
     }
 
     let id = UUID()
@@ -279,17 +286,24 @@ struct TurnoverCutscene: Identifiable, Equatable {
         var kind = Kind.shotClock
         var seat: Seat?
         var thrower: Seat?
+        var charged: String?
         for event in events {
             switch event {
             case .failedReturn:                 kind = .badReturn
             case .whistleBlew(_, let card, _, _, _): kind = .whistle(card.name)
-            case .turnover(let who, _):         seat = who
+            case .turnover(let who, let cause):
+                seat = who
+                // Nil is the clock, which is the only turnover nobody caused.
+                if let cause { charged = cause }
             case .passed(_, let from, _, _, _):    thrower = from
             default: break
             }
         }
         guard let seat else { return nil }
         self.seat = seat
+        // A Whistle or a failed return has already named itself; otherwise the rules'
+        // own reason is the name.
+        if case .shotClock = kind, let charged { kind = .named(charged) }
         self.kind = kind
         // Whoever last threw it decides which side it comes in from; with nobody to read,
         // either side is as true as the other.
