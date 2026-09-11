@@ -957,7 +957,7 @@ struct GameView: View {
             // board at its reading size and three buttons do not fit a phone between
             // them — and what went off the bottom was the way out of the screen.
             ScrollView {
-            VStack(spacing: 14) {
+                VStack(spacing: 14) {
                 HStack(spacing: 22) {
                     ForEach(Array(winners.enumerated()), id: \.element) { place, seat in
                         // Facing the room with the ball, not jogging upcourt — the game
@@ -1008,8 +1008,14 @@ struct GameView: View {
                     }
                 }
                 .padding(.top, 4)
-                .padding(.bottom, 24)
-            }
+                }
+                // **The card's own margins.** A `ScrollView` offers its content the full
+                // width and takes none for itself, so wrapping the column in one dropped
+                // every edge it used to keep clear — the winners' figures and the board
+                // ran off both sides. Given back here, where the scroll can see them.
+                .padding(.horizontal, 18)
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity)
             }
             .scrollBounceBehavior(.basedOnSize)
             .opacity(reviewingLog ? 0 : 1)

@@ -259,8 +259,11 @@ struct ActionBarView: View {
             // what this game reaches for when something is *ready* rather than merely
             // available — see `SpectrumFill`. Ordinary shots keep the orange pill.
             .background(
+                // **No `fill`.** A filled shape ignores `foregroundStyle`, so the pill
+                // came out white at rest instead of orange — the resting colour had
+                // nothing to colour.
                 SpectrumFill(isLive: armed != nil, resting: CardPalette.orange) {
-                    Capsule().fill(.white)
+                    Capsule()
                 }
                 .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
         }
