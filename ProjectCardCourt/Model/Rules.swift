@@ -670,9 +670,13 @@ enum Rules {
                                            heads: heads ? 1 : 0))
                 }
                 if special.coinRunShot > 0 || special.coinRunDraw > 0 {
-                    // Flip until tails, paying out per head.
+                    // Flip until the tails run out, paying out per head. Two tails is
+                    // not two runs — a head between them keeps the same run going.
                     var heads = 0
-                    while state.roll(0...1) == 1 && heads < 12 { heads += 1 }
+                    var tails = 0
+                    while tails < max(1, special.coinRunTails), heads < 12 {
+                        if state.roll(0...1) == 1 { heads += 1 } else { tails += 1 }
+                    }
                     adjustShot(by: special.coinRunShot * heads, state: &state)
                     for _ in 0..<(special.coinRunDraw * heads) {
                         drawOnce(seat, state: &state, events: &events)

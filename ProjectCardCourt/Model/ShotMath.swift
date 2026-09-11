@@ -161,6 +161,7 @@ extension GameState {
         if effect.requiresAfterOwnRebound && !possessionFromOwnRebound { return false }
         if effect.requiresReceivedPass && lastPasser == nil { return false }
         if let nth = effect.requiresNthShotOfRound, shotsThisRound + 1 != nth { return false }
+        if effect.requiresAnySix, !anySix(for: seat) { return false }
         // Either half is enough. Both nil is no condition at all.
         if effect.requiresHandAtMost != nil || effect.requiresClockAtMost != nil {
             let thin = effect.requiresHandAtMost.map { self[seat].bag.count <= $0 } ?? false
@@ -168,5 +169,13 @@ extension GameState {
             if !thin && !late { return false }
         }
         return true
+    }
+
+    /// Whether a six is showing anywhere that matters, for Sixth Man.
+    private func anySix(for seat: Seat) -> Bool {
+        self[seat].bag.count == 6
+            || shotClock == 6
+            || shotsThisRound + 1 == 6
+            || self[seat].score == 6
     }
 }

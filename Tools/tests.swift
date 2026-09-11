@@ -101,7 +101,10 @@ func runTests() {
         let events = Rules.apply(.play(cards[1].id), by: seat, to: &state)
         Check.that(events.contains { if case .comboLanded = $0 { return true }; return false },
                    "Drive immediately after Dribble arms the combo")
-        Check.that(state.shot == 20, "combo pays +20 total")
+        // **Off the cards, not written down.** A Dribble floors SHOT at nought, so what
+        // lands is the Drive's own plus what it pays for following one.
+        Check.that(state.shot == CardLibrary.drive.baseShotDelta + CardLibrary.drive.comboBonus,
+                   "combo pays the Drive and its bonus")
         Check.that(state.ball == seat, "Move cards keep the ball")
     }
     do {
@@ -547,8 +550,12 @@ func runTests() {
         let back = matchCard(CardLibrary.behindTheBack, state.rules)
         state[receiver].bag.append(back)
         Rules.apply(.play(back.id), by: receiver, to: &state)
-        Check.that(state.shot - before == 10,
-                   "sent back off a Dime it is worth the Dime's ten")
+        // **Read off the card, not written down.** The number was the Dime's ten spelled
+        // out, so raising the Dime failed a test about Behind-the-Back. What is being
+        // checked is that the return is priced off the pass that arrived — whatever that
+        // pass happens to be worth.
+        Check.that(state.shot - before == CardLibrary.dime.baseShotDelta,
+                   "sent back off a Dime it is worth what the Dime was worth")
     }
     do {
         // And a swing sent back is only a swing.
@@ -685,8 +692,9 @@ func runTests() {
         Check.that(state.shotModifiers(for: seat).adds.isEmpty,
                    "Hot Hand pays nothing without a make last round")
         state[seat].scoredLastRound = true
-        Check.that(state.shotModifiers(for: seat).adds.first?.amount == 20,
-                   "and +20 once there was one")
+        Check.that(state.shotModifiers(for: seat).adds.first?.amount
+                   == Double(CardLibrary.hotHand.intangible?.shotBonus ?? 0),
+                   "and it pays what the card says once there was one")
     }
     do {
         var (state, seat, _) = openPossession(seed: 54, cards: [])
@@ -798,8 +806,10 @@ func runTests() {
                    "taking it breaks them before they land")
         Check.that(Rules.lockedCards(state, for: receiver).isEmpty,
                    "so a Clamp that locks cards never locks any")
-        // Its own ten per cent, and ten more for the one Clamp it broke.
-        Check.that(state.shot == shotBefore + 20, "and it is paid as though they had landed")
+        // Its own, and one Clamp's worth for the one it broke.
+        let spinPays = CardLibrary.spinMove.baseShotDelta + CardLibrary.spinMove.shotPerClamp
+        Check.that(state.shot == shotBefore + spinPays,
+                   "and it is paid as though they had landed")
         Check.that(!state[receiver].bag.contains { $0.id == spin.id }, "the card is spent")
         Check.that(state.ball == receiver, "and the possession is his")
     }
@@ -1180,8 +1190,9 @@ func runTests() {
             let second = state[seat].bag[1].id
             _ = Rules.apply(.play(first), by: seat, to: &state)
             _ = Rules.apply(.play(second), by: seat, to: &state)
-            // Drive's own ten, plus the ten it pays for following a dribble.
-            let expected = 20 + opener.baseShotDelta + 10 + 10
+            // Drive's own, plus what it pays for following a dribble.
+            let expected = 20 + opener.baseShotDelta
+                + CardLibrary.drive.baseShotDelta + CardLibrary.drive.comboBonus
             Check.that(state.shot == expected,
                        "\(opener.name) arms Drive's combo")
         }

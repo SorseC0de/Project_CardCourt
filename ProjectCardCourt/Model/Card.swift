@@ -80,6 +80,10 @@ struct IntangibleEffect: Hashable, Codable {
     var shotOverride: Int?
     /// Sixth Man: the nth attempt of the round, counting from one.
     var requiresNthShotOfRound: Int?
+    /// **Sixth Man: any six will do.** Six cards in hand, six on the Shot Clock, the
+    /// sixth shot of the round, or a score of six. One of them is enough — the card is
+    /// about the number rather than about any one way of reaching it.
+    var requiresAnySix = false
     /// Lethal Shooter: the shot straight after taking your own board.
     var requiresAfterOwnRebound = false
     /// Point God draws on every pass; Unselfish only on a good one.
@@ -299,6 +303,9 @@ struct SpecialMoveEffect: Hashable, Codable {
     var discardForShotBonus = 0
     var coinRunShot = 0
     var coinRunDraw = 0
+    /// **How many tails end the run.** One by default; Euro Step asks for two, which is
+    /// the same payout per head over a run that lasts nearly twice as long.
+    var coinRunTails = 1
     /// Dagger Three: worth more the later it is taken.
     ///
     /// Paid on top of the card's own `shotDelta`, once for every tick of the Shot Clock
