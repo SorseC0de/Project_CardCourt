@@ -185,6 +185,13 @@ struct ActionBarView: View {
         static let figure: CGFloat = 14
         static let ball: CGFloat = 22
         static let drop: CGFloat = 2
+        /// **What counts as a special shot.** An override always does; a bonus has to be
+        /// bigger than an ordinary card's to be worth lighting the button for. Twenty-five
+        /// is the deck's own line — Hot Hand, Sniper and Skyhook sit there, and no
+        /// ordinary Move reaches it.
+        static let armedAt: Double = 25
+        /// The card shown beside the button when one is armed.
+        static let armedCard: CGFloat = 34
         /// `ActionText` spends tracking as a share of each letter's own size, not in
         /// points — 1.2 there is more than a letter of air between every pair.
         static let letterGap: CGFloat = 0.02
@@ -196,7 +203,36 @@ struct ActionBarView: View {
     }
 
     /// Orange, dropped in red; everything standing on it dropped in blue.
+    /// **What is making this shot special, if anything is.**
+    ///
+    /// An override standing on the board — Lethal Shooter off your own glass, Splash
+    /// Cousin from three — or a passive paying more than an ordinary card does. It is the
+    /// card's own name, so the button can show the card that armed it.
+    private var armed: CardDescriptor? {
+        let board = controller.shown
+        let seat = GameRules.localSeat
+        let modifiers = board.shotModifiers(for: seat)
+        let named = modifiers.override?.label
+            ?? modifiers.adds.first(where: { $0.amount >= Act.armedAt })?.label
+        guard let named else { return nil }
+        return board[seat].intangibles.first { $0.name == named }
+    }
+
     private var shootButton: some View {
+        HStack(spacing: 8) {
+            // **The card that armed it, beside the button.** A HUD glyph says *something*
+            // is on; the card says which, and it is the same drawing the player already
+            // knows from their own board.
+            if let armed {
+                CardFrontView(descriptor: armed, displayWidth: Act.armedCard)
+                    .transition(.scale.combined(with: .opacity))
+            }
+            shootPill
+        }
+        .animation(.spring(response: 0.32, dampingFraction: 0.7), value: armed)
+    }
+
+    private var shootPill: some View {
         Button { controller.shoot() } label: {
             HStack(spacing: 6) {
                 Image("BallVector")
@@ -219,9 +255,14 @@ struct ActionBarView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: Act.height)
+            // **Lit when the shot is special.** Project Stars' Start button, which is
+            // what this game reaches for when something is *ready* rather than merely
+            // available — see `SpectrumFill`. Ordinary shots keep the orange pill.
             .background(
-                Capsule().fill(CardPalette.orange)
-                    .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
+                SpectrumFill(isLive: armed != nil, resting: CardPalette.orange) {
+                    Capsule().fill(.white)
+                }
+                .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
         }
         .padRing(ringed == .shoot, corner: Act.height / 2)
         .frame(width: Act.width)

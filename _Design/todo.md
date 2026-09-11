@@ -198,6 +198,24 @@ match bonus. Every other pass says its number. Worth deciding whether that is de
 
 **Overnight 2026-09-09:** the scoreboard and the front screen's hand of cards — see [Overnight — the board and the front screen.md](Overnight%20—%20the%20board%20and%20the%20front%20screen.md).
 
+## The lit button says what is ready
+
+**Project Stars' Start button is this game's word for *ready*.** `SpectrumFill` is that
+face lifted as a fill — the angular sweep turns inside a shape rather than behind a pane —
+and it is on the shoot button whenever the shot is special, with the card that armed it
+standing beside the button.
+
+"Special" is an override on the board or a bonus of 25% or more: Lethal Shooter off your
+own glass, Splash Cousin from three, Hot Hand, Sniper. No ordinary Move reaches the line.
+
+**This is meant to spread.** Wherever the game has been reaching for a HUD glyph to say
+something is on, the answer is the lit control plus the card that did it. A glyph says
+*something*; the card says *which*, and it is a drawing the player already knows from their
+own board.
+
+Still to do: the round call's number and the three's hand already wear it — the rest of the
+places that want it have not been picked yet.
+
 ## Name things explicitly, everywhere
 
 **A global pass over the project to make every name say what it is.** Not a style
