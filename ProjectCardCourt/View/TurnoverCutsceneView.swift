@@ -79,11 +79,18 @@ struct TurnoverCutsceneView: View {
                 if case .whistle("Travel") = scene.kind {
                     TravelCutsceneView(bit: scene.travelBit ?? .footprints)
                 } else if case .shotClock = scene.kind {
-                    heldAsItDied(in: geo.size)
-                    caption(in: geo.size, y: 0.56)
+                    // Both scenes are laid out in the canvas's own box — see `HoopStage`.
+                    ZStack {
+                        heldAsItDied(in: HoopStage.size)
+                        caption(in: HoopStage.size, y: 0.56)
+                    }
+                    .onHoopStage()
                 } else {
-                    looseBall(in: geo.size)
-                    caption(in: geo.size, y: 0.34)
+                    ZStack {
+                        looseBall(in: HoopStage.size)
+                        caption(in: HoopStage.size, y: 0.34)
+                    }
+                    .onHoopStage()
                 }
 
                 // Whose turnover it is, across the top. The loose-ball scene has nobody
@@ -96,7 +103,7 @@ struct TurnoverCutsceneView: View {
                     Spacer()
                 }
             }
-            .task { await run(in: geo.size) }
+            .task { await run(in: HoopStage.size) }
             .task {
                 try? await Task.sleep(for: .seconds(max(0.2, scene.hold - Name.lead)))
                 nameLeaving = true

@@ -7,11 +7,9 @@ import SwiftUI
 /// ball going *through* rather than over.
 /// Where the hoop hangs, and where the ring runs through it.
 ///
-/// **The board is pinned to the top of the scene and never moves.** Everything a man does
-/// is counted up from the bottom of the screen, which does move — so the two only agree
-/// at one height, and a trip tuned against the ring at one arrives above it at another.
-/// This is the one place that says where the ring is; `ShotCutsceneView` stands a man
-/// finishing at it under this line rather than off the floor.
+/// **The board is pinned to the top of the scene and never moves.** A scene with a hoop in
+/// it is laid out in `HoopStage`, so everything counted up from its floor stays a fixed
+/// distance under this line on every phone.
 enum Hoop {
     /// How far the backboard hangs below the top of the scene.
     static let drop: CGFloat = 46
@@ -29,6 +27,24 @@ enum Hoop {
     /// through and what a hand takes hold of.
     static func line(width: CGFloat) -> CGFloat {
         drop + width * (board - lift + ring * depth / 2)
+    }
+}
+
+/// **The box a scene with a hoop in it is laid out in**: the iPhone 17 Pro canvas's own
+/// scene, measured, pinned to the top and centred. A number tuned in the canvas then lands in
+/// the same place on every phone — only the black around it changes. An iPhone 16's scene is
+/// 393×759 and a 16 Pro Max's 440×860.
+enum HoopStage {
+    static let size = CGSize(width: 402, height: 778)
+}
+
+extension View {
+    /// Lays this out in `HoopStage.size`, pinned to the top and centred across the space it
+    /// is given. **Nothing inside may be wider than the stage** — a wider child widens the
+    /// stack and moves everything placed in it.
+    func onHoopStage() -> some View {
+        frame(width: HoopStage.size.width, height: HoopStage.size.height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

@@ -43,17 +43,11 @@ struct ShotCutsceneView: View {
         }
     }
 
-    /// Where a man stands, and what he stands relative to.
-    ///
-    /// **A jumper stands on the floor; a man finishing at the rim stands under the ring.**
-    /// They are not the same anchor. The floor is counted up from the bottom of the
-    /// screen and moves with it; the board is pinned to the top by `Hoop.drop` and never
-    /// does — so a trip tuned at one height arrives above the ring at another, which is
-    /// why every dunk was two or three art pixels over the iron on a phone after being
-    /// tuned in the preview canvas. The climb is measured against the ring, so he is
-    /// placed against it too.
+    /// Where a man stands. **Counted up from the floor, and the floor is a fixed distance
+    /// under the board**: the whole scene is laid out in `HoopStage`, so a trip tuned in the
+    /// canvas arrives at the same place on the iron on every phone.
     private enum Stage {
-        /// How far up from the bottom of the screen a man stands.
+        /// How far up from the bottom of the stage a man stands.
         static let floor: CGFloat = 132
         /// What the whole figure is blown up by once it is placed.
         static let gather: CGFloat = 1.7
@@ -166,268 +160,278 @@ struct ShotCutsceneView: View {
 
     var body: some View {
         GeometryReader { geo in
+            let stage = HoopStage.size
             ZStack {
                 Color.black.ignoresSafeArea()
 
-                // Backdrop, ball, then the near half of the rim on top — the ball
-                // passes between the two halves rather than over the ring.
-                VStack {
-                    HoopBackdrop(width: tuning.rimWidth, struckAt: struckAt,
-                                 light: boardLight, pull: rimPull)
-                        .padding(.top, Hoop.drop)
-                    Spacer()
-                }
-                .zIndex(Depth.backdrop)
-
-                // Whose shot this is, said across the top rather than under his feet: the
-                // camera pushes in on the rim, and a plate on the floor is either off the
-                // bottom of the shot or too small to read.
-                VStack {
-                    NameCallView(call: NameCall(seat: scene.shooter),
-                                 reach: geo.size.width, isLeaving: nameLeaving)
-                        .padding(.top, Name.drop)
-                    Spacer()
-                }
-                .zIndex(Depth.name)
-
-                // Held until the ball is actually at the rim.
-                if let burst, showBurst {
-                    EmojiBurst(emoji: burst.emoji, count: burst.count,
-                               ink: scene.signature == .understood ? .white : nil,
-                               drop: scene.signature == .understood ? CardPalette.blue : nil)
-                        .position(rimPoint(in: geo.size))
-                }
-
-                Group {
-                    if scene.made {
-                        if showResult {
-                            if scene.signature == .understood {
-                                understood
-                            } else {
-                                SwisshTitle(line: scene.line)
-                            }
-                        }
-                    } else if scene.drama == .robbery {
-                        // It counts, right up until it doesn't. The make's word holds
-                        // until the robbery arrives, then clears out from under it —
-                        // stacked, the two are unreadable.
-                        ZStack {
-                            if showResult {
-                                SwisshTitle()
-                                    .opacity(siiike ? 0 : 1)
-                                    .animation(.easeOut(duration: 0.15), value: siiike)
-                            }
-                            if siiike {
-                                SwisshTitle(text: "Siiike!!!", top: Theme.ball,
-                                            bottom: Theme.danger, glow: Theme.danger)
-                            }
-                        }
-                    } else {
-                        Text(scene.missCall)
-                            // The long one has to fit; the loud one gets to be loud.
-                            .font(.system(size: scene.missCall == "BRRRICK" ? 40
-                                                : (scene.missCall.count > 10 ? 26 : 34),
-                                          weight: .black, design: .rounded))
-                            .tracking(scene.missCall == "BRRRICK" ? 2 : 0)
-                            .foregroundStyle(Theme.danger)
-                            .compositingGroup()
-                            .shadow(color: CardPalette.navy, radius: 0, x: 4, y: 4)
-                            .opacity(showResult ? 1 : 0)
-                            .scaleEffect(showResult ? 1 : 0.7)
+                // The scene, laid out in the canvas's own box — see `HoopStage`.
+                ZStack {
+                    // Backdrop, ball, then the near half of the rim on top — the ball
+                    // passes between the two halves rather than over the ring.
+                    VStack {
+                        HoopBackdrop(width: tuning.rimWidth, struckAt: struckAt,
+                                     light: boardLight, pull: rimPull)
+                            .padding(.top, Hoop.drop)
+                        Spacer()
                     }
-                }
-                .position(x: geo.size.width / 2, y: geo.size.height * 0.42)
+                    .zIndex(Depth.backdrop)
 
-                // Whoever was contesting is still contesting.
-                ForEach(Array(Wall.spots(for: scene.defenders).enumerated()),
-                        id: \.offset) { index, spot in
-                    // Turned to face the shooter, so a pair of them close from both
-                    // sides rather than both looking the same way.
-                    DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
-                        // Further back stands smaller, which is what stops the middle man
-                        // of three reading as a giant behind the other two.
-                        .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back),
-                                     anchor: .bottom)
-                        // Sliding while the shot is up. Alternating directions and a
-                        // stagger apiece, or the wall sways as one piece of scenery.
-                        .offset(x: (shuffling ? 1 : -1) * Wall.shuffle
-                                * (index.isMultiple(of: 2) ? 1 : -1))
-                        .animation(.easeInOut(duration: Wall.shuffleSeconds)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(index) * Wall.shuffleStagger),
-                                   value: shuffling)
-                        .position(x: geo.size.width / 2 + Wall.spread * spot.x,
-                                  y: geo.size.height - Wall.base - Wall.lift * spot.back)
-                        // A band of their own, so a man climbing past them has somewhere
-                        // to be. Level with the ring: a contest happens at it.
-                        .zIndex(Depth.wall)
-                }
+                    // Whose shot this is, said across the top rather than under his feet: the
+                    // camera pushes in on the rim, and a plate on the floor is either off the
+                    // bottom of the shot or too small to read.
+                    VStack {
+                        NameCallView(call: NameCall(seat: scene.shooter),
+                                     reach: geo.size.width, isLeaving: nameLeaving)
+                            // The screen's width, not the stage's: laid out at the stage's
+                            // so it cannot widen the stack, then slid out to the screen's
+                            // own leading edge.
+                            .frame(width: stage.width, alignment: .leading)
+                            .offset(x: (stage.width - geo.size.width) / 2)
+                            .padding(.top, Name.drop)
+                        Spacer()
+                    }
+                    .zIndex(Depth.name)
 
-                VStack(spacing: 8) {
-                    // Never mirrored here, whoever is shooting. On the court West faces
-                    // the other way; in a cutscene there is no court to face, and one
-                    // player turned around reads as a mistake rather than as staging.
-                    // **Two poses, one figure.** The shot plays out as it always does;
-                    // on the shots that are about the shooter rather than the ball, he
-                    // turns to the room the moment it is done with him.
+                    // Held until the ball is actually at the rim.
+                    if let burst, showBurst {
+                        EmojiBurst(emoji: burst.emoji, count: burst.count,
+                                   ink: scene.signature == .understood ? .white : nil,
+                                   drop: scene.signature == .understood ? CardPalette.blue : nil)
+                            .position(rimPoint(in: stage))
+                    }
+
                     Group {
-                        if facingYou {
-                            // The follow-through, held. He is watching it go in.
-                            PlayerFigure(seat: scene.shooter, sprite: .gooseneck,
-                                         spriteFrame: 0, mirrored: false)
-                        } else if let dunk = scene.dunk {
-                            // **He does not shoot it.** A finish at the rim is its own
-                            // trip — gather, climb, arrive — and it replaces the jumper
-                            // rather than dressing it up. See `DunkFigure`.
-                            DunkFigure(seat: scene.shooter, dunk: dunk,
-                                       miss: scene.dunkMiss, onBallLoose: {
-                                // **Out first, then away.** Both were raised in the same
-                                // tick, so the ball was created already at the end of its
-                                // trip: no bounce off the iron ever played, because there
-                                // was nothing between where it appeared and where it was
-                                // going. It leaves his hands on one frame and starts
-                                // travelling on the next.
-                                dunkBallOut = true
-                                Task { @MainActor in
-                                    try? await Task.sleep(for: .seconds(DunkBall.leaves))
-                                    dunkBallFell = true
-                                }
-                            }, onDepth: { behind in
-                                dunkBehind = behind
-                            }, onRimPull: { amount, spring in
-                                // Whatever he just did to it, on his curve. He calls this
-                                // at every change he makes, so nothing here has to guess
-                                // at his timing.
-                                if let spring {
-                                    withAnimation(spring) { rimPull = amount }
+                        if scene.made {
+                            if showResult {
+                                if scene.signature == .understood {
+                                    understood
                                 } else {
-                                    rimPull = amount
+                                    SwisshTitle(line: scene.line)
                                 }
-                                // The burst is the first grab only. One a swing would be
-                                // the rim throwing sparks for the rest of the scene.
-                                if amount == 1, !rimAnswered {
-                                    rimAnswered = true
-                                    // **A miss gets no light off the rim.** The burst is
-                                    // the ring answering a ball put through it; one that
-                                    // came back out has nothing to celebrate.
-                                    guard scene.made else { return }
-                                    let burst = dunkTuning.trip(for: scene.dunk ?? .oneHand)
-                                    let skipped = Double(burst.burstSkip) / burst.burstFPS
-                                    // **Started part-played.** Dating it back by the
-                                    // cells being cut puts the sheet straight into its
-                                    // bang — a wind-up here is a rim that gives half a
-                                    // second before anything comes off it.
-                                    let at = Date().addingTimeInterval(-skipped)
-                                    rimGaveAt = at
-                                    // **Taken away when it is done.** `playsOnce` holds
-                                    // the last cell rather than clearing it, so whatever
-                                    // the drawing ends on sat over the rim for the rest
-                                    // of the scene. Nothing else on the floor shows,
-                                    // because everything else that plays once is a man
-                                    // who is meant to still be standing there.
-                                    let over = Double(burst.burst.frames) / burst.burstFPS
-                                        - skipped
-                                    Task { @MainActor in
-                                        try? await Task.sleep(for: .seconds(over))
-                                        if rimGaveAt == at { rimGaveAt = nil }
-                                    }
-                                    // **And the emoji go now, with the slam.** They are
-                                    // timed off the ball reaching the rim everywhere
-                                    // else, and a dunk has no ball in the air — that
-                                    // clock counts a release cell off the shoot sheet
-                                    // and a flight neither of which happens here, so
-                                    // they were landing three quarters of a second after
-                                    // he had already put it in.
-                                    showBurst = true
-                                    if scene.made { struckAt = Date() }
+                            }
+                        } else if scene.drama == .robbery {
+                            // It counts, right up until it doesn't. The make's word holds
+                            // until the robbery arrives, then clears out from under it —
+                            // stacked, the two are unreadable.
+                            ZStack {
+                                if showResult {
+                                    SwisshTitle()
+                                        .opacity(siiike ? 0 : 1)
+                                        .animation(.easeOut(duration: 0.15), value: siiike)
                                 }
-                            })
+                                if siiike {
+                                    SwisshTitle(text: "Siiike!!!", top: Theme.ball,
+                                                bottom: Theme.danger, glow: Theme.danger)
+                                }
+                            }
                         } else {
-                            PlayerFigure(seat: scene.shooter, sprite: .shoot,
-                                         playsOnce: true, fps: Theme.Figure.shootFPS,
-                                         mirrored: false)
+                            Text(scene.missCall)
+                                // The long one has to fit; the loud one gets to be loud.
+                                .font(.system(size: scene.missCall == "BRRRICK" ? 40
+                                                    : (scene.missCall.count > 10 ? 26 : 34),
+                                              weight: .black, design: .rounded))
+                                .tracking(scene.missCall == "BRRRICK" ? 2 : 0)
+                                .foregroundStyle(Theme.danger)
+                                .compositingGroup()
+                                .shadow(color: CardPalette.navy, radius: 0, x: 4, y: 4)
+                                .opacity(showResult ? 1 : 0)
+                                .scaleEffect(showResult ? 1 : 0.7)
                         }
                     }
-                    .scaleEffect(Stage.gather)
-                    Text("SHOT \(scene.chance)%")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(Theme.ink)
-                }
-                .position(x: geo.size.width / 2, y: stageY(in: geo.size))
-                // **Over the ring, not behind it.** A jumper is downcourt of the rim and
-                // reads right behind its near half; a man finishing at it is on top of it
-                // — except on the way up, where he is climbing past the wall and the ring
-                // both. See `DunkFigure.onDepth`.
-                .zIndex(dunkBehind ? Depth.climbing : Depth.shooter)
+                    .position(x: stage.width / 2, y: stage.height * 0.42)
 
-                PixelBallView(scale: tuning.ballScale
-                              + (tuning.ballEndScale - tuning.ballScale) * min(flight, 1))
-                    .opacity(scene.dunk == nil && released && !ballGone ? 1 : 0)
-                    .animation(released ? .easeOut(duration: 0.25) : nil, value: ballGone)
-                    // Spin the ball itself, then place it, then move it. Rotating after
-                    // `.position` swings the whole layer around the container's centre
-                    // rather than turning the ball, and any translation after that is
-                    // composed with the rotation — which is what threw it across the
-                    // screen.
-                    .rotationEffect(.degrees(Double(flight) * 540 + Double(drama) * 360))
-                    .position(startPoint(in: geo.size))
-                    .modifier(DramaPath(progress: drama, drama: scene.drama,
-                                        rim: tuning.rimWidth * 0.5))
-                    .modifier(BallFlight(t: flight,
-                                         start: startPoint(in: geo.size),
-                                         control: controlPoint(in: geo.size),
-                                         rim: rimPoint(in: geo.size),
-                                         after: afterPoint(in: geo.size)))
-                    .zIndex(Depth.ball)
+                    // Whoever was contesting is still contesting.
+                    ForEach(Array(Wall.spots(for: scene.defenders).enumerated()),
+                            id: \.offset) { index, spot in
+                        // Turned to face the shooter, so a pair of them close from both
+                        // sides rather than both looking the same way.
+                        DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
+                            // Further back stands smaller, which is what stops the middle man
+                            // of three reading as a giant behind the other two.
+                            .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back),
+                                         anchor: .bottom)
+                            // Sliding while the shot is up. Alternating directions and a
+                            // stagger apiece, or the wall sways as one piece of scenery.
+                            .offset(x: (shuffling ? 1 : -1) * Wall.shuffle
+                                    * (index.isMultiple(of: 2) ? 1 : -1))
+                            .animation(.easeInOut(duration: Wall.shuffleSeconds)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * Wall.shuffleStagger),
+                                       value: shuffling)
+                            .position(x: stage.width / 2 + Wall.spread * spot.x,
+                                      y: stage.height - Wall.base - Wall.lift * spot.back)
+                            // A band of their own, so a man climbing past them has somewhere
+                            // to be. Level with the ring: a contest happens at it.
+                            .zIndex(Depth.wall)
+                    }
 
-                // **The one a dunk leaves.** It comes out of the net once he has let go
-                // of the one drawn in his hands, drops, and fades — a ball settling after
-                // the fact rather than a shot arriving.
-                // **Only a ball that got to the rim comes off it.** He carries his own
-                // through the whole trip — it is drawn into every dunk sheet — so one
-                // that sails past or falls short never lets go of it, and there is
-                // nothing here to draw.
-                if scene.dunk != nil, dunkBallOut, dunkBallShows {
-                    PixelBallView(scale: tuning.ballEndScale)
-                        .position(rimPoint(in: geo.size))
-                        // A ball kept by the iron rattles it or kicks off the back of it
-                        // before it drops — see `ShotDrama.offTheIron`.
-                        .modifier(DramaPath(progress: dunkBallFell ? 1 : 0,
-                                            drama: scene.drama,
+                    VStack(spacing: 8) {
+                        // Never mirrored here, whoever is shooting. On the court West faces
+                        // the other way; in a cutscene there is no court to face, and one
+                        // player turned around reads as a mistake rather than as staging.
+                        // **Two poses, one figure.** The shot plays out as it always does;
+                        // on the shots that are about the shooter rather than the ball, he
+                        // turns to the room the moment it is done with him.
+                        Group {
+                            if facingYou {
+                                // The follow-through, held. He is watching it go in.
+                                PlayerFigure(seat: scene.shooter, sprite: .gooseneck,
+                                             spriteFrame: 0, mirrored: false)
+                            } else if let dunk = scene.dunk {
+                                // **He does not shoot it.** A finish at the rim is its own
+                                // trip — gather, climb, arrive — and it replaces the jumper
+                                // rather than dressing it up. See `DunkFigure`.
+                                DunkFigure(seat: scene.shooter, dunk: dunk,
+                                           miss: scene.dunkMiss, onBallLoose: {
+                                    // **Out first, then away.** Both were raised in the same
+                                    // tick, so the ball was created already at the end of its
+                                    // trip: no bounce off the iron ever played, because there
+                                    // was nothing between where it appeared and where it was
+                                    // going. It leaves his hands on one frame and starts
+                                    // travelling on the next.
+                                    dunkBallOut = true
+                                    Task { @MainActor in
+                                        try? await Task.sleep(for: .seconds(DunkBall.leaves))
+                                        dunkBallFell = true
+                                    }
+                                }, onDepth: { behind in
+                                    dunkBehind = behind
+                                }, onRimPull: { amount, spring in
+                                    // Whatever he just did to it, on his curve. He calls this
+                                    // at every change he makes, so nothing here has to guess
+                                    // at his timing.
+                                    if let spring {
+                                        withAnimation(spring) { rimPull = amount }
+                                    } else {
+                                        rimPull = amount
+                                    }
+                                    // The burst is the first grab only. One a swing would be
+                                    // the rim throwing sparks for the rest of the scene.
+                                    if amount == 1, !rimAnswered {
+                                        rimAnswered = true
+                                        // **A miss gets no light off the rim.** The burst is
+                                        // the ring answering a ball put through it; one that
+                                        // came back out has nothing to celebrate.
+                                        guard scene.made else { return }
+                                        let burst = dunkTuning.trip(for: scene.dunk ?? .oneHand)
+                                        let skipped = Double(burst.burstSkip) / burst.burstFPS
+                                        // **Started part-played.** Dating it back by the
+                                        // cells being cut puts the sheet straight into its
+                                        // bang — a wind-up here is a rim that gives half a
+                                        // second before anything comes off it.
+                                        let at = Date().addingTimeInterval(-skipped)
+                                        rimGaveAt = at
+                                        // **Taken away when it is done.** `playsOnce` holds
+                                        // the last cell rather than clearing it, so whatever
+                                        // the drawing ends on sat over the rim for the rest
+                                        // of the scene. Nothing else on the floor shows,
+                                        // because everything else that plays once is a man
+                                        // who is meant to still be standing there.
+                                        let over = Double(burst.burst.frames) / burst.burstFPS
+                                            - skipped
+                                        Task { @MainActor in
+                                            try? await Task.sleep(for: .seconds(over))
+                                            if rimGaveAt == at { rimGaveAt = nil }
+                                        }
+                                        // **And the emoji go now, with the slam.** They are
+                                        // timed off the ball reaching the rim everywhere
+                                        // else, and a dunk has no ball in the air — that
+                                        // clock counts a release cell off the shoot sheet
+                                        // and a flight neither of which happens here, so
+                                        // they were landing three quarters of a second after
+                                        // he had already put it in.
+                                        showBurst = true
+                                        if scene.made { struckAt = Date() }
+                                    }
+                                })
+                            } else {
+                                PlayerFigure(seat: scene.shooter, sprite: .shoot,
+                                             playsOnce: true, fps: Theme.Figure.shootFPS,
+                                             mirrored: false)
+                            }
+                        }
+                        .scaleEffect(Stage.gather)
+                        Text("SHOT \(scene.chance)%")
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(Theme.ink)
+                    }
+                    .position(x: stage.width / 2, y: stageY(in: stage))
+                    // **Over the ring, not behind it.** A jumper is downcourt of the rim and
+                    // reads right behind its near half; a man finishing at it is on top of it
+                    // — except on the way up, where he is climbing past the wall and the ring
+                    // both. See `DunkFigure.onDepth`.
+                    .zIndex(dunkBehind ? Depth.climbing : Depth.shooter)
+
+                    PixelBallView(scale: tuning.ballScale
+                                  + (tuning.ballEndScale - tuning.ballScale) * min(flight, 1))
+                        .opacity(scene.dunk == nil && released && !ballGone ? 1 : 0)
+                        .animation(released ? .easeOut(duration: 0.25) : nil, value: ballGone)
+                        // Spin the ball itself, then place it, then move it. Rotating after
+                        // `.position` swings the whole layer around the container's centre
+                        // rather than turning the ball, and any translation after that is
+                        // composed with the rotation — which is what threw it across the
+                        // screen.
+                        .rotationEffect(.degrees(Double(flight) * 540 + Double(drama) * 360))
+                        .position(startPoint(in: stage))
+                        .modifier(DramaPath(progress: drama, drama: scene.drama,
                                             rim: tuning.rimWidth * 0.5))
-                        .offset(x: dunkBallFell && !scene.made
-                                ? tuning.rimWidth * DunkBall.away : 0,
-                                y: dunkBallFell
-                                ? tuning.rimWidth * DunkBall.fall * caromAway : 0)
-                        .animation(DunkBall.curve, value: dunkBallFell)
-                        .opacity(dunkBallFell ? 0 : 1)
-                        .animation(.easeOut(duration: DunkBall.fade).delay(DunkBall.hold),
-                                   value: dunkBallFell)
+                        .modifier(BallFlight(t: flight,
+                                             start: startPoint(in: stage),
+                                             control: controlPoint(in: stage),
+                                             rim: rimPoint(in: stage),
+                                             after: afterPoint(in: stage)))
                         .zIndex(Depth.ball)
-                }
 
-                // **What the rim gives back.** The ring springing on its own is a part
-                // moving; this is the energy coming off it, out of the net and upward.
-                if let rimGaveAt {
-                    let finish = dunkTuning.trip(for: scene.dunk ?? .oneHand)
-                    SpriteAnimation(sprite: finish.burst,
-                                    scale: DunkStyle.burstScale,
-                                    fps: finish.burstFPS,
-                                    playsOnce: true, startedAt: rimGaveAt)
-                        .position(rimPoint(in: geo.size))
-                        .allowsHitTesting(false)
-                        .zIndex(Depth.burst)
-                }
+                    // **The one a dunk leaves.** It comes out of the net once he has let go
+                    // of the one drawn in his hands, drops, and fades — a ball settling after
+                    // the fact rather than a shot arriving.
+                    // **Only a ball that got to the rim comes off it.** He carries his own
+                    // through the whole trip — it is drawn into every dunk sheet — so one
+                    // that sails past or falls short never lets go of it, and there is
+                    // nothing here to draw.
+                    if scene.dunk != nil, dunkBallOut, dunkBallShows {
+                        PixelBallView(scale: tuning.ballEndScale)
+                            .position(rimPoint(in: stage))
+                            // A ball kept by the iron rattles it or kicks off the back of it
+                            // before it drops — see `ShotDrama.offTheIron`.
+                            .modifier(DramaPath(progress: dunkBallFell ? 1 : 0,
+                                                drama: scene.drama,
+                                                rim: tuning.rimWidth * 0.5))
+                            .offset(x: dunkBallFell && !scene.made
+                                    ? tuning.rimWidth * DunkBall.away : 0,
+                                    y: dunkBallFell
+                                    ? tuning.rimWidth * DunkBall.fall * caromAway : 0)
+                            .animation(DunkBall.curve, value: dunkBallFell)
+                            .opacity(dunkBallFell ? 0 : 1)
+                            .animation(.easeOut(duration: DunkBall.fade).delay(DunkBall.hold),
+                                       value: dunkBallFell)
+                            .zIndex(Depth.ball)
+                    }
 
-                // Red and heavy while the layering is being sorted out.
-                RimHalf(isNear: true, width: tuning.rimWidth * Hoop.ring,
-                        thickness: 8, tint: PixelPalette.vermilion)
-                    .position(x: rimPoint(in: geo.size).x,
-                              y: rimPoint(in: geo.size).y + geo.size.height * tuning.rimNearY)
-                    .offset(y: rimPull * tuning.rimWidth * DunkStyle.rimDrop)
-                    .zIndex(Depth.rim)
+                    // **What the rim gives back.** The ring springing on its own is a part
+                    // moving; this is the energy coming off it, out of the net and upward.
+                    if let rimGaveAt {
+                        let finish = dunkTuning.trip(for: scene.dunk ?? .oneHand)
+                        SpriteAnimation(sprite: finish.burst,
+                                        scale: DunkStyle.burstScale,
+                                        fps: finish.burstFPS,
+                                        playsOnce: true, startedAt: rimGaveAt)
+                            .position(rimPoint(in: stage))
+                            .allowsHitTesting(false)
+                            .zIndex(Depth.burst)
+                    }
+
+                    // Red and heavy while the layering is being sorted out.
+                    RimHalf(isNear: true, width: tuning.rimWidth * Hoop.ring,
+                            thickness: 8, tint: PixelPalette.vermilion)
+                        .position(x: rimPoint(in: stage).x,
+                                  y: rimPoint(in: stage).y + stage.height * tuning.rimNearY)
+                        .offset(y: rimPull * tuning.rimWidth * DunkStyle.rimDrop)
+                        .zIndex(Depth.rim)
+                }
+                .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
+                .onHoopStage()
             }
-            .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
             .task { shuffling = true }
             // **At the release, not at the end of the sheet.** The gooseneck *is* the
             // follow-through — he holds it while the ball is up, which means turning to
@@ -470,10 +474,9 @@ struct ShotCutsceneView: View {
     private func stageY(in size: CGSize) -> CGFloat {
         let floor = size.height - Stage.floor
         guard let dunk = scene.dunk else { return floor }
-        // **The floor he stands on is the jumper's, and always was.** Hanging him off the
-        // ring instead was meant to make the two agree at any height; it made the trip
-        // worse, and the drawing is the thing being judged. He stands where he stood, a
-        // few pixels lower.
+        // **The floor he stands on is the jumper's.** Hanging him off the ring moved him in
+        // the canvas, which is where the drawing is judged; `HoopStage` keeps the floor and
+        // the ring a fixed distance apart instead.
         let pixel = Theme.Figure.playerScale
             * dunkTuning.trip(for: dunk).arrivesAt * Stage.gather
         return floor + dunkTuning.overTheRim * pixel
