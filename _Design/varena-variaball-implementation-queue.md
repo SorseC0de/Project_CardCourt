@@ -41,16 +41,16 @@ than kept alongside the new system.
 
 ## Phase 1 — SHOT override hierarchy
 
-This is a real structural gap, not just new cards: `ShotModifiers.override` (`ShotMath.swift`)
-is currently a single optional `ShotOverride`, because only one override source could ever be
-live at once (Special Moves play one at a time; Intangibles are 1-ofs). Bag'n Ball, Spazzphalt,
-and any future override card break that assumption — a standing Court override and a standing
-Ball override can now both be live at the same time as a played Special Move's override.
+`ShotModifiers.override` (`ShotMath.swift`) stays exactly what it is — one optional
+`ShotOverride`. What's new is that more than one card can now want that single spot at once: a
+standing Court override, a standing Ball override, and a played Special Move's override can all
+be live on the same shot, where before only one override source ever existed at a time.
+Everything fights for the one slot; the hierarchy just decides who wins it.
 
-- [ ] `ShotMath.swift`: change `override` from one `ShotOverride?` to a small ranked list, or
-      keep it singular but resolve the winner *before* calling `resolve` — either way, encode
-      **Intangible > Court > Ball > played-card override** once, in one place, rather than at
-      each call site.
+- [ ] `ShotMath.swift` or wherever `ShotModifiers` gets assembled for a shot: before `override`
+      is ever set, gather every live candidate and keep only the highest-ranked one —
+      **Intangible > Court > Ball > played-card override** — in one place, rather than letting
+      whichever one runs last silently clobber the others.
 - [ ] Confirm Special Moves' own overrides (Slam Dunk, Full-Court Heave) rank where "played
       card" sits in that list — same tier as an ordinary Move, below Ball and Court.
 - [ ] Unit-test the hierarchy directly: Court + Ball both live, Ball alone, Intangible beating
