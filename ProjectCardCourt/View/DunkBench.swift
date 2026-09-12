@@ -52,17 +52,17 @@ enum DunkStyle {
     static func trip(for dunk: Dunk) -> Trip {
         switch dunk {
         case .oneHand:
-            return Trip(rise: 272, arrivesAt: 0.5, climb: 0.40,
+            return Trip(rise: 34, arrivesAt: 0.5, climb: 0.40,
                         gatherFPS: 10, finishFPS: 10, sink: 4,
                         burst: .sparkleBurst2, burstFPS: 20)
         case .reverse:
-            return Trip(rise: 272, arrivesAt: 0.5, climb: 0.50,
+            return Trip(rise: 34, arrivesAt: 0.5, climb: 0.50,
                         gatherFPS: 10, finishFPS: 10, sink: 4)
         case .whirlwind:
             // Three of its five climb cells held at ten, which leaves the last two to
             // share a tenth of a second. **Which cells are the spin is a guess** — set
             // `lead cells` on the bench once it is on screen.
-            return Trip(rise: 272, arrivesAt: 0.5, climb: 0.40,
+            return Trip(rise: 34, arrivesAt: 0.5, climb: 0.40,
                         gatherFPS: 10, finishFPS: 10, sink: 4,
                         leadCells: 3, leadFPS: 10,
                         burst: .sparkleBurst3, burstFPS: 10, burstSkip: 8)
@@ -127,14 +127,17 @@ enum DunkStyle {
     /// him inside out.
     static let pastFloor: CGFloat = 0.06
     /// **Up and to the left, not straight up.** Going over the rim means going clear of
-    /// the board behind it; straight up is going through it. Points, at full carry.
-    static let pastDrift: CGFloat = -90
+    /// the board behind it; straight up is going through it. Art pixels, at full carry.
+    ///
+    /// **Fractional, which in a pixel game is a decision waiting to be made** — this is
+    /// the -90pt it was tuned at, divided by the scale it was tuned at. Pick 11 or 12.
+    static let pastDrift: CGFloat = -11.25
 
-    /// **How high he gets when he does not get up to it, in points.** Not a share of the
-    /// climb: the shrink has to reach the *same* size it would at the rim — he is as far
-    /// upcourt as anybody else, just lower — so the height and the size come apart here
-    /// and are two values rather than one.
-    static let shortPeak: CGFloat = 264
+    /// **How high he gets when he does not get up to it, in art pixels.** Not a share of
+    /// the climb: the shrink has to reach the *same* size it would at the rim — he is as
+    /// far upcourt as anybody else, just lower — so the height and the size come apart
+    /// here and are two values rather than one.
+    static let shortPeak: CGFloat = 33
     /// Where the fall leaves him, as a share of that peak, and how long it takes.
     static let shortLands: CGFloat = 0.42
     static let shortFall: Double = 0.45
@@ -375,7 +378,7 @@ struct DunkBench: View {
                             }
                         }
                         heading("the trip")
-                        dial("rise (pt)", $tune.rise, 0...400)
+                        dial("rise (px)", $tune.rise, 0...60)
                         dial("arrives at", $tune.arrivesAt, 0.2...1)
                         time("climb", $tune.climb, 0.1...2)
                         // The opening cells of the climb, held at their own rate.

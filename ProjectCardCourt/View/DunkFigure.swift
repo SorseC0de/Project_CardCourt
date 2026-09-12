@@ -81,7 +81,12 @@ struct DunkFigure: View {
         max(DunkStyle.pastFloor, 1 + (tune.arrivesAt - 1) * shrunk)
     }
 
-    /// How far up the top of this trip is, in points. A short one tops out under the ring.
+    /// How far up the top of this trip is, **in art pixels**. A short one tops out under
+    /// the ring.
+    ///
+    /// Spent through `scale` like every other distance here, so the leap and the come-down
+    /// are one model. They used to be two: the rise was points and the sink was pixels,
+    /// which agreed only at the scale they were tuned at.
     private var travel: CGFloat {
         miss == .short ? DunkStyle.shortPeak : tune.rise
     }
@@ -99,8 +104,11 @@ struct DunkFigure: View {
             .animation(turned == nil ? nil
                        : .easeInOut(duration: DunkStyle.spinSeconds), value: turned)
             .rotationEffect(.degrees(tumbled))
-            .offset(x: drifted,
-                    y: -travel * risen + (sunk + pulled) * scale)
+            // **One unit for the whole trip.** Art pixels, carried by the figure's own
+            // scale — so changing `playerScale` moves the leap, the fall and the drift
+            // together instead of one of the three.
+            .offset(x: drifted * scale,
+                    y: (-travel * risen + sunk + pulled) * scale)
             .task { await throwItDown() }
     }
 
