@@ -9,6 +9,7 @@ struct ActionBarView: View {
     var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
+    @Environment(\.floorIsHidden) private var floorIsHidden
 
     private var state: GameState { controller.shown }
     /// What the table has seen arrive, not what the rules have dealt — see
@@ -262,7 +263,7 @@ struct ActionBarView: View {
                 // **No `fill`.** A filled shape ignores `foregroundStyle`, so the pill
                 // came out white at rest instead of orange — the resting colour had
                 // nothing to colour.
-                SpectrumFill(isLive: armed != nil, resting: CardPalette.orange) {
+                SpectrumFill(isLive: armed != nil && !floorIsHidden, resting: CardPalette.orange) {
                     Capsule()
                 }
                 .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))

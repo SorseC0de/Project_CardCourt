@@ -31,9 +31,13 @@ struct SpectrumFill<Content: View>: View {
                     }
                     .mask { content }
                     .allowsHitTesting(false)
+                    // **Started by the overlay arriving, not the content.** The drift is a
+                    // `repeatForever` keyed to `drifted` changing, so a spectrum lit after its
+                    // content appeared found it already true and its blobs stood still.
+                    .onAppear { drifted = true }
+                    .onDisappear { drifted = false }
                 }
             }
-            .onAppear { drifted = true }
     }
 
     /// **Blobs of colour drifting across each other**, which is the trick itself rather

@@ -31,6 +31,8 @@ struct CourtStage: View {
     /// **Held.** Something has the screen — a sheet, a browser, a question — and a deck
     /// drifting about behind it is the floor carrying on without the player.
     var frozen = false
+    /// The floor is under an opaque scene: nothing here needs drawing or moving.
+    var hidden = false
 
     private enum Stage {
         /// How much floor the view spans, in metres, measured across the middle.
@@ -99,6 +101,15 @@ struct CourtStage: View {
                 content.add(discard.pile)
                 content.add(dealer.root)
                 content.add(spender.root)
+
+                // The idle is drawn once a frame off the scene's own update — see
+                // `DeckStage.tick()`.
+                for stage in [deck, discard] {
+                    stage.driver?.cancel()
+                    stage.driver = content.subscribe(to: SceneEvents.Update.self) { [weak stage] _ in
+                        MainActor.assumeIsolated { stage?.tick() }
+                    }
+                }
 
                 let gold = UnlitMaterial(color: UIColor(CardPalette.gold))
                 let navy = UnlitMaterial(color: UIColor(CardPalette.navy))
@@ -175,6 +186,10 @@ struct CourtStage: View {
                 guard let camera = content.entities
                     .first(where: { $0.name == "camera" }) as? PerspectiveCamera else { return }
                 place(camera: camera, in: geo.size)
+                // Under an opaque scene there is nothing to see, so nothing is drawn.
+                for root in [deck.pile, discard.pile, dealer.root, spender.root] {
+                    root.isEnabled = !hidden
+                }
 
                 deck.show(deckLayers, of: Stage.maxLayers, thickness: Stage.slab)
                 discard.show(discardLayers, of: Stage.maxLayers, thickness: Stage.slab)
@@ -196,14 +211,14 @@ struct CourtStage: View {
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
             // Runs for as long as the court is on screen. Cancelled with the view, and
             // it stands aside on its own whenever a routine takes the deck over.
-            .task(id: frozen) {
-                guard !frozen else { return }
+            .task(id: frozen || hidden) {
+                guard !frozen, !hidden else { return }
                 await deck.idle(across: Stage.courtWidth)
             }
             // The spent pile breathes with the live one. A deck that floats beside a pile
             // that does not reads as one of them being broken.
-            .task(id: frozen) {
-                guard !frozen else { return }
+            .task(id: frozen || hidden) {
+                guard !frozen, !hidden else { return }
                 await discard.idle(across: Stage.courtWidth)
             }
             .task(id: flight?.id) {

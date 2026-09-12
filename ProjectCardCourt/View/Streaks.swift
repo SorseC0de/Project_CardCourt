@@ -130,9 +130,11 @@ enum StreakStyle {
 /// court bends. Change `Perspective.curve` and these follow with no work.
 struct CourtStreaks: View {
     var intensity: Double = StreakStyle.warp
+    /// Holds the last frame rather than drawing a new one, for a field nobody can see.
+    var paused = false
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: paused)) { timeline in
             Canvas { context, size in
                 guard intensity > 0 else { return }
                 context.blendMode = .plusLighter
@@ -197,9 +199,11 @@ struct CourtStreaks: View {
 /// of these is that they darken.
 struct FloorStreaks: View {
     var intensity: Double = StreakStyle.floorWarp
+    /// Holds the last frame rather than drawing a new one, for a field nobody can see.
+    var paused = false
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: paused)) { timeline in
             Canvas { context, size in
                 guard intensity > 0 else { return }
 

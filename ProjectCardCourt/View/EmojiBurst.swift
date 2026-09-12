@@ -34,12 +34,18 @@ struct EmojiBurst: View {
 
     /// One mark, before it is thrown anywhere. Its own function because a ternary over a
     /// font plus two optional styles is more than the type checker will do inline.
+    @ViewBuilder
     private func piece(_ text: String, side: CGFloat) -> some View {
-        Text(text)
+        let mark = Text(text)
             .font(ink == nil ? .system(size: side)
                   : .system(size: side, weight: .black, design: .rounded))
             .foregroundStyle(ink ?? .primary)
-            .shadow(color: drop ?? .clear, radius: 0, x: side * 0.09, y: side * 0.09)
+        // No drop, no shadow: a clear one still costs a pass per piece, every frame.
+        if let drop {
+            mark.shadow(color: drop, radius: 0, x: side * 0.09, y: side * 0.09)
+        } else {
+            mark
+        }
     }
 
     @State private var fired = false

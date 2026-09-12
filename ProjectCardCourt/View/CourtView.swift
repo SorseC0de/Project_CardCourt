@@ -101,7 +101,9 @@ struct CourtView: View {
     /// Fixed so a bid badge appearing cannot shift a figure off its footing.
     private var nodeHeight: CGFloat { Theme.Figure.height + 26 }
 
-    @State private var sweep: CGFloat = 0
+    @Environment(\.floorIsHidden) private var floorIsHidden
+    /// Set once the moving scenery has finished fading out after the court stopped running.
+    @State private var sceneryFaded = false
     /// Whether the swipe has landed and stepped in front. Reset with the swipe itself.
     @State private var swipeInFront = false
     /// Stamped when the ball changes hands, which starts the catch animation.
@@ -193,7 +195,7 @@ struct CourtView: View {
                 // as the space beyond the court rather than markings on it.
                 // Nobody is moving during an inbound, so nothing should be streaming
                 // past them. The court is a held breath.
-                CourtStreaks()
+                CourtStreaks(paused: sceneryAsleep)
                     .opacity(courtIsRunning ? 1 : 0)
                     .animation(.easeOut(duration: 0.4), value: courtIsRunning)
 
@@ -248,7 +250,8 @@ struct CourtView: View {
                                               to: share(discardPoint(on: court), in: geo.size),
                                               seconds: Pacing.spendFlight)
                                },
-                               frozen: frozen)
+                               frozen: frozen,
+                               hidden: floorIsHidden)
                 }
 
                 // Hung above the far baseline so the rim clears it rather than
@@ -442,6 +445,14 @@ struct CourtView: View {
         }
         // A body does not come apart the same way twice.
         .onChange(of: inbounding) { warpSeed = .random(in: .min ... .max) }
+        // The scenery fades over 0.4s when the court stops; once it is gone it can stop.
+        .task(id: courtIsRunning) {
+            sceneryFaded = false
+            guard !courtIsRunning else { return }
+            try? await Task.sleep(for: .seconds(0.45))
+            guard !Task.isCancelled else { return }
+            sceneryFaded = true
+        }
         // The whole floor takes its place in the line, and takes it back.
         .task(id: isStill) {
             settling = true
@@ -478,31 +489,21 @@ struct CourtView: View {
                 // On the boards, under the light that travels over them. Inside the
                 // mask, so the floor's own shape is what clips them and no streak can
                 // run off the edge onto the dark.
-                FloorStreaks()
+                FloorStreaks(paused: sceneryAsleep)
                     .opacity(courtIsRunning ? 1 : 0)
                     .animation(.easeOut(duration: 0.4), value: courtIsRunning)
 
-                Rectangle()
-                    .fill(LinearGradient(colors: [.clear, Theme.courtSweep, .clear],
-                                         startPoint: .top, endPoint: .bottom))
-                    .frame(height: band)
-                    // Driven by a modifier, so the sweep interpolates without rebuilding
-                    // the view every frame.
-                    .offset(y: -band + sweep * (geo.size.height + band))
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    // **The light only.** This sat on the whole stack, so an inbound took
-                    // the floor away with it rather than stopping the thing moving over
-                    // it — which is why everything standing on the floor looked far
-                    // darker than the scrim over it could account for.
-                    .opacity(courtIsRunning ? 1 : 0)
-                    .animation(.easeOut(duration: 0.4), value: courtIsRunning)
+                if !sceneryAsleep {
+                    FloorSweep(band: band, height: geo.size.height)
+                        // **The light only.** This sat on the whole stack, so an inbound took
+                        // the floor away with it rather than stopping the thing moving over
+                        // it — which is why everything standing on the floor looked far
+                        // darker than the scrim over it could account for.
+                        .opacity(courtIsRunning ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4), value: courtIsRunning)
+                }
             }
             .mask(CourtFloorShape())
-        }
-        .onAppear {
-            withAnimation(.linear(duration: Perspective.sweepSeconds).repeatForever(autoreverses: false)) {
-                sweep = 1
-            }
         }
     }
 
@@ -742,6 +743,10 @@ struct CourtView: View {
     /// stopping. Not folded into `isStill`, which also dims the floor and re-orders the
     /// stage; a rebound wants the scenery held and nothing else changed.
     private var courtIsRunning: Bool { !isStill && rebound == nil }
+
+    /// Whether the streaks and the travelling light can stop: the floor is under an opaque
+    /// scene, or the court stopped running and they have finished fading out.
+    private var sceneryAsleep: Bool { floorIsHidden || (!courtIsRunning && sceneryFaded) }
 
     /// What the crew is doing. **The call wins over the shot**: a Whistle during one is
     /// the whole reason anybody is looking at him. Everything that holds the players in a
@@ -1128,5 +1133,30 @@ private struct ReboundBallView: View {
         // `.transition(.identity)`, which is no animation at all.
         try? await Task.sleep(for: .seconds(tune.vanish))
         gone = true
+    }
+}
+
+/// The band of light travelling down the floor. **Its own view so it can be taken away**:
+/// a `repeatForever` cannot be paused, so a hidden floor drops this and a returning one
+/// builds a fresh sweep, which starts above the top edge where nobody sees it begin.
+private struct FloorSweep: View {
+    let band: CGFloat
+    let height: CGFloat
+    @State private var sweep: CGFloat = 0
+
+    var body: some View {
+        Rectangle()
+            .fill(LinearGradient(colors: [.clear, Theme.courtSweep, .clear],
+                                 startPoint: .top, endPoint: .bottom))
+            .frame(height: band)
+            // Driven by a modifier, so the sweep interpolates without rebuilding the view
+            // every frame.
+            .offset(y: -band + sweep * (height + band))
+            .frame(maxHeight: .infinity, alignment: .top)
+            .onAppear {
+                withAnimation(.linear(duration: Perspective.sweepSeconds).repeatForever(autoreverses: false)) {
+                    sweep = 1
+                }
+            }
     }
 }

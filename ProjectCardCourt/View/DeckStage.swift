@@ -122,6 +122,31 @@ final class DeckStage {
     /// lap behind the live one so the two never breathe in step.
     var phase: Double = 0
 
+    /// Runs `tick()` once a frame. Made by `CourtStage`, which owns the scene.
+    var driver: EventSubscription?
+    /// Whether the idle owns the pile, and across how much floor.
+    private var drifting = false
+    private var driftWidth: Float = 0
+    /// Whether the pile has glided back onto its circle since the idle last took it over,
+    /// and the glide under way if not.
+    private var hasReachedCircle = false
+    private var glide: (from: SIMD3<Float>, startedAt: Date)?
+    /// Slabs knocked off the stack by `jostle` and still on their way back.
+    private var shoves: [Shove] = []
+
+    private struct Shove {
+        let index: Int
+        let from: Transform
+        let nudged: Transform
+        let startedAt: Date
+        static let outSeconds: TimeInterval = 0.30
+        static let backStartsAt: TimeInterval = 0.40
+        static let backSeconds: TimeInterval = 0.50
+    }
+
+    /// One straight leg of the old drift. Still the idle's beat: a jostle comes every sixth.
+    private static var leg: TimeInterval { DeckDrift.seconds / 24 }
+
     /// **The pile's transform has one writer at a time.**
     ///
     /// Reading `pile.transform` while a `move` is running gives a snapshot of the middle
@@ -241,29 +266,58 @@ final class DeckStage {
     /// as it is left alone.
     ///
     /// The deck is meant to read as an enchanted thing rather than a prop, and a prop is
-    /// exactly what it reads as the moment it stops moving. Walked in short straight legs
-    /// because RealityKit tweens a line between two transforms — a circle has to be
-    /// stepped around.
+    /// exactly what it reads as the moment it stops moving. **Moved by `tick()`, a frame at
+    /// a time**: handing every leg to `move(to:)` built a RealityKit animation for each one,
+    /// about forty-five a second across both piles, all of them loaded and thrown away.
     func idle(across width: Float) async {
-        let leg = DeckDrift.seconds / 24
+        driftWidth = width
+        drifting = true
+        defer {
+            drifting = false
+            hasReachedCircle = false
+            glide = nil
+        }
         var beat = 0
         while !Task.isCancelled {
-            // A routine outranks the idle, and the drift is read off the wall clock, so
-            // the deck rejoins the circle where it would have been rather than where it
-            // left it.
-            if !performing && !travelling {
-                var drifted = begin()
-                // Aimed a leg ahead, since that is where it will be when it arrives —
-                // otherwise the pile runs one leg behind its own shadow.
-                drifted.translation = ground
-                    + DeckDrift.offset(at: Date().addingTimeInterval(leg), phase: phase) * width
-                pile.move(to: drifted, relativeTo: pile.parent,
-                          duration: leg, timingFunction: .linear)
-                if beat.isMultiple(of: 6) { jostle() }
-            }
-            try? await Task.sleep(for: .seconds(leg))
+            if !performing && !travelling && beat.isMultiple(of: 6) { jostle() }
+            try? await Task.sleep(for: .seconds(Self.leg))
             beat += 1
         }
+    }
+
+    /// One frame of the drift, and of any shoved slabs still sliding home. Called by the
+    /// scene's own update — see `CourtStage`.
+    func tick() {
+        let now = Date()
+        if performing { shoves.removeAll() } else { slideShoves(at: now) }
+
+        // A routine outranks the idle.
+        guard drifting, !performing, !travelling else {
+            hasReachedCircle = false
+            glide = nil
+            return
+        }
+        // Handed back by a routine, it glides onto the circle over one leg rather than
+        // jumping there — the leg the old drift took. Whatever the routine left running on
+        // the pile stops first, as `begin()` stops it.
+        if !hasReachedCircle, glide == nil {
+            pile.stopAllAnimations()
+            glide = (from: pile.position, startedAt: now)
+        }
+        var point = ground + DeckDrift.offset(at: now, phase: phase) * driftWidth
+        if let glide {
+            let share = Float(now.timeIntervalSince(glide.startedAt) / Self.leg)
+            if share < 1 {
+                let landing = ground + DeckDrift.offset(at: glide.startedAt.addingTimeInterval(Self.leg),
+                                                        phase: phase) * driftWidth
+                point = simd_mix(glide.from, landing, SIMD3(repeating: share))
+            } else {
+                self.glide = nil
+                hasReachedCircle = true
+            }
+        }
+        pile.position = point
+        if let size = size(at: point) { pile.scale = .one * size }
     }
 
     /// A run of slabs shifts off the stack and slides back.
@@ -278,24 +332,69 @@ final class DeckStage {
         let shove = SIMD3<Float>(Float.random(in: -Timing.nudge...Timing.nudge), 0,
                                  Float.random(in: -Timing.nudge...Timing.nudge))
         let turn = Float.random(in: -Timing.nudgeTurn...Timing.nudgeTurn)
-        let chunk = Array(start..<(start + length))
+        let startedAt = Date()
 
-        for index in chunk {
+        for index in start..<(start + length) {
             var nudged = home[index]
             nudged.translation += shove
             nudged.rotation = simd_quatf(angle: turn, axis: [0, 1, 0])
-            slabs[index].move(to: nudged, relativeTo: pile,
-                              duration: 0.30, timingFunction: .easeOut)
+            shoves.removeAll { $0.index == index }
+            shoves.append(Shove(index: index, from: slabs[index].transform,
+                                nudged: nudged, startedAt: startedAt))
         }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(0.4))
-            // A routine may have taken the deck over in the meantime, and it owns where
-            // every slab is while it runs.
-            guard !performing else { return }
-            for index in chunk where index < slabs.count {
-                slabs[index].move(to: home[index], relativeTo: pile,
-                                  duration: 0.5, timingFunction: .easeInOut)
+    }
+
+    /// Out on an ease-out, held, and home on an ease-in-out — the trip `jostle` used to hand
+    /// to `move(to:)`. Home is read each frame, so a stack re-homed mid-shove lands where
+    /// it is now.
+    private func slideShoves(at now: Date) {
+        guard !shoves.isEmpty else { return }
+        var stillMoving: [Shove] = []
+        for shove in shoves where shove.index < slabs.count {
+            let slab = slabs[shove.index]
+            let elapsed = now.timeIntervalSince(shove.startedAt)
+            if elapsed < Shove.outSeconds {
+                slab.transform = Self.blend(shove.from, shove.nudged,
+                                            Easing.out(elapsed / Shove.outSeconds))
+            } else if elapsed < Shove.backStartsAt {
+                slab.transform = shove.nudged
+            } else if elapsed < Shove.backStartsAt + Shove.backSeconds {
+                let share = Easing.inOut((elapsed - Shove.backStartsAt) / Shove.backSeconds)
+                slab.transform = Self.blend(shove.nudged, home[shove.index], share)
+            } else {
+                slab.transform = home[shove.index]
+                continue
             }
+            stillMoving.append(shove)
+        }
+        shoves = stillMoving
+    }
+
+    private static func blend(_ from: Transform, _ to: Transform, _ share: Float) -> Transform {
+        Transform(scale: simd_mix(from.scale, to.scale, SIMD3(repeating: share)),
+                  rotation: simd_slerp(from.rotation, to.rotation, share),
+                  translation: simd_mix(from.translation, to.translation, SIMD3(repeating: share)))
+    }
+
+    /// RealityKit's named curves, for the slabs moved by hand: the standard cubic Béziers,
+    /// solved by bisection.
+    private enum Easing {
+        static func out(_ progress: Double) -> Float { curve(progress, 0, 0, 0.58, 1) }
+        static func inOut(_ progress: Double) -> Float { curve(progress, 0.42, 0, 0.58, 1) }
+
+        private static func curve(_ progress: Double, _ x1: Double, _ y1: Double,
+                                  _ x2: Double, _ y2: Double) -> Float {
+            func along(_ t: Double, _ first: Double, _ second: Double) -> Double {
+                let rest = 1 - t
+                return 3 * rest * rest * t * first + 3 * rest * t * t * second + t * t * t
+            }
+            let target = min(max(progress, 0), 1)
+            var low = 0.0, high = 1.0
+            for _ in 0..<24 {
+                let middle = (low + high) / 2
+                if along(middle, x1, x2) < target { low = middle } else { high = middle }
+            }
+            return Float(along((low + high) / 2, y1, y2))
         }
     }
 

@@ -48,6 +48,9 @@ struct GameView: View {
     @State private var winnerPose = Int.random(in: 0..<10_000)
     /// Where each player's PTS cell is, read off the board rather than guessed at.
     @State private var pointsCells: [Seat: CGPoint] = [:]
+    /// Set once an opaque scene has covered the floor for longer than its fade — see
+    /// `floorIsHidden`.
+    @State private var floorAsleep = false
 
     var body: some View {
         // **Five layers rather than two dozen.**
@@ -66,7 +69,9 @@ struct GameView: View {
         // and above. Each is erased where it joins, which is what keeps the depth from
         // adding back up.
         ZStack {
-            ground.zIndex(0)
+            ground
+                .environment(\.floorIsHidden, floorIsCovered && floorAsleep)
+                .zIndex(0)
             floorSheets.zIndex(1)
             prompts.zIndex(2)
             scenes.zIndex(3)
@@ -91,6 +96,14 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.2), value: controller.cutscene)
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
+        // Asleep only once the scene is opaque, and awake the moment it starts to leave.
+        .onChange(of: floorIsCovered) { floorAsleep = false }
+        .task(id: floorIsCovered) {
+            guard floorIsCovered else { return }
+            try? await Task.sleep(for: .seconds(Self.floorSleepDelay))
+            guard !Task.isCancelled else { return }
+            floorAsleep = true
+        }
         .onChange(of: controller.gate) { detail = nil; picked = nil }
         // **Every press lands in one place.** Only this screen knows what is over the
         // floor, so it is the only thing that can say whether a button was answering the
@@ -623,6 +636,18 @@ struct GameView: View {
         default: return false
         }
     }
+
+    /// Whether a scene that paints the whole screen is up, so nothing on the floor can be seen.
+    private var floorIsCovered: Bool {
+        if controller.cutscene != nil || controller.turnover != nil || controller.aiFreeThrow != nil {
+            return true
+        }
+        if case .awaitingFreeThrow = controller.gate { return true }
+        return false
+    }
+
+    /// A covering scene's 0.2s fade, and a little over.
+    private static let floorSleepDelay: Double = 0.3
 
     private var dim: Double {
         if browsingDiscard { return Theme.dimBrowser }
@@ -1392,3 +1417,10 @@ struct GameView: View {
 #Preview("Column warp") { ColumnWarpBench() }
 
 #Preview("Straight to the table") { GameView(controller: GameController()) }
+
+extension EnvironmentValues {
+    /// **Nothing on the floor can be seen.** An opaque scene has been over it for longer
+    /// than its fade, so anything animating there may stop until this goes false again —
+    /// which happens the moment the scene starts to leave. Owned by `GameView`.
+    @Entry var floorIsHidden = false
+}
