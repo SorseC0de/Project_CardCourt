@@ -199,38 +199,41 @@ final class Pad {
     // MARK: - One frame of it
 
     private func read() {
-        guard let pad = GCController.controllers().first?.extendedGamepad else { return }
-        readButtons(on: pad)
-        readHeading(on: pad)
-        readPull(on: pad)
+        // Off `input`, not the old gamepad profile: every value read off that makes
+        // GameController walk the loaded images to see who is asking, sixty polls a second.
+        guard let controller = GCController.controllers().first else { return }
+        let input = controller.input
+        readButtons(on: input)
+        readHeading(on: input)
+        readPull(on: input, isDualSense: controller.productCategory == GCProductCategoryDualSense)
     }
 
     /// What each button says. **The whole map, in one table** — a pad that calls its face
     /// buttons something else is a row here, not a change anywhere in the game.
-    private func readButtons(on pad: GCExtendedGamepad) {
+    private func readButtons(on input: GCControllerLiveInput) {
         // Cross on a DualSense, A on an Xbox pad.
-        edge(.tap, pad.buttonA, as: .tap, face: .cross)
+        edge(.tap, input.buttons[.a], as: .tap, face: .cross)
         // **Not a second cross.** The trigger is the shortcut past the row: whatever the
         // screen is offering, without walking to it.
-        edge(.r2, pad.rightTrigger, as: .primary)
+        edge(.r2, input.buttons[.rightTrigger], as: .primary)
         // Circle. Out of whatever this is.
-        edge(.back, pad.buttonB, as: .back, face: .circle)
+        edge(.back, input.buttons[.b], as: .back, face: .circle)
         // Triangle, which is the flick under a thumb that never left the face buttons.
-        edge(.flick, pad.buttonY, as: .flick, face: .triangle)
+        edge(.flick, input.buttons[.y], as: .flick, face: .triangle)
         // Square. A look at something without taking it.
-        edge(.inspect, pad.buttonX, as: .inspect, face: .square)
+        edge(.inspect, input.buttons[.x], as: .inspect, face: .square)
         // The bumpers walk the row, so a hand can be read without leaving the sticks.
-        edge(.l1, pad.leftShoulder, as: .previous)
-        edge(.r1, pad.rightShoulder, as: .next)
+        edge(.l1, input.buttons[.leftShoulder], as: .previous)
+        edge(.r1, input.buttons[.rightShoulder], as: .next)
         // Options on a DualSense, Menu on an Xbox pad.
-        edge(.menu, pad.buttonMenu, as: .pause)
+        edge(.menu, input.buttons[.menu], as: .pause)
     }
 
     /// Fires once, on the way down.
-    private func edge(_ key: Key, _ button: GCControllerButtonInput?, as action: Action,
+    private func edge(_ key: Key, _ button: (any GCButtonElement)?, as action: Action,
                       face: Face? = nil) {
         guard let button else { return }
-        if button.isPressed {
+        if button.pressedInput.isPressed {
             guard !held.contains(key) else { return }
             held.insert(key)
             say(action, face: face)
@@ -245,8 +248,8 @@ final class Pad {
     /// **One heading between the three of them.** A thumb on a stick and a thumb on the
     /// d-pad are the same hand asking for the same thing; read separately they walk the
     /// row two cards at a time.
-    private func readHeading(on pad: GCExtendedGamepad) {
-        let now = pushing(pad)
+    private func readHeading(on input: GCControllerLiveInput) {
+        let now = pushing(input)
 
         guard let now else {
             heading = nil
@@ -274,13 +277,17 @@ final class Pad {
     /// Sideways beats up and down: the row is walked far more often than a card is
     /// played, and a stick pushed left and a little high should not throw a card at the
     /// table.
-    private func pushing(_ pad: GCExtendedGamepad) -> Action? {
-        var x: Float = pad.leftThumbstick.xAxis.value + pad.rightThumbstick.xAxis.value
-        var y: Float = pad.leftThumbstick.yAxis.value + pad.rightThumbstick.yAxis.value
-        if pad.dpad.left.isPressed { x -= 1 }
-        if pad.dpad.right.isPressed { x += 1 }
-        if pad.dpad.down.isPressed { y -= 1 }
-        if pad.dpad.up.isPressed { y += 1 }
+    private func pushing(_ input: GCControllerLiveInput) -> Action? {
+        let leftStick = input.dpads[.leftThumbstick]?.xyAxes.value
+        let rightStick = input.dpads[.rightThumbstick]?.xyAxes.value
+        var x: Float = (leftStick?.x ?? 0) + (rightStick?.x ?? 0)
+        var y: Float = (leftStick?.y ?? 0) + (rightStick?.y ?? 0)
+        if let dpad = input.dpads[.directionPad] {
+            if dpad.left.isPressed { x -= 1 }
+            if dpad.right.isPressed { x += 1 }
+            if dpad.down.isPressed { y -= 1 }
+            if dpad.up.isPressed { y += 1 }
+        }
 
         // Whatever it was doing has to be let go of before it can say it again — see
         // `Feel.letGo`, which is what stops a stick resting near the edge from chattering.
@@ -303,9 +310,9 @@ final class Pad {
     /// **Reported the way a drag is.** `FreeThrowView` measures a pull down the screen and
     /// a drift across it; whatever a player pulls it with, that is what arrives — so the
     /// shot does not need to know which it was.
-    private func readPull(on pad: GCExtendedGamepad) {
-        var now = stickPull(pad)
-        if let touch = touchPull(pad) { now = touch }
+    private func readPull(on input: GCControllerLiveInput, isDualSense: Bool) {
+        var now = stickPull(input)
+        if isDualSense, let touch = touchPull(input) { now = touch }
 
         let pulling = now != .zero
         // Let go: what it measured at the last frame it was held is the throw, because
@@ -320,17 +327,16 @@ final class Pad {
 
     /// A stick's own displacement. There is no travel to measure — where it is pushed to
     /// *is* how far it has been pulled.
-    private func stickPull(_ pad: GCExtendedGamepad) -> CGSize {
-        let sticks = [pad.leftThumbstick, pad.rightThumbstick]
+    private func stickPull(_ input: GCControllerLiveInput) -> CGSize {
+        let sticks = [input.dpads[.leftThumbstick], input.dpads[.rightThumbstick]]
+            .compactMap { $0?.xyAxes.value }
         // Whichever hand is doing the work. Added together, a thumb resting on the other
         // stick drags the aim across.
-        guard let stick = sticks.max(by: { hypot($0.xAxis.value, $0.yAxis.value)
-                                         < hypot($1.xAxis.value, $1.yAxis.value) }),
-              hypot(stick.xAxis.value, stick.yAxis.value) >= Feel.pullFloor
+        guard let stick = sticks.max(by: { hypot($0.x, $0.y) < hypot($1.x, $1.y) }),
+              hypot(stick.x, stick.y) >= Feel.pullFloor
         else { return .zero }
         // Down the screen is up the axis reversed: a pad reports +1 for forward.
-        return CGSize(width: CGFloat(stick.xAxis.value),
-                      height: CGFloat(-stick.yAxis.value))
+        return CGSize(width: CGFloat(stick.x), height: CGFloat(-stick.y))
     }
 
     /// How far a finger has travelled across the touchpad since it landed.
@@ -338,10 +344,10 @@ final class Pad {
     /// The DualSense's pad reports where a finger is, not that it is there — nought is
     /// both the middle and nobody touching it. A finger at rest in the middle is a finger
     /// that has not thrown anything, so reading the two the same way costs nothing.
-    private func touchPull(_ pad: GCExtendedGamepad) -> CGSize? {
-        guard let sense = pad as? GCDualSenseGamepad else { return nil }
-        let at = CGPoint(x: CGFloat(sense.touchpadPrimary.xAxis.value),
-                         y: CGFloat(sense.touchpadPrimary.yAxis.value))
+    private func touchPull(_ input: GCControllerLiveInput) -> CGSize? {
+        guard let touchpad = input.dpads[GCInputDualShockTouchpadOne] else { return nil }
+        let finger = touchpad.xyAxes.value
+        let at = CGPoint(x: CGFloat(finger.x), y: CGFloat(finger.y))
         guard at != .zero else { touchFrom = nil; return nil }
 
         guard let from = touchFrom else { touchFrom = at; return .zero }
@@ -358,24 +364,24 @@ final class Pad {
     /// Apple's own rule: these glyphs are for telling a player which button to press, and
     /// nothing else.
     func glyph(for face: Face) -> String? {
-        guard let pad = GCController.controllers().first?.extendedGamepad else { return nil }
+        guard let input = GCController.controllers().first?.input else { return nil }
         switch face {
-        case .cross:    return pad.buttonA.sfSymbolsName
-        case .circle:   return pad.buttonB.sfSymbolsName
-        case .square:   return pad.buttonX.sfSymbolsName
-        case .triangle: return pad.buttonY.sfSymbolsName
+        case .cross:    return input.buttons[.a]?.sfSymbolsName
+        case .circle:   return input.buttons[.b]?.sfSymbolsName
+        case .square:   return input.buttons[.x]?.sfSymbolsName
+        case .triangle: return input.buttons[.y]?.sfSymbolsName
         }
     }
 
     func glyph(for action: Action) -> String? {
-        guard let pad = GCController.controllers().first?.extendedGamepad else { return nil }
+        guard let input = GCController.controllers().first?.input else { return nil }
         switch action {
-        case .tap:     return pad.buttonA.sfSymbolsName
-        case .back:    return pad.buttonB.sfSymbolsName
-        case .flick:   return pad.buttonY.sfSymbolsName
-        case .inspect: return pad.buttonX.sfSymbolsName
-        case .primary: return pad.rightTrigger.sfSymbolsName
-        case .pause:   return pad.buttonMenu.sfSymbolsName
+        case .tap:     return input.buttons[.a]?.sfSymbolsName
+        case .back:    return input.buttons[.b]?.sfSymbolsName
+        case .flick:   return input.buttons[.y]?.sfSymbolsName
+        case .inspect: return input.buttons[.x]?.sfSymbolsName
+        case .primary: return input.buttons[.rightTrigger]?.sfSymbolsName
+        case .pause:   return input.buttons[.menu]?.sfSymbolsName
         default:       return nil
         }
     }
