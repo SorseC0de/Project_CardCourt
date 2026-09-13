@@ -79,10 +79,11 @@ enum CardLibrary {
 
     static let kickOut = CardDescriptor(
         id: "kick-out", name: "Kick-Out", type: .pass,
-        effect: "~[Pass] to target player. SHOT +20%. The shot becomes a three",
+        effect: "SHOT +10%. #[Draw] 2. Move all your ~[Clamps] to the receiver, "
+            + "and they immediately attempt a three",
         numberInDeck: 5,
-        passTarget: .choice, shotDelta: 20, comboAfter: "drive",
-        comboDraw: 1, comboAssist: 1, upgradesToThree: true)
+        passTarget: .choice, shotDelta: 10, drawCount: 2, upgradesToThree: true,
+        forcesImmediateShot: true, movesClampsToReceiver: true)
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
@@ -171,6 +172,11 @@ enum CardLibrary {
         id: "contest", name: "Contest", type: .clamp,
         effect: "Next player: SHOT -25%", numberInDeck: 10,
         clamp: ClampEffect(shotDebuff: -25))
+
+    static let manToMan = CardDescriptor(
+        id: "man-to-man", name: "Man-To-Man", type: .clamp,
+        effect: "Next player: SHOT -10% each time a card is played", numberInDeck: 5,
+        clamp: ClampEffect(shotPerCardPlayed: -10))
 
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
@@ -664,19 +670,25 @@ enum CardLibrary {
 
     static let fromTheHash = CardDescriptor(
         id: "from-the-hash", name: "From the Hash", type: .specialMove,
-        effect: "SHOT -20%. #[Shoot] the ball. +1 PT on make", numberInDeck: 5,
+        effect: "SHOT -20%. #[Shoot] the ball", numberInDeck: 3,
         shotDelta: -20,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fromTheLogo = CardDescriptor(
         id: "from-the-logo", name: "From the Logo", type: .specialMove,
-        effect: "SHOT -30%. #[Shoot] the ball. +1 PT on make", numberInDeck: 5,
+        effect: "SHOT -30%. #[Shoot] the ball", numberInDeck: 3,
         shotDelta: -30,
+        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
+
+    static let threeBall = CardDescriptor(
+        id: "three-ball", name: "Three-Ball", type: .specialMove,
+        effect: "SHOT -10%. #[Shoot] the ball", numberInDeck: 5,
+        shotDelta: -10,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fullCourtHeave = CardDescriptor(
         id: "full-court-heave", name: "Full-Court Heave", type: .specialMove,
-        effect: "SHOT = 25%. #[Shoot] the ball. +1 PT on make", numberInDeck: 5,
+        effect: "SHOT = 25%. #[Shoot] the ball", numberInDeck: 3,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1, shotOverride: 25))
 
     static let buzzerBeater = CardDescriptor(
@@ -698,7 +710,7 @@ enum CardLibrary {
 
     static let daggerThree = CardDescriptor(
         id: "dagger-three", name: "Dagger Three", type: .specialMove,
-        effect: "SHOT -60%. +10% per tick spent. #[Shoot] the ball. +1 PT on make",
+        effect: "SHOT -60%. +10% per tick spent. #[Shoot] the ball",
         numberInDeck: 5,
         shotDelta: -60,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
@@ -758,13 +770,13 @@ enum CardLibrary {
 
     static let turnaroundThree = CardDescriptor(
         id: "turnaround-three", name: "Turnaround Three", type: .specialMove,
-        effect: "#[Discard] any number. SHOT +10% for each. #[Shoot] the ball. +1 PT on make",
+        effect: "#[Discard] any number. SHOT +10% for each. #[Shoot] the ball",
         numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
                                    discardForShotBonus: 10))
 
     static let specialMoves: [CardDescriptor] = [
-        fadeaway, fromTheHash, fromTheLogo, fullCourtHeave, buzzerBeater, putbackTip,
+        fadeaway, fromTheHash, fromTheLogo, threeBall, fullCourtHeave, buzzerBeater, putbackTip,
         euroStep, turnaroundThree, bankshot, daggerThree, skyhook, slamDunk,
         twoHandJam, giveAndGoDunk, tomahawk,
         wideOpenThree,
@@ -856,7 +868,7 @@ enum CardLibrary {
 
     /// Standard adds everything else, as each type gets built.
     static let standardPool: [CardDescriptor] = passesAndMoves
-        + [contest, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
+        + [contest, manToMan, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
         + whistles + intangibles + injuries + specialMoves
         + varenas
 

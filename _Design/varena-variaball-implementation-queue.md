@@ -189,7 +189,7 @@ Over-Varing Evidence (same, for a Variaball).
 ## Open questions carried over, unresolved
 
 - Grayvstone before anything exists in the Variaball discard pile.
-- The ratio audit set every count: 101 copies against 79 slots. The whole deck is reviewed again
+- The ratio audit set every count: 102 copies against 79 slots. The whole deck is reviewed again
   before they are built.
 - The art budget: which cards get bespoke floor art versus an overlay (tint/marking/badge) on
   the existing court SVG.

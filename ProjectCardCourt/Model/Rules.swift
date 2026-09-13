@@ -618,6 +618,8 @@ enum Rules {
             // was, rather than handing whoever rebounds a −60% look off a cancelled
             // Dagger Three. Euro Step is the exception because it does not shoot: it is
             // a Move card wearing a Special Move's coat, and its SHOT is the board's.
+            // Man-To-Man: every card played while guarded costs SHOT.
+            delta += state[seat].clamps.reduce(0) { $0 + ($1.card.clamp?.shotPerCardPlayed ?? 0) }
             let priced = descriptor.special?.shootsImmediately == true
             if !priced { adjustShot(by: delta, state: &state) }
             state.pendingShotBonus = priced ? delta : 0
@@ -1043,6 +1045,19 @@ enum Rules {
             events.append(.turnover(seat, cause: CardLibrary.travel.name))
             endRound(state: &state, events: &events)
             return
+        }
+        // Kick-Out: whoever was guarding the passer follows the ball, and bites again when the
+        // receiver's possession opens.
+        if descriptor.movesClampsToReceiver, !state[seat].clamps.isEmpty {
+            let following = state[seat].clamps.map { clamp -> ActiveClamp in
+                var moved = clamp
+                moved.bitten = false
+                moved.locked = []
+                return moved
+            }
+            state[seat].clamps.removeAll()
+            state[receiver].clamps = Array((state[receiver].clamps + following)
+                .suffix(state.rules.clampSlots))
         }
         beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
                         state: &state, events: &events)

@@ -26,7 +26,9 @@ struct ClampEffect: Hashable, Codable {
     /// True when the Clamp goes on standing there. A Clamp that debuffs SHOT is a
     /// defender in your way for the whole possession; one that only takes cards has done
     /// its work the moment it arrives and leaves again.
-    var isStanding: Bool { shotDebuff != 0 || locksRandomCards > 0 || passOnly }
+    var isStanding: Bool {
+        shotDebuff != 0 || locksRandomCards > 0 || passOnly || shotPerCardPlayed != 0
+    }
 
     /// Bodies this Clamp puts next to its victim. Double-Team is two, Triple-Team three.
     var defenders = 1
@@ -40,6 +42,8 @@ struct ClampEffect: Hashable, Codable {
     var locksRandomCards: Int = 0
     /// Nothing but Pass cards. Shooting is a free action rather than a card, so it stays.
     var passOnly = false
+    /// Man-To-Man: SHOT, every time the clamped player plays a card.
+    var shotPerCardPlayed = 0
 }
 
 /// A passive that sits in one of a player's slots for the rest of the match.
@@ -378,12 +382,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// arm it.
     var comboAfterDribble = false
     let comboBonus: Int
-    /// And what else an armed combo is worth. Hand-Off pays a card off a Dribble;
-    /// Kick-Out pays one off a Drive.
+    /// And what else an armed combo is worth. Hand-Off pays a card off a Dribble.
     var comboDraw = 0
-    /// Paid only when the play it followed was **itself** a combo — a Kick-Out off a
-    /// Drive that came off a Dribble is a dribble drive, and that is a different play
-    /// from a Drive standing on its own.
+    /// Paid only when the play it followed was **itself** a combo.
     var comboAssist = 0
     /// The next basket this possession is worth one more. A kick-out is a three because
     /// of where it puts the man, not because of what he does with it.
@@ -411,6 +412,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var forcesReceiverShot = false
     /// Alley-Oop: he does not get to choose at all. It goes up the moment he has drawn.
     var forcesImmediateShot = false
+    /// Kick-Out: the Clamps on whoever passes it go with the ball to the receiver.
+    var movesClampsToReceiver = false
     /// Right Back: he takes it and gives it straight back. Both legs pay, so the card is
     /// worth twice its own SHOT and a card to each of them — and whatever the trip cost
     /// him on the way happens in between.
@@ -480,6 +483,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
          forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
+         movesClampsToReceiver: Bool = false,
          returnsImmediately: Bool = false, matchesArrivingPass: Bool = false,
          drawIfFirstAction: Int = 0,
          clearsOut: Bool = false, firstActionOnly: Bool = false,
@@ -490,6 +494,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.bonusAssistOnScore = bonusAssistOnScore
         self.forcesReceiverShot = forcesReceiverShot
         self.forcesImmediateShot = forcesImmediateShot
+        self.movesClampsToReceiver = movesClampsToReceiver
         self.returnsImmediately = returnsImmediately
         self.matchesArrivingPass = matchesArrivingPass
         self.drawIfFirstAction = drawIfFirstAction

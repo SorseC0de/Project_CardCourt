@@ -1297,6 +1297,48 @@ func runTests() {
                    "and a shot owed")
     }
 
+    print("Three-Ball, Man-To-Man and the new Kick-Out")
+    Check.that(CardLibrary.threeBall.isThree && CardLibrary.threeBall.baseShotDelta == -10
+               && CardLibrary.threeBall.takesShot,
+               "Three-Ball is a three that costs 10 and shoots")
+    do {
+        // The same play off the same board, with and without Man-To-Man on the player.
+        let (base, seat, cards) = openPossession(seed: 93, cards: [CardLibrary.drive])
+        var free = base
+        Rules.apply(.play(cards[0].id), by: seat, to: &free)
+        var guarded = base
+        guarded[seat].clamps = [ActiveClamp(card: CardLibrary.manToMan, from: seat.left)]
+        Rules.apply(.play(cards[0].id), by: seat, to: &guarded)
+        Check.that(guarded.shot == free.shot - 10, "Man-To-Man takes 10 off every card played")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 94, cards: [CardLibrary.kickOut])
+        state[seat].clamps = [ActiveClamp(card: CardLibrary.contest, from: seat.left)]
+        // Nobody may step out of it or shake it off, so the whole play comes back at once.
+        for other in Seat.allCases where other != seat {
+            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+        }
+        var events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        if case .awaitingTarget(_, _, let choices) = state.phase, let receiver = choices.first {
+            events += Rules.resolveTarget(receiver, state: &state)
+            let drawn = events.filter {
+                switch $0 {
+                case .drew(let who, _, _), .injuryRevealed(let who, _): return who == seat
+                default: return false
+                }
+            }.count
+            Check.that(drawn >= 2, "Kick-Out draws 2")
+            Check.that(events.contains {
+                if case .clampedPossession(let who, _) = $0 { return who == receiver }; return false
+            }, "and the passer's Clamps go with the ball to the receiver")
+            Check.that(events.contains {
+                if case .shotAttempted(let who, _, _) = $0 { return who == receiver }; return false
+            }, "and the receiver attempts the shot at once")
+        } else {
+            Check.that(false, "Kick-Out asks who it goes to")
+        }
+    }
+
     print("Serialisation")
     do {
         let (state, _) = Rules.newGame(seed: 15)

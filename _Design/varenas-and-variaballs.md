@@ -130,6 +130,7 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 | **Spazzphalt** | Varena | SHOT is overridden to a random value 0–100 in steps of 5, regardless of what ball is in play — the court dictates the terms. Loses only to an Intangible override. "Shooting on me? These are the rules" | 3 |
 | **Frostbite Finish** | Varena | Playing a Move card requires discarding another card. If the Move is your whole hand, you cannot play it — there is nothing left to discard. The icy mirror of Foot Ball's buff; floor finish is the real term for a court's coating, so the ice literally is the finish | 2 |
 | **Tick-Tock Tile** | Varena | Playing any card also ticks the shot clock, on top of its normal countdown and normal per-possession reset. Scoped to one floor instead of a blanket rule, which sidesteps the reset-behavior question the shelved version raised | 3 |
+| **Monster Ball** | Variaball | Intangibles are absorbed into the ball and have no effect — on a table they stack under it, like Yu-Gi-Oh Xyz materials. When the ball is discarded, players rebound for the collected Intangibles one at a time. *Monstar Ball if the name is clear* | 1 |
 
 **Overlapping cards at different power levels are deliberate**, on the HexHex model — a good
 card and then a better one doing the same job. Not redundancy, and not something to flag.
@@ -151,6 +152,14 @@ Parked, named, not yet designed:
 - **Something for salary cap.** Salary Cap Increase and its old "everyone draws 2" effect are
   killed, but the theme is wanted for a future card — not yet designed.
 - **Cardtan** — parked during the Foot Ball discussion, no effect or slot decided.
+
+## Monster Ball's rebound scene
+
+- The card sits where the ball normally is during a rebound, shaking lightly and quickly.
+- **One scene, not one per Intangible.** A carousel shows the next two small, and they rotate
+  in as players bid for them.
+- When the scene ends, Project Stars' Capricorn coin-collection guided light beams sparks of
+  random colours from the discard pile to each player who won one.
 
 ## Foot Ball's two gags
 
@@ -199,7 +208,7 @@ Variaball play now that they're plays.
 ## All 30 resolved.
 
 Every original Game Break has been converted, retired into a broader card, or killed
-outright. **43 designed — 29 Varenas and 14 Variaballs** — several of them new
+outright. **44 designed — 29 Varenas and 15 Variaballs** — several of them new
 additions with no equivalent in the old 30.
 
 ## Deck space is a real constraint now
@@ -216,7 +225,8 @@ on purpose for now. The whole deck gets reviewed again with them in it.
 are still to be designed, and the counts should end up weighted toward them.
 
 **The rest of the deck was recounted** from playtesting (2026-09-13): 380 cards without
-Varenas and Variaballs, 481 with the audit's 101.
+Varenas and Variaballs, 481 with the audit's 101. **Then** Close-Out, Zone, Man-To-Man and
+Three-Ball took it to 390, and Monster Ball made the balls 33 — **492 in all**.
 
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate

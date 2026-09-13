@@ -2,6 +2,11 @@
 
 Things agreed on but not built. Newest at the top.
 
+## Nudge the three mark
+
+The mark on a three's icon wants to sit slightly north-east of where it is now —
+`CardLayout.threeMarkX` and `threeMarkY` in `View/CardArt.swift`.
+
 ## The cuts
 
 A suite of Move cards for the cuts, the way the passes cover the passes. Agreed while
