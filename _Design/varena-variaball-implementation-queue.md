@@ -189,7 +189,8 @@ Over-Varing Evidence (same, for a Variaball).
 ## Open questions carried over, unresolved
 
 - Grayvstone before anything exists in the Variaball discard pile.
-- Every `TBC` count in the design doc — none of these have a `numberInDeck` yet.
+- The ratio audit set every count: 112 copies against 79 slots. The whole deck is reviewed again
+  before they are built.
 - The art budget: which cards get bespoke floor art versus an overlay (tint/marking/badge) on
   the existing court SVG.
 - Salary-cap theme and Cardtan remain parked, not designed — not part of this queue.
