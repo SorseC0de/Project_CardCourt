@@ -67,9 +67,11 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
       replaced goes to the pile; the table's own Cardwood never does.*
 - [x] One per player per possession, per slot — new counters alongside the existing
       `movesPlayedThisPossession` pattern.
-- [x] **Varenas and Variaballs are always playable**, regardless of any restriction in effect
-      (Trap's pass-only, a Clamp's lock, Foot Ball's own Move/Pass-only framing). This is load-
-      bearing: without it, a restrictive card can make itself unremovable.
+- [x] **Held like any card.** A lock, a pass-only Clamp or a shot owed bars a Varena or a
+      Variaball the same as anything else. *An "always playable" exemption was written here
+      once. It was never a rule.*
+- [x] **Playing one is an action**, like playing any card: it uses up a first action and a
+      combo does not read through it.
 - [ ] Whistles can now fire on these plays (reversed from the old Game Break rule) — confirm
       `Whistle.trigger` gets a case for "Varena played" / "Variaball played" for Tile Tampering
       and Over-Varing Evidence.

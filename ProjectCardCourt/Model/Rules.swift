@@ -71,11 +71,6 @@ enum Rules {
             }
             let passOnly = state[seat].clamps.contains { $0.card.clamp?.passOnly == true }
             let playable = state[seat].bag.filter { card in
-                // **A Varena or a Variaball is always playable**, one of each a possession,
-                // whatever else is holding the hand — a restriction that barred them could
-                // make itself impossible to play off.
-                if card.descriptor.varena != nil { return !state.playedVarenaThisPossession }
-                if card.descriptor.variaball != nil { return !state.playedVariaballThisPossession }
                 if held.contains(card.id) { return false }
                 if passOnly, card.descriptor.passTarget == nil { return false }
                 // No Bag sits the Moves down; Fundamentalist sits the Special Moves down
@@ -109,6 +104,9 @@ enum Rules {
                     if !state[seat].clamps.isEmpty { return false }
                     if state.possessionWasInterrupted { return false }
                 }
+                // One Varena and one Variaball a possession.
+                if card.descriptor.varena != nil { return !state.playedVarenaThisPossession }
+                if card.descriptor.variaball != nil { return !state.playedVariaballThisPossession }
                 // Only so many referees will stand on one floor.
                 if card.descriptor.whistle?.trigger != nil {
                     return state.armedWhistles.count < state.rules.refereeSlots
@@ -375,7 +373,7 @@ enum Rules {
 
     /// **A Varena or a Variaball, onto its slot**, and whatever was there to the pile. The
     /// table's own Cardwood goes nowhere; Cardwood played from a hand is a floor like any
-    /// other. Not a basketball action, so it is neither a Move nor anybody's first action.
+    /// other. Playing one is an action, like playing any card.
     private static func playOntoItsSlot(_ card: Card, by seat: Seat, state: inout GameState,
                                         events: inout [GameEvent]) {
         if card.descriptor.varena != nil {
@@ -388,6 +386,9 @@ enum Rules {
             state.playedVariaballThisPossession = true
         }
         events.append(.movePlayed(seat: seat, card: card.descriptor, shot: state.shot))
+        state.lastPlayThisPossession = card.descriptor.id
+        state.lastPlayWasCombo = false
+        state.movesThisPossession += 1
     }
 
     /// Clear Out: he steps out of the play and the ball carries on the way it was going.

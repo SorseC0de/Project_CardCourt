@@ -1244,6 +1244,7 @@ func runTests() {
         let discardsBefore = state.discard.count
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state.courtCard?.id == cards[0].id, "a Varena goes onto the floor")
+        Check.that(!Rules.isFirstAction(state), "and playing it is an action")
         Check.that(state.discard.count == discardsBefore,
                    "and the table's own Cardwood under it goes nowhere")
         let afterOne = Rules.legalMoves(state, for: seat)
@@ -1276,15 +1277,24 @@ func runTests() {
         Check.that(state.discard.contains { $0.id == oldBall.id }, "a new ball discards the old one")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 84, cards: [parquet])
+        // Held by whatever holds any other card.
+        let (open, seat, cards) = openPossession(seed: 84, cards: [parquet])
+        var locked = open
+        var lock = ActiveClamp(card: CardLibrary.contest, from: seat.left)
+        lock.locked = [cards[0].id]
+        locked[seat].clamps = [lock]
+        Check.that(!Rules.legalMoves(locked, for: seat).contains(.play(cards[0].id)),
+                   "a lock holds a Varena")
         let trap = CardDescriptor(id: "test-trap", name: "Test Trap", type: .clamp,
                                   effect: "", numberInDeck: 0, clamp: ClampEffect(passOnly: true))
-        var held = ActiveClamp(card: trap, from: seat.left)
-        held.locked = [cards[0].id]
-        state[seat].clamps = [held]
-        state.mustShootFirst = seat
-        Check.that(Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
-                   "a Varena plays through a lock, a pass-only Clamp and a shot owed")
+        var passOnly = open
+        passOnly[seat].clamps = [ActiveClamp(card: trap, from: seat.left)]
+        Check.that(!Rules.legalMoves(passOnly, for: seat).contains(.play(cards[0].id)),
+                   "so does a pass-only Clamp")
+        var owing = open
+        owing.mustShootFirst = seat
+        Check.that(!Rules.legalMoves(owing, for: seat).contains(.play(cards[0].id)),
+                   "and a shot owed")
     }
 
     print("Serialisation")
