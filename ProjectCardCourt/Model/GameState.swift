@@ -273,10 +273,14 @@ struct GameState: Codable {
     /// nil while the inbounder decides — the UI shows "--".
     var shotClock: Int?
     var shot = 0
-    /// **The floor.** Never empty: Cardwood until somebody plays a Varena over it.
-    var courtCard: CardDescriptor = CardLibrary.cardwood
-    /// **The ball.** Nil is a Regulation Ball, which is not a card — a Variaball sits on it.
-    var ballCard: CardDescriptor?
+    /// **The Varena on the floor**, as the card that was played there. Nil is the table's own
+    /// Cardwood: the floor every game opens on, which nobody was dealt and nobody discards.
+    var courtCard: Card?
+    /// **The Variaball in play.** Nil is a Regulation Ball, which is not a card at all.
+    var ballCard: Card?
+    /// One of each a possession — see `Rules.legalMoves`.
+    var playedVarenaThisPossession = false
+    var playedVariaballThisPossession = false
     /// Whistles set down and waiting. Resolved in the order they were armed, so a
     /// Whistle that cancels another Whistle has a defined winner.
     var armedWhistles: [ArmedWhistle] = []
@@ -347,6 +351,10 @@ struct GameState: Codable {
     }
 
     var isOver: Bool { if case .gameOver = phase { return true }; return false }
+    /// The floor the game is played on: whatever Varena is out, or Cardwood.
+    var currentCourt: CardDescriptor { courtCard?.descriptor ?? CardLibrary.cardwood }
+    /// The Variaball in play. Nil is a Regulation Ball.
+    var currentBall: CardDescriptor? { ballCard?.descriptor }
 }
 
 /// RNG access goes through these so no call site takes overlapping `inout` access to state.

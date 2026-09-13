@@ -16,8 +16,8 @@ every field.
 The replacement is two general slots:
 
 ```swift
-var courtCard: CardDescriptor       // never nil — defaults to Cardwood
-var ballCard: CardDescriptor?       // nil == Regulation Ball
+var courtCard: Card?                // nil == the table's own Cardwood
+var ballCard: Card?                 // nil == Regulation Ball
 ```
 
 Game logic asks "what's on the court / what's on the ball" and dispatches on the card's
@@ -61,17 +61,21 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
 
 ## Phase 2 — Slot lifecycle rules
 
-- [ ] Playing a Varena or Variaball replaces `courtCard`/`ballCard` outright — no stacking
+- [x] Playing a Varena or Variaball replaces `courtCard`/`ballCard` outright — no stacking
       (confirmed: Variaballs never stack).
-- [ ] One per player per possession, per slot — new counters alongside the existing
+      *The slots hold the played `Card`, read through `currentCourt` and `currentBall`. The card
+      replaced goes to the pile; the table's own Cardwood never does.*
+- [x] One per player per possession, per slot — new counters alongside the existing
       `movesPlayedThisPossession` pattern.
-- [ ] **Varenas and Variaballs are always playable**, regardless of any restriction in effect
+- [x] **Varenas and Variaballs are always playable**, regardless of any restriction in effect
       (Trap's pass-only, a Clamp's lock, Foot Ball's own Move/Pass-only framing). This is load-
       bearing: without it, a restrictive card can make itself unremovable.
 - [ ] Whistles can now fire on these plays (reversed from the old Game Break rule) — confirm
       `Whistle.trigger` gets a case for "Varena played" / "Variaball played" for Tile Tampering
       and Over-Varing Evidence.
-- [ ] Cardwood is a playable card (decided): playing it changes the court back to basic. Its
+      *So far: a Whistle watching any non-Whistle play already fires on them. The two named
+      triggers land with Tile Tampering and Over-Varing Evidence in Phase 3.*
+- [x] Cardwood is a playable card (decided): playing it changes the court back to basic. Its
       deck count is still TBC.
 
 ## Phase 3 — Per-card wiring, grouped by system

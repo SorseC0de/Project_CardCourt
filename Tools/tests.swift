@@ -1205,7 +1205,8 @@ func runTests() {
     do {
         var (state, seat, _) = openPossession(seed: 81, cards: [])
         state[seat].intangibles = []
-        Check.that(state.courtCard.id == CardLibrary.cardwood.id && state.ballCard == nil,
+        Check.that(state.courtCard == nil && state.ballCard == nil
+                   && state.currentCourt.id == CardLibrary.cardwood.id,
                    "a game opens on Cardwood with a Regulation Ball")
         Check.that(state.shotModifiers(for: seat).override == nil, "and neither sets SHOT")
 
@@ -1218,16 +1219,72 @@ func runTests() {
         state.pendingShotOverride = ShotOverride(label: "Played", amount: 90)
         Check.that(state.shotModifiers(for: seat).override?.amount == 90,
                    "a played card's SHOT = stands on a bare floor")
-        state.ballCard = ball
+        state.ballCard = Card(ball)
         Check.that(state.shotModifiers(for: seat).override?.amount == 25,
                    "the ball beats a played card")
-        state.courtCard = floor
+        state.courtCard = Card(floor)
         Check.that(state.shotModifiers(for: seat).override?.amount == 60,
                    "the floor beats the ball")
         state[seat].intangibles = [CardLibrary.lethalShooter]
         state.possessionFromOwnRebound = true
         Check.that(state.shotModifiers(for: seat).override?.amount == 100,
                    "an Intangible beats the floor")
+    }
+
+    print("Playing onto the floor and the ball")
+    let parquet = CardDescriptor(id: "test-parquet", name: "Test Parquet", type: .varena,
+                                 effect: "", numberInDeck: 0, varena: VarenaEffect())
+    let lacquer = CardDescriptor(id: "test-lacquer", name: "Test Lacquer", type: .varena,
+                                 effect: "", numberInDeck: 0, varena: VarenaEffect())
+    let brick = CardDescriptor(id: "test-brick", name: "Test Brick", type: .variaball,
+                               effect: "", numberInDeck: 0, variaball: VariaballEffect())
+    do {
+        var (state, seat, cards) = openPossession(
+            seed: 82, cards: [parquet, lacquer, brick, CardLibrary.cardwood, CardLibrary.swingLeft])
+        let discardsBefore = state.discard.count
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.courtCard?.id == cards[0].id, "a Varena goes onto the floor")
+        Check.that(state.discard.count == discardsBefore,
+                   "and the table's own Cardwood under it goes nowhere")
+        let afterOne = Rules.legalMoves(state, for: seat)
+        Check.that(!afterOne.contains(.play(cards[1].id)) && !afterOne.contains(.play(cards[3].id)),
+                   "one Varena a possession")
+        Check.that(afterOne.contains(.play(cards[2].id)), "and a Variaball is its own allowance")
+        Rules.apply(.play(cards[2].id), by: seat, to: &state)
+        Check.that(state.ballCard?.id == cards[2].id, "a Variaball goes onto the ball")
+        Rules.apply(.play(cards[4].id), by: seat, to: &state)
+        declineCounter(&state)
+        Check.that(!state.playedVarenaThisPossession && !state.playedVariaballThisPossession,
+                   "both allowances come back with the next possession")
+        Check.that(state.courtCard?.id == cards[0].id && state.ballCard?.id == cards[2].id,
+                   "and the floor and the ball stay out across it")
+    }
+    do {
+        var (state, seat, cards) = openPossession(
+            seed: 83, cards: [CardLibrary.cardwood, brick])
+        let coveredFloor = Card(parquet)
+        let oldBall = Card(brick)
+        state.courtCard = coveredFloor
+        state.ballCard = oldBall
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.currentCourt.id == CardLibrary.cardwood.id
+                   && state.courtCard?.id == cards[0].id,
+                   "Cardwood played takes the court back to basic")
+        Check.that(state.discard.contains { $0.id == coveredFloor.id },
+                   "and the floor it covered goes to the pile")
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        Check.that(state.discard.contains { $0.id == oldBall.id }, "a new ball discards the old one")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 84, cards: [parquet])
+        let trap = CardDescriptor(id: "test-trap", name: "Test Trap", type: .clamp,
+                                  effect: "", numberInDeck: 0, clamp: ClampEffect(passOnly: true))
+        var held = ActiveClamp(card: trap, from: seat.left)
+        held.locked = [cards[0].id]
+        state[seat].clamps = [held]
+        state.mustShootFirst = seat
+        Check.that(Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
+                   "a Varena plays through a lock, a pass-only Clamp and a shot owed")
     }
 
     print("Serialisation")

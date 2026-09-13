@@ -126,10 +126,10 @@ extension GameState {
                 passiveOverride = ShotOverride(label: passive.name, amount: Double(over))
             }
         }
-        let courtOverride = courtCard.varena?.shotOverride.map {
-            ShotOverride(label: courtCard.name, amount: Double($0))
+        let courtOverride = currentCourt.varena?.shotOverride.map {
+            ShotOverride(label: currentCourt.name, amount: Double($0))
         }
-        let ballOverride = ballCard.flatMap { ball in
+        let ballOverride = currentBall.flatMap { ball in
             ball.variaball?.shotOverride.map { ShotOverride(label: ball.name, amount: Double($0)) }
         }
         // **One override, and the highest claim to it wins:** an Intangible, then the floor,

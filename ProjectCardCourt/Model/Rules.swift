@@ -71,6 +71,11 @@ enum Rules {
             }
             let passOnly = state[seat].clamps.contains { $0.card.clamp?.passOnly == true }
             let playable = state[seat].bag.filter { card in
+                // **A Varena or a Variaball is always playable**, one of each a possession,
+                // whatever else is holding the hand — a restriction that barred them could
+                // make itself impossible to play off.
+                if card.descriptor.varena != nil { return !state.playedVarenaThisPossession }
+                if card.descriptor.variaball != nil { return !state.playedVariaballThisPossession }
                 if held.contains(card.id) { return false }
                 if passOnly, card.descriptor.passTarget == nil { return false }
                 // No Bag sits the Moves down; Fundamentalist sits the Special Moves down
@@ -368,6 +373,23 @@ enum Rules {
         events.append(.clampsShaken(seat: seat, card: descriptor, count: shaken))
     }
 
+    /// **A Varena or a Variaball, onto its slot**, and whatever was there to the pile. The
+    /// table's own Cardwood goes nowhere; Cardwood played from a hand is a floor like any
+    /// other. Not a basketball action, so it is neither a Move nor anybody's first action.
+    private static func playOntoItsSlot(_ card: Card, by seat: Seat, state: inout GameState,
+                                        events: inout [GameEvent]) {
+        if card.descriptor.varena != nil {
+            if let replaced = state.courtCard { state.discard.append(replaced) }
+            state.courtCard = card
+            state.playedVarenaThisPossession = true
+        } else {
+            if let replaced = state.ballCard { state.discard.append(replaced) }
+            state.ballCard = card
+            state.playedVariaballThisPossession = true
+        }
+        events.append(.movePlayed(seat: seat, card: card.descriptor, shot: state.shot))
+    }
+
     /// Clear Out: he steps out of the play and the ball carries on the way it was going.
     ///
     /// **A pass nobody threw.** He does not pass it — he is simply not there, so the ball
@@ -544,7 +566,9 @@ enum Rules {
             let kept = state[seat].intangibles.contains {
                 $0.intangible?.keepsOnPlay.contains(descriptor.id) == true
             }
-            if descriptor.whistle?.trigger == nil, !kept {
+            // A Varena or a Variaball is not spent: it goes onto its slot, below.
+            let takesASlot = descriptor.varena != nil || descriptor.variaball != nil
+            if descriptor.whistle?.trigger == nil, !kept, !takesASlot {
                 state.discard.append(card)
             } else if kept {
                 state[seat].bag.insert(card, at: min(index, state[seat].bag.count))
@@ -650,7 +674,9 @@ enum Rules {
                 return events
             }
 
-            if let special = descriptor.special {
+            if takesASlot {
+                playOntoItsSlot(card, by: seat, state: &state, events: &events)
+            } else if let special = descriptor.special {
                 // A tip-in is only a tip-in off the glass. From anywhere else the card is
                 // its ordinary self.
                 let override = special.shotOverride
@@ -1903,6 +1929,8 @@ enum Rules {
         state.movesThisPossession = 0
         state.movesPlayedThisPossession = []
         state.movesClosed = false
+        state.playedVarenaThisPossession = false
+        state.playedVariaballThisPossession = false
         state.possessionFromRebound = fromRebound
         state.possessionFromOwnRebound = fromOwnMiss
         state.possessionWasInterrupted = false
