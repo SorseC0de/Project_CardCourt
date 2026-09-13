@@ -598,7 +598,7 @@ enum CardLibrary {
     /// the deck as well, where playing one takes the court back to basic.
     static let cardwood = CardDescriptor(
         id: "cardwood", name: "Cardwood", type: .varena,
-        effect: "Changes the court back to basic", numberInDeck: 10,
+        effect: "Changes the court back to basic", numberInDeck: 5,
         varena: VarenaEffect())
 
     static let varenas: [CardDescriptor] = [cardwood]

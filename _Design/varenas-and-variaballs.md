@@ -87,9 +87,9 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 
 | Card | Slot | Effect | Count |
 | --- | --- | --- | --- |
-| **Prime Parquet** | Varena | SHOT +10% | 5 |
-| **Lacktop** | Varena | SHOT −10%. The twin of Prime Parquet, and it retires Off Night | 5 |
-| **Cardwood** | Varena | The default floor. Also playable: changes the court back to basic | 10 |
+| **Prime Parquet** | Varena | SHOT +10% | 3 |
+| **Lacktop** | Varena | SHOT −10%. The twin of Prime Parquet, and it retires Off Night | 3 |
+| **Cardwood** | Varena | The default floor. Also playable: changes the court back to basic | 5 |
 | **Smacktop** | Varena | "Clear All Whistles. Whistles Cannot Be Played. All Clamps are enhanced." Enhanced is a step more reduction, a card more discarded, a turn more locked | 3 |
 | **Med Ball** | Variaball | SHOT cannot exceed 50%. The heavy ball, and it retires Rock Fight | 2 |
 | **Dishcount Ball** | Variaball | Discard one fewer for card costs and Clamps | 2 |
@@ -98,7 +98,7 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 | **Dim Dome** | Varena | The SHOT number is hidden from everyone but the ball holder. On a table you flip the % device face down | 1 |
 | **Tri-hard Tiling** | Varena | Hand limit 3. *Tri* for the number, *try-hard* for the joke, tiling for the anchor — the card teaches its own rule | 3 |
 | **Policeum** | Varena | Referees do not leave once triggered, so their restrictions run until the floor changes. The existing 3-ref cap bounds it. Police + policy + coliseum | 3 |
-| **Kiddie Court** | Varena | A shrunk floor: no threes, every make counts 2. SHOT +10%, and dunks a further +10% on the low rim. Shuts off every `upgradesToThree` card | 5 |
+| **Kiddie Court** | Varena | A shrunk floor: no threes, every make counts 2. SHOT +10%, and dunks a further +10% on the low rim. Shuts off every `upgradesToThree` card | 3 |
 | **Bench Ball** | Variaball | Receiving it by *pass* benches you: no draw, no turn, straight to the inbound. Inbounds are not passes, so the ball keeps moving and the chain cannot cascade. Retires Benched | 1 |
 | **Dishtracting Ball** | Variaball | Receiving it costs you a discard, after the draw for turn. The inverse of Dishcount Ball. Retires Crowd Noise | 2 |
 | **Recharging Resin** | Varena | Everyone refills to a hand of 5 at the start of their possession. Electric-themed, and the direct opponent of Tri-hard Tiling's cap of 3. Retires Designed Play | 3 |
@@ -205,10 +205,15 @@ additions with no equivalent in the old 30.
 ## Deck space is a real constraint now
 
 **79 slots.** The Game Breaks are out of the deck, and without them the Standard deck is 421
-cards, which leaves 79 for Varenas and Variaballs. Cardwood takes 10, so it is 431 today.
+cards, which leaves 79 for Varenas and Variaballs. Cardwood takes 5, so it is 426 today.
 
 **The ratio audit** (2026-09-13) came to **112 copies: 80 in courts, 32 in balls** — 33 over the 79,
 on purpose for now. The whole deck gets reviewed again with them in it.
+
+**Revised:** Cardwood to 5, and the 5-count courts to 3 — **101 copies, 69 in courts**, 22 over.
+
+**Players should see more balls than courts** — the game is called Variaball. More Variaballs
+are still to be designed, and the counts should end up weighted toward them.
 
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate

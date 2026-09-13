@@ -79,7 +79,7 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
       and Over-Varing Evidence.
       *So far: a Whistle watching any non-Whistle play already fires on them. The two named
       triggers land with Tile Tampering and Over-Varing Evidence in Phase 3.*
-- [x] Cardwood is a playable card (decided): playing it changes the court back to basic. Ten
+- [x] Cardwood is a playable card (decided): playing it changes the court back to basic. Five
       in the Standard deck.
 
 ## Phase 3 — Per-card wiring, grouped by system
@@ -189,7 +189,7 @@ Over-Varing Evidence (same, for a Variaball).
 ## Open questions carried over, unresolved
 
 - Grayvstone before anything exists in the Variaball discard pile.
-- The ratio audit set every count: 112 copies against 79 slots. The whole deck is reviewed again
+- The ratio audit set every count: 101 copies against 79 slots. The whole deck is reviewed again
   before they are built.
 - The art budget: which cards get bespoke floor art versus an overlay (tint/marking/badge) on
   the existing court SVG.
