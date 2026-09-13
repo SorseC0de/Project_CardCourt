@@ -215,6 +215,9 @@ on purpose for now. The whole deck gets reviewed again with them in it.
 **Players should see more balls than courts** — the game is called Variaball. More Variaballs
 are still to be designed, and the counts should end up weighted toward them.
 
+**The rest of the deck was recounted** from playtesting (2026-09-13): 380 cards without
+Varenas and Variaballs, 481 with the audit's 101.
+
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate
 per card, so a HexHex-style weaker twin is no longer free just because it's a nice pattern —
