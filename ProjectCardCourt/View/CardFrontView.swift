@@ -84,6 +84,8 @@ struct CardFrontView: View {
             // everything it stands on, so a card worth an extra point is one glance rather
             // than a line of text.
             if descriptor.isThree { threeMark }
+            // **A card that shoots says so on the icon too**, in place of the words.
+            if descriptor.takesShot, !isBlank { shootMark }
             // The corner badge is for a card whose number is not already at its foot.
             // Nothing wears one today; it is kept because a type may yet want the number
             // up top rather than down there.
@@ -389,25 +391,23 @@ struct CardFrontView: View {
             .frame(width: row, height: row)
     }
 
-    /// It shoots, and how far from.
+    /// **It shoots**, pinned to the icon. The three's hand has the bottom-right corner, so
+    /// this takes its mirror, bottom-left, at the same size and height.
     ///
-    /// **A silhouette, not the drawing.** The mark is a shape saying "this shoots", and
-    /// its own colours had it fighting the card under it on three of the seven bodies. It
-    /// takes the card's own ink like everything else printed on the face.
-    private func shootMark(_ row: CGFloat) -> some View {
-        let drop = width * set.iconDrop
-        let shoot = row * set.scale(of: .shoot)
-        return HStack(spacing: row * 0.18) {
-            Image("ShootIcon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: shoot, height: shoot)
-                .foregroundStyle(effectColour)
-            if descriptor.isThree {
-                ThreeHandMark(width: row * set.scale(of: .three), shadowOffset: drop)
-            }
-        }
+    /// A silhouette in the card's own text ink, like everything else printed on the face.
+    private var shootMark: some View {
+        let side = width * CardLayout.iconSizeFraction * set.iconScale
+        let mark = side * CardLayout.threeMarkShare
+        return Image("ShootIcon")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: mark, height: mark)
+            .foregroundStyle(effectColour)
+            .position(x: width / 2 - side * CardLayout.threeMarkX,
+                      y: height * (set.iconTop + descriptor.iconYAdjust)
+                          + side * (0.5 - CardLayout.iconRingInset)
+                          + side * CardLayout.threeMarkY)
     }
 
     /// Applied only where a card asks for it, so no other icon pays for the masking.

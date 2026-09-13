@@ -11,11 +11,6 @@ were cut, and No Bag became Park Shark.
 
 Free Agent stays out of the deck. Bringing it back is low priority.
 
-## The shoot mark
-
-The user is drawing a new shoot icon for the card face. "Shoot the ball" is already off every
-face and lives in the BONUS popover; the icon takes its place on the face when it lands.
-
 ## Stars start button text styling
 
 Low priority, shelved: the text styling on the imported Stars start button still needs

@@ -272,7 +272,7 @@ for name in sorted(layers):
 # **Drawings that are not type icons**, trimmed to their own ink the way they were before
 # Affinity wrote the artboard back out — with half the widest stroke kept, so no edge line
 # is cut.
-TRIMMED = ("ISO_Court", "CardCourt_Ball")
+TRIMMED = ("ISO_Court", "CardCourt_Ball", "Shot_Icon")
 
 
 def ink(text: str):
