@@ -143,7 +143,7 @@ enum CardPalette {
         case .specialMove: return gold
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
-        case .gameBreak:   return magenta
+        case .gameBreak:   return purple
         case .injury:      return gray
         case .varena:      return purple
         case .variaball:   return orange

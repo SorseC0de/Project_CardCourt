@@ -298,9 +298,9 @@ enum CardTextStyle {
     /// lettering — a Pass's blue and an Intangible's black both go up a step.
     static let typeReference: [CardFace: CardTextInk] = [
         .pass: .lightBlue, .move: .orange, .specialMove: .gold, .clamp: .darkRed,
-        .whistle: .cloud, .gameBreak: .magenta, .intangible: .gray,
+        .whistle: .cloud, .gameBreak: .purple, .intangible: .gray,
         .injury: .teal, .devastatingInjury: .darkRed,
-        .varena: .magenta, .variaball: .orange,
+        .varena: .purple, .variaball: .orange,
     ]
 
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
