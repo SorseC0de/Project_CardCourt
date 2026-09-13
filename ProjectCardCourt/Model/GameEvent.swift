@@ -41,6 +41,8 @@ enum GameEvent: Hashable, Codable {
     case whistlesRecalled(count: Int)
     case intangiblesStripped(seat: Seat)
     case gameBreakRevealed(seat: Seat, card: CardDescriptor)
+    /// An Injury turning up in a draw. Its own type, so its own event.
+    case injuryRevealed(seat: Seat, card: CardDescriptor)
     case intangibleRevealed(seat: Seat, card: CardDescriptor)
     case intangibleDisplaced(seat: Seat, card: CardDescriptor)
     case reinbound(seat: Seat)
@@ -135,6 +137,8 @@ enum GameEvent: Hashable, Codable {
             // Named as the event it is, with whoever turned it up in brackets after. A
             // Game Break is not something a player did, so the line does not read like it.
             return "Game Break! - \(card.name) (\(seat.playerName))"
+        case .injuryRevealed(let seat, let card):
+            return "Injury! - \(card.name) (\(seat.playerName))"
         case .intangibleRevealed(let seat, let card):
             return "\(seat.playerName) \(seat.verb("reveals", "reveal")) \(card.name)."
         case .intangibleDisplaced(let seat, let card):

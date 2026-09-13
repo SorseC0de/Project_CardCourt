@@ -16,7 +16,7 @@ struct RevealCutsceneView: View {
             Color.clear
 
             VStack(spacing: 10) {
-                Text(scene.isIntangible ? "INTANGIBLE" : "GAME BREAK")
+                Text(scene.card.type.rawValue.uppercased())
                     .font(.system(size: 10, weight: .black)).tracking(2.4)
                     .foregroundStyle(accent)
 

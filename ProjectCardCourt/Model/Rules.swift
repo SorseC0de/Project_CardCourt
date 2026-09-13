@@ -165,10 +165,11 @@ enum Rules {
     }
 
     /// What `Downloaded` may take: the discard pile from the top down, passing over the
-    /// two types nobody may hold — a Break is an event and a Whistle is set, not held.
+    /// types nobody may hold — a Break and an Injury are events, and a Whistle is set.
     static func downloadable(from state: GameState) -> [Card] {
         state.discard.reversed().filter {
-            $0.descriptor.gameBreak == nil && $0.descriptor.type != .whistle
+            $0.descriptor.gameBreak == nil && $0.descriptor.injury == nil
+                && $0.descriptor.type != .whistle
         }
     }
 
@@ -452,7 +453,7 @@ enum Rules {
     /// Picked once and kept, for the same reason a Clamp's lock is: a hand that reshuffles
     /// which cards are dead every time it is looked at cannot be played around.
     private static func rollInjuryLock(_ seat: Seat, state: inout GameState) {
-        let allowed = state[seat].injuries.compactMap { $0.gameBreak?.playableEachTurn }.min()
+        let allowed = state[seat].injuries.compactMap { $0.injury?.playableEachTurn }.min()
         guard let allowed else { state[seat].injuryUnlocked = []; return }
         var pool = state[seat].bag.map(\.id)
         var kept: [UUID] = []
@@ -464,7 +465,7 @@ enum Rules {
 
     /// Whether anything this player is carrying locks their hand down.
     private static func handIsLocked(_ state: GameState, for seat: Seat) -> Bool {
-        state[seat].injuries.contains { $0.gameBreak?.playableEachTurn != nil }
+        state[seat].injuries.contains { $0.injury?.playableEachTurn != nil }
     }
 
     /// Cards a Clamp is holding down: the ones it picked at random, plus everything a
@@ -1308,7 +1309,7 @@ enum Rules {
         rollInjuryLock(seat, state: &state)
         // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
         state.possessionWasInterrupted = true
-        events.append(.gameBreakRevealed(seat: seat, card: taken))
+        events.append(.injuryRevealed(seat: seat, card: taken))
         state.phase = .possession(holder: state.ball ?? seat)
         settleHands(state: &state, events: &events)
         return events
@@ -1372,7 +1373,7 @@ enum Rules {
         }
         // An Injury's toll is the Injury biting, and reads as one. Anything else asking
         // is just a hand losing cards, and says so.
-        if let injury = state[seat].injuries.first(where: { ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }),
+        if let injury = state[seat].injuries.first(where: { ($0.injury?.discardsEachTurn ?? 0) > 0 }),
            injury.id == asking.id {
             events.append(.clampBit(seat: seat, card: injury, discarded: count))
         } else {
@@ -2105,9 +2106,9 @@ enum Rules {
 
         // Bone Bruise takes its card at the top of the turn, after the draw — so the turn
         // opens with a choice rather than with a hand already one short.
-        let toll = state[seat].injuries.reduce(0) { $0 + ($1.gameBreak?.discardsEachTurn ?? 0) }
+        let toll = state[seat].injuries.reduce(0) { $0 + ($1.injury?.discardsEachTurn ?? 0) }
         if toll > 0, let injury = state[seat].injuries.first(where: {
-            ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }), !state[seat].bag.isEmpty {
+            ($0.injury?.discardsEachTurn ?? 0) > 0 }), !state[seat].bag.isEmpty {
             state.phase = .awaitingGiveUp(seat: seat, card: injury,
                                           count: min(toll, state[seat].bag.count))
             return
@@ -2305,8 +2306,8 @@ enum Rules {
             let expired = state[seat].intangibles.filter { $0.intangible?.lastsRound == true }
             state[seat].intangibles.removeAll { $0.intangible?.lastsRound == true }
             state.discard.append(contentsOf: expired.map { Card($0) })
-            let healed = state[seat].injuries.filter { $0.gameBreak?.injury == .round }
-            state[seat].injuries.removeAll { $0.gameBreak?.injury == .round }
+            let healed = state[seat].injuries.filter { $0.injury?.lasts == .round }
+            state[seat].injuries.removeAll { $0.injury?.lasts == .round }
             state.discard.append(contentsOf: healed.map { Card($0) })
             state[seat].injuryUnlocked = []
         }
@@ -2521,6 +2522,11 @@ enum Rules {
         let card = pending.card
         let depth = pending.depth
         let wavingBreaks = pending.waving
+        // **An Injury is not a Break.** Nothing waves one off but what answers an Injury.
+        if card.descriptor.injury != nil {
+            landInjury(card, on: seat, depth: depth, state: &state, events: &events)
+            return
+        }
         guard let effect = card.descriptor.gameBreak else { return }
         // **Waved off before it is announced.** Two things do it — a run left by
         // Back-and-Forth Game, and an armed Play-On — and both mean the same thing:
@@ -2555,38 +2561,40 @@ enum Rules {
         // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
         state.possessionWasInterrupted = true
         events.append(.gameBreakRevealed(seat: seat, card: card.descriptor))
-        // An Injury is carried, not spent. See `PlayerState.injuries`.
-        if effect.injury != nil {
-            // Two ways it never lands: a passive that shrugs it off, and the one
-            // Whistle the sheet wrote for exactly this.
-            let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
-            let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
-            if let waved, !shrugged {
-                state.armedWhistles.removeAll { $0.id == waved.id }
-                state.discard.append(waved.card)
-                state.discard.append(card)
-                // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
-                state.possessionWasInterrupted = true
-                events.append(.whistleBlew(owner: waved.owner,
-                                           card: waved.card.descriptor,
-                                           cancelled: card.name,
-                                           cancelledCard: card.descriptor,
-                                           against: seat))
-            } else if shrugged {
-                // Shaken off, and the draw is taken again — it cost nothing but the
-                // card that was never carried.
-                state.discard.append(card)
-                draw(seat, state: &state, events: &events,
-                     allowBonus: false, depth: depth + 1)
-            } else {
-                state[seat].injuries.append(card.descriptor)
-                rollInjuryLock(seat, state: &state)
-            }
-        } else {
-            state.discard.append(card)
-        }
+        state.discard.append(card)
         resolveGameBreak(effect, named: card.name, card: card.descriptor,
                          drawnBy: seat, state: &state, events: &events, depth: depth)
+    }
+
+    /// **An Injury off the top of the deck**, run once the draw that turned it up is done.
+    /// Carried, not spent — see `PlayerState.injuries`.
+    private static func landInjury(_ card: Card, on seat: Seat, depth: Int,
+                                   state: inout GameState, events: inout [GameEvent]) {
+        // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
+        state.possessionWasInterrupted = true
+        events.append(.injuryRevealed(seat: seat, card: card.descriptor))
+        // Two ways it never lands: a passive that shrugs it off, and the one Whistle the
+        // sheet wrote for exactly this.
+        let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
+        let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
+        if let waved, !shrugged {
+            state.armedWhistles.removeAll { $0.id == waved.id }
+            state.discard.append(waved.card)
+            state.discard.append(card)
+            events.append(.whistleBlew(owner: waved.owner,
+                                       card: waved.card.descriptor,
+                                       cancelled: card.name,
+                                       cancelledCard: card.descriptor,
+                                       against: seat))
+        } else if shrugged {
+            // Shaken off, and the draw is taken again — it cost nothing but the card that
+            // was never carried.
+            state.discard.append(card)
+            draw(seat, state: &state, events: &events, allowBonus: false, depth: depth + 1)
+        } else {
+            state[seat].injuries.append(card.descriptor)
+            rollInjuryLock(seat, state: &state)
+        }
     }
 
     /// Everything a draw turned up, run in the order it came off the deck.
@@ -2686,9 +2694,9 @@ enum Rules {
         }
         let card = state.deck.removeLast()
 
-        // A Game Break drawn while a hand is being dealt does not fire. It goes back into
-        // the deck, silently, and the deal tries again.
-        if duringDeal, card.descriptor.gameBreak != nil {
+        // A Game Break or an Injury drawn while a hand is being dealt does not fire. It goes
+        // back into the deck, silently, and the deal tries again.
+        if duringDeal, card.descriptor.gameBreak != nil || card.descriptor.injury != nil {
             state.deck.append(card)
             state.deck = state.shuffled(state.deck)
             draw(seat, state: &state, events: &events,
@@ -2708,7 +2716,7 @@ enum Rules {
             }
             draw(seat, state: &state, events: &events,
                  allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
-        } else if card.descriptor.gameBreak != nil {
+        } else if card.descriptor.gameBreak != nil || card.descriptor.injury != nil {
             // **Held, not fired.** A draw is one act however many cards it moves, and a
             // Break that resolved the moment it came off the deck moved SHOT under the
             // rest of the draws, took the ball off a man still owed cards, and asked
@@ -2875,8 +2883,8 @@ enum Rules {
             return
         }
         if effect.offersInjuries {
-            let pool = state.discard.map(\.descriptor).filter { $0.gameBreak?.injury != nil }
-            let inDeck = state.deck.map(\.descriptor).filter { $0.gameBreak?.injury != nil }
+            let pool = state.discard.map(\.descriptor).filter { $0.injury != nil }
+            let inDeck = state.deck.map(\.descriptor).filter { $0.injury != nil }
             guard !(pool.isEmpty && inDeck.isEmpty) else { return }
             state.injuriesOffered = pool + inDeck
             // What is still in the deck is face down. Knowing an Injury is in there is

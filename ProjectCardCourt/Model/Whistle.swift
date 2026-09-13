@@ -21,10 +21,9 @@ enum WhistleTrigger: String, Hashable, Codable {
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
     case shotClockLowered
     case whistleFired
-    /// An Injury turning up in somebody's draw. **The one exception to Game Breaks being
-    /// events rather than plays**: Cleared to Play is the sheet's own answer to an Injury,
-    /// and an Injury is the one Break that stays on a player rather than firing and going.
-    /// Raised where the Break lands, not by matching an action.
+    /// An Injury turning up in somebody's draw. Like a Game Break it is an event rather than
+    /// a play — Cleared to Play is the sheet's own answer to one — so it is raised where the
+    /// Injury lands, not by matching an action.
     case injuryDrawn
     /// A Game Break turning up in somebody's draw. The **second** exception to Breaks
     /// being events rather than plays, and for the same reason as `injuryDrawn`: Play-On

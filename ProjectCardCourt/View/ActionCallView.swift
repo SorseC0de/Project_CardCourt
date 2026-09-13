@@ -8,6 +8,7 @@ extension ActionCall {
         switch self {
         case .inbound:   return CardPalette.blue
         case .gameBreak: return CardPalette.magenta
+        case .injury:    return CardPalette.gray
         case .whistle:   return CardPalette.red
         case .clamped:   return CardPalette.purple
         }
@@ -18,6 +19,7 @@ extension ActionCall {
     var streak: Color? {
         switch self {
         case .gameBreak: return CardPalette.magenta
+        case .injury:    return CardPalette.gray
         case .whistle:   return .white
         case .clamped:   return CardPalette.red
         case .inbound: return nil

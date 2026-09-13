@@ -144,6 +144,7 @@ enum CardPalette {
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
         case .gameBreak:   return magenta
+        case .injury:      return gray
         case .varena:      return purple
         case .variaball:   return orange
         // The not-black black rather than navy. Navy is what the ring is drawn in, so an
@@ -173,15 +174,15 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
     case devastatingInjury
 
     init(of card: CardDescriptor) {
-        switch (card.type, card.gameBreak?.injury) {
-        case (.gameBreak, .round): self = .injury
-        case (.gameBreak, .game):  self = .devastatingInjury
+        switch (card.type, card.injury?.lasts) {
+        case (.injury, .game):     self = .devastatingInjury
+        case (.injury, _):         self = .injury
         case (.pass, _):           self = .pass
         case (.move, _):           self = .move
         case (.specialMove, _):    self = .specialMove
         case (.clamp, _):          self = .clamp
         case (.whistle, _):        self = .whistle
-        case (.gameBreak, nil):    self = .gameBreak
+        case (.gameBreak, _):      self = .gameBreak
         case (.intangible, _):     self = .intangible
         case (.varena, _):         self = .varena
         case (.variaball, _):      self = .variaball
@@ -217,7 +218,8 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         case .intangible:  return .intangible
         case .varena:      return .varena
         case .variaball:   return .variaball
-        case .gameBreak, .injury, .devastatingInjury: return .gameBreak
+        case .gameBreak:   return .gameBreak
+        case .injury, .devastatingInjury: return .injury
         }
     }
 }
@@ -266,7 +268,7 @@ struct CardInk {
         let type = face.type
         // The two dark bodies. Navy lettering on either is lettering nobody can find, and
         // navy is also what the ring is drawn in — so both turn over together.
-        let dark = face == .intangible || type == .gameBreak
+        let dark = face == .intangible || type == .gameBreak || type == .injury
         return CardInk(
             // A Whistle's stripes are black and white and its body is nearly white, so
             // navy sits between the two rather than on either side of them.
@@ -476,7 +478,7 @@ enum CardLayout {
 
     static func opacity(for face: CardFace) -> Double {
         switch face.type {
-        case .gameBreak, .intangible, .varena, .variaball: return 0.40
+        case .gameBreak, .injury, .intangible, .varena, .variaball: return 0.40
         case .move, .specialMove:     return 0.30
         case .pass:                   return 0.25
         case .clamp:                  return 0.60

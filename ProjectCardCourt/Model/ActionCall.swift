@@ -10,7 +10,7 @@ import Foundation
 /// different here is that nothing is being chosen: a mode card in Stars waits for a Start
 /// button, and this one is telling you what just happened, so it leaves on its own.
 enum ActionCall: String, Identifiable, Equatable, CaseIterable {
-    case inbound, gameBreak, whistle, clamped
+    case inbound, gameBreak, injury, whistle, clamped
 
     var id: String { rawValue }
 
@@ -18,6 +18,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         switch self {
         case .inbound:   return "Inbound"
         case .gameBreak: return "Game Break!"
+        case .injury:    return "Injury!"
         case .whistle:   return "Whistle"
         case .clamped:   return "Clamped!"
         }
@@ -28,6 +29,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         switch self {
         case .inbound:   return "Put the ball back in play"
         case .gameBreak: return "The game has something to say"
+        case .injury:    return "It stays with whoever drew it"
         // The whistle says it with the whistle. See `emblem`.
         case .whistle:   return ""
         case .clamped:   return "Defenders are guarding you closely"

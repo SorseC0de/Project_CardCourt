@@ -112,7 +112,7 @@ enum DevLog {
                 say(.card, "\(seat.dev) sets \(card.name)")
             case .drew(let seat, let card, _):
                 say(.card, "\(seat.dev) drew \(card.name)")
-            case .gameBreakRevealed(let seat, let card):
+            case .gameBreakRevealed(let seat, let card), .injuryRevealed(let seat, let card):
                 say(.card, "\(seat.dev) turns up \(card.name)")
             case .intangibleRevealed(let seat, let card):
                 say(.card, "\(seat.dev) reveals \(card.name)")

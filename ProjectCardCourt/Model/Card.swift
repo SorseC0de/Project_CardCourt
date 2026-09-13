@@ -223,23 +223,23 @@ struct GameBreakEffect: Hashable, Codable {
     var givesBallAway = false
     /// No Whistle can fire for the rest of the round.
     var silencesWhistles = false
-    /// The sheet gives Injuries their own type column, and they wear their own colour.
-    var isInjury = false
-    /// **How long an Injury sits on you, and whether it ever comes back.**
-    ///
-    /// An ordinary Injury lasts the round and is shuffled back in at halftime with
-    /// everything else. A Devastating one lasts the whole game and is never shuffled back
-    /// — one copy exists and once it has been drawn it is gone, unless a card says
-    /// otherwise. See `Injury`.
-    var injury: Injury?
+    /// Free throws for whoever drew it. Nobody fouled them, so nobody hands the ball back.
+    var freeThrows = 0
+}
+
+/// **What an Injury does to the man carrying it.** Its own card type rather than a Game
+/// Break, and a Devastating Injury is its sub-type — the one that lasts the game.
+struct InjuryEffect: Hashable, Codable {
+    /// **How long it sits on you, and whether it ever comes back.** An ordinary Injury lasts
+    /// the round and is shuffled back in at halftime with everything else. A Devastating one
+    /// lasts the whole game and is never shuffled back. See `Injury`.
+    var lasts: Injury
     /// Bone Bruise: one card off the top of your hand at the start of every turn, after
     /// you have drawn — so the turn always begins with a choice rather than a tax.
     var discardsEachTurn = 0
     /// Torn Achilles: everything in the bag is held down but this many, rolled fresh each
     /// turn. Zero is no lock at all.
     var playableEachTurn: Int?
-    /// Free throws for whoever drew it. Nobody fouled them, so nobody hands the ball back.
-    var freeThrows = 0
 }
 
 /// What a Varena changes while it is the floor — one field per mechanic, like
@@ -338,6 +338,8 @@ enum CardType: String, Hashable, Codable, CaseIterable {
     case whistle = "Whistle"
     case gameBreak = "Game Break"
     case intangible = "Intangible"
+    /// Drawn and carried. A Devastating Injury is its sub-type, the one that lasts the game.
+    case injury = "Injury"
     /// The floor. One is always out — Cardwood until somebody plays over it.
     case varena = "Varena"
     /// The ball. None out is a Regulation Ball.
@@ -444,6 +446,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let intangible: IntangibleEffect?
     /// Set on Game Breaks.
     let gameBreak: GameBreakEffect?
+    /// Set on Injuries.
+    let injury: InjuryEffect?
     /// Set on Varenas.
     let varena: VarenaEffect?
     /// Set on Variaballs.
@@ -467,6 +471,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          upgradesToThree: Bool = false, replacesClockTick: Bool = false,
          whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
+         injury: InjuryEffect? = nil,
          varena: VarenaEffect? = nil, variaball: VariaballEffect? = nil,
          special: SpecialMoveEffect? = nil, isDribble: Bool = false,
          selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
@@ -509,6 +514,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.replacesClockTick = replacesClockTick
         self.whistle = whistle; self.clamp = clamp
         self.intangible = intangible; self.gameBreak = gameBreak
+        self.injury = injury
         self.varena = varena; self.variaball = variaball
         self.special = special; self.isDribble = isDribble
         self.freeThrowsPerClamp = freeThrowsPerClamp; self.clearsClamps = clearsClamps
@@ -540,7 +546,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .gameBreak:
             if let shift = gameBreak?.shotThisPossession, shift != 0 { return shift }
             return nil
-        case .move, .whistle, .intangible, .varena, .variaball:
+        case .move, .whistle, .intangible, .injury, .varena, .variaball:
             return nil
         }
     }
@@ -563,7 +569,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Injuries are Game Breaks but read as their own thing, and the two of them differ
     /// by how long they last, so they get a drawing each.
     var artwork: (name: String, mirrored: Bool, scale: CGFloat)? {
-        (name: Self.typeIcon(for: type, injury: gameBreak?.injury),
+        (name: Self.typeIcon(for: type, lasting: injury?.lasts),
          mirrored: false, scale: 1)
     }
 
@@ -575,10 +581,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// A name only. **Whether the drawing exists is the view's question** — the model is
     /// built headless and knows nothing about an asset catalog. See `CardFrontView`.
     var artworkFront: String {
-        Self.typeIcon(for: type, injury: gameBreak?.injury) + "Front"
+        Self.typeIcon(for: type, lasting: injury?.lasts) + "Front"
     }
 
-    static func typeIcon(for type: CardType, injury: Injury?) -> String {
+    static func typeIcon(for type: CardType, lasting: Injury?) -> String {
         switch type {
         case .pass:        return "TypePass"
         case .move:        return "TypeMove"
@@ -589,12 +595,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         // Not drawn yet — the ∀ mark is art, not text. See the implementation queue.
         case .varena:      return "TypeVarena"
         case .variaball:   return "TypeVariaball"
-        case .gameBreak:
-            switch injury {
-            case .round: return "TypeInjury"
-            case .game:  return "TypeDevaInjury"
-            case nil:    return "TypeGameBreak"
-            }
+        case .gameBreak:   return "TypeGameBreak"
+        case .injury:      return lasting == .game ? "TypeDevaInjury" : "TypeInjury"
         }
     }
 
@@ -851,6 +853,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .clamp:        return "hand.raised.fill"
         case .whistle:      return "flag.fill"
         case .gameBreak:    return "bolt.fill"
+        case .injury:       return "bandage.fill"
         case .intangible:   return "sparkles"
         case .varena:       return "sportscourt.fill"
         case .variaball:    return "basketball"

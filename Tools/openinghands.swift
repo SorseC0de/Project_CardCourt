@@ -58,7 +58,7 @@ enum OpeningHands {
         //
         // Swept over every pass share rather than reasoned about, because the answer
         // depends on the deck's actual size and that changes every time a count does.
-        let bagable = pool.filter { $0.gameBreak == nil && $0.intangible == nil }
+        let bagable = pool.filter { $0.gameBreak == nil && $0.injury == nil && $0.intangible == nil }
         let deck = bagable.reduce(0) { $0 + $1.numberInDeck }
         func logChoose(_ n: Int, _ k: Int) -> Double {
             guard k >= 0, k <= n else { return -.infinity }

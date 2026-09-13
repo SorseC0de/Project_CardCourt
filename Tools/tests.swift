@@ -1434,7 +1434,7 @@ func runTests() {
         // had met, and `Rules` looked cards up by id in it and got nil for every Special
         // Move, Clamp and Intangible.
         for kind in [CardType.pass, .move, .specialMove, .clamp, .whistle,
-                     .gameBreak, .intangible] {
+                     .intangible, .injury, .varena] {
             Check.that(CardLibrary.all.contains { $0.type == kind },
                        "the library has \(kind) cards in it")
         }
@@ -1444,7 +1444,7 @@ func runTests() {
         Check.that(CardLibrary.all.allSatisfy { CardLibrary.byID[$0.id] != nil },
                    "and every one of them can be found by id")
         Check.that(CardLibrary.injuries.allSatisfy { CardLibrary.byID[$0.id] != nil },
-                   "injuries included, which are a view of the Game Breaks")
+                   "injuries included")
 
         // **The size of the thing.** This is what was actually wrong for a week: a board
         // written out in full is a quarter of a megabyte, GameKit refuses a reliable send

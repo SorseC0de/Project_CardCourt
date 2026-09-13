@@ -18,7 +18,7 @@ struct CardGalleryView: View {
 
     /// Every type that has cards, in the order the sheet lists them.
     private var types: [CardType] {
-        [.pass, .move, .specialMove, .clamp, .whistle, .gameBreak, .intangible,
+        [.pass, .move, .specialMove, .clamp, .whistle, .gameBreak, .injury, .intangible,
          .varena, .variaball]
             .filter { kind in CardLibrary.all.contains { $0.type == kind } }
     }
@@ -90,8 +90,7 @@ struct CardGalleryView: View {
             HStack(spacing: 8) {
                 ForEach(types, id: \.self) { kind in
                     let on = kind == type
-                    SmallCapsText(text: kind == .gameBreak ? "Injury" : kind.rawValue,
-                                  font: Chrome.display, size: 14,
+                    SmallCapsText(text: kind.rawValue, font: Chrome.display, size: 14,
                                   tracking: 1)
                         .foregroundStyle(on ? .white : CardPalette.gray)
                         .padding(.horizontal, 12)

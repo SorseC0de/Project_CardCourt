@@ -472,14 +472,14 @@ enum CardLibrary {
     // returns to the deck.
 
     static let boneBruise = CardDescriptor(
-        id: "bone-bruise", name: "Bone Bruise", type: .gameBreak,
+        id: "bone-bruise", name: "Bone Bruise", type: .injury,
         effect: "#[Discard] 1 each turn, after drawing", numberInDeck: 3,
-        gameBreak: GameBreakEffect(isInjury: true, injury: .round, discardsEachTurn: 1))
+        injury: InjuryEffect(lasts: .round, discardsEachTurn: 1))
 
     static let tornAchilles = CardDescriptor(
-        id: "torn-achilles", name: "Torn Achilles", type: .gameBreak,
+        id: "torn-achilles", name: "Torn Achilles", type: .injury,
         effect: "Every turn: all but 1 random card is held", numberInDeck: 1,
-        gameBreak: GameBreakEffect(isInjury: true, injury: .game, playableEachTurn: 1))
+        injury: InjuryEffect(lasts: .game, playableEachTurn: 1))
 
     static let tradedMidGame = CardDescriptor(
         id: "traded-mid-game", name: "Traded Mid-Game", type: .gameBreak,
@@ -605,7 +605,7 @@ enum CardLibrary {
 
     // ── Game Breaks ───────────────────────────────────────────────────
     // Out of the deck: each retires into a Varena or a Variaball. The descriptors and the
-    // rules they lean on stay until each replacement is built. Only the Injuries are dealt.
+    // rules they lean on stay until each replacement is built.
 
     static let crowdNoise = CardDescriptor(
         id: "crowd-noise", name: "Crowd Noise", type: .gameBreak,
@@ -816,8 +816,7 @@ enum CardLibrary {
         numberInDeck: 3,
         gameBreak: GameBreakEffect(waivesBreaks: 3))
 
-    /// Their own list, because they are their own column on the sheet and their own rules
-    /// — see `Injury`.
+    /// Their own type. A Devastating Injury is the sub-type that lasts the game — see `Injury`.
     static let injuries: [CardDescriptor] = [boneBruise, tornAchilles]
 
     static let whistles: [CardDescriptor] = [
@@ -869,8 +868,7 @@ enum CardLibrary {
     /// record a Whistle you had met, and `Rules` looked cards up by id in it — so a
     /// Special Move, a Clamp or an Intangible simply came back nil. A name that says
     /// `all` has to mean all.
-    /// The Injuries are the only Game Breaks still dealt, and `standardPool` has them, so
-    /// this is `standardPool` alone.
+    /// Every card still dealt is in `standardPool`, so this is `standardPool` alone.
     static let all: [CardDescriptor] = standardPool
 
     /// **Every descriptor there is, by its id.** The wire needs this: a card crosses as

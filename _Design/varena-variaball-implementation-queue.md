@@ -40,7 +40,8 @@ than kept alongside the new system.
       `CardType.gameBreak` expecting the old 30.
       *Confirmed: its readers are the Game Break announcement, the Whistle draw trigger,
       the gallery's section list and the Injuries — none counts the old 30.* **Done for the
-      deck:** the Game Breaks are out and only the Injuries are dealt. Each Break's rules code
+      deck:** the Game Breaks are out. Injuries are their own type, with Devastating Injury its
+      sub-type, so nothing dealt is a Game Break any more. Each Break's rules code
       stays until its replacement is built, then goes.
 
 ## Phase 1 — SHOT override hierarchy

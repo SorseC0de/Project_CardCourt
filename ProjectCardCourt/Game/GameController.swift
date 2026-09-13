@@ -403,7 +403,7 @@ struct RevealCutscene: Identifiable, Equatable {
     static func queue(from events: [GameEvent], seen: SeenCards) -> [RevealCutscene] {
         events.compactMap { event in
             switch event {
-            case .gameBreakRevealed(let seat, let card):
+            case .gameBreakRevealed(let seat, let card), .injuryRevealed(let seat, let card):
                 return RevealCutscene(seat: seat, card: card, isIntangible: false,
                                       isNew: seen.meet(card.id))
             case .intangibleRevealed(let seat, let card):
@@ -1576,6 +1576,11 @@ final class GameController {
                 // and the call is what says so before the card can be mistaken for a play.
                 await announce(.gameBreak)
                 await showReveals(in: [event])
+            case .injuryRevealed:
+                flight = nil
+                // Nobody played this either, so it is called the same way.
+                await announce(.injury)
+                await showReveals(in: [event])
             case .intangibleRevealed:
                 flight = nil
                 await showReveals(in: [event])
@@ -2437,7 +2442,7 @@ final class GameController {
             return .whistle
         case .drew, .deckReshuffled:
             return .draw
-        case .gameBreakRevealed, .intangibleRevealed, .intangibleDisplaced:
+        case .gameBreakRevealed, .injuryRevealed, .intangibleRevealed, .intangibleDisplaced:
             return .reveal
         case .shotAttempted, .shotMade, .shotMissed, .assisted:
             return .shot
@@ -2684,7 +2689,7 @@ final class GameController {
 
     /// The Injury asking for the card, so the prompt can name it.
     private func injury(on seat: Seat) -> CardDescriptor? {
-        state[seat].injuries.first { ($0.gameBreak?.discardsEachTurn ?? 0) > 0 }
+        state[seat].injuries.first { ($0.injury?.discardsEachTurn ?? 0) > 0 }
     }
 
     /// Counted before the move, because resolving a shot clears the Clamps that caused it.
