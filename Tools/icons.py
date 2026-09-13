@@ -9,6 +9,9 @@ on its own has no circle to be measured against.
 
 A type with no `_subject` is drawn whole in `X_Icon_new.svg` and framed by itself.
 
+A drawing that is not a type icon at all — the court the Varenas are printed on — has no
+circle to be framed by. It is named in `TRIMMED` and trimmed to its own ink instead.
+
 Run it after any re-export. **Affinity writes the artboard back out as the viewBox**, so
 an icon saved again loses its framing and reads a different size to the other eight —
 which is the whole thing this fixes.
@@ -261,5 +264,50 @@ for name in sorted(layers):
             moved += 1
     print(f"{name:16} circle ({cx:.1f}, {cy:.1f}) r {r:.1f}  "
           f"{'+'.join(sorted(parts))}   {box}")
+
+# **Drawings that are not type icons**, trimmed to their own ink the way they were before
+# Affinity wrote the artboard back out — with half the widest stroke kept, so no edge line
+# is cut.
+TRIMMED = ("ISO_Court",)
+
+
+def ink(text: str):
+    """Everything that actually draws, a fill or a stroke, in the file's own coordinates."""
+    def style(node, key):
+        got = re.search(key + r"\s*:\s*([^;]+)", node.get("style", "") or "")
+        return got.group(1).strip() if got else node.get(key)
+
+    tree = ET.fromstring(text)
+    got = None
+    stack = [(tree, (1, 0, 0, 1, 0, 0), None, None)]
+    while stack:
+        node, up, fill, stroke = stack.pop(0)
+        here = times(up, matrix(node))
+        fill = style(node, "fill") or fill
+        stroke = style(node, "stroke") or stroke
+        if node.tag in DRAWN and (fill != "none" or (stroke or "none") != "none"):
+            box = bounds(node, here)
+            if box:
+                got = box if got is None else (min(got[0], box[0]), min(got[1], box[1]),
+                                               max(got[2], box[2]), max(got[3], box[3]))
+        stack = [(kid, here, fill, stroke) for kid in node] + stack
+    return got
+
+
+for name in TRIMMED:
+    path = root / ICONS / f"{name}.svg"
+    if not path.exists():
+        continue
+    text = path.read_text()
+    box = ink(text)
+    if box is None:
+        print(f"  ! {path.name} draws nothing", file=sys.stderr)
+        continue
+    half = max([float(w) for w in re.findall(r"stroke-width\s*:\s*([\d.]+)", text)] or [0]) / 2
+    x0, y0, x1, y1 = box[0] - half, box[1] - half, box[2] + half, box[3] + half
+    trim = f'viewBox="{n(x0)} {n(y0)} {n(x1 - x0)} {n(y1 - y0)}"'
+    if frame(path, trim):
+        moved += 1
+    print(f"{name:16} trimmed to its ink   {trim}")
 
 print(f"\n{moved} file(s) rewritten, {snapped} fill(s) snapped to the palette")
