@@ -594,12 +594,14 @@ enum CardLibrary {
 
     // ── Varenas ───────────────────────────────────────────────────────
 
-    /// **The default floor.** On the table from the start, like Fluxx's basic rule card,
-    /// and never dealt — it is what the floor reads as when nobody has played one.
+    /// **The basic floor.** On the table from the start, like Fluxx's basic rule card — and in
+    /// the deck as well, where playing one takes the court back to basic.
     static let cardwood = CardDescriptor(
         id: "cardwood", name: "Cardwood", type: .varena,
-        effect: "The default floor", numberInDeck: 0,
+        effect: "Changes the court back to basic", numberInDeck: 10,
         varena: VarenaEffect())
+
+    static let varenas: [CardDescriptor] = [cardwood]
 
     // ── Game Breaks ───────────────────────────────────────────────────
 
@@ -866,6 +868,7 @@ enum CardLibrary {
     static let standardPool: [CardDescriptor] = passesAndMoves
         + [contest, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
         + whistles + intangibles + gameBreaks + specialMoves
+        + varenas
 
     /// **Every card in the game.**
     ///
@@ -886,11 +889,10 @@ enum CardLibrary {
     /// Off `standardPool`, not `all`. `all` is the Classic pool — passes and moves, 28 of
     /// the 128 cards in the game — and building this from it left every Whistle,
     /// Intangible, Game Break, Injury, Clamp and Special Move unable to decode. The
-    /// injuries are in neither pool, since nobody is dealt one. Cardwood is in neither
-    /// either — it is never dealt, and it is on the floor of every board that crosses.
+    /// injuries are in neither pool, since nobody is dealt one.
     static let byID: [String: CardDescriptor] = {
         var found: [String: CardDescriptor] = [:]
-        for card in all + [faceDown, cardwood] { found[card.id] = card }
+        for card in all + [faceDown] { found[card.id] = card }
         return found
     }()
 

@@ -77,8 +77,8 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
       and Over-Varing Evidence.
       *So far: a Whistle watching any non-Whistle play already fires on them. The two named
       triggers land with Tile Tampering and Over-Varing Evidence in Phase 3.*
-- [x] Cardwood is a playable card (decided): playing it changes the court back to basic. Its
-      deck count is still TBC.
+- [x] Cardwood is a playable card (decided): playing it changes the court back to basic. Ten
+      in the Standard deck.
 
 ## Phase 3 — Per-card wiring, grouped by system
 

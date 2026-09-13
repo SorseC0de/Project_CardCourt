@@ -18,7 +18,8 @@ struct CardGalleryView: View {
 
     /// Every type that has cards, in the order the sheet lists them.
     private var types: [CardType] {
-        [.pass, .move, .specialMove, .clamp, .whistle, .gameBreak, .intangible]
+        [.pass, .move, .specialMove, .clamp, .whistle, .gameBreak, .intangible,
+         .varena, .variaball]
             .filter { kind in CardLibrary.all.contains { $0.type == kind } }
     }
 

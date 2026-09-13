@@ -89,7 +89,7 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 | --- | --- | --- | --- |
 | **Prime Parquet** | Varena | SHOT +10% | 5–10, TBC |
 | **Lacktop** | Varena | SHOT −10%. The twin of Prime Parquet, and it retires Off Night | TBC |
-| **Cardwood** | Varena | The default floor. Also playable: changes the court back to basic | TBC |
+| **Cardwood** | Varena | The default floor. Also playable: changes the court back to basic | 10 |
 | **Smacktop** | Varena | No Whistle may activate, anybody's. Clamps are enhanced — a step more reduction, a card more discarded, a turn more locked | TBC |
 | **Med Ball** | Variaball | SHOT cannot exceed 50%. The heavy ball, and it retires Rock Fight | TBC |
 | **Dishcount Ball** | Variaball | Discard one fewer for card costs and Clamps | TBC |
@@ -203,10 +203,13 @@ Variaball play now that they're plays.
 ## All 30 resolved.
 
 Every original Game Break has been converted, retired into a broader card, or killed
-outright. **36 Varenas/Variaballs designed** in the new system, several of them new
+outright. **44 designed — 29 Varenas and 15 Variaballs** — several of them new
 additions with no equivalent in the old 30.
 
 ## Deck space is a real constraint now
+
+**79 slots.** The Standard deck is 421 cards once its Game Breaks are out, which leaves 79
+for Varenas and Variaballs. Cardwood takes 10.
 
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate
