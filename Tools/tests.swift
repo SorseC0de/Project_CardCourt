@@ -1339,6 +1339,52 @@ func runTests() {
         }
     }
 
+    print("Close-Out and Zone")
+    do {
+        var (state, seat, _) = openPossession(seed: 95, cards: [CardLibrary.threeBall, CardLibrary.drive])
+        state[seat].clamps = [ActiveClamp(card: CardLibrary.closeOut, from: seat.left)]
+        let playable = Rules.legalMoves(state, for: seat).compactMap { move -> CardDescriptor? in
+            guard case .play(let id) = move else { return nil }
+            return state[seat].bag.first { $0.id == id }?.descriptor
+        }
+        Check.that(!playable.contains { $0.isThree } && playable.contains { $0.id == CardLibrary.drive.id },
+                   "Close-Out takes the threes away and leaves the rest")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 94, cards: [CardLibrary.kickOut])
+        for other in Seat.allCases where other != seat {
+            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+        }
+        var events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        if case .awaitingTarget(_, _, let choices) = state.phase, let receiver = choices.first {
+            state[receiver].clamps = [ActiveClamp(card: CardLibrary.closeOut, from: seat)]
+            events += Rules.resolveTarget(receiver, state: &state)
+            Check.that(!events.contains { if case .shotAttempted = $0 { return true }; return false },
+                       "a Kick-Out to a Closed-Out player is not shot")
+            Check.that(state.ball == receiver && state.pendingBonusPoint == 0,
+                       "it is a normal pass, with no three left owed")
+        } else {
+            Check.that(false, "Kick-Out asks who it goes to")
+        }
+    }
+    do {
+        // A Move that draws nothing, clears nothing and asks nothing, so no Pass can arrive.
+        let quiet = CardLibrary.standardPool.first {
+            $0.type == .move && $0.drawCount == 0 && $0.comboDraw == 0 && $0.drawIfFirstAction == 0
+                && !$0.clearsClamps && !$0.clearsOut && $0.selfDiscard == 0
+                && $0.optionalDiscardForShot == 0 && $0.modes.isEmpty && $0.clamp == nil
+        }!
+        var (state, seat, cards) = openPossession(seed: 96, cards: [quiet, quiet])
+        state[seat].bag = cards
+        state[seat].clamps = [ActiveClamp(card: CardLibrary.zone, from: seat.left)]
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.shoot), "Zone takes the shot away")
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(events.contains {
+            if case .turnover(let who, let cause) = $0 { return who == seat && cause == CardLibrary.zone.name }
+            return false
+        }, "and with no Pass to play, it is a turnover")
+    }
+
     print("Serialisation")
     do {
         let (state, _) = Rules.newGame(seed: 15)

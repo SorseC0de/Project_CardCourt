@@ -28,6 +28,7 @@ struct ClampEffect: Hashable, Codable {
     /// its work the moment it arrives and leaves again.
     var isStanding: Bool {
         shotDebuff != 0 || locksRandomCards > 0 || passOnly || shotPerCardPlayed != 0
+            || blocksThrees || blocksShooting || turnoverWithoutAPass
     }
 
     /// Bodies this Clamp puts next to its victim. Double-Team is two, Triple-Team three.
@@ -44,6 +45,13 @@ struct ClampEffect: Hashable, Codable {
     var passOnly = false
     /// Man-To-Man: SHOT, every time the clamped player plays a card.
     var shotPerCardPlayed = 0
+    /// Close-Out: no three-point attempts.
+    var blocksThrees = false
+    /// Zone: no shots at all.
+    var blocksShooting = false
+    /// Zone: left without a playable Pass at any point, the player turns it over and the
+    /// round ends.
+    var turnoverWithoutAPass = false
 }
 
 /// A passive that sits in one of a player's slots for the rest of the match.

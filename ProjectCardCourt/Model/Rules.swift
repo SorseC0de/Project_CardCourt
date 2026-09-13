@@ -70,9 +70,14 @@ enum Rules {
                 held.formUnion(state[seat].bag.map(\.id).filter { !free.contains($0) })
             }
             let passOnly = state[seat].clamps.contains { $0.card.clamp?.passOnly == true }
+            let closedOut = state[seat].clamps.contains { $0.card.clamp?.blocksThrees == true }
+            let zoned = state[seat].clamps.contains { $0.card.clamp?.blocksShooting == true }
             let playable = state[seat].bag.filter { card in
                 if held.contains(card.id) { return false }
                 if passOnly, card.descriptor.passTarget == nil { return false }
+                // Close-Out takes the threes away, and Zone every shot.
+                if closedOut, card.descriptor.isThree { return false }
+                if zoned, card.descriptor.takesShot { return false }
                 // No Bag sits the Moves down; Fundamentalist sits the Special Moves down
                 // and allows each Move once a turn.
                 if card.descriptor.type == .move,
@@ -128,7 +133,7 @@ enum Rules {
                     .map { Move.borrow(from: $0) }
             }
             // Rock Fight: nobody takes a good look. A bad one is still on offer.
-            let barred = state.shotCeilingThisRound.map { state.shot >= $0 } ?? false
+            let barred = (state.shotCeilingThisRound.map { state.shot >= $0 } ?? false) || zoned
             return (barred ? [] : [.shoot]) + playable.map { Move.play($0.id) } + borrowing
         default:
             return []
@@ -144,10 +149,17 @@ enum Rules {
     /// Checked at the edges of a chain rather than inside one, because a hand that is dead
     /// halfway through a draw is not dead — it is halfway through a draw.
     private static func strandOut(state: inout GameState, events: inout [GameEvent]) {
-        guard case .possession(let holder) = state.phase,
-              legalMoves(state, for: holder).isEmpty else { return }
+        guard case .possession(let holder) = state.phase else { return }
+        let legal = legalMoves(state, for: holder)
+        // Zone: left with no Pass to play, at any point in the possession, is the turnover.
+        let zoned = state[holder].clamps.contains { $0.card.clamp?.turnoverWithoutAPass == true }
+        let canPass = legal.contains { move in
+            guard case .play(let id) = move else { return false }
+            return state[holder].bag.first(where: { $0.id == id })?.isPass == true
+        }
+        guard legal.isEmpty || (zoned && !canPass) else { return }
         state[holder].turnovers += 1
-        events.append(.turnover(holder, cause: "Shot Clock"))
+        events.append(.turnover(holder, cause: zoned && !canPass ? CardLibrary.zone.name : "Shot Clock"))
         endRound(state: &state, events: &events)
     }
 
@@ -2500,6 +2512,14 @@ enum Rules {
         // somebody else has taken it away rather than moved it.
         case .shootAtOnce(let shooter):
             guard case .possession(let holder) = state.phase, holder == shooter else {
+                return
+            }
+            // Close-Out: a three owed to a player who cannot take one is not shot, and the
+            // pass that owed it was only ever a pass. Zone: no owed shot is taken at all.
+            let guarding = state[shooter].clamps.compactMap(\.card.clamp)
+            if guarding.contains(where: \.blocksShooting)
+                || (state.pendingBonusPoint > 0 && guarding.contains(where: \.blocksThrees)) {
+                state.pendingBonusPoint = 0
                 return
             }
             if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {

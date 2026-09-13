@@ -178,6 +178,17 @@ enum CardLibrary {
         effect: "Next player: SHOT -10% each time a card is played", numberInDeck: 5,
         clamp: ClampEffect(shotPerCardPlayed: -10))
 
+    static let closeOut = CardDescriptor(
+        id: "close-out", name: "Close-Out", type: .clamp,
+        effect: "Next player cannot attempt a three-pointer", numberInDeck: 5,
+        clamp: ClampEffect(blocksThrees: true))
+
+    static let zone = CardDescriptor(
+        id: "zone", name: "Zone", type: .clamp,
+        effect: "Next player cannot #[Shoot]. With no playable ~[Pass] cards, "
+            + "#[TOV] +1 and the round ends", numberInDeck: 1,
+        clamp: ClampEffect(blocksShooting: true, turnoverWithoutAPass: true))
+
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
         effect: "Next player #[Lock|2]", numberInDeck: 5,
@@ -868,7 +879,7 @@ enum CardLibrary {
 
     /// Standard adds everything else, as each type gets built.
     static let standardPool: [CardDescriptor] = passesAndMoves
-        + [contest, manToMan, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
+        + [contest, manToMan, closeOut, zone, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
         + whistles + intangibles + injuries + specialMoves
         + varenas
 
