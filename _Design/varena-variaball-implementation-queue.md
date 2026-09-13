@@ -71,8 +71,8 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
 - [ ] Whistles can now fire on these plays (reversed from the old Game Break rule) — confirm
       `Whistle.trigger` gets a case for "Varena played" / "Variaball played" for Tile Tampering
       and Over-Varing Evidence.
-- [ ] Decide and implement Cardwood-as-a-playable-card (wipes the court back to default) versus
-      Cardwood-as-pure-absence — open question carried over from the design doc.
+- [ ] Cardwood is a playable card (decided): playing it changes the court back to basic. Its
+      deck count is still TBC.
 
 ## Phase 3 — Per-card wiring, grouped by system
 
@@ -180,7 +180,6 @@ Over-Varing Evidence (same, for a Variaball).
 
 ## Open questions carried over, unresolved
 
-- Cardwood as a playable "reset the court" card, or pure absence-only.
 - Grayvstone before anything exists in the Variaball discard pile.
 - Every `TBC` count in the design doc — none of these have a `numberInDeck` yet.
 - The art budget: which cards get bespoke floor art versus an overlay (tint/marking/badge) on

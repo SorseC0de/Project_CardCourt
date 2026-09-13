@@ -14,6 +14,8 @@ extension CardFace {
         case .whistle: return "whistle"
         case .gameBreak: return "gameBreak"
         case .intangible: return "intangible"
+        case .varena: return "varena"
+        case .variaball: return "variaball"
         case .injury: return "injury"
         case .devastatingInjury: return "devastatingInjury"
         }
@@ -170,6 +172,7 @@ enum CardTextStyle {
         .pass: .blue, .move: .navy, .specialMove: .navy, .clamp: .navy,
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
         .injury: .navy, .devastatingInjury: .navy,
+        .varena: .navy, .variaball: .navy,
     ]
 
     /// **Each mark against the row's own size.** Separate drawings on separate artboards
@@ -204,6 +207,7 @@ enum CardTextStyle {
         .pass: .gray, .move: .navy, .specialMove: .navy, .clamp: .black,
         .whistle: .blue, .gameBreak: .navy, .intangible: .navy,
         .injury: .navy, .devastatingInjury: .navy,
+        .varena: .navy, .variaball: .navy,
     ]
 
     /// Whether the marked spans inside the words are inked.
@@ -220,6 +224,7 @@ enum CardTextStyle {
         .pass: .white, .move: .white, .specialMove: .white, .clamp: .white,
         .whistle: .black, .gameBreak: .white, .intangible: .white,
         .injury: .white, .devastatingInjury: .white,
+        .varena: .white, .variaball: .white,
     ]
 
     /// **And what a named mechanic inside it is printed in.** One colour on every body:
@@ -229,6 +234,7 @@ enum CardTextStyle {
         .pass: .tangerine, .move: .tangerine, .specialMove: .tangerine,
         .clamp: .tangerine, .whistle: .tangerine, .gameBreak: .tangerine,
         .intangible: .tangerine, .injury: .tangerine, .devastatingInjury: .tangerine,
+        .varena: .tangerine, .variaball: .tangerine,
     ]
 
     /// **How thick that ring is drawn**, per type, against `CardLayout.strokeFraction`.
@@ -241,14 +247,16 @@ enum CardTextStyle {
         .pass: 1, .move: 1, .specialMove: 1, .clamp: 1,
         .whistle: 1, .gameBreak: 1, .intangible: 0.75,
         .injury: 1, .devastatingInjury: 1,
+        .varena: 1, .variaball: 1,
     ]
 
     /// **What the card is printed on**, per type. The frozen bodies to begin with — this
     /// is here so a body can be tried against a ring and a keyword without a rebuild.
     static let body: [CardFace: CardTextInk] = [
-        .pass: .blue, .move: .orange, .specialMove: .gold, .clamp: .red,
+        .pass: .blue, .move: .teal, .specialMove: .gold, .clamp: .red,
         .whistle: .cloud, .gameBreak: .purple, .intangible: .black,
-        .injury: .teal, .devastatingInjury: .maroon,
+        .injury: .gray, .devastatingInjury: .gray,
+        .varena: .purple, .variaball: .orange,
     ]
 
     /// **The card's name, per face, in two inks.**
@@ -263,11 +271,13 @@ enum CardTextStyle {
         .pass: .darkBlue, .move: .darkBlue, .specialMove: .blue, .clamp: .cloud,
         .whistle: .maroon, .gameBreak: .azure, .intangible: .cobalt,
         .injury: .tan, .devastatingInjury: .magenta,
+        .varena: .azure, .variaball: .darkBlue,
     ]
     static let nameBottom: [CardFace: CardTextInk] = [
         .pass: .navy, .move: .navy, .specialMove: .darkBlue, .clamp: .lightBlue,
         .whistle: .black, .gameBreak: .navy, .intangible: .black,
         .injury: .maroon, .devastatingInjury: .red,
+        .varena: .navy, .variaball: .navy,
     ]
 
     /// **What another card's name is printed in**, where a card's words name one. One
@@ -276,6 +286,7 @@ enum CardTextStyle {
         .pass: .lightBlue, .move: .lightBlue, .specialMove: .lightBlue,
         .clamp: .lightBlue, .whistle: .lightBlue, .gameBreak: .lightBlue,
         .intangible: .lightBlue, .injury: .lightBlue, .devastatingInjury: .lightBlue,
+        .varena: .lightBlue, .variaball: .lightBlue,
     ]
 
     /// **What a named type is printed in — keyed by the type being named**, not by the
@@ -289,6 +300,7 @@ enum CardTextStyle {
         .pass: .lightBlue, .move: .orange, .specialMove: .gold, .clamp: .darkRed,
         .whistle: .cloud, .gameBreak: .magenta, .intangible: .gray,
         .injury: .teal, .devastatingInjury: .darkRed,
+        .varena: .magenta, .variaball: .orange,
     ]
 
     /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
@@ -297,6 +309,7 @@ enum CardTextStyle {
         .pass: .gold, .move: .darkBlue, .specialMove: .blue, .clamp: .azure,
         .whistle: .black, .gameBreak: .navy, .intangible: .green,
         .injury: .darkRed, .devastatingInjury: .teal,
+        .varena: .navy, .variaball: .darkBlue,
     ]
 
     /// **The name banner itself**, per face. White on all of them to begin with, which is
@@ -305,6 +318,7 @@ enum CardTextStyle {
         .pass: .white, .move: .white, .specialMove: .lightBlue, .clamp: .darkRed,
         .whistle: .tan, .gameBreak: .gold, .intangible: .gold,
         .injury: .black, .devastatingInjury: .black,
+        .varena: .gold, .variaball: .white,
     ]
 
     /// **The drop under the name banner**, per type. The plate itself is white whatever the
@@ -314,6 +328,7 @@ enum CardTextStyle {
         .pass: .lightBlue, .move: .lightBlue, .specialMove: .blue, .clamp: .maroon,
         .whistle: .blood, .gameBreak: .orange, .intangible: .orange,
         .injury: .cobalt, .devastatingInjury: .cobalt,
+        .varena: .orange, .variaball: .lightBlue,
     ]
 }
 

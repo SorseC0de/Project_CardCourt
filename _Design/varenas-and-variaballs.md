@@ -8,6 +8,9 @@ global, replaceable board state — and the game is named after one of them.
 | The floor | **∀rena** — written **Varena** |  Alliteration on an anchor: Arena, Court, Stadium, Gym, *-Top*, or a floor material — parquet, hardwood, maple, oak, blacktop, asphalt, concrete, rubber, tile |
 | The ball | **Variaball** | `[X] Ball` — Blaze Ball |
 
+**Printed colours:** a Varena in the purple the Game Breaks were printed in, a Variaball
+in orange. Move gave the orange up for teal, and Injuries went grey.
+
 **VA binds as a single glyph: ∀**, U+2200, the maths symbol for the universal quantifier —
 *for all*. A Varena affects all four players, so the ligature means the thing the card type
 does. Written and spoken it stays **Varena**; **∀rena** is the stylized form.
@@ -35,7 +38,7 @@ plate-and-subject icon system as art, weighted to match the rest of the set.
 - **Multiple copies per deck.** Not singletons.
 
 **Cardwood** is the default floor — what the slot reads as when nothing is played on it.
-Open: whether Cardwood is *also* a card you can play to wipe an opponent's Varena.
+**It is also a card you can play**: playing Cardwood changes the court back to basic.
 
 ## SHOT override hierarchy
 
@@ -86,7 +89,7 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 | --- | --- | --- | --- |
 | **Prime Parquet** | Varena | SHOT +10% | 5–10, TBC |
 | **Lacktop** | Varena | SHOT −10%. The twin of Prime Parquet, and it retires Off Night | TBC |
-| **Cardwood** | Varena | The default floor | — |
+| **Cardwood** | Varena | The default floor. Also playable: changes the court back to basic | TBC |
 | **Smacktop** | Varena | No Whistle may activate, anybody's. Clamps are enhanced — a step more reduction, a card more discarded, a turn more locked | TBC |
 | **Med Ball** | Variaball | SHOT cannot exceed 50%. The heavy ball, and it retires Rock Fight | TBC |
 | **Dishcount Ball** | Variaball | Discard one fewer for card costs and Clamps | TBC |

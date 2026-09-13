@@ -134,19 +134,18 @@ enum CardPalette {
 
     /// The body colour a card type is printed in. Whistles have none — they are striped.
     ///
-    /// Move and Special Move are orange and gold: neighbours on the same warm ramp,
-    /// because a Special Move is still a Move card and the colours should say so. Green
-    /// came free when Move gave it up, and Injuries took it.
+    /// Move is teal, and the orange it gave up went to the Variaball. A Varena is printed
+    /// in the purple the Game Breaks it replaces were.
     static func body(for type: CardType) -> Color {
         switch type {
         case .pass:        return blue
-        case .move:        return orange
+        case .move:        return teal
         case .specialMove: return gold
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
         case .gameBreak:   return magenta
-        // The Game Breaks they replace, until they have colours of their own.
-        case .varena, .variaball: return magenta
+        case .varena:      return purple
+        case .variaball:   return orange
         // The not-black black rather than navy. Navy is what the ring is drawn in, so an
         // Intangible was a navy card with a navy border around it.
         case .intangible:  return black
@@ -166,6 +165,8 @@ enum CardPalette {
 /// printer, and it is what every per-type colour on the bench is actually keyed by.
 enum CardFace: String, CaseIterable, Hashable, Codable {
     case pass, move, specialMove, clamp, whistle, gameBreak, intangible
+    /// The floor, and the ball.
+    case varena, variaball
     /// A knock that clears at the end of the round.
     case injury
     /// One that is on the man for the rest of the game.
@@ -182,8 +183,8 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         case (.whistle, _):        self = .whistle
         case (.gameBreak, nil):    self = .gameBreak
         case (.intangible, _):     self = .intangible
-        // Printed as the Game Breaks they replace, until they have faces of their own.
-        case (.varena, _), (.variaball, _): self = .gameBreak
+        case (.varena, _):         self = .varena
+        case (.variaball, _):      self = .variaball
         }
     }
 
@@ -198,6 +199,8 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         case "whistle", "whistles":          self = .whistle
         case "game break", "game breaks":    self = .gameBreak
         case "intangible", "intangibles":    self = .intangible
+        case "varena", "varenas":            self = .varena
+        case "variaball", "variaballs":      self = .variaball
         case "injury", "injuries":           self = .injury
         default: return nil
         }
@@ -212,6 +215,8 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         case .clamp:       return .clamp
         case .whistle:     return .whistle
         case .intangible:  return .intangible
+        case .varena:      return .varena
+        case .variaball:   return .variaball
         case .gameBreak, .injury, .devastatingInjury: return .gameBreak
         }
     }
