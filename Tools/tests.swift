@@ -1201,6 +1201,35 @@ func runTests() {
                    "the same card caps a great look at 10% — it replaces, never adjusts")
     }
 
+    print("One SHOT override, and who wins it")
+    do {
+        var (state, seat, _) = openPossession(seed: 81, cards: [])
+        state[seat].intangibles = []
+        Check.that(state.courtCard.id == CardLibrary.cardwood.id && state.ballCard == nil,
+                   "a game opens on Cardwood with a Regulation Ball")
+        Check.that(state.shotModifiers(for: seat).override == nil, "and neither sets SHOT")
+
+        let floor = CardDescriptor(id: "test-floor", name: "Test Floor", type: .varena,
+                                   effect: "SHOT = 60%", numberInDeck: 0,
+                                   varena: VarenaEffect(shotOverride: 60))
+        let ball = CardDescriptor(id: "test-ball", name: "Test Ball", type: .variaball,
+                                  effect: "SHOT = 25%", numberInDeck: 0,
+                                  variaball: VariaballEffect(shotOverride: 25))
+        state.pendingShotOverride = ShotOverride(label: "Played", amount: 90)
+        Check.that(state.shotModifiers(for: seat).override?.amount == 90,
+                   "a played card's SHOT = stands on a bare floor")
+        state.ballCard = ball
+        Check.that(state.shotModifiers(for: seat).override?.amount == 25,
+                   "the ball beats a played card")
+        state.courtCard = floor
+        Check.that(state.shotModifiers(for: seat).override?.amount == 60,
+                   "the floor beats the ball")
+        state[seat].intangibles = [CardLibrary.lethalShooter]
+        state.possessionFromOwnRebound = true
+        Check.that(state.shotModifiers(for: seat).override?.amount == 100,
+                   "an Intangible beats the floor")
+    }
+
     print("Serialisation")
     do {
         let (state, _) = Rules.newGame(seed: 15)

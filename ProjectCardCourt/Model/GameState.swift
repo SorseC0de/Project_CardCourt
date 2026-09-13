@@ -273,6 +273,10 @@ struct GameState: Codable {
     /// nil while the inbounder decides — the UI shows "--".
     var shotClock: Int?
     var shot = 0
+    /// **The floor.** Never empty: Cardwood until somebody plays a Varena over it.
+    var courtCard: CardDescriptor = CardLibrary.cardwood
+    /// **The ball.** Nil is a Regulation Ball, which is not a card — a Variaball sits on it.
+    var ballCard: CardDescriptor?
     /// Whistles set down and waiting. Resolved in the order they were armed, so a
     /// Whistle that cancels another Whistle has a defined winner.
     var armedWhistles: [ArmedWhistle] = []

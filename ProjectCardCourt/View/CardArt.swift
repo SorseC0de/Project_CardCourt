@@ -145,6 +145,8 @@ enum CardPalette {
         case .clamp:       return red
         case .whistle:     return Color(white: 0.94)
         case .gameBreak:   return magenta
+        // The Game Breaks they replace, until they have colours of their own.
+        case .varena, .variaball: return magenta
         // The not-black black rather than navy. Navy is what the ring is drawn in, so an
         // Intangible was a navy card with a navy border around it.
         case .intangible:  return black
@@ -180,6 +182,8 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         case (.whistle, _):        self = .whistle
         case (.gameBreak, nil):    self = .gameBreak
         case (.intangible, _):     self = .intangible
+        // Printed as the Game Breaks they replace, until they have faces of their own.
+        case (.varena, _), (.variaball, _): self = .gameBreak
         }
     }
 
@@ -467,7 +471,7 @@ enum CardLayout {
 
     static func opacity(for face: CardFace) -> Double {
         switch face.type {
-        case .gameBreak, .intangible: return 0.40
+        case .gameBreak, .intangible, .varena, .variaball: return 0.40
         case .move, .specialMove:     return 0.30
         case .pass:                   return 0.25
         case .clamp:                  return 0.60

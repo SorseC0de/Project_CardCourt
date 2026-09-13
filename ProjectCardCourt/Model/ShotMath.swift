@@ -24,8 +24,8 @@ struct ShotModifier: Hashable, Codable {
 /// not whether it ever touched 70 earlier in the stack.
 ///
 /// It **replaces** the running total rather than adjusting it, which cuts both ways on
-/// purpose: Full-Court Heave's 10% is a floor as much as a ceiling, so a player buried
-/// under Clamps can still reach for it and get exactly 10. Same idea as Pokémon TCG's
+/// purpose: Full-Court Heave's 25% is a floor as much as a ceiling, so a player buried
+/// under Clamps can still reach for it and get exactly 25. Same idea as Pokémon TCG's
 /// "ignore Weakness and Resistance".
 struct ShotOverride: Hashable, Codable {
     let label: String
@@ -48,7 +48,8 @@ struct ShotModifiers: Hashable, Codable {
     var debuffs: [ShotModifier] = []
     /// Any `SHOT = x%` card, not just the 100% ones. Beats every other layer, including
     /// debuffs. The only thing that outranks it is a Whistle cancelling the shot outright,
-    /// which happens earlier — at interception, before this runs at all.
+    /// which happens earlier — at interception, before this runs at all. **Only ever one**:
+    /// when several claim it, `GameState.shotModifiers` decides which.
     var override: ShotOverride?
 
     var isEmpty: Bool {
@@ -108,6 +109,7 @@ extension GameState {
     func shotModifiers(for seat: Seat, ignoringClamps: Bool = false,
                        fromThree: Bool = false) -> ShotModifiers {
         var modifiers = ShotModifiers()
+        var passiveOverride: ShotOverride?
         // Adds first, in the order the passives were received.
         for passive in self[seat].intangibles {
             guard let effect = passive.intangible else { continue }
@@ -121,11 +123,18 @@ extension GameState {
                                                           amount: effect.shotMultiplier))
             }
             if let over = effect.shotOverride {
-                modifiers.override = ShotOverride(label: passive.name, amount: Double(over))
+                passiveOverride = ShotOverride(label: passive.name, amount: Double(over))
             }
         }
-        // A card's own `SHOT =` beats a passive's, being the thing just played.
-        if let pending = pendingShotOverride { modifiers.override = pending }
+        let courtOverride = courtCard.varena?.shotOverride.map {
+            ShotOverride(label: courtCard.name, amount: Double($0))
+        }
+        let ballOverride = ballCard.flatMap { ball in
+            ball.variaball?.shotOverride.map { ShotOverride(label: ball.name, amount: Double($0)) }
+        }
+        // **One override, and the highest claim to it wins:** an Intangible, then the floor,
+        // then the ball, then the card just played.
+        modifiers.override = passiveOverride ?? courtOverride ?? ballOverride ?? pendingShotOverride
 
         // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
         // Nothing is cancelled, though that makes no odds — Clamps come off at the end of

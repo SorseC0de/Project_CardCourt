@@ -54,7 +54,7 @@ enum Theme {
         case .specialMove:  return CardPalette.orange
         case .clamp:        return CardPalette.red
         case .whistle:      return Color(white: 0.94)
-        case .gameBreak:    return CardPalette.magenta
+        case .gameBreak, .varena, .variaball: return CardPalette.magenta
         case .intangible:   return CardPalette.gold
         }
     }

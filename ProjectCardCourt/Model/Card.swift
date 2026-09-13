@@ -242,6 +242,20 @@ struct GameBreakEffect: Hashable, Codable {
     var freeThrows = 0
 }
 
+/// What a Varena changes while it is the floor — one field per mechanic, like
+/// `GameBreakEffect`. Cardwood, the default floor, sets none.
+struct VarenaEffect: Hashable, Codable {
+    /// `SHOT = x%` on every shot. Only an Intangible's override outranks it.
+    var shotOverride: Int?
+}
+
+/// What a Variaball changes while it is the ball.
+struct VariaballEffect: Hashable, Codable {
+    /// `SHOT = x%` on every shot — Brick Ball's flat 25. Outranked by an Intangible's and
+    /// the floor's; outranks a played card's.
+    var shotOverride: Int?
+}
+
 /// How long an Injury stays on the man who drew it.
 enum Injury: String, Hashable, Codable {
     /// Off at the end of the round, and back in the deck at halftime.
@@ -324,6 +338,10 @@ enum CardType: String, Hashable, Codable, CaseIterable {
     case whistle = "Whistle"
     case gameBreak = "Game Break"
     case intangible = "Intangible"
+    /// The floor. One is always out — Cardwood until somebody plays over it.
+    case varena = "Varena"
+    /// The ball. None out is a Regulation Ball.
+    case variaball = "Variaball"
 }
 
 /// One row of the card sheet. `numberInDeck` mirrors the Number in Deck column.
@@ -426,6 +444,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let intangible: IntangibleEffect?
     /// Set on Game Breaks.
     let gameBreak: GameBreakEffect?
+    /// Set on Varenas.
+    let varena: VarenaEffect?
+    /// Set on Variaballs.
+    let variaball: VariaballEffect?
     /// Set on Special Moves.
     let special: SpecialMoveEffect?
     /// Flop: a trip to the line for every Clamp standing on you.
@@ -445,6 +467,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          upgradesToThree: Bool = false, replacesClockTick: Bool = false,
          whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
+         varena: VarenaEffect? = nil, variaball: VariaballEffect? = nil,
          special: SpecialMoveEffect? = nil, isDribble: Bool = false,
          selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
          clamperDiscardsPerClamp: Int = 0,
@@ -486,6 +509,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.replacesClockTick = replacesClockTick
         self.whistle = whistle; self.clamp = clamp
         self.intangible = intangible; self.gameBreak = gameBreak
+        self.varena = varena; self.variaball = variaball
         self.special = special; self.isDribble = isDribble
         self.freeThrowsPerClamp = freeThrowsPerClamp; self.clearsClamps = clearsClamps
         self.turnoverIfNoClamps = turnoverIfNoClamps
@@ -516,7 +540,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .gameBreak:
             if let shift = gameBreak?.shotThisPossession, shift != 0 { return shift }
             return nil
-        case .move, .whistle, .intangible:
+        case .move, .whistle, .intangible, .varena, .variaball:
             return nil
         }
     }
@@ -562,6 +586,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .clamp:       return "TypeClamp"
         case .whistle:     return "TypeWhistle"
         case .intangible:  return "TypeIntangible"
+        // Not drawn yet — the ∀ mark is art, not text. See the implementation queue.
+        case .varena:      return "TypeVarena"
+        case .variaball:   return "TypeVariaball"
         case .gameBreak:
             switch injury {
             case .round: return "TypeInjury"
@@ -825,6 +852,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .whistle:      return "flag.fill"
         case .gameBreak:    return "bolt.fill"
         case .intangible:   return "sparkles"
+        case .varena:       return "sportscourt.fill"
+        case .variaball:    return "basketball"
         }
     }
     var isMove: Bool { type == .move }

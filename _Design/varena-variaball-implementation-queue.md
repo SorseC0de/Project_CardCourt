@@ -27,17 +27,20 @@ than kept alongside the new system.
 
 ## Phase 0 — Data model
 
-- [ ] `Card.swift`: add `CardType.varena` and `CardType.variaball` (replacing `.gameBreak` for
+- [x] `Card.swift`: add `CardType.varena` and `CardType.variaball` (replacing `.gameBreak` for
       everything except the 3 Injuries, which stay auto-firing exactly as now).
-- [ ] `Card.swift`: new `VarenaEffect` and `VariaballEffect` structs, same style as
+- [x] `Card.swift`: new `VarenaEffect` and `VariaballEffect` structs, same style as
       `GameBreakEffect` — one field per mechanic, not one struct per card. Draft field list
       below in Phase 3, grouped by mechanic rather than by card, since several cards share a
       field (e.g. every flat-SHOT-delta court is one field, not six).
-- [ ] `GameState.swift`: add `courtCard` (non-optional, defaults to `CardLibrary.cardwood`) and
+- [x] `GameState.swift`: add `courtCard` (non-optional, defaults to `CardLibrary.cardwood`) and
       `ballCard` (optional). Remove the one-off fields listed per-card in Phase 3 as each is
       ported, not in one sweep — keeps every commit buildable.
 - [ ] `CardType.gameBreak` shrinks to the 3 Injuries only; confirm nothing else reads
       `CardType.gameBreak` expecting the old 30.
+      *Confirmed: its readers are the Game Break announcement, the Whistle draw trigger,
+      the gallery's section list and the Injuries — none counts the old 30. The shrink
+      itself happens card by card as Phase 3 ports each one.*
 
 ## Phase 1 — SHOT override hierarchy
 
@@ -47,13 +50,13 @@ standing Court override, a standing Ball override, and a played Special Move's o
 be live on the same shot, where before only one override source ever existed at a time.
 Everything fights for the one slot; the hierarchy just decides who wins it.
 
-- [ ] `ShotMath.swift` or wherever `ShotModifiers` gets assembled for a shot: before `override`
+- [x] `ShotMath.swift` or wherever `ShotModifiers` gets assembled for a shot: before `override`
       is ever set, gather every live candidate and keep only the highest-ranked one —
       **Intangible > Court > Ball > played-card override** — in one place, rather than letting
       whichever one runs last silently clobber the others.
-- [ ] Confirm Special Moves' own overrides (Slam Dunk, Full-Court Heave) rank where "played
+- [x] Confirm Special Moves' own overrides (Slam Dunk, Full-Court Heave) rank where "played
       card" sits in that list — same tier as an ordinary Move, below Ball and Court.
-- [ ] Unit-test the hierarchy directly: Court + Ball both live, Ball alone, Intangible beating
+- [x] Unit-test the hierarchy directly: Court + Ball both live, Ball alone, Intangible beating
       both, no override at all.
 
 ## Phase 2 — Slot lifecycle rules
