@@ -39,6 +39,8 @@ struct FannedBagView: View {
     var ringed: Card.ID?
     /// Handed the mechanic a reader pressed on a raised card — see `CardText`.
     var onKeyword: ((String) -> Void)?
+    /// Opens a raised card's combo scene — see `ComboView`.
+    var onCombo: (CardDescriptor) -> Void = { _ in }
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -82,7 +84,8 @@ struct FannedBagView: View {
                 CardFrontView(descriptor: card.descriptor, displayWidth: 76,
                               expanded: expanded,
                               isDormant: dormant.contains(card.id),
-                              onKeyword: onKeyword)
+                              onKeyword: onKeyword,
+                              onCombo: expanded ? { onCombo(card.descriptor) } : nil)
                     .overlay {
                         // One wash, whatever it is for. A held card wears the same red a
                         // refused one does, because it is the same fact: this one is not

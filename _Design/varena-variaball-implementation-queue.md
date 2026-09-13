@@ -21,7 +21,7 @@ var ballCard: Card?                 // nil == Regulation Ball
 ```
 
 Game logic asks "what's on the court / what's on the ball" and dispatches on the card's
-`id`, the same way `Rules.credit` already dispatches broadly instead of special-casing. Most
+`id`. Most
 of the one-off `GameState` fields this replaces get deleted once their card is ported, rather
 than kept alongside the new system.
 

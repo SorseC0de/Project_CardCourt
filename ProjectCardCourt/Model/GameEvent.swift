@@ -11,7 +11,8 @@ enum GameEvent: Hashable, Codable {
     case shotClockTicked(Int)
     case passed(card: CardDescriptor, from: Seat, to: Seat, shot: Int, returning: Bool = false)
     case movePlayed(seat: Seat, card: CardDescriptor, shot: Int)
-    case comboLanded(seat: Seat, card: CardDescriptor, bonus: Int)
+    /// `opener` is the card it followed, for the record of combos done — see `DoneCombos`.
+    case comboLanded(seat: Seat, card: CardDescriptor, opener: String?, bonus: Int)
     case coinRun(seat: Seat, card: CardDescriptor, heads: Int)
     case discardedForShot(seat: Seat, card: CardDescriptor, count: Int)
     /// A card leaving a hand for the pile, whatever took it. Said once per card, so the
@@ -131,7 +132,7 @@ enum GameEvent: Hashable, Codable {
             return "\(seat.playerName) \(seat.verb("feeds", "feed")) \(count) card\(count == 1 ? "" : "s") into \(card.name)."
         case .coinRun(let seat, let card, let heads):
             return "\(seat.playerName): \(card.name) — \(heads) head\(heads == 1 ? "" : "s") before tails."
-        case .comboLanded(let seat, let card, let bonus):
+        case .comboLanded(let seat, let card, _, let bonus):
             return "\(seat.playerName) \(seat.verb("strings", "string")) it together — \(card.name) +\(bonus)% bonus."
         case .gameBreakRevealed(let seat, let card):
             // Named as the event it is, with whoever turned it up in brackets after. A

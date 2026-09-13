@@ -26,6 +26,8 @@ struct GameView: View {
     /// A mechanic somebody pressed on a card they were reading, and what it means.
     @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
+    /// The card whose combo scene is open, over everything — see `ComboView`.
+    @State private var comboOf: CardDescriptor?
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
     @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
@@ -104,7 +106,7 @@ struct GameView: View {
             guard !Task.isCancelled else { return }
             floorAsleep = true
         }
-        .onChange(of: controller.gate) { detail = nil; picked = nil }
+        .onChange(of: controller.gate) { detail = nil; picked = nil; comboOf = nil }
         // **Every press lands in one place.** Only this screen knows what is over the
         // floor, so it is the only thing that can say whether a button was answering the
         // hand or the pause menu on top of it.
@@ -211,7 +213,8 @@ struct GameView: View {
                         .animation(.easeInOut(duration: 0.28), value: standingAside)
                         ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
-                                      onInspectReferees: { open(.referees) })
+                                      onInspectReferees: { open(.referees) },
+                                      onCombo: { comboOf = $0 })
                     }
                     // Out of the way rather than washed over. Two translucent sheets meeting
                     // multiply, and the seam where the hand's met the court's was a black
@@ -243,6 +246,11 @@ struct GameView: View {
                         withAnimation(.easeOut(duration: 0.15)) { self.explaining = nil }
                     }
                     .zIndex(9.4)
+                }
+                if let comboOf {
+                    ComboView(card: comboOf) { self.comboOf = nil }
+                        .transition(.opacity)
+                        .zIndex(9.8)
                 }
                 if let played = controller.playedCard {
                     PlayedCardView(played: played, width: 210)

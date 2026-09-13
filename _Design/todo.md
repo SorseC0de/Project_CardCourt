@@ -11,32 +11,15 @@ were cut, and No Bag became Park Shark.
 
 Free Agent stays out of the deck. Bringing it back is low priority.
 
-## After the Intangible audit, in this order
+## The shoot mark
 
-Recorded 2026-09-13. None of it is started until the audit is done.
+The user is drawing a new shoot icon for the card face. "Shoot the ball" is already off every
+face and lives in the BONUS popover; the icon takes its place on the face when it lands.
 
-**1. The COMBO / BONUS viewer.**
-- A small capsule button below the text on any card with a combo or a bonus, labelled
-  "COMBO" or "BONUS".
-- Tapping it dims the screen. The dim sits above the hand cards and below the viewed card.
-- The other card in the combo slides in to the left or right, depending on which side of
-  the combo you're looking at. Double dotted chevrons sit between the two cards.
-- The combo's name goes above the cards, in gold with a blue drop shadow, e.g.
-  "Dribble-Drive".
-- **Locked until done:** a combo you haven't done yet shows a shadowed card-shaped rounded
-  rectangle with a white question mark. The game records every combo done at least once,
-  the way `SeenCards` records cards met. `.comboLanded` is already the event to record from.
-- A card with more than one route (Hand-Off and Drive follow *any* Dribble) shows those
-  cards stacked and fanned.
-- Hand-Off's combo stays. More combos are coming soon, so build it for many.
+## Stars start button text styling
 
-**2. Re-import `CardCourt_Ball.svg`.** It wasn't a circle and it didn't use palette colours.
-
-**3. The Variaball card's art.** Import `Variaball_subject.svg` and `Variball_plate.svg`.
-That card alone gets a glowing multicolour aura like Project Stars' Start button.
-
-**4. Low priority, shelved:** the text styling on the imported Stars start button still
-needs correcting. Don't touch it until the items above are built and tested.
+Low priority, shelved: the text styling on the imported Stars start button still needs
+correcting. The Variaball card's aura is **not** wanted.
 
 ## Nudge the three mark
 

@@ -169,7 +169,10 @@ struct DebugActionsView: View {
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
-                action("unsee") { SeenCards.shared.forgetAll() }
+                action("unsee") {
+                    SeenCards.shared.forgetAll()
+                    DoneCombos.shared.forgetAll()
+                }
                 action("Aa \(printing.weight.label)") {
                     printing.weight = printing.weight.next
                 }

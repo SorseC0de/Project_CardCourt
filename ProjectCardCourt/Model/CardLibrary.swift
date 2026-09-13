@@ -47,9 +47,10 @@ enum CardLibrary {
 
     static let touchPass = CardDescriptor(
         id: "touch-pass", name: "Touch Pass", type: .pass,
-        effect: "~[Pass] to target player. SHOT +20%. #[Draw] 2 if it never stopped",
+        effect: "~[Pass] to target player. SHOT +20%",
         numberInDeck: 5,
-        passTarget: .choice, shotDelta: 20, drawIfFirstAction: 2)
+        passTarget: .choice, shotDelta: 20, drawIfFirstAction: 2,
+        bonus: "If played as your first action: #[Draw] 2")
 
     static let rightBack = CardDescriptor(
         id: "right-back", name: "Right Back", type: .pass,
@@ -69,7 +70,8 @@ enum CardLibrary {
         effect: "~[Pass] Left or Right. SHOT +20%. #[Draw] 1",
         numberInDeck: 5,
         passTarget: .leftOrRight, shotDelta: 20, drawCount: 1,
-        comboAfterDribble: true, comboBonus: 10, comboDraw: 1)
+        comboAfterDribble: true, comboBonus: 10, comboDraw: 1,
+        combo: "Following a @[Dribble]: SHOT +10% and #[Draw] 1")
 
     static let outletPass = CardDescriptor(
         id: "outlet-pass", name: "Outlet Pass", type: .pass,
@@ -98,8 +100,9 @@ enum CardLibrary {
 
     static let drive = CardDescriptor(
         id: "drive", name: "Drive", type: .move,
-        effect: "SHOT +20%. Following a @[Dribble]: SHOT +10%", numberInDeck: 15,
-        shotDelta: 20, comboAfterDribble: true, comboBonus: 10)
+        effect: "SHOT +20%", numberInDeck: 15,
+        shotDelta: 20, comboAfterDribble: true, comboBonus: 10,
+        combo: "Following a @[Dribble]: SHOT +10%")
 
     static let poundDribble = CardDescriptor(
         id: "pound-dribble", name: "Pound Dribble", type: .move,
@@ -108,15 +111,17 @@ enum CardLibrary {
 
     static let spinMove = CardDescriptor(
         id: "spin-move", name: "Spin Move", type: .move,
-        effect: "SHOT +20%. #[Clear] all ~[Clamps]: SHOT +10% for each", numberInDeck: 5,
-        shotDelta: 20, isDribble: true, shotPerClamp: 10, clearsClamps: true)
+        effect: "SHOT +20%", numberInDeck: 5,
+        shotDelta: 20, isDribble: true, shotPerClamp: 10, clearsClamps: true,
+        bonus: "#[Clear] all ~[Clamps]: SHOT +10% for each")
 
     static let crossover = CardDescriptor(
         id: "crossover", name: "Crossover", type: .move,
-        effect: "#[Draw] 1. SHOT +20%. #[Clear] all ~[Clamps]: #[Draw] 1 and Clamper #[Discards] 1 for each",
+        effect: "#[Draw] 1. SHOT +20%",
         numberInDeck: 5,
         shotDelta: 20, drawCount: 1, isDribble: true,
-        drawPerClamp: 1, clamperDiscardsPerClamp: 1, clearsClamps: true)
+        drawPerClamp: 1, clamperDiscardsPerClamp: 1, clearsClamps: true,
+        bonus: "#[Clear] all ~[Clamps]: #[Draw] 1 and Clamper #[Discards] 1 for each")
 
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
@@ -142,8 +147,9 @@ enum CardLibrary {
 
     static let stepback = CardDescriptor(
         id: "stepback", name: "Stepback", type: .move,
-        effect: "SHOT +20%. You may #[Discard] 1 for additional SHOT +10%", numberInDeck: 10,
-        shotDelta: 20, optionalDiscardForShot: 10)
+        effect: "SHOT +20%", numberInDeck: 10,
+        shotDelta: 20, optionalDiscardForShot: 10,
+        bonus: "You may #[Discard] 1 for additional SHOT +10%")
 
     static let tripleThreat = CardDescriptor(
         id: "triple-threat", name: "Triple Threat", type: .move,
@@ -671,53 +677,54 @@ enum CardLibrary {
 
     static let fadeaway = CardDescriptor(
         id: "fadeaway", name: "Fadeaway", type: .specialMove,
-        effect: "SHOT -10%. #[Draw] 1. #[Shoot] the ball", numberInDeck: 10,
+        effect: "SHOT -10%. #[Draw] 1", numberInDeck: 10,
         shotDelta: -10, drawCount: 1,
         special: SpecialMoveEffect(shootsImmediately: true))
 
     static let fromTheHash = CardDescriptor(
         id: "from-the-hash", name: "From the Hash", type: .specialMove,
-        effect: "SHOT -20%. #[Shoot] the ball", numberInDeck: 3,
+        effect: "SHOT -20%", numberInDeck: 3,
         shotDelta: -20,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fromTheLogo = CardDescriptor(
         id: "from-the-logo", name: "From the Logo", type: .specialMove,
-        effect: "SHOT -30%. #[Shoot] the ball", numberInDeck: 3,
+        effect: "SHOT -30%", numberInDeck: 3,
         shotDelta: -30,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let threeBall = CardDescriptor(
         id: "three-ball", name: "Three-Ball", type: .specialMove,
-        effect: "SHOT -10%. #[Shoot] the ball", numberInDeck: 5,
+        effect: "SHOT -10%", numberInDeck: 5,
         shotDelta: -10,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fullCourtHeave = CardDescriptor(
         id: "full-court-heave", name: "Full-Court Heave", type: .specialMove,
-        effect: "SHOT = 25%. #[Shoot] the ball", numberInDeck: 3,
+        effect: "SHOT = 25%", numberInDeck: 3,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1, shotOverride: 25))
 
     static let buzzerBeater = CardDescriptor(
         id: "buzzer-beater", name: "Buzzer Beater", type: .specialMove,
-        effect: "SHOT = 100%. #[Shoot] the ball. Only at #[Shot Clock] 1", numberInDeck: 5,
+        effect: "SHOT = 100%. Only at #[Shot Clock] 1", numberInDeck: 5,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100, onlyAtShotClock: 1))
 
     static let putbackTip = CardDescriptor(
         id: "putback-tip", name: "Putback Tip", type: .specialMove,
-        effect: "SHOT +20%. #[Shoot] the ball. After a rebound: SHOT = 100%", numberInDeck: 5,
+        effect: "SHOT +20%", numberInDeck: 5,
         shotDelta: 20,
-        special: SpecialMoveEffect(shootsImmediately: true, shotOverrideAfterRebound: 100))
+        special: SpecialMoveEffect(shootsImmediately: true, shotOverrideAfterRebound: 100),
+        bonus: "After a rebound: SHOT = 100%")
 
     static let bankshot = CardDescriptor(
         id: "bankshot", name: "Bankshot", type: .specialMove,
-        effect: "Flip a coin. Heads SHOT +10%, tails SHOT -10%. #[Shoot] the ball",
+        effect: "Flip a coin. Heads SHOT +10%, tails SHOT -10%",
         numberInDeck: 5,
         special: SpecialMoveEffect(shootsImmediately: true, coinFlipShot: 10))
 
     static let daggerThree = CardDescriptor(
         id: "dagger-three", name: "Dagger Three", type: .specialMove,
-        effect: "SHOT -60%. +10% per tick spent. #[Shoot] the ball",
+        effect: "SHOT -60%. +10% per tick spent",
         numberInDeck: 5,
         shotDelta: -60,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
@@ -725,22 +732,24 @@ enum CardLibrary {
 
     static let skyhook = CardDescriptor(
         id: "skyhook", name: "Skyhook", type: .specialMove,
-        effect: "SHOT +25%. #[Shoot] the ball over every ~[Clamp]", numberInDeck: 5,
+        effect: "SHOT +25%", numberInDeck: 5,
         shotDelta: 25,
-        special: SpecialMoveEffect(shootsImmediately: true, ignoresClamps: true))
+        special: SpecialMoveEffect(shootsImmediately: true, ignoresClamps: true),
+        bonus: "#[Shoot] the ball over every ~[Clamp]")
 
     static let twoHandJam = CardDescriptor(
         id: "two-hand-jam", name: "2-Hand Jam", type: .specialMove,
-        effect: "SHOT +20%. #[Shoot] the ball. Another +10% straight off your own board",
+        effect: "SHOT +20%",
         numberInDeck: 10,
         shotDelta: 20,
         special: SpecialMoveEffect(shootsImmediately: true, dunkKind: .reverse,
-                                   bonusOffOwnRebound: 10, dunks: true))
+                                   bonusOffOwnRebound: 10, dunks: true),
+        bonus: "Another +10% straight off your own board")
 
     static let giveAndGoDunk = CardDescriptor(
         id: "give-and-go-dunk", name: "Give-and-Go Dunk", type: .specialMove,
         effect: "Clean look only — no ~[Clamps] on you and nothing has gone off this "
-              + "possession. SHOT +30%. Shoot the ball",
+              + "possession. SHOT +30%",
         numberInDeck: 5,
         shotDelta: 30,
         special: SpecialMoveEffect(shootsImmediately: true, needsCleanLook: true,
@@ -748,7 +757,7 @@ enum CardLibrary {
 
     static let tomahawk = CardDescriptor(
         id: "tomahawk", name: "Tomahawk", type: .specialMove,
-        effect: "SHOT +15% at 50% or better, −15% under it. #[Shoot] the ball",
+        effect: "SHOT +15% at 50% or better, −15% under it",
         numberInDeck: 5,
         special: SpecialMoveEffect(shootsImmediately: true,
                                    dunkKind: .oneHand,
@@ -757,10 +766,11 @@ enum CardLibrary {
 
     static let slamDunk = CardDescriptor(
         id: "slam-dunk", name: "Slam Dunk", type: .specialMove,
-        effect: "SHOT +20%. SHOT = 100% if it reaches 75%. #[Shoot] the ball", numberInDeck: 5,
+        effect: "SHOT +20%", numberInDeck: 5,
         shotDelta: 20,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100,
-                                   overrideRequiresAtLeast: 75, dunks: true))
+                                   overrideRequiresAtLeast: 75, dunks: true),
+        bonus: "SHOT = 100% if it reaches 75%")
 
     static let euroStep = CardDescriptor(
         id: "euro-step", name: "Euro Step", type: .specialMove,
@@ -777,7 +787,7 @@ enum CardLibrary {
 
     static let turnaroundThree = CardDescriptor(
         id: "turnaround-three", name: "Turnaround Three", type: .specialMove,
-        effect: "#[Discard] any number. SHOT +10% for each. #[Shoot] the ball",
+        effect: "#[Discard] any number. SHOT +10% for each",
         numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
                                    discardForShotBonus: 10))
@@ -918,5 +928,38 @@ enum CardLibrary {
             let resolved = descriptor.resolved(passShotBonus: passShotBonus)
             return (0..<resolved.numberInDeck).map { _ in Card(resolved) }
         }
+    }
+}
+
+/// **A card that pays extra for following another.** The finisher carries the rule; the
+/// openers are what it can follow — one named card, or every Dribble.
+struct Combo: Hashable, Identifiable {
+    let finisher: CardDescriptor
+    let openers: [CardDescriptor]
+
+    var id: String { finisher.id }
+
+    /// "Dribble-Drive". Every Dribble route shares the one name, because the card says
+    /// Dribble rather than naming one.
+    var name: String {
+        let opener = finisher.comboAfterDribble ? "Dribble" : (openers.first?.name ?? "")
+        return "\(opener)-\(finisher.name)"
+    }
+
+    static func route(_ opener: String, into finisher: String) -> String {
+        "\(opener)>\(finisher)"
+    }
+
+    static let all: [Combo] = CardLibrary.standardPool.compactMap { card in
+        if card.comboAfterDribble {
+            return Combo(finisher: card, openers: CardLibrary.standardPool.filter(\.isDribble))
+        }
+        guard let after = card.comboAfter, let opener = CardLibrary.byID[after] else { return nil }
+        return Combo(finisher: card, openers: [opener])
+    }
+
+    /// Every combo a card is part of, from either end.
+    static func involving(_ card: CardDescriptor) -> [Combo] {
+        all.filter { $0.finisher.id == card.id || $0.openers.contains { $0.id == card.id } }
     }
 }

@@ -222,11 +222,15 @@ def frame(path: pathlib.Path, box: str) -> bool:
 
 
 # One entry per type: what is drawn behind the banner, and what is printed over it.
+# Files exported under a second spelling of a type's name, and the type they belong to.
+ALIASES = {"Variball": "Variaball"}
+
 layers: dict[str, dict[str, pathlib.Path]] = {}
 for path in sorted((root / ICONS).glob("*.svg")):
     for tail, part in (("_plate", "back"), ("_subject", "front"), ("_Icon_new", "whole")):
         if path.stem.endswith(tail):
-            layers.setdefault(path.stem[: -len(tail)], {})[part] = path
+            name = path.stem[: -len(tail)]
+            layers.setdefault(ALIASES.get(name, name), {})[part] = path
             break
 
 for name in sorted(layers):
@@ -268,7 +272,7 @@ for name in sorted(layers):
 # **Drawings that are not type icons**, trimmed to their own ink the way they were before
 # Affinity wrote the artboard back out — with half the widest stroke kept, so no edge line
 # is cut.
-TRIMMED = ("ISO_Court",)
+TRIMMED = ("ISO_Court", "CardCourt_Ball")
 
 
 def ink(text: str):

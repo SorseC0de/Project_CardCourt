@@ -2752,6 +2752,11 @@ final class GameController {
         for case .intangibleRevealed(let seat, _) in events {
             unrevealed[seat, default: 0] += 1
         }
+        // A combo the player strung together is one the COMBO button can now show.
+        for case .comboLanded(let seat, let card, let opener?, _) in events
+            where seat == GameRules.localSeat {
+            DoneCombos.shared.record(opener, into: card.id)
+        }
         broadcast(events)
         // Anything but a pass moves the ball at once: an inbound, a rebound, a turnover.
         // Only a throw has a journey to wait for.

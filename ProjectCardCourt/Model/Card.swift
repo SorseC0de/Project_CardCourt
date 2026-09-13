@@ -102,7 +102,7 @@ struct IntangibleEffect: Hashable, Codable {
     var offersShotAt: Int?
     /// Lethal Shooter: the shot straight after taking your own board.
     var requiresAfterOwnRebound = false
-    /// Point God draws on every pass; Unselfish only on a good one.
+    /// Point God draws on every pass.
     var drawAfterPass: Int = 0
     /// Ball Pounder: every Dribble is a card richer and a look worse.
     var dribbleBonusDraw: Int = 0
@@ -159,14 +159,6 @@ struct IntangibleEffect: Hashable, Codable {
     /// is a bad hand for a round rather than a permanent handicap. Floor General and
     /// Point God both read as round-long from their wording and neither was meant to.
     var lastsRound = false
-    /// Unselfish: paid whenever you do something for somebody else.
-    ///
-    /// **Deliberately broad.** The card says "whenever you positively affect another
-    /// player" and means it — see `Rules.credit`, which is the one place that decides
-    /// what counts. Every route that hands somebody the ball, a card, a point, a trip to
-    /// the line, or takes something off them goes through it.
-    var drawOnHelping: Int = 0
-    var shotOnHelping: Int = 0
 }
 
 /// A one-off that fires the moment it is drawn.
@@ -483,6 +475,11 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Flop with nobody guarding you: the referee has watched you throw yourself down
     /// on an empty floor.
     let turnoverIfNoClamps: Bool
+    /// What following another card pays and what it has to follow. Behind the COMBO button
+    /// rather than printed, since the face has no room for it.
+    let combo: String?
+    /// The card's conditional half, behind the BONUS button. See `bonusLines`.
+    let bonus: String?
 
     init(id: String, name: String, type: CardType, effect: String, numberInDeck: Int,
          passTarget: PassTarget? = nil, passesToOthersOnly: Bool = false,
@@ -508,7 +505,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          clearsOut: Bool = false, firstActionOnly: Bool = false,
          stealsAlongPass: Int = 0,
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
-         modes: [CardMode] = [], blocksFurtherMoves: Bool = false) {
+         modes: [CardMode] = [], blocksFurtherMoves: Bool = false,
+         combo: String? = nil, bonus: String? = nil) {
         self.receiverDiscards = receiverDiscards
         self.bonusAssistOnScore = bonusAssistOnScore
         self.forcesReceiverShot = forcesReceiverShot
@@ -543,6 +541,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.special = special; self.isDribble = isDribble
         self.freeThrowsPerClamp = freeThrowsPerClamp; self.clearsClamps = clearsClamps
         self.turnoverIfNoClamps = turnoverIfNoClamps
+        self.combo = combo; self.bonus = bonus
     }
 
     var isPass: Bool { passTarget != nil }
@@ -701,6 +700,15 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
 
     /// Threes say so with the hand rather than the words.
     var isThree: Bool { (special?.bonusPointOnMake ?? 0) > 0 }
+
+    /// **What the BONUS popover says.** "Shoot the ball" on every card that shoots — the face
+    /// carries a shoot mark instead — then the card's own conditional half.
+    var bonusLines: [String] {
+        var lines: [String] = []
+        if takesShot, !(bonus ?? "").contains("#[Shoot]") { lines.append("#[Shoot] the ball") }
+        if let bonus { lines.append(bonus) }
+        return lines
+    }
 
     /// The effect text with everything the card already says in pictures taken out —
     /// "Shoot the ball" is the shoot mark, and any SHOT figure is the ball badge.

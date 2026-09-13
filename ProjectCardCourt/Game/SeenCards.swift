@@ -39,3 +39,34 @@ final class SeenCards {
         defaults.removeObject(forKey: Self.key)
     }
 }
+
+/// Which combos this player has pulled off, across every game — what the COMBO button
+/// reveals. One route at a time: a Rhythm Dribble into Drive is not a Dribble into Drive.
+@Observable
+final class DoneCombos {
+    static let shared = DoneCombos()
+
+    private static let key = "doneCombos"
+    private var done: Set<String>
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        self.done = Set(defaults.stringArray(forKey: Self.key) ?? [])
+    }
+
+    func hasDone(_ opener: String, into finisher: String) -> Bool {
+        done.contains(Combo.route(opener, into: finisher))
+    }
+
+    func record(_ opener: String, into finisher: String) {
+        guard done.insert(Combo.route(opener, into: finisher)).inserted else { return }
+        defaults.set(Array(done), forKey: Self.key)
+    }
+
+    /// Debug only: forget every combo, to see the question marks again.
+    func forgetAll() {
+        done.removeAll()
+        defaults.removeObject(forKey: Self.key)
+    }
+}

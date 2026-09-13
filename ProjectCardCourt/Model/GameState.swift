@@ -61,8 +61,6 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// All-Swissh Selection: cards owed on the next make, and shown in the HUD until they
     /// are paid. Survives the round — it is a selection, not a hot streak.
     var drawsOwedOnMake = 0
-    /// Unselfish: owed to this player's next attempt, whenever it comes.
-    var nextShotBonus = 0
     var lastMake: Make?
     var scoredThisRound = false
     var scoredLastRound = false

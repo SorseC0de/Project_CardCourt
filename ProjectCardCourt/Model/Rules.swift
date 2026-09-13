@@ -516,7 +516,6 @@ enum Rules {
                   target != seat, target != state.inboundBarred else { return [] }
             state.inboundBarred = nil
             state.ball = target
-            credit(seat, helping: target, state: &state, events: &events)
             events.append(.inbounded(from: seat, to: target))
             // A fresh round comes in with no clock and gets one. A throw-in inside a round
             // — a Whistle's, a turnover's — is handed a clock that is already running.
@@ -786,6 +785,13 @@ enum Rules {
                 _ = clamp
                 events.append(.clampSet(seat: seat, card: descriptor))
             } else if let target = descriptor.passTarget {
+                // Hand-Off's combo is already paid above with the rest of the play's worth.
+                // This only says so, for the log and the record of combos done.
+                if comboArmed {
+                    events.append(.comboLanded(seat: seat, card: descriptor,
+                                               opener: state.lastPlayThisPossession,
+                                               bonus: descriptor.comboBonus))
+                }
                 // Somebody has to name the man. Floor General names him for everybody,
                 // which is the whole of what it does — so if it is on the floor, the ask
                 // goes to them instead.
@@ -847,7 +853,9 @@ enum Rules {
             } else {
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: state.shot))
                 if comboArmed {
-                    events.append(.comboLanded(seat: seat, card: descriptor, bonus: descriptor.comboBonus))
+                    events.append(.comboLanded(seat: seat, card: descriptor,
+                                               opener: state.lastPlayThisPossession,
+                                               bonus: descriptor.comboBonus))
                 }
                 state.lastPlayThisPossession = descriptor.id
                 state.lastPlayWasCombo = comboArmed
@@ -1054,7 +1062,6 @@ enum Rules {
         if descriptor.upgradesToThree { state.pendingBonusPoint = 1 }
         state.lastPasser = seat
         state.arrivedBy = descriptor
-        credit(seat, helping: receiver, state: &state, events: &events)
         events.append(.passed(card: descriptor, from: seat, to: receiver,
                               shot: state.shot, returning: returning))
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
@@ -1145,7 +1152,6 @@ enum Rules {
                 state[target].injuries.removeFirst()
                 state[target].injuryUnlocked = []
                 state.discard.append(Card(injury))
-                credit(actor, helping: target, state: &state, events: &events)
             }
             // Looking after somebody else is the half of it that pays.
             if target != actor {
@@ -1386,7 +1392,6 @@ enum Rules {
 
         if let onward = state.stealTravelsTo {
             state[onward].bag.append(taken)
-            credit(actor, helping: onward, state: &state, events: &events)
             state.stealTravelsTo = nil
             state.phase = .possession(holder: state.ball ?? actor)
             return events
@@ -1572,10 +1577,6 @@ enum Rules {
         let upgraded = state.pendingBonusPoint
         state.pendingBonusPoint = 0
         _ = upgraded
-        // Unselfish, cashed in. Owed to the attempt rather than to the board, so passing
-        // the ball away does not hand the bonus to whoever ends up shooting.
-        let owed = state[seat].nextShotBonus
-        state[seat].nextShotBonus = 0
         // Mic'd Up, spent on the attempt it was carried into.
         let carried = seat == state.ball ? state.holderShot : 0
         state.holderShot = 0
@@ -1587,7 +1588,7 @@ enum Rules {
                 events.append(.assisted(other))
             }
         }
-        let resolution = ShotMath.resolve(base: state.shot + priced + owed + carried,
+        let resolution = ShotMath.resolve(base: state.shot + priced + carried,
                                           modifiers: state.shotModifiers(
                                             for: seat, ignoringClamps: overClamps),
                                           rules: state.rules)
@@ -1781,7 +1782,6 @@ enum Rules {
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
         if effect.offenderDraws > 0 {
             drawTogether([offender], count: effect.offenderDraws, state: &state, events: &events)
-            credit(whistle.owner, helping: offender, state: &state, events: &events)
         }
         if effect.offenderDiscardsBag {
             spendHand(of: offender, state: &state, events: &events)
@@ -1819,7 +1819,6 @@ enum Rules {
             let points = state.rules.madeShotPoints + pendingShotBonus(for: offender, in: state)
             state[offender].points += points
             state[offender].scoredThisRound = true
-            credit(whistle.owner, helping: offender, state: &state, events: &events)
             events.append(.shotMade(seat: offender, points: points, roll: 0))
         }
 
@@ -1861,12 +1860,6 @@ enum Rules {
     /// Whistles that fire on being played rather than lying in wait.
     private static func resolveImmediate(_ effect: WhistleEffect, playedBy seat: Seat,
                                          state: inout GameState, events: inout [GameEvent]) {
-        // A Timeout deals the whole table in, which is three people helped.
-        if effect.everyoneDraws > 0 {
-            for other in Seat.allCases {
-                credit(seat, helping: other, state: &state, events: &events)
-            }
-        }
         if effect.resetsShotClock {
             state.shotClock = state.rules.shotClockStart
             events.append(.shotClockSet(state.rules.shotClockStart))
@@ -2274,32 +2267,6 @@ enum Rules {
         guard !has(actor, in: state, { $0.ignoresViolations }) else { return choices }
         let others = choices.filter { $0 != actor }
         return others.isEmpty ? choices : others
-    }
-
-    /// Paid whenever one player does something for another.
-    ///
-    /// **The one place that decides what "positively affects another player" means.** The
-    /// card is worded loosely on purpose, so this is the list rather than the text: the
-    /// ball, a card, a point, a trip to the line, or something bad taken away. Every route
-    /// that does one of those for somebody else calls this, and a new one that forgets is
-    /// a card that quietly stops paying.
-    ///
-    /// Never for helping yourself, and never for a Game Break — a Break is an event that
-    /// happened to the table, not a thing anybody did.
-    private static func credit(_ helper: Seat, helping other: Seat,
-                               state: inout GameState, events: inout [GameEvent]) {
-        guard helper != other else { return }
-        var cards = 0
-        var shot = 0
-        for passive in state[helper].intangibles {
-            guard let effect = passive.intangible else { continue }
-            cards += effect.drawOnHelping
-            shot += effect.shotOnHelping
-        }
-        state[helper].nextShotBonus += shot
-        if cards > 0 {
-            drawTogether([helper], count: cards, state: &state, events: &events)
-        }
     }
 
     /// Who names a target right now.

@@ -20,9 +20,17 @@ struct CardFrontView: View {
     /// In play but unable to act — drained of colour rather than dimmed, so it still
     /// reads at a glance without looking merely faded.
     var isDormant = false
+    /// The locked card behind a combo not done yet: grey, blanked, a question mark on the
+    /// plate. See `ComboView`.
+    var isBlank = false
     /// Handed the mechanic a reader pressed, when this card is raised to be read. Nil
     /// leaves the words inert — see `CardText`.
     var onKeyword: ((String) -> Void)?
+    /// Handed on a raised card: opens its combo scene, and puts the COMBO and BONUS buttons
+    /// under its words. Nil leaves them off.
+    var onCombo: (() -> Void)?
+
+    @State private var showingBonus = false
 
 
     /// Everything inside is drawn at raster size; the whole thing is scaled back down
@@ -37,18 +45,22 @@ struct CardFrontView: View {
 
     var body: some View {
         ZStack {
-            CardBodyFill(face: face,
-                         isDormant: isDormant,
-                         bandFraction: CardLayout.whistleBandFraction,
-                         glossFraction: CardLayout.whistleGlossFraction)
-                .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            if isBlank {
+                Rectangle().fill(CardPalette.gray)
+            } else {
+                CardBodyFill(face: face,
+                             isDormant: isDormant,
+                             bandFraction: CardLayout.whistleBandFraction,
+                             glossFraction: CardLayout.whistleGlossFraction)
+                    .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            }
 
             // **The icon's plate, at the bottom of the drawing.** Everything else on the
             // card prints on top of it — the court, the wash the words are read on, the
             // name banner — so the circle can be made as big as it likes without
             // swallowing anything. Only its subject comes back over the top, below.
             if passArt == nil { icon }
-            textOverlay
+            if !isBlank { textOverlay }
             border
             // Every card carries its name. Which side of the icon's plate the banner is
             // drawn on is the question — `plateOverIcon` on the bench.
@@ -57,7 +69,7 @@ struct CardFrontView: View {
             // gets its words.
             if let art = passArt {
                 passMark(art)
-            } else {
+            } else if !isBlank {
                 effectText
                 footMarks
             }
@@ -67,7 +79,7 @@ struct CardFrontView: View {
             // the ankle on a Move — so the drawing is in two layers and the plate is
             // printed between them. Nothing is drawn until that second layer exists; see
             // `Card.typeIconFront`.
-            if passArt == nil, hasIconFront { iconFront }
+            if passArt == nil, hasIconFront, !isBlank { iconFront }
             // **A three says so on the icon.** Bottom-right of the big drawing, over
             // everything it stands on, so a card worth an extra point is one glance rather
             // than a line of text.
@@ -78,6 +90,8 @@ struct CardFrontView: View {
             if let shot = descriptor.shotEffect, footBallShot == nil {
                 shotBadge(shot)
             }
+            if isBlank { lockedMarks }
+            if showsExtras { extrasButtons }
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
@@ -88,9 +102,86 @@ struct CardFrontView: View {
         // image, and an image takes no taps — so a keyword inside one cannot be pressed.
         // A raised card is one card rather than a fan of them, so the pass it costs is
         // affordable and the words become live.
-        .modifier(FlattenUnlessRead(live: expanded && onKeyword != nil))
+        .modifier(FlattenUnlessRead(live: expanded && (onKeyword != nil || showsExtras)))
         .scaleEffect(1 / CardLayout.rasterScale)
         .frame(width: displayWidth, height: displayWidth / CardMetrics.aspect)
+    }
+
+    // MARK: - Combo and bonus
+
+    private enum Extras {
+        /// The buttons' lettering, as a share of the card's width.
+        static let size: CGFloat = 0.06
+        /// Where the row sits, as a share of the card's height: under the words.
+        static let y: CGFloat = 0.92
+    }
+
+    private var combos: [Combo] { Combo.involving(descriptor) }
+
+    private var showsExtras: Bool {
+        expanded && !isBlank && onCombo != nil
+            && (!combos.isEmpty || !descriptor.bonusLines.isEmpty)
+    }
+
+    /// **COMBO and BONUS, under the words.** What a card strings together and its
+    /// conditional half live behind these rather than on the face, which has no room.
+    private var extrasButtons: some View {
+        let size = width * Extras.size
+        return HStack(spacing: size * 0.6) {
+            if let onCombo, !combos.isEmpty {
+                extrasCapsule("COMBO", size: size, action: onCombo)
+            }
+            if !descriptor.bonusLines.isEmpty {
+                extrasCapsule("BONUS", size: size) { showingBonus = true }
+                    .popover(isPresented: $showingBonus) { bonusPopover }
+            }
+        }
+        .position(x: width / 2, y: height * Extras.y)
+    }
+
+    private func extrasCapsule(_ word: String, size: CGFloat,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(word)
+                .font(.system(size: size, weight: .heavy, design: .rounded))
+                .tracking(size * 0.08)
+                .foregroundStyle(.white)
+                .padding(.horizontal, size * 0.8)
+                .padding(.vertical, size * 0.3)
+                .background(Capsule().fill(CardPalette.navy))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var bonusPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(descriptor.bonusLines, id: \.self) { line in
+                CardText(text: line, font: CardFont.name(set.weight), size: 17,
+                         ink: CardPalette.navy, highlight: set.highlight, face: face)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: 280, alignment: .leading)
+        .presentationCompactAdaptation(.popover)
+    }
+
+    /// A combo not done yet: everything under a black wash, and a white question mark
+    /// where the plate's shadow falls, printed over the wash.
+    private var lockedMarks: some View {
+        let side = width * CardLayout.iconSizeFraction * set.iconScale
+        let drop = side * 0.04
+        return ZStack {
+            Color.black.opacity(0.66)
+            Text("?")
+                .font(.system(size: side * 0.5, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .shadow(color: .black, radius: 0, x: drop, y: drop)
+                .position(x: width / 2,
+                          y: height * (set.iconTop + descriptor.iconYAdjust)
+                              + side * (0.5 - CardLayout.iconRingInset))
+        }
+        .frame(width: width, height: height)
     }
 
     /// Flattens the card to one texture, unless its words are meant to be pressed.

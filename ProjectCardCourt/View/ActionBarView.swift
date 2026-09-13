@@ -9,6 +9,7 @@ struct ActionBarView: View {
     var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
+    var onCombo: (CardDescriptor) -> Void = { _ in }
     @Environment(\.floorIsHidden) private var floorIsHidden
 
     private var state: GameState { controller.shown }
@@ -86,6 +87,7 @@ struct ActionBarView: View {
                           ringed: { if case .card(let id) = ringed { return id }
                                     else { return nil } }(),
                           onKeyword: onKeyword,
+                          onCombo: onCombo,
                           detail: $detail,
                           onCommit: commit)
             asking
