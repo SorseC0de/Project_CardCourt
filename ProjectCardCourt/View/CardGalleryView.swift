@@ -90,7 +90,8 @@ struct CardGalleryView: View {
             HStack(spacing: 8) {
                 ForEach(types, id: \.self) { kind in
                     let on = kind == type
-                    SmallCapsText(text: kind.rawValue, font: Chrome.display, size: 14,
+                    SmallCapsText(text: kind == .gameBreak ? "Injury" : kind.rawValue,
+                                  font: Chrome.display, size: 14,
                                   tracking: 1)
                         .foregroundStyle(on ? .white : CardPalette.gray)
                         .padding(.horizontal, 12)

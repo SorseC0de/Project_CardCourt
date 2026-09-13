@@ -208,8 +208,8 @@ additions with no equivalent in the old 30.
 
 ## Deck space is a real constraint now
 
-**79 slots.** The Standard deck is 421 cards once its Game Breaks are out, which leaves 79
-for Varenas and Variaballs. Cardwood takes 10.
+**79 slots.** The Game Breaks are out of the deck, and without them the Standard deck is 421
+cards, which leaves 79 for Varenas and Variaballs. Cardwood takes 10, so it is 431 today.
 
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate

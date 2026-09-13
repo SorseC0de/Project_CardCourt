@@ -39,8 +39,9 @@ than kept alongside the new system.
 - [ ] `CardType.gameBreak` shrinks to the 3 Injuries only; confirm nothing else reads
       `CardType.gameBreak` expecting the old 30.
       *Confirmed: its readers are the Game Break announcement, the Whistle draw trigger,
-      the gallery's section list and the Injuries — none counts the old 30. The shrink
-      itself happens card by card as Phase 3 ports each one.*
+      the gallery's section list and the Injuries — none counts the old 30.* **Done for the
+      deck:** the Game Breaks are out and only the Injuries are dealt. Each Break's rules code
+      stays until its replacement is built, then goes.
 
 ## Phase 1 — SHOT override hierarchy
 
