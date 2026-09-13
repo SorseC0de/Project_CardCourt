@@ -356,8 +356,10 @@ enum CardLibrary {
 
     static let catchAndShoot = CardDescriptor(
         id: "catch-and-shoot", name: "Catch & Shoot Specialist", type: .intangible,
-        effect: "SHOT +10% more on every pass you receive", numberInDeck: 1,
-        intangible: IntangibleEffect(shotBonus: 10, requiresReceivedPass: true))
+        effect: "SHOT +25% on a received ~[Pass], if you #[Shoot] before anything else",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(shotBonus: 25, requiresReceivedPass: true,
+                                     requiresFirstAction: true))
 
     static let clutchGene = CardDescriptor(
         id: "clutch-gene", name: "Clutch Gene", type: .intangible,
@@ -370,10 +372,10 @@ enum CardLibrary {
         effect: "You name every target on the floor", numberInDeck: 1,
         intangible: IntangibleEffect(aimsEveryTarget: true))
 
-    static let foxLikeFirstStep = CardDescriptor(
-        id: "fox-like-first-step", name: "Fox-Like First Step", type: .intangible,
-        effect: "~[Moves] that cost SHOT pay it instead", numberInDeck: 1,
-        intangible: IntangibleEffect(invertsMoveDebuffs: true))
+    static let southpawShooter = CardDescriptor(
+        id: "southpaw-shooter", name: "Southpaw Shooter", type: .intangible,
+        effect: "SHOT gains and losses are reversed", numberInDeck: 1,
+        intangible: IntangibleEffect(reversesShotChanges: true))
 
     static let gravity = CardDescriptor(
         id: "gravity", name: "Gravity", type: .intangible,
@@ -391,27 +393,23 @@ enum CardLibrary {
         effect: "Nothing takes your SHOT down", numberInDeck: 1,
         intangible: IntangibleEffect(shotCannotBeReduced: true))
 
-    static let noBag = CardDescriptor(
-        id: "no-bag", name: "No Bag", type: .intangible,
-        effect: "No ~[Move] cards this round", numberInDeck: 1,
-        intangible: IntangibleEffect(blocksMoves: true, lastsRound: true))
+    static let parkShark = CardDescriptor(
+        id: "park-shark", name: "Park Shark", type: .intangible,
+        effect: "SHOT +25%. No ~[Moves], ~[Special Moves] or threes", numberInDeck: 1,
+        intangible: IntangibleEffect(shotBonus: 25, blocksMoves: true, blocksSpecialMoves: true,
+                                     blocksThrees: true))
 
     static let pointGod = CardDescriptor(
         id: "point-god", name: "Point God", type: .intangible,
         effect: "#[Draw] 1 after each of your passes", numberInDeck: 1,
         intangible: IntangibleEffect(drawAfterPass: 1))
 
-    static let shootingSlump = CardDescriptor(
-        id: "shooting-slump", name: "Shooting Slump", type: .intangible,
-        effect: "SHOT -20% this round", numberInDeck: 1,
-        intangible: IntangibleEffect(shotBonus: -20, lastsRound: true))
-
     static let sixthMan = CardDescriptor(
         id: "sixth-man", name: "Sixth Man", type: .intangible,
-        effect: "SHOT +60% on any six: cards in hand, #[Shot Clock], "
-             + "shot of the round, or score",
+        effect: "On any six — cards in hand, #[Shot Clock], shot of the round, or score — "
+             + "you may #[Shoot] at SHOT = 60%",
         numberInDeck: 1,
-        intangible: IntangibleEffect(shotBonus: 60, requiresAnySix: true))
+        intangible: IntangibleEffect(requiresAnySix: true, offersShotAt: 60))
 
     static let sniper = CardDescriptor(
         id: "sniper", name: "Sniper", type: .intangible,
@@ -435,8 +433,10 @@ enum CardLibrary {
 
     static let ballPounder = CardDescriptor(
         id: "ball-pounder", name: "Ball Pounder", type: .intangible,
-        effect: "Every @[Dribble] #[Draws] 1 more and costs 10% more", numberInDeck: 1,
-        intangible: IntangibleEffect(dribbleBonusDraw: 1, dribbleShotPenalty: -10))
+        effect: "Every Dribble #[Draws] 1 card but gives SHOT -10% and #[Shot Clock] -01",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(dribbleBonusDraw: 1, dribbleShotPenalty: -10,
+                                     dribbleClockDelta: -1))
 
     static let franchisePlayer = CardDescriptor(
         id: "franchise-player", name: "Franchise Player", type: .intangible,
@@ -444,16 +444,12 @@ enum CardLibrary {
         numberInDeck: 1,
         intangible: IntangibleEffect(passCostsTarget: true))
 
-    static let villainousReputation = CardDescriptor(
-        id: "villainous-reputation", name: "Villainous Reputation", type: .intangible,
-        effect: "Every ~[Whistle] that fires costs you a card. Taken off you, it finds somebody",
-        numberInDeck: 1,
-        intangible: IntangibleEffect(discardOnAnyWhistle: 1, reattachesOnDiscard: true))
-
     static let dirtyPlayer = CardDescriptor(
         id: "dirty-player", name: "Dirty Player", type: .intangible,
-        effect: "Your ~[Clamps] cost an injured man a card", numberInDeck: 1,
-        intangible: IntangibleEffect(clampCostsInjured: 1))
+        effect: "Each of your ~[Clamps] costs an Injured player a card. "
+            + "#[Discard] 1 whenever a ~[Whistle] fires",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(discardOnAnyWhistle: 1, clampCostsInjured: 1))
 
     /// **Out of the deck**, and kept only because everything it needs still works.
     ///
@@ -469,17 +465,12 @@ enum CardLibrary {
 
     static let fundamentalist = CardDescriptor(
         id: "fundamentalist", name: "Fundamentalist", type: .intangible,
-        effect: "No ~[Special Moves]. Each ~[Move] once a turn. Swings, @[Skip Pass] and @[Dribble] are never spent",
+        effect: "No ~[Special Moves]. Each ~[Move] once a turn. Swings, @[Skip Pass] and @[Dribble] are never spent. Discards the current ball",
         numberInDeck: 1,
         intangible: IntangibleEffect(blocksSpecialMoves: true, oneOfEachMovePerTurn: true,
                                      keepsOnPlay: ["swing-left", "swing-right",
-                                                   "skip-pass", "dribble"]))
-
-    static let unselfish = CardDescriptor(
-        id: "unselfish", name: "Unselfish", type: .intangible,
-        effect: "#[Draw] 1 and SHOT +5% next time, whenever you positively affect another player",
-        numberInDeck: 1,
-        intangible: IntangibleEffect(drawOnHelping: 1, shotOnHelping: 5))
+                                                   "skip-pass", "dribble"],
+                                     discardsBallOnActivation: true))
 
     // ── Injuries ──────────────────────────────────────────────────────
     //
@@ -601,12 +592,17 @@ enum CardLibrary {
         effect: "Take 1 additional #[FT]", numberInDeck: 1,
         intangible: IntangibleEffect(bonusFreeThrows: 1))
 
+    static let equalizer = CardDescriptor(
+        id: "equalizer", name: "Equalizer", type: .intangible,
+        effect: "Any SHOT = shot you take becomes 100%", numberInDeck: 1,
+        intangible: IntangibleEffect(equalizesOverrides: true))
+
     static let intangibles: [CardDescriptor] = [
-        shotCreator, hotHand, movesAtOwnPace, freethrowMerchant, generationalWhistle, unselfish,
-        boardCrasher, roswellReach, catchAndShoot, clutchGene, floorGeneral, foxLikeFirstStep,
-        gravity, greatConditioning, likeThat, noBag, pointGod, shootingSlump,
+        shotCreator, hotHand, movesAtOwnPace, freethrowMerchant, generationalWhistle, equalizer,
+        boardCrasher, roswellReach, catchAndShoot, clutchGene, floorGeneral, southpawShooter,
+        gravity, greatConditioning, likeThat, parkShark, pointGod,
         sixthMan, sniper, splashCousin, competitive, lethalShooter, ballPounder,
-        fundamentalist, villainousReputation, dirtyPlayer, franchisePlayer,
+        fundamentalist, dirtyPlayer, franchisePlayer,
     ]
 
     // ── Varenas ───────────────────────────────────────────────────────

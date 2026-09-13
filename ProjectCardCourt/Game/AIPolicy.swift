@@ -88,6 +88,11 @@ struct AIPolicy {
             }), best.descriptor.baseShotDelta >= 0 || best.descriptor.special?.shotOverride != nil {
                 return .play(best.id)
             }
+            // Sixth Man's button, when it is the better look.
+            if legal.contains(.shootAtOffer), let offer = state.shotOffer(for: seat),
+               offer.amount > Double(state.shot) {
+                return .shootAtOffer
+            }
             return .shoot
         }
 

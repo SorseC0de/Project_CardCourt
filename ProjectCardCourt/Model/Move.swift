@@ -18,4 +18,6 @@ enum Move: Hashable, Codable {
     /// player — and that is a *target*, so Floor General names him instead.
     case borrow(from: Seat)
     case shoot
+    /// Sixth Man: the second Shoot button, at the SHOT the Intangible offers.
+    case shootAtOffer
 }

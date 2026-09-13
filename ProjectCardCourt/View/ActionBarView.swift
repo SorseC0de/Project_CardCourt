@@ -219,8 +219,21 @@ struct ActionBarView: View {
         return board[seat].intangibles.first { $0.name == named }
     }
 
+    /// Sixth Man's offer while a six is showing: the card it comes from, and its SHOT.
+    private var offer: (card: CardDescriptor, override: ShotOverride)? {
+        let seat = GameRules.localSeat
+        guard legal.contains(.shootAtOffer), let override = state.shotOffer(for: seat),
+              let card = state[seat].intangibles.first(where: { $0.intangible?.offersShotAt != nil })
+        else { return nil }
+        return (card, override)
+    }
+
     private var shootButton: some View {
         HStack(spacing: 8) {
+            if let offer {
+                offerPill(offer.card, at: offer.override)
+                    .transition(.scale.combined(with: .opacity))
+            }
             // **The card that armed it, beside the button.** A HUD glyph says *something*
             // is on; the card says which, and it is the same drawing the player already
             // knows from their own board.
@@ -270,6 +283,32 @@ struct ActionBarView: View {
         }
         .padRing(ringed == .shoot, corner: Act.height / 2)
         .frame(width: Act.width)
+    }
+
+    /// **Sixth Man's second Shoot button.** The card dimmed, beside the SHOT it offers.
+    /// Pressed only when that beats the board, so it sits beside Shoot rather than in place
+    /// of it.
+    private func offerPill(_ card: CardDescriptor, at override: ShotOverride) -> some View {
+        Button { controller.shootAtOffer() } label: {
+            HStack(spacing: 6) {
+                CardFrontView(descriptor: card, displayWidth: Act.ball)
+                    .opacity(0.5)
+                Text("SHOOT")
+                    .font(.system(size: Act.word, weight: .heavy, design: .rounded))
+                    .tracking(Act.wordGap)
+                    .foregroundStyle(.white)
+                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
+                Text("(\(Int(override.amount))%)")
+                    .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: Act.height)
+            .background(Capsule().fill(CardPalette.orange)
+                .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
+        }
+        .frame(width: Act.width * Act.secondShare)
     }
 
     /// Free Agent plays out of somebody else's hand, so it needs a way in that is not a

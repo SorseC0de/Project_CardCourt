@@ -134,7 +134,9 @@ extension GameState {
         }
         // **One override, and the highest claim to it wins:** an Intangible, then the floor,
         // then the ball, then the card just played.
-        modifiers.override = passiveOverride ?? courtOverride ?? ballOverride ?? pendingShotOverride
+        // Sixth Man's button, pressed, is the Intangible's claim.
+        modifiers.override = passiveShotOverride ?? passiveOverride ?? courtOverride ?? ballOverride
+            ?? pendingShotOverride
 
         // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
         // Nothing is cancelled, though that makes no odds — Clamps come off at the end of
@@ -148,9 +150,15 @@ extension GameState {
             guard debuff != 0 else { continue }
             modifiers.debuffs.append(ShotModifier(label: clamp.card.name, amount: Double(debuff)))
         }
+        // Southpaw Shooter, before Like That, so a gain turned into a loss is still refused.
+        if self[seat].intangibles.contains(where: { $0.intangible?.reversesShotChanges == true }) {
+            modifiers.adds = modifiers.adds.map { ShotModifier(label: $0.label, amount: -$0.amount) }
+            modifiers.debuffs = modifiers.debuffs.map { ShotModifier(label: $0.label, amount: -$0.amount) }
+        }
         if self[seat].intangibles.contains(where: { $0.intangible?.shotCannotBeReduced == true }) {
             modifiers.adds.removeAll { $0.amount < 0 }
         }
+        modifiers.override = modifiers.override.map { equalized($0, for: seat) }
         return modifiers
     }
 
@@ -169,6 +177,7 @@ extension GameState {
         if effect.requiresOwnRebound && !possessionFromOwnRebound { return false }
         if effect.requiresAfterOwnRebound && !possessionFromOwnRebound { return false }
         if effect.requiresReceivedPass && lastPasser == nil { return false }
+        if effect.requiresFirstAction && !isShootingFirst { return false }
         if let nth = effect.requiresNthShotOfRound, shotsThisRound + 1 != nth { return false }
         if effect.requiresAnySix, !anySix(for: seat) { return false }
         // Either half is enough. Both nil is no condition at all.
@@ -186,5 +195,30 @@ extension GameState {
             || shotClock == 6
             || shotsThisRound + 1 == 6
             || self[seat].score == 6
+    }
+
+    /// Sixth Man's second Shoot button: what it would shoot at, while a six is showing.
+    func shotOffer(for seat: Seat) -> ShotOverride? {
+        for passive in self[seat].intangibles {
+            guard let effect = passive.intangible, let offered = effect.offersShotAt,
+                  pays(effect, for: seat, fromThree: false) else { continue }
+            return equalized(ShotOverride(label: passive.name, amount: Double(offered)), for: seat)
+        }
+        return nil
+    }
+
+    /// Equalizer: a SHOT = shot goes up at 100%, whatever it named.
+    private func equalized(_ override: ShotOverride, for seat: Seat) -> ShotOverride {
+        guard self[seat].intangibles.contains(where: { $0.intangible?.equalizesOverrides == true })
+        else { return override }
+        // Named for Equalizer, so the lit Shoot button shows the card doing it.
+        return ShotOverride(label: "Equalizer", amount: 100,
+                            requiresAtLeast: override.requiresAtLeast)
+    }
+
+    /// Catch & Shoot: nothing played yet this possession, or only the shot itself.
+    private var isShootingFirst: Bool {
+        guard let last = lastPlayThisPossession else { return true }
+        return movesThisPossession <= 1 && CardLibrary.byID[last]?.takesShot == true
     }
 }

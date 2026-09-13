@@ -1385,6 +1385,93 @@ func runTests() {
         }, "and with no Pass to play, it is a turnover")
     }
 
+    print("The Intangible audit")
+    do {
+        var (state, seat, _) = openPossession(seed: 97, cards: [])
+        state[seat].intangibles = [CardLibrary.catchAndShoot]
+        state.lastPasser = seat.left
+        Check.that(state.shotModifiers(for: seat).adds.first?.amount == 25,
+                   "Catch & Shoot pays 25 off a pass, shooting first")
+        state.lastPlayThisPossession = CardLibrary.drive.id
+        state.movesThisPossession = 1
+        Check.that(state.shotModifiers(for: seat).adds.isEmpty,
+                   "and nothing once something else came first")
+    }
+    do {
+        var (base, seat, cards) = openPossession(seed: 93, cards: [CardLibrary.drive])
+        base.shot = 50
+        var plain = base
+        Rules.apply(.play(cards[0].id), by: seat, to: &plain)
+        var reversed = base
+        reversed[seat].intangibles = [CardLibrary.southpawShooter]
+        Rules.apply(.play(cards[0].id), by: seat, to: &reversed)
+        Check.that(plain.shot > base.shot && reversed.shot - base.shot == -(plain.shot - base.shot),
+                   "Southpaw Shooter turns a gain into a loss")
+    }
+    do {
+        var (state, seat, _) = openPossession(
+            seed: 98, cards: [CardLibrary.dribble, CardLibrary.threeBall, CardLibrary.swingLeft])
+        state[seat].intangibles = [CardLibrary.parkShark]
+        let playable = Rules.legalMoves(state, for: seat).compactMap { move -> CardDescriptor? in
+            guard case .play(let id) = move else { return nil }
+            return state[seat].bag.first { $0.id == id }?.descriptor
+        }
+        Check.that(!playable.contains { $0.type == .move || $0.type == .specialMove },
+                   "Park Shark sits every Move and Special Move down")
+        Check.that(state.shotModifiers(for: seat).adds.first?.amount == 25,
+                   "and pays 25 on every shot")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 99, cards: [])
+        state[seat].injuries = [CardLibrary.boneBruise]
+        state.deck.append(matchCard(CardLibrary.greatConditioning, state.rules))
+        var events: [GameEvent] = []
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state[seat].injuries.isEmpty,
+                   "Great Conditioning clears the Injuries already carried")
+        state.ballCard = Card(CardLibrary.cardwood)
+        state.deck.append(matchCard(CardLibrary.fundamentalist, state.rules))
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state.ballCard == nil, "Fundamentalist discards the ball on activation")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 100, cards: [])
+        state[seat].intangibles = [CardLibrary.equalizer]
+        state.pendingShotOverride = ShotOverride(label: "Heave", amount: 25)
+        Check.that(state.shotModifiers(for: seat).override?.amount == 100,
+                   "Equalizer turns a SHOT = shot into 100%")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 101, cards: [])
+        state[seat].intangibles = [CardLibrary.sixthMan]
+        state.armedWhistles = []
+        state[seat].bag = (0..<5).map { _ in matchCard(CardLibrary.drive, state.rules) }
+        state.shotClock = 20
+        state.shotsThisRound = 0
+        state.shot = 10
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAtOffer),
+                   "no six, no second Shoot button")
+        state[seat].bag.append(matchCard(CardLibrary.drive, state.rules))
+        Check.that(Rules.legalMoves(state, for: seat).contains(.shootAtOffer),
+                   "a six puts Sixth Man's button up")
+        let events = Rules.apply(.shootAtOffer, by: seat, to: &state)
+        Check.that(events.contains {
+            if case .shotAttempted(_, let chance, _) = $0 { return chance == 60 }; return false
+        }, "and it shoots at 60")
+    }
+    do {
+        let (base, seat, cards) = openPossession(seed: 102, cards: [CardLibrary.dribble])
+        var plain = base
+        plain.shotClock = 20
+        Rules.apply(.play(cards[0].id), by: seat, to: &plain)
+        var pounded = base
+        pounded.shotClock = 20
+        pounded[seat].intangibles = [CardLibrary.ballPounder]
+        Rules.apply(.play(cards[0].id), by: seat, to: &pounded)
+        Check.that(pounded.shotClock == plain.shotClock.map { $0 - 1 },
+                   "Ball Pounder runs the Shot Clock down one more")
+    }
+
     print("Serialisation")
     do {
         let (state, _) = Rules.newGame(seed: 15)

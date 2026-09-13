@@ -86,6 +86,8 @@ struct IntangibleEffect: Hashable, Codable {
     /// Board-Crasher: only off your own miss. Catch & Shoot: only off a pass.
     var requiresOwnRebound = false
     var requiresReceivedPass = false
+    /// Catch & Shoot: only when the shot is the first thing you do with the pass.
+    var requiresFirstAction = false
     /// Sniper and Splash Cousin only pay from range.
     var requiresThree = false
     /// `SHOT = x%` rather than a delta, under whatever conditions are also set.
@@ -96,6 +98,8 @@ struct IntangibleEffect: Hashable, Codable {
     /// sixth shot of the round, or a score of six. One of them is enough — the card is
     /// about the number rather than about any one way of reaching it.
     var requiresAnySix = false
+    /// Sixth Man: a second Shoot button at this SHOT, taken only when the player wants it.
+    var offersShotAt: Int?
     /// Lethal Shooter: the shot straight after taking your own board.
     var requiresAfterOwnRebound = false
     /// Point God draws on every pass; Unselfish only on a good one.
@@ -103,35 +107,42 @@ struct IntangibleEffect: Hashable, Codable {
     /// Ball Pounder: every Dribble is a card richer and a look worse.
     var dribbleBonusDraw: Int = 0
     var dribbleShotPenalty: Int = 0
-    /// Like That, Competitive: nothing may take SHOT down.
+    var dribbleClockDelta: Int = 0
+    /// Like That, Competitive: nothing may take SHOT down. A Variaball still can under Like
+    /// That — the ball is what changed, not the player.
     var shotCannotBeReduced = false
     var ignoresClampDebuffs = false
+    /// Equalizer: any SHOT = shot goes up at 100%.
+    var equalizesOverrides = false
     /// Gravity: every Clamp lands here whoever it was aimed at, and every other player's
     /// attempt is an assist.
     var attractsClamps = false
     var assistOnOthersShot = false
-    /// Great Conditioning: an Injury never lands, and the draw is taken again.
+    /// Great Conditioning: an Injury never lands, and the draw is taken again. Landing also
+    /// clears the ones already carried.
     var shrugsOffInjuries = false
-    /// Fox-Like First Step: a Move that costs SHOT pays it instead.
-    var invertsMoveDebuffs = false
-    /// No Bag, Fundamentalist. One blocks Moves, the other Special Moves.
+    /// Southpaw Shooter: every SHOT gain is a loss and every loss a gain.
+    var reversesShotChanges = false
+    /// Park Shark blocks both; Fundamentalist only the Special Moves.
     var blocksMoves = false
     var blocksSpecialMoves = false
+    /// Park Shark: no threes.
+    var blocksThrees = false
     /// Free Agent: no bag of his own. He plays out of whoever is nearest.
     ///
     /// The hand is dumped once the draw chain that turned this up has finished, not the
     /// moment it lands — drawing it second in an opening deal should cost the whole hand,
     /// not one card.
     var playsFromOthers = false
-    /// Villainous Reputation: every call costs you, whoever it was against.
+    /// Dirty Player: every Whistle that fires costs you a card, whoever it was against.
     var discardOnAnyWhistle = 0
-    /// And it never really leaves — taken off you, it lands on somebody. Possibly you.
-    var reattachesOnDiscard = false
-    /// Dirty Player: a Clamp of yours lands on a man already hurt and it costs him.
+    /// Dirty Player: each of your Clamps on an Injured player costs them a card.
     var clampCostsInjured = 0
     /// Fundamentalist: each Move once a turn, and the plainest cards are never spent.
     var oneOfEachMovePerTurn = false
     var keepsOnPlay: [String] = []
+    /// Fundamentalist: the ball goes back to Regulation when it lands.
+    var discardsBallOnActivation = false
     /// Floor General: **every** target on the floor is named by this player instead —
     /// who a pass finds, and which card comes out of a hand you cannot see. **Not the
     /// choices a player makes about their own card**: which branch of a multi-effect card
@@ -766,7 +777,6 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         // Not all of these are built yet — the sheet has them, the library does not. The
         // mapping is written now so a card arrives wearing the right mark rather than the
         // type's default the first time it is dealt.
-        case "shooting-slump":              return "snowflake"
         case "great-conditioning":          return "figure.strengthtraining.traditional"
         case "triple-threat":               return "move.3d"
         case "shot-creator":                return "plus.rectangle.on.rectangle"
@@ -825,10 +835,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "catch-and-shoot":             return "hands.and.sparkles.fill"
         case "clutch-gene":                 return "bolt.heart.fill"
         case "floor-general":               return "megaphone.fill"
-        case "fox-like-first-step":         return "hare.fill"
+        case "southpaw-shooter":            return "hand.point.left.fill"
         case "gravity":                     return "globe.desk.fill"
         case "like-that":                   return "hand.thumbsup.fill"
-        case "no-bag":                      return "bag.badge.minus"
+        case "park-shark":                  return "fish.fill"
         case "point-god":                   return "crown.fill"
         case "sixth-man":                   return "6.circle.fill"
         case "sniper":                      return "scope"
@@ -836,14 +846,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "competitive":                 return "figure.walk.motion.trianglebadge.exclamationmark"
         case "lethal-shooter":              return "target"
         case "ball-pounder":                return "arrow.down.circle.fill"
-        case "unselfish":                   return "heart.circle.fill"
+        case "equalizer":                   return "equal.circle.fill"
         case "trade-deadline":              return "arrow.trianglehead.2.clockwise.rotate.90"
         case "fresh-ball":                  return "basketball"
         case "wet-spot":                    return "drop.triangle.fill"
         case "floor-cleanup":               return "wind"
         case "official-timeout":            return "cross.circle.fill"
         case "free-agent":                  return "figure.wave"
-        case "villainous-reputation":       return "theatermask.and.paintbrush.fill"
         case "dirty-player":                return "hand.raised.fingers.spread.fill"
         case "franchise-player":            return "person.crop.rectangle.badge.plus"
         case "team-doctor":                 return "stethoscope"

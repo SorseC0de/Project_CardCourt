@@ -1,6 +1,6 @@
 # Implementation queue: Varenas and Variaballs
 
-Ordered plan for turning [varenas-and-variaballs.md](varenas-and-variaballs.md)'s 36 designed
+Ordered plan for turning [varenas-and-variaballs.md](varenas-and-variaballs.md)'s 45 designed
 cards into working code. Nothing here is written yet — this is the plan to verify before any
 Swift changes start. Referenced types/files are the real ones as of this branch's base
 (`one-queue`).
@@ -160,6 +160,15 @@ to actually withhold it, not just hide it in the HUD, per the open question belo
 **Alternating/toggling (Varena):** Turnstile Tile (shooter's SHOT alternates +25/−25 every
 turn; visual is a red/green recolor).
 
+**Shot attempt (Ball):** Brand New Ball (25% a shot attempt is a turnover instead, 3).
+
+**Intangibles that read the slots:** Varsitile (no one-per-possession limit on either slot;
+once per possession, exchange the Varena and/or ball for one in the discard, and one use can
+do both), Brawl Handler (changing the ball removes your own Clamps), Baller (changing the ball
+yourself draws 1). Dealt once Variaballs are. Fundamentalist's ball discard is already built.
+**Like That does not stop a Variaball lowering SHOT** — every ball SHOT reduction built here
+has to get past it.
+
 **The eponymous / signature card (Ball, 1-of, non-persistent):** Variaball — resolves and
 discards immediately on play, no standing effect. Pulls from the Variaball discard pile,
 digital rolling programmatically per the design doc.
@@ -189,7 +198,7 @@ Over-Varing Evidence (same, for a Variaball).
 ## Open questions carried over, unresolved
 
 - Grayvstone before anything exists in the Variaball discard pile.
-- The ratio audit set every count: 102 copies against 79 slots. The whole deck is reviewed again
+- The ratio audit set every count: 105 copies against 79 slots. The whole deck is reviewed again
   before they are built.
 - The art budget: which cards get bespoke floor art versus an overlay (tint/marking/badge) on
   the existing court SVG.

@@ -131,6 +131,7 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 | **Frostbite Finish** | Varena | Playing a Move card requires discarding another card. If the Move is your whole hand, you cannot play it — there is nothing left to discard. The icy mirror of Foot Ball's buff; floor finish is the real term for a court's coating, so the ice literally is the finish | 2 |
 | **Tick-Tock Tile** | Varena | Playing any card also ticks the shot clock, on top of its normal countdown and normal per-possession reset. Scoped to one floor instead of a blanket rule, which sidesteps the reset-behavior question the shelved version raised | 3 |
 | **Monster Ball** | Variaball | Intangibles are absorbed into the ball and have no effect — on a table they stack under it, like Yu-Gi-Oh Xyz materials. When the ball is discarded, players rebound for the collected Intangibles one at a time. *Monstar Ball if the name is clear* | 1 |
+| **Brand New Ball** | Variaball | 25% chance a shot attempt is a turnover instead | 3 |
 
 **Overlapping cards at different power levels are deliberate**, on the HexHex model — a good
 card and then a better one doing the same job. Not redundancy, and not something to flag.
@@ -184,6 +185,19 @@ Variaball play now that they're plays.
 - **Over-Varing Evidence** — the Variaball twin. Same effect. The name blends "overbearing
   evidence" (the legal idiom) with "over-varying" — the ball itself is the thing that morphs.
 
+## Intangibles that read the slots
+
+From the Intangible audit, 2026-09-13. Varsitile, Brawl Handler and Baller wait for the
+Variaballs: dealt before then, they would do nothing.
+
+- **Varsitile** — you can play more than 1 Varena and Variaball per turn. Once per possession,
+  you can exchange the Varena and/or ball for one in the Discards. **One use can exchange both.**
+- **Brawl Handler** — remove all your own Clamps when you change the ball.
+- **Baller** — draw 1 card each time **you** change the ball. It was any change once.
+- **Fundamentalist** — discards the current ball, once, on activation.
+- **Like That** — Variaball effects still lower SHOT. The ball is what is altered, not the
+  player, so Like That with Snow Ball out still loses SHOT. Not on the card.
+
 ## Killed
 
 - **Ice Wrap** — Recoverena does it better, and *ice* is worth more as a ball.
@@ -208,7 +222,7 @@ Variaball play now that they're plays.
 ## All 30 resolved.
 
 Every original Game Break has been converted, retired into a broader card, or killed
-outright. **44 designed — 29 Varenas and 15 Variaballs** — several of them new
+outright. **45 designed — 29 Varenas and 16 Variaballs** — several of them new
 additions with no equivalent in the old 30.
 
 ## Deck space is a real constraint now
@@ -227,6 +241,8 @@ are still to be designed, and the counts should end up weighted toward them.
 **The rest of the deck was recounted** from playtesting (2026-09-13): 380 cards without
 Varenas and Variaballs, 481 with the audit's 101. **Then** Close-Out, Zone, Man-To-Man and
 Three-Ball took it to 390, and Monster Ball made the balls 33 — **492 in all**.
+
+**The Intangible audit** (2026-09-13) cut three and added four: 391 without the slots. Brand New Ball made the balls 36 — **496 in all**.
 
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate

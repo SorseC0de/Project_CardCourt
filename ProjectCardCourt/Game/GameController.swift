@@ -1645,6 +1645,14 @@ final class GameController {
         choose(.shoot)
     }
 
+    /// Sixth Man's second Shoot button.
+    func shootAtOffer() {
+        guard !isPaused else { return }
+        guard case .awaitingMove = gate else { return }
+        DevLog.say(.input, "shoot at the SHOT an Intangible offers")
+        choose(.shootAtOffer)
+    }
+
     /// A player named.
     /// True while the floor is being asked whose hand to play out of, rather than which
     /// player a card is naming — the same question, a different thing done with the answer.
@@ -2276,8 +2284,7 @@ final class GameController {
                 if seat.isLocal { gate = localGate; return }
                 // A passive that only hurts is the one to give up; failing that, the
                 // oldest, which is what the rule used to do on its own.
-                let worst = offered.first { ($0.intangible?.shotBonus ?? 0) < 0
-                                            || $0.intangible?.blocksMoves == true }
+                let worst = offered.first { ($0.intangible?.shotBonus ?? 0) < 0 }
                 var dropping = worst?.id ?? offered[0].id
                 if case .dropping(let said)? = await decision(from: seat),
                    offered.contains(where: { $0.id == said }) {
