@@ -5,6 +5,9 @@ struct ActiveClamp: Hashable, Codable, Identifiable {
     /// Which cards this Clamp is holding down, chosen when it lands and then left alone.
     /// A lock that moved every time the hand was looked at could not be played around.
     var locked: [UUID] = []
+    /// Whether its man has had his possession under it. A Clamp on the ball-holder bites the
+    /// moment it lands; one Gravity pulled on to somebody else waits for his.
+    var bitten = false
 
     let id: UUID
     let card: CardDescriptor

@@ -862,11 +862,10 @@ struct CourtView: View {
             // floor line theirs would at that depth. Top-aligned because he has no name
             // plate under him taking up the bottom of the box.
             let called = call.whistle
-            // His name is drawn as it would be at the near row and then handed to the
-            // far one, so the whole label — size and the gap over his head — is the same
-            // on every post. Same trick the plates use; see `nameScale`.
-            let nameScale = court.scale(at: Perspective.inboundLine)
-                / court.scale(at: post.depth)
+            // **His name is drawn at its own size wherever he stands.** The node is scaled
+            // by his depth, so the label divides that back out and comes out at exactly
+            // `Referee.name` points — the same on every post and every phone.
+            let nameScale = 1 / court.scale(at: post.depth)
             RefereeFigure(duty: refereeDuty,
                           mirrored: post.isLeft, phase: post.phase,
                           tone: look.refereeTone(for: called.id),
@@ -876,7 +875,7 @@ struct CourtView: View {
                 .overlay(alignment: .top) {
                     SmallCapsText(text: "(\(called.owner.playerName))",
                                   font: "AvenirNextCondensed-Heavy",
-                                  size: Referee.name)
+                                  size: Referee.name, scalesWithTextSize: false)
                         .foregroundStyle(.white)
                         .shadow(color: PixelPalette.shade(for: called.owner),
                                 radius: 0, x: 1, y: 1)

@@ -558,8 +558,11 @@ struct CardFrontView: View {
         // Centred rather than baselined, and only the number is tightened — tracking on
         // the symbols just pushed them off centre.
         return HStack(alignment: .center, spacing: 0) {
+            // **An equals is set at the number's size.** At a sign's, its two bars close up
+            // under the drop into one, and a SHOT = read as a minus.
             Text(descriptor.setsShot ? "=" : (shot < 0 ? "−" : "+"))
-                .font(.custom("AvenirNextCondensed-Heavy", size: small))
+                .font(.custom("AvenirNextCondensed-Heavy",
+                              size: descriptor.setsShot ? big : small))
             Text("\(abs(shot))")
                 .font(.custom("AvenirNextCondensed-Heavy", size: big))
                 .tracking(big * CardLayout.badgeTracking)

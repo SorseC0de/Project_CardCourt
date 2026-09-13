@@ -17,11 +17,16 @@ struct SmallCapsText: View {
     /// How big a former lowercase letter is next to a capital.
     var capHeight: CGFloat = 0.75
     var tracking: CGFloat = 0
+    /// Off for lettering set against the art, which has to be the size it was drawn at on
+    /// every phone rather than follow the reader's text size.
+    var scalesWithTextSize = true
 
     var body: some View {
         text.reduce(Text(verbatim: "")) { running, character in
-            running + Text(String(character).uppercased())
-                .font(.custom(font, size: character.isLowercase ? size * capHeight : size))
+            let letter = character.isLowercase ? size * capHeight : size
+            return running + Text(String(character).uppercased())
+                .font(scalesWithTextSize ? .custom(font, size: letter)
+                                         : .custom(font, fixedSize: letter))
         }
         .tracking(tracking)
     }

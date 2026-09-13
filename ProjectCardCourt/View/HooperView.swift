@@ -64,7 +64,8 @@ struct HooperView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 6)
+            // The gallery's own top, and the same again at the foot.
+            .padding(.vertical, 14)
 
             if pickingFavourite { favouritePicker }
         }
@@ -101,9 +102,7 @@ struct HooperView: View {
 
             HStack(alignment: .bottom, spacing: 6) {
                 positions
-                Spacer(minLength: 0)
                 figure
-                Spacer(minLength: 0)
                 winPoseTick
             }
             .frame(height: Sheet.stage)
@@ -135,6 +134,11 @@ struct HooperView: View {
             .offset(y: pose.sprite.footPadding * Sheet.scale)
             .frame(height: Sheet.stage, alignment: .bottom)
             .clipped()
+            // **The room between the columns, not the sheet's own width.** Asked for its
+            // own, a 48-pixel sheet made this row wider than the phone and pushed the whole
+            // page past both edges.
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .allowsHitTesting(false)
     }
 
     /// **How the number on his back is set.** Three faces, named rather than described —
@@ -414,9 +418,9 @@ struct HooperView: View {
 /// placed by hand against the drawing rather than worked out from it.
 struct HooperPortrait: View {
     let pose: Kit.Pose
-    /// Whose face and colours. Nil for anybody but the player, who wears their sheet.
+    /// Whose face and colours. Nil for anybody but the player.
     var kit: HooperKit?
-    /// Only read when there is no kit — the sideline figure falls back to a seat's
+    /// Only read when there is no kit — the figure falls back to the seat's face and
     /// colours the way it does on the court.
     var seat: Seat = GameRules.localSeat
     var scale: CGFloat = Theme.Figure.playerScale
@@ -442,7 +446,8 @@ struct HooperPortrait: View {
                 // its palette were all settled when he was put on the sideline; asking
                 // for it again here is the whole point of it being a view.
                 InbounderFigure(seat: seat, holdsBall: true, frozen: true,
-                                face: kit?.face ?? 0, scale: scale, swaps: kit?.swaps)
+                                face: kit?.face ?? PlayerLook.shared.face(for: seat),
+                                scale: scale, swaps: kit?.swaps)
             } else {
                 figure(pose, mirrored: false)
             }
@@ -459,9 +464,12 @@ struct HooperPortrait: View {
                 // he is dressed on the floor. Not the sheet's blue — that is the human's
                 // colour, and it put every winner in it.
                 .paletteSwap(kit?.swaps ?? PlayerLook.shared.kit(for: seat))
-            // Every eye in the game is placed by one table — see `MarksOnSheet`.
-            if let kit, showing.sprite.face != nil {
-                MarksOnSheet(sheet: showing.sprite, face: kit.face, tone: kit.tone,
+            // Every eye in the game is placed by one table — see `MarksOnSheet`. The kit's
+            // where there is one; anybody else wears the seat's, as on the court.
+            if showing.sprite.face != nil {
+                MarksOnSheet(sheet: showing.sprite,
+                            face: kit?.face ?? PlayerLook.shared.face(for: seat),
+                            tone: kit?.tone ?? PlayerLook.shared.tone(for: seat),
                             scale: scale, frame: showing.plays ? nil : showing.frame,
                             fps: showing.fps, playing: showing.plays)
             }
@@ -473,6 +481,9 @@ struct HooperPortrait: View {
 
 /// What the results card catches a winner standing in.
 enum Winner {
+    /// How big a winner stands on the results card: twelve points to the art pixel.
+    static let portraitScale: CGFloat = 1.5
+
     /// The pose for one winner.
     ///
     /// **The player's own is theirs to decide.** Whatever they ticked in My Hooper is the

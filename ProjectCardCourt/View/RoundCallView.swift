@@ -42,6 +42,8 @@ struct RoundCallView: View {
         static let iconX: CGFloat = -0.26
         /// The word, against the slab's width.
         static let word: CGFloat = 0.126
+        /// The half says one word and nothing else, so it takes the room the number leaves.
+        static let halftimeWord: CGFloat = 0.20
         static let wordX: CGFloat = 0.10
         /// **The number, on its own and larger than the bar it is standing on.**
         /// Drawn before the word, so the word sits over it; drawn after the slab, so it
@@ -113,12 +115,12 @@ struct RoundCallView: View {
                     // The half's own word, lit and centred, with its drop drawn as a
                     // second copy — a `shadow` under a masked view shadows the mask.
                     ZStack {
-                        ActionText(call.word, size: across * Slab.word,
+                        ActionText(call.word, size: across * Slab.halftimeWord,
                                    ink: CardPalette.navy, drop: .clear)
                             .offset(x: across * Slab.numberDrop,
                                     y: across * Slab.numberDrop)
                         SpectrumFill(resting: .white) {
-                            ActionText(call.word, size: across * Slab.word,
+                            ActionText(call.word, size: across * Slab.halftimeWord,
                                        ink: .white, drop: .clear)
                         }
                     }

@@ -70,9 +70,9 @@ enum DunkStyle {
     }
 
     /// How far over the iron a finish was arriving, counted by eye. See
-    /// `DunkTuning.overTheRim`, which is the dial, and the court tuner, which is where it
-    /// is turned — on the phone, because that is the only screen it can be judged on.
-    static let overTheRim: CGFloat = 6
+    /// `DunkTuning.overTheRim`, which is the dial, and the court tuner. The scene is laid out
+    /// in `HoopStage`, so the canvas and a phone agree and it can be turned on either.
+    static let overTheRim: CGFloat = 0
 
     /// **The rim takes his weight.** He goes this many art pixels *past* the tuned
     /// finish as he catches hold of it, and the ring goes down with him — then a spring
@@ -129,15 +129,13 @@ enum DunkStyle {
     /// **Up and to the left, not straight up.** Going over the rim means going clear of
     /// the board behind it; straight up is going through it. Art pixels, at full carry.
     ///
-    /// **Fractional, which in a pixel game is a decision waiting to be made** — this is
-    /// the -90pt it was tuned at, divided by the scale it was tuned at. Pick 11 or 12.
-    static let pastDrift: CGFloat = -11.25
+    static let pastDrift: CGFloat = -20
 
     /// **How high he gets when he does not get up to it, in art pixels.** Not a share of
     /// the climb: the shrink has to reach the *same* size it would at the rim — he is as
     /// far upcourt as anybody else, just lower — so the height and the size come apart
     /// here and are two values rather than one.
-    static let shortPeak: CGFloat = 33
+    static let shortPeak: CGFloat = 28
     /// Where the fall leaves him, as a share of that peak, and how long it takes.
     static let shortLands: CGFloat = 0.42
     static let shortFall: Double = 0.45

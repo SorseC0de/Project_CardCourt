@@ -105,7 +105,7 @@ enum ReboundStyle {
     /// `lift`, which carries the ball up with him and so can never close a gap that is
     /// there at the top of the leap.
     static let handX: CGFloat = 0
-    static let handY: CGFloat = 0.900
+    static let handY: CGFloat = 0.800
     /// Small leaving the rim, since it is coming from the horizon — but not nothing, or
     /// there is no ball to see for the first third of the trip.
     static let fromHoop: CGFloat = 0.150

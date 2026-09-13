@@ -58,7 +58,9 @@ enum Pacing {
     /// The inbound's own throw: how long the ball takes to cross from the sideline, and
     /// how long the thrower stands there having thrown it. He is watching it land.
     static let inboundThrow = 0.5
-    static let inboundHold = 0.5
+    /// **And how long everybody holds before the floor runs again.** At half a second they
+    /// were off and running the moment the ball arrived, before the stoppage had read.
+    static let inboundHold = 1.5
     /// How long a phase call holds before it takes itself off.
     static let actionCall = 1.4
     /// How long the board holds after a basket.
@@ -1936,6 +1938,24 @@ final class GameController {
         stageDeal = (next, UUID())
     }
 
+    /// Gravity on one seat and a Contest in your hand, so a Clamp can be sent and watched
+    /// landing without waiting for either card to be dealt.
+    func debugGravity(to seat: Seat) {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
+        loop?.cancel()
+        drive {
+            for other in Seat.allCases {
+                state[other].intangibles.removeAll { $0.id == CardLibrary.gravity.id }
+            }
+            state[seat].intangibles.append(CardLibrary.gravity)
+            state[GameRules.localSeat].bag.append(
+                Card(CardLibrary.contest.resolved(passShotBonus: state.rules.passShotBonus)))
+            catchUp()
+            await run()
+        }
+    }
+
     /// Sets a Whistle down face-down, the way arming one looks from the table.
     func debugArmWhistle() {
         // The bench cannot start a game on a device that is not running one.
@@ -2439,7 +2459,8 @@ final class GameController {
         let due = ledger.filter { self.beat(of: $0) == beat }
         guard !due.isEmpty else { return }
         ledger.removeAll { self.beat(of: $0) == beat }
-        record(due)
+        // A shot still on the ledger has not been watched, and SHOT would give it away.
+        record(due, settlingShot: !ledger.holdsAShot)
     }
 
     /// Every card turned up by this play, one at a time.
@@ -2946,7 +2967,7 @@ final class GameController {
         try? await Task.sleep(for: .seconds(owing))
     }
 
-    private func record(_ events: [GameEvent]) {
+    private func record(_ events: [GameEvent], settlingShot: Bool = true) {
         // Whatever is left was never flown — an event released outside the draw beat, or
         // a presentation cut short. A card stranded here is a card missing from the hand.
         for case .drew(_, _, let card) in events { undelivered.remove(card) }
@@ -2956,7 +2977,7 @@ final class GameController {
         unrevealed.removeAll()
         // A man stays bound until the rules let him go.
         boundSeats = boundSeats.filter { !state[$0].clamps.isEmpty }
-        if !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
+        if settlingShot, !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
         shownBall = state.ball
         // Catches a reshuffle, and anything that moved the pile without flying a card.
         shownDeck = state.deck.count

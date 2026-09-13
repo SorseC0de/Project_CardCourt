@@ -62,7 +62,7 @@ enum Perspective {
     /// furthest one stood a fifth of his own body too low: his hands came down under a
     /// ball aimed where his hands should have been. One function, and there is nowhere
     /// left to forget the scale.
-    static let playerDrop: CGFloat = 0.25
+    static let playerDrop: CGFloat = 0.35
 
     /// How far below its footing a figure drawn at this scale sits, in points.
     ///

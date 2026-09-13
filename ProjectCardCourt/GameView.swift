@@ -991,12 +991,13 @@ struct GameView: View {
                         HooperPortrait(pose: Winner.pose(for: seat, at: place,
                                                          from: winnerPose),
                                        // Only the player has chosen a face; the rest
-                                       // wear the one on their sheet.
+                                       // wear their seat's, as on the court.
                                        kit: seat.isLocal ? HooperKit.shared : nil,
                                        seat: seat)
-                            .scaleEffect(2.1, anchor: .bottom)
-                            .frame(width: Theme.Figure.headDiameter * 2.1,
-                                   height: Theme.Figure.height * 2.1, alignment: .bottom)
+                            .scaleEffect(Winner.portraitScale, anchor: .bottom)
+                            .frame(width: Theme.Figure.headDiameter * Winner.portraitScale,
+                                   height: Theme.Figure.height * Winner.portraitScale,
+                                   alignment: .bottom)
                     }
                 }
 

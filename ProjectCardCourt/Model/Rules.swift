@@ -389,10 +389,10 @@ enum Rules {
             reinbound(by: passer, state: &state, events: &events)
             return
         }
-        // Whatever was about to land on him lands on the man the ball went to. Asked
-        // before they bit, so there is nothing on him to carry — only a pile still in the
-        // air, and gravity takes it wherever the ball ends up.
-        state.clampMagnet = onward
+        // Whatever was about to land on him lands on the man the ball went to — unless
+        // somebody holds Gravity, and then it lands on him wherever the ball goes. Asked
+        // before they bit, so there is nothing on him to carry, only a pile in the air.
+        state.clampMagnet = gravityHolder(in: state) ?? onward
         let passer = state.lastPasser
         events.append(.clearedOut(seat: seat, to: onward))
         beginPossession(onward, tickClock: true, state: &state, events: &events)
@@ -735,9 +735,7 @@ enum Rules {
                 }
                 // Gravity: whoever it was aimed at, it lands on the man who draws
                 // everybody. Set here so the possession that opens finds it waiting.
-                if let magnet = Seat.allCases.first(where: {
-                    has($0, in: state, { $0.attractsClamps })
-                }) {
+                if let magnet = gravityHolder(in: state) {
                     state.clampMagnet = magnet
                 }
                 _ = clamp
@@ -1944,12 +1942,26 @@ enum Rules {
             return
         }
 
-        // Clamps live for exactly one possession, so the board is cleared before the
-        // pending ones land. Without the clear they stay on a player forever.
-        for other in Seat.allCases { state[other].clamps = [] }
-        // Gravity takes them all, wherever they were sent.
+        // **A Clamp lives for one possession: the possession of the man it is on.** One on
+        // the ball-holder bites as it lands and goes when he hands on. One that Gravity
+        // pulled on to somebody without the ball waits for his own possession, however many
+        // go by first — cleared with the rest, it left him before it ever bit.
+        for other in Seat.allCases {
+            state[other].clamps.removeAll { $0.bitten }
+        }
+        for index in state[seat].clamps.indices {
+            state[seat].clamps[index].bitten = true
+        }
+        // Gravity takes them all, wherever they were sent — added to whatever he is already
+        // carrying, up to the slots one pile may fill.
         let landing = clampLanding(seat, in: state)
-        state[landing].clamps = state.pendingClamps
+        let arriving = state.pendingClamps.map { pending -> ActiveClamp in
+            var clamp = pending
+            clamp.bitten = landing == seat
+            return clamp
+        }
+        state[landing].clamps = Array((state[landing].clamps + arriving)
+            .suffix(state.rules.clampSlots))
         state.clampMagnet = nil
         state.pendingClamps = []
 
@@ -2228,7 +2240,16 @@ enum Rules {
         state[seat].intangibles.contains { $0.intangible.map(test) ?? false }
     }
 
+    /// Whoever holds Gravity, if anybody — the man every Clamp lands on.
+    static func gravityHolder(in state: GameState) -> Seat? {
+        Seat.allCases.first { has($0, in: state, { $0.attractsClamps }) }
+    }
+
     private static func endRound(state: inout GameState, events: inout [GameEvent]) {
+        // **A hand owed to the pile goes before the round does.** Huge Altercation queues
+        // every hand to the edge of its chain, and a free throw in that chain can end the
+        // round first — at the half it was then paid out of the five halftime had dealt.
+        while let owed = state.owes(.spendHand) { pay(owed, state: &state, events: &events) }
         events.append(.roundEnded(state.round))
         state.shotsThisRound = 0
         state.shotCeilingThisRound = nil

@@ -238,6 +238,20 @@ func runTests() {
         }
         Check.that(true, "and halftime never redeals short either")
     }
+    do {
+        // Huge Altercation owes every hand to the pile. A round that ends before its chain
+        // pays that must not take the hands halftime deals instead.
+        var (state, _, _) = openPossession(seed: 12, cards: [])
+        state.round = state.rules.roundsPerHalf
+        for seat in Seat.allCases { state.owe(.spendHand(seat)) }
+        var events: [GameEvent] = []
+        Rules.testEndRound(state: &state, events: &events)
+        let dealt = Seat.allCases.filter { seat in
+            !state[seat].intangibles.contains { $0.intangible?.playsFromOthers == true }
+        }
+        Check.that(dealt.allSatisfy { state[$0].bag.count >= state.rules.startingBagSize },
+                   "a hand owed before halftime is paid before the deal, not out of it")
+    }
 
     print("Special Moves")
     do {
@@ -257,7 +271,7 @@ func runTests() {
         state.shot = 80
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 10, "SHOT = 10% overrides a good look, not just a bad one")
+            Check.that(chance == 25, "SHOT = 25% overrides a good look, not just a bad one")
         }
     }
     do {
@@ -767,6 +781,41 @@ func runTests() {
         // answer. See `Rules.beginPossession`.
         declineCounter(&state)
         Check.that(state[receiver].clamps.isEmpty, "and clear once the possession ends")
+    }
+
+    do {
+        // Gravity: the Clamp lands on the man who draws everybody instead of the man it was
+        // aimed at, and stays on him through other men's possessions until he has had one.
+        var (state, seat, cards) = openPossession(
+            seed: 34, cards: [CardLibrary.contest, CardLibrary.swingLeft])
+        let receiver = seat.left
+        let middle = receiver.left
+        let gravity = middle.left
+        state[gravity].intangibles.append(CardLibrary.gravity)
+        for passer in [receiver, middle, gravity] {
+            state[passer].bag.append(matchCard(CardLibrary.swingLeft, state.rules))
+        }
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        declineCounter(&state)
+        Check.that(state[receiver].clamps.isEmpty && state[gravity].clamps.count == 1,
+                   "Gravity takes the Clamp aimed at the man who received")
+
+        let fromReceiver = state[receiver].bag.last { $0.descriptor.id == CardLibrary.swingLeft.id }!
+        Rules.apply(.play(fromReceiver.id), by: receiver, to: &state)
+        declineCounter(&state)
+        Check.that(state[gravity].clamps.count == 1, "and keeps it when that man moves the ball on")
+
+        let fromMiddle = state[middle].bag.last { $0.descriptor.id == CardLibrary.swingLeft.id }!
+        Rules.apply(.play(fromMiddle.id), by: middle, to: &state)
+        declineCounter(&state)
+        Check.that(state.ball == gravity && state[gravity].clamps.count == 1,
+                   "it bites on his own possession")
+
+        let fromGravity = state[gravity].bag.last { $0.descriptor.id == CardLibrary.swingLeft.id }!
+        Rules.apply(.play(fromGravity.id), by: gravity, to: &state)
+        declineCounter(&state)
+        Check.that(state[gravity].clamps.isEmpty, "and goes when he hands on")
     }
 
     print("Breaking a Clamp before it lands")

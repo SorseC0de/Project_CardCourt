@@ -41,12 +41,15 @@ struct ScoreCallView: View {
         static let star: CGFloat = 112
         static let head: CGFloat = 3
         static let drop: CGFloat = 6
-        /// How far off the card's own corner the badge hangs, as shares of its own size.
-        /// Off the edge on purpose — a badge tucked inside reads as part of the message
-        /// rather than as something stuck on top of it.
-        static let overhangX: CGFloat = 0.33
+        /// How far below the card's bar the badges hang, as a share of one badge. Off the
+        /// edge on purpose — a badge tucked inside reads as part of the message rather than
+        /// as something stuck on top of it.
         static let overhangY: CGFloat = 0.66
+        /// **Across, the row stays on the screen.** Its far edge sits this far in from the
+        /// screen's, however many badges are in it. Placed off the card's corner by one
+        /// badge's width, a lone badge hung past the edge and every extra assist went further.
         static let inset: CGFloat = 18
+        static let gap: CGFloat = 8
     }
 
     var body: some View {
@@ -70,9 +73,10 @@ struct ScoreCallView: View {
                              onFinished: {})
 
                 if !call.assists.isEmpty {
+                    let row = CGFloat(call.assists.count) * Board.star
+                        + CGFloat(call.assists.count - 1) * Board.gap
                     stars
-                        .position(x: geo.size.width - Board.inset
-                                     - Board.star * (0.5 - Board.overhangX),
+                        .position(x: geo.size.width - Board.inset - row / 2,
                                   y: geo.size.height / 2 + bar.height
                                      + Board.star * (Board.overhangY - 0.5))
                 }
@@ -83,7 +87,7 @@ struct ScoreCallView: View {
 
     /// South-east of the card, hanging off its corner.
     private var stars: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Board.gap) {
             ForEach(call.assists, id: \.self) { seat in
                 star(seat)
             }

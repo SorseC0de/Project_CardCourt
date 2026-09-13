@@ -187,14 +187,14 @@ struct TurnoverCutsceneView: View {
         let centre = CGPoint(x: size.width / 2, y: size.height - 150 - side / 2)
         let footing = CGPoint(x: centre.x, y: centre.y + side / 2)
         // Which way he is turned decides all three: the sprite, the hand the ball lands
-        // in, and the side it flies in from. Reading them from separate places is what
-        // let the ball arrive at his back — the court mirrors West always and the centre
-        // line only for a pass from the left, and this scene was ignoring the seat.
+        // in, and the side it flies in from. **One answer, handed to the figure as well** —
+        // a catch works out its own turn, and asked with nobody to face it kept the centre
+        // line turned away from every ball from the right.
         let fromEast = Seat.allCases.first {
             $0.slot(viewedFrom: GameRules.localSeat) == .east
         }
-        let facingBall = PlayerFigure.catchIsMirrored(
-            seat: scene.seat, facing: scene.fromLeft ? nil : fromEast)
+        let facing = scene.fromLeft ? nil : fromEast
+        let facingBall = PlayerFigure.catchIsMirrored(seat: scene.seat, facing: facing)
         let flip: CGFloat = facingBall ? -1 : 1
         let hand = CGPoint(x: footing.x + side * Theme.Pass.handX * flip,
                            y: footing.y - side * Theme.Pass.handY)
@@ -217,7 +217,7 @@ struct TurnoverCutsceneView: View {
             ZStack {
                 PlayerFigure(seat: scene.seat, sprite: .catchBall, playsOnce: true,
                              fps: Held.fps,
-                             stopAtFrame: Held.stopAtFrame, mirrored: facingBall,
+                             stopAtFrame: Held.stopAtFrame, facing: facing, mirrored: facingBall,
                              scale: Held.spriteScale)
                     .position(centre)
 
@@ -236,7 +236,8 @@ struct TurnoverCutsceneView: View {
         .onAppear {
             var appear = Transaction(); appear.disablesAnimations = true
             withTransaction(appear) {
-                ball = CGPoint(x: hand.x + (facingBall ? -1 : 1) * size.width * 0.9,
+                // In from the side his hands reach to, not across his back.
+                ball = CGPoint(x: hand.x + (facingBall ? 1 : -1) * size.width * 0.9,
                                y: -size.height * 0.2)
                 ballVisible = true
             }

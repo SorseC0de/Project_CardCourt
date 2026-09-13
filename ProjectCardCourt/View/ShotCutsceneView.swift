@@ -346,7 +346,7 @@ struct ShotCutsceneView: View {
                                 })
                             } else {
                                 PlayerFigure(seat: scene.shooter, sprite: .shoot,
-                                             playsOnce: true, fps: Theme.Figure.shootFPS,
+                                             playsOnce: true, fps: shootFPS,
                                              mirrored: false)
                             }
                         }
@@ -433,15 +433,16 @@ struct ShotCutsceneView: View {
                 .onHoopStage()
             }
             .task { shuffling = true }
-            // **At the release, not at the end of the sheet.** The gooseneck *is* the
-            // follow-through — he holds it while the ball is up, which means turning to
-            // the room the moment it leaves his hand. Timed off the whole thirteen cells
-            // he turned as the ball came down, with nothing left to watch. Off the same
-            // dial the ball leaves on, so the two cannot drift apart.
+            // **A Turnaround turns at the release**: its gooseneck *is* the follow-through,
+            // held while the ball is up, off the same dial the ball leaves on. **A Lethal
+            // Shooter plays the whole shot first** — turned at the release, the rest of his
+            // sheet was cut off.
             .task {
                 guard scene.signature != .none else { return }
-                try? await Task.sleep(for: .seconds(tuning.releaseDelay
-                                                    / max(0.1, tuning.tempo)))
+                let turnsAt = scene.signature == .understood
+                    ? Double(Sprite.shoot.frames) / shootFPS
+                    : releaseDelay
+                try? await Task.sleep(for: .seconds(turnsAt / max(0.1, tuning.tempo)))
                 facingYou = true
             }
             .task { await run() }
@@ -547,6 +548,14 @@ struct ShotCutsceneView: View {
         return "\(seat.playerName) \(seat.verb("understands", "understand")) it now."
     }
 
+    /// The rate the jumper plays at. A Lethal Shooter's is a step quicker.
+    private var shootFPS: Double {
+        scene.signature == .understood ? Theme.Figure.lethalShootFPS : Theme.Figure.shootFPS
+    }
+
+    /// When the ball leaves his hands: the tuned release, on the clock of the sheet he plays.
+    private var releaseDelay: Double { tuning.releaseDelay * Theme.Figure.shootFPS / shootFPS }
+
     private func run() async {
         let tempo = max(0.1, tuning.tempo)
         // Its own clock, so the name is not waiting on the ball's business at the rim.
@@ -555,7 +564,7 @@ struct ShotCutsceneView: View {
             try? await Task.sleep(for: .seconds(max(0.2, scene)))
             nameLeaving = true
         }
-        try? await Task.sleep(for: .seconds(tuning.releaseDelay / tempo))
+        try? await Task.sleep(for: .seconds(releaseDelay / tempo))
         released = true
         // Linear: easing out here made the ball decelerate into the rim and stall.
         withAnimation(.linear(duration: tuning.flightSeconds / tempo)) { flight = 1 }

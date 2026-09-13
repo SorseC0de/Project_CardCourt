@@ -161,6 +161,7 @@ struct DebugActionsView: View {
                 action("pass") { controller.debugPass(to: Self.targets[target]) }
                 action("arm") { controller.debugArmWhistle() }
                 action("blow") { controller.debugBlowWhistle() }
+                action("gravity") { controller.debugGravity(to: Self.targets[target]) }
             }
             HStack(spacing: 4) {
                 action(showCuts ? "cuts ▾" : "cuts ▸") { showCuts.toggle() }

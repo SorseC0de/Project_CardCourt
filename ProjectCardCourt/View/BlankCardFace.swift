@@ -28,6 +28,9 @@ struct BlankCardFace: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: plate)
+                    // A template image takes its colour from here. Left unset, the renderer
+                    // drew it in its default ink — black, on a black card.
+                    .foregroundStyle(CardPalette.gray)
                     .shadow(color: CardPalette.gold, radius: 0, x: 0,
                             y: plate * CardLayout.namePlateShadowFraction)
                 Spacer()

@@ -83,7 +83,7 @@ enum Theme {
         /// Out from the middle of the player's feet. Negative sits it on their far side.
         static let handX: CGFloat = -0.14
         /// Up from them.
-        static let handY: CGFloat = 0.18
+        static let handY: CGFloat = 0.23
 
         /// Where the ball meets him at the top of a rebound: his hands come together
         /// over his head on the sheet's last cell, twenty-six pixels up in a thirty-two
@@ -144,6 +144,8 @@ enum Theme {
         /// The shot runs slower than play does — it is the beat the scene is built on.
         /// Was 8, which is the one rate in the game that did not divide the refresh.
         static let shootFPS: Double = 10
+        /// A Lethal Shooter's shot, a step quicker: the next rate that divides the refresh.
+        static let lethalShootFPS: Double = 12
 
         // ── Going up for the board ──────────────────────────────────────
         /// Which cell of the rise the extra height comes in on. He reaches the top of the

@@ -664,7 +664,7 @@ enum CardLibrary {
     static let fullCourtHeave = CardDescriptor(
         id: "full-court-heave", name: "Full-Court Heave", type: .specialMove,
         effect: "SHOT = 25%. #[Shoot] the ball. +1 PT on make", numberInDeck: 3,
-        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1, shotOverride: 10))
+        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1, shotOverride: 25))
 
     static let buzzerBeater = CardDescriptor(
         id: "buzzer-beater", name: "Buzzer Beater", type: .specialMove,
