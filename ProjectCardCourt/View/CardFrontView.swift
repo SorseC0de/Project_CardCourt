@@ -296,14 +296,15 @@ struct CardFrontView: View {
                           + side * (0.5 - CardLayout.iconRingInset))
     }
 
-    /// The three's hand, pinned to the icon's bottom-right corner.
+    /// The three's hand, pinned to the icon's bottom-left corner. Bottom-right is the shoot
+    /// mark's, which every shooting card wears, so it never moves.
     private var threeMark: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
         return ThreeHandMark(width: side * CardLayout.threeMarkShare,
                              tint: CardPalette.lightBlue,
                              shadow: CardPalette.blue,
                              shadowOffset: width * CardLayout.threeMarkDrop)
-            .position(x: width / 2 + side * CardLayout.threeMarkX,
+            .position(x: width / 2 - side * CardLayout.threeMarkX,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
                           + side * (0.5 - CardLayout.iconRingInset)
                           + side * CardLayout.threeMarkY)
@@ -391,8 +392,9 @@ struct CardFrontView: View {
             .frame(width: row, height: row)
     }
 
-    /// **It shoots**, pinned to the icon. The three's hand has the bottom-right corner, so
-    /// this takes its mirror, bottom-left, at the same size and height.
+    /// **It shoots**, pinned to the icon's bottom-right corner on every card that shoots, so
+    /// it is always in the same place. The three's hand takes the mirror, bottom-left, at
+    /// the same size and height.
     ///
     /// A silhouette in the card's own text ink, like everything else printed on the face.
     private var shootMark: some View {
@@ -404,7 +406,7 @@ struct CardFrontView: View {
             .scaledToFit()
             .frame(width: mark, height: mark)
             .foregroundStyle(effectColour)
-            .position(x: width / 2 - side * CardLayout.threeMarkX,
+            .position(x: width / 2 + side * CardLayout.threeMarkX,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
                           + side * (0.5 - CardLayout.iconRingInset)
                           + side * CardLayout.threeMarkY)
