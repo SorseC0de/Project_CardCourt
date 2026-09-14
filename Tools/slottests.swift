@@ -1,0 +1,534 @@
+import Foundation
+
+/// Every event of a play, with any counter the arrival offered turned down.
+func playDeclining(_ move: Move, by seat: Seat, _ state: inout GameState) -> [GameEvent] {
+    var events = Rules.apply(move, by: seat, to: &state)
+    while case .awaitingCounter = state.phase { events += Rules.resolveCounter(false, state: &state) }
+    return events
+}
+
+func slotTests() {
+    print("Varenas and Variaballs")
+    do {
+        var (state, seat, _) = openPossession(seed: 201, cards: [])
+        state[seat].intangibles = []
+        state.courtCard = Card(CardLibrary.primeParquet)
+        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == 10 },
+                   "Prime Parquet: SHOT +10% on every shot")
+        state.courtCard = Card(CardLibrary.lacktop)
+        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == -10 },
+                   "Lacktop: SHOT -10%")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 202, cards: [CardLibrary.smacktop,
+                                                                     CardLibrary.travel])
+        state.armedWhistles = [ArmedWhistle(owner: seat.left,
+                                            card: matchCard(CardLibrary.charge, state.rules))]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.armedWhistles.isEmpty, "Smacktop clears the referees off the floor")
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[1].id)),
+                   "and no Whistle can be played on it")
+        state[seat].clamps = [ActiveClamp(card: CardLibrary.contest, from: seat.left)]
+        Check.that(state.shotModifiers(for: seat).debuffs.first?.amount == -35,
+                   "and a Contest takes a step more")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 203, cards: [])
+        state[seat].intangibles = []
+        state.ballCard = Card(CardLibrary.medBall)
+        Check.that(ShotMath.resolve(base: 90, modifiers: state.shotModifiers(for: seat),
+                                    rules: state.rules).chance == 50,
+                   "Med Ball: no shot goes past 50%")
+        state[seat].intangibles = [CardLibrary.splashCousin]
+        Check.that(ShotMath.resolve(base: 30,
+                                    modifiers: state.shotModifiers(for: seat, fromThree: true),
+                                    rules: state.rules).chance == 100,
+                   "but an Intangible's SHOT = outranks the ball")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 204, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.dishcountBall)
+        state.pendingClamps = [ActiveClamp(card: CardLibrary.fullCourtPress, from: seat)]
+        state[seat.left].bag = (0..<4).map { _ in matchCard(CardLibrary.swingRight, state.rules) }
+        let events = playDeclining(.play(cards[0].id), by: seat, &state)
+        let bit = events.compactMap { event -> Int? in
+            if case .clampBit(let who, _, let count) = event, who == seat.left { return count }
+            return nil
+        }.first
+        Check.that(bit == 1, "Dishcount Ball: a Full-Court Press takes one fewer")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 205, cards: [])
+        state.courtCard = Card(CardLibrary.boarderCourt)
+        state.phase = .awaitingRebound(shooter: seat)
+        for other in Seat.allCases {
+            state[other].intangibles = []
+            state[other].bag = [matchCard(CardLibrary.dribble, state.rules)]
+        }
+        let bids: [Seat: [Card.ID]] = [seat: [state[seat].bag[0].id],
+                                       seat.left: [state[seat.left].bag[0].id]]
+        let events = Rules.resolveRebound(bids: bids, state: &state)
+        Check.that(events.contains { if case .rebounded(let who) = $0 { return who == seat }
+                                     return false },
+                   "Boarder Court: off his own miss, the shooter's bid counts one more")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 206, cards: [CardLibrary.swingLeft,
+                                                                     CardLibrary.blightBall])
+        state[seat].injuries = [CardLibrary.tornAchilles]
+        state[seat].injuryUnlocked = state[seat].bag.map(\.id)
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat].injuries.isEmpty
+                   && state[seat.left].injuries.contains { $0.id == CardLibrary.tornAchilles.id },
+                   "Blight Ball: the Injuries go with the ball")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 207, cards: [CardLibrary.dimDome])
+        state.shot = 40
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.redacted(for: seat.left).shot == 0 && state.redacted(for: seat).shot == 40
+                   && Rules.loggedShot(state) == -1,
+                   "Dim Dome: only the ball holder reads SHOT")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 208, cards: [CardLibrary.triHardTiling])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that({ if case .awaitingGiveUp(let who, _, let count) = state.phase {
+                         return who == seat && count == state[seat].bag.count - 3 }
+                     return false }(),
+                   "Tri-hard Tiling: a hand over 3 is cut down to 3, its owner's pick")
+        answerArrival(&state)
+        Check.that(Seat.allCases.allSatisfy { state[$0].bag.count <= 3 }, "every hand")
+        var events: [GameEvent] = []
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state[seat].bag.count == 3, "and a draw into a hand of 3 is discarded")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 209, cards: [CardLibrary.drive])
+        state.courtCard = Card(CardLibrary.policeum)
+        state.armedWhistles = [ArmedWhistle(owner: seat.left,
+                                            card: matchCard(CardLibrary.travel, state.rules))]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.armedWhistles.first?.stayed == true,
+                   "Policeum: a referee who calls one stays on the floor")
+        var events: [GameEvent] = []
+        Rules.testEndRound(state: &state, events: &events)
+        Check.that(state.armedWhistles.count == 1, "through the end of the round")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 210, cards: [CardLibrary.threeBall,
+                                                                     CardLibrary.kickOut])
+        state.courtCard = Card(CardLibrary.kiddieCourt)
+        let legal = Rules.legalMoves(state, for: seat)
+        Check.that(!legal.contains(.play(cards[0].id)) && !legal.contains(.play(cards[1].id)),
+                   "Kiddie Court: no threes, and nothing that makes one")
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.shot = 100
+        var events: [GameEvent] = []
+        Rules.testShot(by: seat, state: &state, events: &events)
+        Check.that(events.contains { if case .shotMade(_, let points, _, _) = $0 { return points == 2 }
+                                     return false },
+                   "and a make counts 2")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 211, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.benchBall)
+        let before = state[seat.left].bag.count
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.phase == .inbound(inbounder: seat.left)
+                   && state[seat.left].bag.count == before,
+                   "Bench Ball: caught off a pass, no draw, straight to the inbound")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.dishtractingBall)
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that({ if case .awaitingGiveUp(let who, _, 1) = state.phase { return who == seat.left }
+                     return false }(),
+                   "Dishtracting Ball: receiving it costs a card")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 213, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.rechargingResin)
+        state[seat.left].bag = []
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.left].bag.count == 5, "Recharging Resin: a possession opens on 5")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 214, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.contactCourt)
+        state.pendingClamps = [ActiveClamp(card: CardLibrary.contest, from: seat)]
+        let events = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(events.contains { if case .freeThrowsAwarded(let who, 1, _) = $0 { return who == seat.left }
+                                     return false },
+                   "Contact Court: being clamped is a trip to the line")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 215, cards: [CardLibrary.swingLeft,
+                                                                     CardLibrary.handBall])
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        let mine = Set(state[seat].bag.map(\.id)).subtracting([cards[0].id])
+        let theirs = Set(state[seat.left].bag.map(\.id))
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(Set(state[seat].bag.map(\.id)) == theirs
+                   && mine.isSubset(of: Set(state[seat.left].bag.map(\.id))),
+                   "Hand Ball: a pass swaps hands")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 216, cards: [])
+        state.courtCard = Card(CardLibrary.polypaypylene)
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.shot = 100
+        let before = state[seat].bag.count
+        var events: [GameEvent] = []
+        Rules.testShot(by: seat, state: &state, events: &events)
+        Check.that(state[seat].bag.count == before + 3, "Polypaypylene: a make draws 3")
+    }
+}
+
+func slotTestsTwo() {
+    do {
+        var (state, seat, cards) = openPossession(seed: 217, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.rechargeRock)
+        let before = state[seat.left].bag.count
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.left].bag.count == before + 2, "Recharge Rock: the draw for turn is doubled")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 218, cards: [CardLibrary.drive, CardLibrary.footBall])
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state[seat].bag.contains { $0.id == cards[0].id }
+                   && !Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
+                   "Foot Ball: a Move stays in the hand, locked")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 219, cards: [CardLibrary.recoverena])
+        state[seat.left].injuries = [CardLibrary.tornAchilles]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state[seat.left].injuries.isEmpty, "Recoverena: every Injury comes off")
+        state.deck.append(matchCard(CardLibrary.boneBruise, state.rules))
+        let before = state[seat].bag.count
+        var events: [GameEvent] = []
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state[seat].injuries.isEmpty && state[seat].bag.count == before + 1,
+                   "and a new one is a card instead")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 220, cards: [CardLibrary.variaball])
+        state.discard.append(matchCard(CardLibrary.brickBall, state.rules))
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.currentBall?.id == CardLibrary.brickBall.id
+                   && state.discard.contains { $0.id == cards[0].id },
+                   "Variaball: a discarded ball goes into play, and the card to the pile")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 221, cards: [CardLibrary.carouselCourt,
+                                                                     CardLibrary.swingLeft])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that({ if case .awaitingTarget(let asked, _, let choices) = state.phase {
+                         return asked == seat && choices == [seat.left, seat.right] }
+                     return false }(),
+                   "Carousel Court: its player declares the way round")
+        Rules.resolveTarget(seat.left, state: &state)
+        let travelling = Set(state[seat].bag.map(\.id)).subtracting([cards[1].id])
+        _ = playDeclining(.play(cards[1].id), by: seat, &state)
+        Check.that(travelling.isSubset(of: Set(state[seat.left].bag.map(\.id))),
+                   "and every possession the hands move one seat that way")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 222, cards: [])
+        state.courtCard = Card(CardLibrary.traderousTarmac)
+        let clamp = ActiveClamp(card: CardLibrary.doubleTeam, from: seat.left)
+        state[seat].clamps = [clamp]
+        Rules.apply(.handOffClamp(clamp: clamp.id, to: seat.across), by: seat, to: &state)
+        Check.that(state[seat].clamps.isEmpty && state[seat.across].clamps.first?.id == clamp.id,
+                   "Traderous Tarmac: a Clamp on you goes to the player you pick")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 223, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.clearcoatCourt)
+        state[seat.across].intangibles = [CardLibrary.hotHand]
+        state[seat.across].injuries = [CardLibrary.tornAchilles]
+        state.armedWhistles = [ArmedWhistle(owner: seat.across,
+                                            card: matchCard(CardLibrary.charge, state.rules))]
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.across].intangibles.isEmpty && state[seat.across].injuries.isEmpty
+                   && state.armedWhistles.isEmpty,
+                   "Clearcoat Court: every possession wipes the floor")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 224, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.malicePalace)
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.left].bag.count == 1, "Malice Palace: the hand goes before the draw")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 225, cards: [CardLibrary.turnstileTile,
+                                                                     CardLibrary.swingLeft])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        state[seat].intangibles = []
+        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == 25 },
+                   "Turnstile Tile: +25% the possession it lands")
+        _ = playDeclining(.play(cards[1].id), by: seat, &state)
+        state[seat.left].intangibles = []
+        Check.that(state.shotModifiers(for: seat.left).adds.contains { $0.amount == -25 },
+                   "and -25% the next")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 226, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.roleplayerPolymer)
+        let across = state[seat.across].bag.count
+        let passer = state[seat].bag.count - 1
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.across].bag.count == across + 1 && state[seat].bag.count == passer + 1,
+                   "Roleplayer Polymer: everyone but the player with the ball draws 1")
+    }
+    do {
+        let (state, seat, cards) = openPossession(seed: 227, cards: [CardLibrary.slamDunk])
+        var floor = state
+        floor.courtCard = Card(CardLibrary.graviGym)
+        Check.that(!Rules.legalMoves(floor, for: seat).contains(.play(cards[0].id)),
+                   "Gravi-Gym: no dunks")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 228, cards: [CardLibrary.vintageVarnish,
+                                                                     CardLibrary.blazeBall])
+        let oldBall = Card(CardLibrary.brickBall)
+        state.ballCard = oldBall
+        state[seat].intangibles = [CardLibrary.hotHand, CardLibrary.sniper]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.ballCard == nil && state.discard.contains { $0.id == oldBall.id },
+                   "Vintage Varnish: the ball in play is discarded")
+        Check.that({ if case .awaitingIntangibleDrop(let who, _) = state.phase { return who == seat }
+                     return false }(),
+                   "a board over 1 Intangible drops to 1")
+        answerArrival(&state)
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[1].id))
+                   && state.shotClockLength == 14,
+                   "no Variaball can be played, on a 14 shot clock")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 229, cards: [CardLibrary.threeBall])
+        state.courtCard = Card(CardLibrary.sellOutStadium)
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.shot = 50
+        Check.that(Rules.legalMoves(state, for: seat).contains(.playAsTwo(cards[0].id)),
+                   "S.O.S: a three can go up as a two")
+        let events = Rules.apply(.playAsTwo(cards[0].id), by: seat, to: &state)
+        let chance = events.compactMap { event -> Int? in
+            if case .shotAttempted(_, let chance, _) = event { return chance }
+            return nil
+        }.first
+        Check.that(chance == 80, "at double SHOT")
+        Check.that(!events.contains { if case .shotMade(_, let points, _, _) = $0 { return points != 2 }
+                                      return false },
+                   "worth 2")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 230, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.grayvstone)
+        let events = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(events.contains { if case .graveyardEmpty = $0 { return true }; return false },
+                   "Grayvstone: no ball in the discards, and play goes on")
+        state.discard.append(matchCard(CardLibrary.blazeBall, state.rules))
+        let back = matchCard(CardLibrary.swingRight, state.rules)
+        state[seat.left].bag.append(back)
+        _ = playDeclining(.play(back.id), by: seat.left, &state)
+        Check.that(state.currentBall?.id == CardLibrary.blazeBall.id,
+                   "and with one there, it's the ball")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 231, cards: [CardLibrary.drive])
+        state.courtCard = Card(CardLibrary.conCrete)
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.shot = 30
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.shot == 40, "Con-crete: a Move pays 10% less")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 232, cards: [])
+        state.courtCard = Card(CardLibrary.spazzphalt)
+        state[seat].intangibles = []
+        var events: [GameEvent] = []
+        Rules.testShot(by: seat, state: &state, events: &events)
+        Check.that(events.contains { event in
+            guard case .shotAttempted(_, let chance, let breakdown) = event else { return false }
+            return chance % 5 == 0 && breakdown.steps.contains { $0.label == "Spazzphalt" }
+        }, "Spazzphalt: SHOT is the floor's roll, in steps of 5")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 233, cards: [CardLibrary.drive])
+        state.courtCard = Card(CardLibrary.frostbiteFinish)
+        var alone = state
+        alone[seat].bag = [cards[0]]
+        Check.that(!Rules.legalMoves(alone, for: seat).contains(.play(cards[0].id)),
+                   "Frostbite Finish: a Move that is your whole hand can't be paid for")
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that({ if case .awaitingGiveUp(let who, _, 1) = state.phase { return who == seat }
+                     return false }(),
+                   "and played, it costs another card")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 234, cards: [CardLibrary.drive])
+        state.courtCard = Card(CardLibrary.tickTockTile)
+        let clock = state.shotClock ?? 0
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.shotClock == clock - 1, "Tick-Tock Tile: a card played ticks the clock")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 235, cards: [CardLibrary.monsterBall,
+                                                                     CardLibrary.blazeBall])
+        state[seat.across].intangibles = [CardLibrary.hotHand]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state[seat.across].intangibles.isEmpty
+                   && state.monsterBallIntangibles.map(\.id) == [CardLibrary.hotHand.id],
+                   "Monster Ball swallows every Intangible")
+        state.playedVariaballThisPossession = false
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        Check.that(state.phase == .awaitingRebound(shooter: seat), "and gone, they're rebounded for")
+        Rules.resolveRebound(bids: [seat.left: [state[seat.left].bag[0].id]], state: &state)
+        Check.that(state[seat.left].intangibles.contains { $0.id == CardLibrary.hotHand.id }
+                   && state.phase == .possession(holder: seat),
+                   "one board at a time, and play picks up again")
+    }
+    do {
+        var slipped = false
+        for seed in UInt64(236)...UInt64(276) where !slipped {
+            var (state, seat, _) = openPossession(seed: seed, cards: [])
+            state.ballCard = Card(CardLibrary.brandNewBall)
+            var events: [GameEvent] = []
+            Rules.testShot(by: seat, state: &state, events: &events)
+            slipped = events.contains { if case .turnover(_, let cause) = $0 {
+                                            return cause == CardLibrary.brandNewBall.name }
+                                        return false }
+                && !events.contains { if case .shotAttempted = $0 { return true }; return false }
+        }
+        Check.that(slipped, "Brand New Ball: sometimes the shot is a turnover instead")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 277, cards: [CardLibrary.primeParquet])
+        state.armedWhistles = [ArmedWhistle(owner: seat.left,
+                                            card: matchCard(CardLibrary.tileTampering, state.rules))]
+        let turnovers = state[seat].turnovers
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state.courtCard == nil && state[seat].turnovers == turnovers + 1,
+                   "Tile Tampering: a Varena played is cancelled, TOV +1")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 278, cards: [CardLibrary.lacktop,
+                                                                     CardLibrary.primeParquet])
+        state[seat].intangibles = [CardLibrary.varsitile]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(Rules.legalMoves(state, for: seat).contains(.play(cards[1].id)),
+                   "Varsitile: more than one Varena a turn")
+        let buried = matchCard(CardLibrary.kiddieCourt, state.rules)
+        state.discard.append(buried)
+        Rules.apply(.exchangeSlots(court: buried.id, ball: nil), by: seat, to: &state)
+        Check.that(state.courtCard?.id == buried.id
+                   && Rules.exchangeOptions(state, for: seat).courts.isEmpty,
+                   "and once a possession, a floor out of the discards")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 279, cards: [CardLibrary.blazeBall])
+        state[seat].intangibles = [CardLibrary.brawlHandler, CardLibrary.baller]
+        state[seat].clamps = [ActiveClamp(card: CardLibrary.contest, from: seat.left)]
+        let before = state[seat].bag.count
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state[seat].clamps.isEmpty, "Brawl Handler: changing the ball takes your Clamps off")
+        Check.that(state[seat].bag.count == before, "Baller: and draws you a card")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 280, cards: [CardLibrary.bagnBall])
+        state[seat].intangibles = []
+        let before = state[seat].bag.count
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(state[seat].bag.count == before, "Bag'n Ball: draw 1 when it arrives")
+        Check.that(state.shotModifiers(for: seat).override?.amount
+                   == Double(min(100, state[seat].bag.count * 10)),
+                   "and SHOT is 10% a card in hand")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 281, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.snowBallIt)
+        state.shot = 50
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state.shot == 50 + cards[0].descriptor.baseShotDelta - 10,
+                   "Snow Ball It: SHOT -10% on every pass")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 282, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.mvpiquia)
+        state[seat.left].points = 10
+        state[seat.left].bag = []
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.left].bag.count == 5, "MVPiquia: the leader refills to 5")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 283, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.shufflebagBall)
+        let before = state[seat.left].bag.count
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(state[seat.left].bag.count == before + 1,
+                   "Shufflebag Ball: the hand comes back out, then the draw for turn")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 284, cards: [CardLibrary.swingLeft])
+        state.courtCard = Card(CardLibrary.variaballVinyl)
+        let total = Seat.allCases.reduce(0) { $0 + state[$1].bag.count } - 1
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        Check.that(Seat.allCases.reduce(0) { $0 + state[$1].bag.count } == total + 1,
+                   "Variaball Vinyl: the draw for turn goes to somebody")
+    }
+}
+
+/// **A read-out, not a test**: how often the house puts each floor and ball down across a
+/// run of Standard games, what the new events came to, and whether anything stalled.
+func slotCoverage() {
+    var played: [String: Int] = [:]
+    var seen: [String: Int] = [:]
+    var stalls = 0
+    for seed in UInt64(1)...UInt64(200) {
+        var state = Rules.newGame(seed: seed, rules: .standard).0
+        var ai = AITable(seed: seed)
+        var guardCounter = 0
+        while !state.isOver && guardCounter < 20000 {
+            guardCounter += 1
+            var events: [GameEvent] = []
+            if case .freeThrows = state.phase { stepFreeThrows(&state); continue }
+            if case .awaitingRebound = state.phase {
+                var bids: [Seat: [Card.ID]] = [:]
+                for other in Seat.allCases { bids[other] = ai.reboundBid(state, for: other) }
+                events = Rules.resolveRebound(bids: bids, state: &state)
+            } else if Prompts.step(&state, &ai) {
+                continue
+            } else {
+                guard let seat = state.phase.actingSeat, let move = ai.move(state, for: seat) else {
+                    stalls += 1
+                    print("  stalled seed \(seed) at \(state.phase.label)")
+                    break
+                }
+                events = Rules.apply(move, by: seat, to: &state)
+            }
+            for event in events {
+                if case .movePlayed(_, let card, _) = event, card.varena != nil || card.variaball != nil {
+                    played[card.name, default: 0] += 1
+                }
+                seen[event.kind, default: 0] += 1
+            }
+        }
+        if guardCounter >= 20000 { stalls += 1; print("  ran long seed \(seed)") }
+    }
+    let every = CardLibrary.varenas + CardLibrary.variaballs
+    print("played across 200 Standard games:")
+    for card in every { print("  \(played[card.name] ?? 0)\t\(card.name)") }
+    let kinds = ["ballChanged", "graveyardEmpty", "benched", "handsRotated", "clampHandedOff",
+                 "intangibleAbsorbed", "intangibleWon", "floorWiped", "injuriesMoved"]
+    print("events: " + kinds.map { "\($0) \(seen[$0] ?? 0)" }.joined(separator: " · "))
+    print("stalls: \(stalls)")
+}

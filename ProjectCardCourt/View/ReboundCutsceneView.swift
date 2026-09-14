@@ -17,6 +17,12 @@ struct ReboundCutsceneView: View {
 
     @State private var spin = false
     @State private var lift = false
+    /// Monster Ball's card shakes where the ball would be: lightly, and quickly.
+    @State private var shake = false
+
+    /// **Monster Ball's board**: the Intangible up for grabs, and the two after it.
+    private var prize: CardDescriptor? { state.intangibleBoard.first }
+    private var upNext: [CardDescriptor] { Array(state.intangibleBoard.dropFirst().prefix(2)) }
 
     private var order: [Seat] { shooter.clockwiseOrderFromHere }
 
@@ -45,7 +51,8 @@ struct ReboundCutsceneView: View {
             // Their own layer, at their own offset, and nothing below can reach them.
             VStack(spacing: 10) {
                 // The same lettering a made shot gets. This is a moment, not a caption.
-                SwisshTitle(text: revealedBids == nil ? "Rebound!" : "Crashing the Glass!",
+                SwisshTitle(text: prize != nil ? "Monster Ball!"
+                                : (revealedBids == nil ? "Rebound!" : "Crashing the Glass!"),
                             size: 34)
 
                 // Under the line it belongs to. Down at the bids' offset it was in the
@@ -53,16 +60,33 @@ struct ReboundCutsceneView: View {
                 //
                 // Always drawn, and only faded: the stack is centred on its own height, so
                 // a line that comes and goes moves the title and the ball with it.
-                Text("\(shooter.isLocal ? "Your" : shooter.playerName + "'s") miss"
-                     + (chance.map { " (\($0)%)" } ?? ""))
+                Text(prize.map { "Up for grabs: \($0.name)" }
+                     ?? ("\(shooter.isLocal ? "Your" : shooter.playerName + "'s") miss"
+                         + (chance.map { " (\($0)%)" } ?? "")))
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.inkDim)
                     .opacity(revealedBids == nil ? 1 : 0)
 
-                BallView(diameter: 150)
-                    .rotationEffect(.degrees(spin ? 360 : 0))
-                    .offset(y: lift ? -7 : 7)
-                    .shadow(color: Theme.ball.opacity(0.55), radius: 14)
+                if let prize {
+                    HStack(alignment: .center, spacing: 14) {
+                        CardFrontView(descriptor: prize, displayWidth: 110)
+                            .rotationEffect(.degrees(shake ? -2 : 2))
+                            .offset(x: shake ? -1.5 : 1.5)
+                            .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
+                        VStack(spacing: 8) {
+                            ForEach(Array(upNext.enumerated()), id: \.offset) { _, next in
+                                CardFrontView(descriptor: next, displayWidth: 44)
+                                    .opacity(0.6)
+                            }
+                        }
+                    }
+                    .animation(.spring(response: 0.4, dampingFraction: 0.75), value: prize)
+                } else {
+                    BallView(diameter: 150)
+                        .rotationEffect(.degrees(spin ? 360 : 0))
+                        .offset(y: lift ? -7 : 7)
+                        .shadow(color: Theme.ball.opacity(0.55), radius: 14)
+                }
             }
             // Clear of the hand, which the centred stack was sitting on top of.
             .offset(y: -Self.lift)
@@ -101,6 +125,7 @@ struct ReboundCutsceneView: View {
         .onAppear {
             withAnimation(.linear(duration: 0.85).repeatForever(autoreverses: false)) { spin = true }
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { lift = true }
+            withAnimation(.easeInOut(duration: 0.07).repeatForever(autoreverses: true)) { shake = true }
         }
     }
 }

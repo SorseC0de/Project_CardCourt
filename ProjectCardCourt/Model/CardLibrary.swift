@@ -603,12 +603,26 @@ enum CardLibrary {
         effect: "Any SHOT = shot you take becomes 100%", numberInDeck: 1,
         intangible: IntangibleEffect(equalizesOverrides: true))
 
+    static let varsitile = CardDescriptor(
+        id: "varsitile", name: "Varsitile", type: .intangible,
+        effect: "Play any number of Varenas and Variaballs a turn. Once a possession, exchange the Varena and/or ball for ones in the Discards",
+        numberInDeck: 1,
+        intangible: IntangibleEffect(playsSlotsFreely: true))
+    static let brawlHandler = CardDescriptor(
+        id: "brawl-handler", name: "Brawl Handler", type: .intangible,
+        effect: "Remove all your ~[Clamps] when you change the ball", numberInDeck: 1,
+        intangible: IntangibleEffect(clearsClampsOnBallChange: true))
+    static let baller = CardDescriptor(
+        id: "baller", name: "Baller", type: .intangible,
+        effect: "#[Draw] 1 each time you change the ball", numberInDeck: 1,
+        intangible: IntangibleEffect(drawsOnBallChange: 1))
+
     static let intangibles: [CardDescriptor] = [
         shotCreator, hotHand, movesAtOwnPace, freethrowMerchant, generationalWhistle, equalizer,
         boardCrasher, roswellReach, catchAndShoot, clutchGene, floorGeneral, southpawShooter,
         gravity, greatConditioning, likeThat, parkShark, pointGod,
         sixthMan, sniper, splashCousin, competitive, lethalShooter, ballPounder,
-        fundamentalist, dirtyPlayer, franchisePlayer,
+        fundamentalist, dirtyPlayer, franchisePlayer, varsitile, brawlHandler, baller,
     ]
 
     // ── Varenas ───────────────────────────────────────────────────────
@@ -620,7 +634,218 @@ enum CardLibrary {
         effect: "Changes the court back to basic", numberInDeck: 5,
         varena: VarenaEffect())
 
-    static let varenas: [CardDescriptor] = [cardwood]
+    static let primeParquet = CardDescriptor(
+        id: "prime-parquet", name: "Prime Parquet", type: .varena,
+        effect: "SHOT +10% on every shot", numberInDeck: 3,
+        varena: VarenaEffect(shotBonus: 10))
+    static let lacktop = CardDescriptor(
+        id: "lacktop", name: "Lacktop", type: .varena,
+        effect: "SHOT -10% on every shot", numberInDeck: 3,
+        varena: VarenaEffect(shotBonus: -10))
+    static let smacktop = CardDescriptor(
+        id: "smacktop", name: "Smacktop", type: .varena,
+        effect: "Clear All ~[Whistles]. ~[Whistles] Cannot Be Played. All ~[Clamps] are enhanced",
+        numberInDeck: 3,
+        varena: VarenaEffect(clearsWhistlesOnArrival: true, barsWhistles: true,
+                             enhancesClamps: true))
+    static let boarderCourt = CardDescriptor(
+        id: "boarder-court", name: "Boarder Court", type: .varena,
+        effect: "Off your own miss, your #[Rebound] bid counts as one card more", numberInDeck: 1,
+        varena: VarenaEffect(shooterReboundBonus: 1))
+    static let dimDome = CardDescriptor(
+        id: "dim-dome", name: "Dim Dome", type: .varena,
+        effect: "SHOT is hidden from everyone but the ball holder", numberInDeck: 1,
+        varena: VarenaEffect(hidesShot: true))
+    static let triHardTiling = CardDescriptor(
+        id: "tri-hard-tiling", name: "Tri-hard Tiling", type: .varena,
+        effect: "Hand limit 3", numberInDeck: 3,
+        varena: VarenaEffect(handLimit: 3))
+    static let policeum = CardDescriptor(
+        id: "policeum", name: "Policeum", type: .varena,
+        effect: "Referees do not leave once triggered", numberInDeck: 3,
+        varena: VarenaEffect(refereesStay: true))
+    static let kiddieCourt = CardDescriptor(
+        id: "kiddie-court", name: "Kiddie Court", type: .varena,
+        effect: "No threes. Every make counts 2. SHOT +10%, and dunks +10% more", numberInDeck: 3,
+        varena: VarenaEffect(shotBonus: 10, dunkBonus: 10, barsThrees: true, makesCount: 2))
+    static let rechargingResin = CardDescriptor(
+        id: "recharging-resin", name: "Recharging Resin", type: .varena,
+        effect: "Everyone refills to a hand of 5 at the start of their possession",
+        numberInDeck: 3,
+        varena: VarenaEffect(refillsTo: 5))
+    static let contactCourt = CardDescriptor(
+        id: "contact-court", name: "Contact Court", type: .varena,
+        effect: "Being clamped: take 1 #[FT]. The ~[Clamp] still lands", numberInDeck: 3,
+        varena: VarenaEffect(freeThrowsWhenClamped: 1))
+    static let mvpiquia = CardDescriptor(
+        id: "mvpiquia", name: "MVPiquia", type: .varena,
+        effect: "The highest scorer refills to 5 at the start of their possession",
+        numberInDeck: 1,
+        varena: VarenaEffect(leaderRefillsTo: 5))
+    static let polypaypylene = CardDescriptor(
+        id: "polypaypylene", name: "Polypaypylene", type: .varena,
+        effect: "Making a shot: #[Draw] 3", numberInDeck: 1,
+        varena: VarenaEffect(drawsOnMake: 3))
+    static let recoverena = CardDescriptor(
+        id: "recoverena", name: "Recoverena", type: .varena,
+        effect: "Discard all ~[Injuries]. A new ~[Injury] is discarded, and that player #[Draws] 1",
+        numberInDeck: 3,
+        varena: VarenaEffect(healsInjuriesOnArrival: true, injuriesBecomeDraws: true))
+    static let carouselCourt = CardDescriptor(
+        id: "carousel-court", name: "Carousel Court", type: .varena,
+        effect: "Declare left or right. Every possession, hands move one seat that way",
+        numberInDeck: 1,
+        varena: VarenaEffect(rotatesHands: true))
+    static let traderousTarmac = CardDescriptor(
+        id: "traderous-tarmac", name: "Traderous Tarmac", type: .varena,
+        effect: "During your turn, hand off any number of the ~[Clamps] on you to other players",
+        numberInDeck: 1,
+        varena: VarenaEffect(clampsHandOff: true))
+    static let clearcoatCourt = CardDescriptor(
+        id: "clearcoat-court", name: "Clearcoat Court", type: .varena,
+        effect: "Every possession: clear all referees, ~[Clamps], ~[Injuries] and ~[Intangibles]",
+        numberInDeck: 3,
+        varena: VarenaEffect(wipesEachPossession: true))
+    static let malicePalace = CardDescriptor(
+        id: "malice-palace", name: "Malice Palace", type: .varena,
+        effect: "At the start of your possession, before your draw: #[Discard] your hand",
+        numberInDeck: 1,
+        varena: VarenaEffect(discardsHandBeforeDraw: true))
+    static let turnstileTile = CardDescriptor(
+        id: "turnstile-tile", name: "Turnstile Tile", type: .varena,
+        effect: "SHOT +25% and -25%, alternating each possession", numberInDeck: 3,
+        varena: VarenaEffect(turnstileSwing: 25))
+    static let roleplayerPolymer = CardDescriptor(
+        id: "roleplayer-polymer", name: "Roleplayer Polymer", type: .varena,
+        effect: "Every possession, everyone but the turn player #[Draws] 1", numberInDeck: 2,
+        varena: VarenaEffect(othersDrawEachPossession: 1))
+    static let variaballVinyl = CardDescriptor(
+        id: "variaball-vinyl", name: "Variaball Vinyl", type: .varena,
+        effect: "The draw for turn goes to a random player each possession", numberInDeck: 1,
+        varena: VarenaEffect(turnDrawToRandomPlayer: true))
+    static let graviGym = CardDescriptor(
+        id: "gravi-gym", name: "Gravi-Gym", type: .varena,
+        effect: "SHOT -10%. No dunks", numberInDeck: 3,
+        varena: VarenaEffect(shotBonus: -10, barsDunks: true))
+    static let vintageVarnish = CardDescriptor(
+        id: "vintage-varnish", name: "Vintage Varnish", type: .varena,
+        effect: "#[Shot Clock] 14. No threes. No Variaballs. 1 ~[Intangible] per player",
+        numberInDeck: 3,
+        varena: VarenaEffect(barsThrees: true, shotClockStart: 14, barsVariaballs: true,
+                             intangibleSlots: 1))
+    static let sellOutStadium = CardDescriptor(
+        id: "sell-out-stadium", name: "S.O.S — Sell-Out Stadium", type: .varena,
+        effect: "A three can be shot as a two at double SHOT", numberInDeck: 3,
+        varena: VarenaEffect(threesAsDoubleTwos: true))
+    static let grayvstone = CardDescriptor(
+        id: "grayvstone", name: "Grayvstone", type: .varena,
+        effect: "Each possession, the ball becomes the last Variaball in the discards",
+        numberInDeck: 1,
+        varena: VarenaEffect(ballFromDiscard: true))
+    static let conCrete = CardDescriptor(
+        id: "con-crete", name: "Con-crete", type: .varena,
+        effect: "~[Move] cards: SHOT -10%", numberInDeck: 3,
+        varena: VarenaEffect(moveShotPenalty: -10))
+    static let spazzphalt = CardDescriptor(
+        id: "spazzphalt", name: "Spazzphalt", type: .varena,
+        effect: "SHOT = a random 0–100%, in steps of 5", numberInDeck: 3,
+        varena: VarenaEffect(randomShotOverride: true))
+    static let frostbiteFinish = CardDescriptor(
+        id: "frostbite-finish", name: "Frostbite Finish", type: .varena,
+        effect: "Playing a ~[Move] costs #[Discard] 1 other card", numberInDeck: 2,
+        varena: VarenaEffect(moveDiscardCost: 1))
+    static let tickTockTile = CardDescriptor(
+        id: "tick-tock-tile", name: "Tick-Tock Tile", type: .varena,
+        effect: "Playing any card also ticks the #[Shot Clock]", numberInDeck: 3,
+        varena: VarenaEffect(cardsTickClock: true))
+
+    // ── Variaballs ────────────────────────────────────────────────────
+
+    static let medBall = CardDescriptor(
+        id: "med-ball", name: "Med Ball", type: .variaball,
+        effect: "SHOT cannot exceed 50%", numberInDeck: 2,
+        variaball: VariaballEffect(shotCeiling: 50))
+    static let dishcountBall = CardDescriptor(
+        id: "dishcount-ball", name: "Dishcount Ball", type: .variaball,
+        effect: "#[Discard] one fewer for card costs and ~[Clamps]", numberInDeck: 2,
+        variaball: VariaballEffect(discountsDiscards: true))
+    static let blightBall = CardDescriptor(
+        id: "blight-ball", name: "Blight Ball", type: .variaball,
+        effect: "~[Injuries] travel with the ball, and new ones join the pile. Discarding the ball takes the pile with it",
+        numberInDeck: 3,
+        variaball: VariaballEffect(injuriesTravel: true))
+    static let benchBall = CardDescriptor(
+        id: "bench-ball", name: "Bench Ball", type: .variaball,
+        effect: "Receiving it by ~[Pass]: no draw, no turn. You inbound", numberInDeck: 1,
+        variaball: VariaballEffect(benchesReceiver: true))
+    static let dishtractingBall = CardDescriptor(
+        id: "dishtracting-ball", name: "Dishtracting Ball", type: .variaball,
+        effect: "Receiving it: #[Discard] 1, after the draw for turn", numberInDeck: 2,
+        variaball: VariaballEffect(receiverDiscards: 1))
+    static let handBall = CardDescriptor(
+        id: "hand-ball", name: "Hand Ball", type: .variaball,
+        effect: "A ~[Pass] swaps hands: yours goes with the ball, theirs comes back",
+        numberInDeck: 1,
+        variaball: VariaballEffect(swapsHandsOnPass: true))
+    static let footBall = CardDescriptor(
+        id: "foot-ball", name: "Foot Ball", type: .variaball,
+        effect: "~[Moves] and ~[Passes] are not spent. They lock until your possession ends",
+        numberInDeck: 1,
+        variaball: VariaballEffect(locksInsteadOfSpending: true))
+    static let rechargeRock = CardDescriptor(
+        id: "recharge-rock", name: "Recharge Rock", type: .variaball,
+        effect: "Double your draw for turn", numberInDeck: 5,
+        variaball: VariaballEffect(turnDrawMultiplier: 2))
+    static let variaball = CardDescriptor(
+        id: "variaball", name: "Variaball", type: .variaball,
+        effect: "A random Variaball from the discards goes into play. Then discard this",
+        numberInDeck: 1,
+        variaball: VariaballEffect(rollsFromDiscard: true))
+    static let shufflebagBall = CardDescriptor(
+        id: "shufflebag-ball", name: "Shufflebag Ball", type: .variaball,
+        effect: "Every possession, the turn player shuffles their hand into the deck and #[Draws] the same number, then draws for turn",
+        numberInDeck: 1,
+        variaball: VariaballEffect(reshufflesHandEachPossession: true))
+    static let bagnBall = CardDescriptor(
+        id: "bagn-ball", name: "Bag'n Ball", type: .variaball,
+        effect: "#[Draw] 1 on activation. SHOT = 10% for each card in your hand",
+        numberInDeck: 1,
+        variaball: VariaballEffect(shotPerCardInHand: 10, drawsOnArrival: 1))
+    static let blazeBall = CardDescriptor(
+        id: "blaze-ball", name: "Blaze Ball", type: .variaball,
+        effect: "SHOT +10% each time it's passed", numberInDeck: 5,
+        variaball: VariaballEffect(shotPerPass: 10))
+    static let snowBallIt = CardDescriptor(
+        id: "snow-ball-it", name: "Snow Ball It", type: .variaball,
+        effect: "SHOT -10% each time it's passed", numberInDeck: 5,
+        variaball: VariaballEffect(shotPerPass: -10))
+    static let brickBall = CardDescriptor(
+        id: "brick-ball", name: "Brick Ball", type: .variaball,
+        effect: "SHOT = 25%", numberInDeck: 2,
+        variaball: VariaballEffect(shotOverride: 25))
+    static let monsterBall = CardDescriptor(
+        id: "monster-ball", name: "Monster Ball", type: .variaball,
+        effect: "~[Intangibles] are absorbed into the ball. When it's discarded, players #[Rebound] for them one at a time",
+        numberInDeck: 1,
+        variaball: VariaballEffect(absorbsIntangibles: true))
+    static let brandNewBall = CardDescriptor(
+        id: "brand-new-ball", name: "Brand New Ball", type: .variaball,
+        effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 3,
+        variaball: VariaballEffect(turnoverChance: 25))
+
+    static let variaballs: [CardDescriptor] = [
+        medBall, dishcountBall, blightBall, benchBall, dishtractingBall, handBall, footBall,
+        rechargeRock, variaball, shufflebagBall, bagnBall, blazeBall, snowBallIt, brickBall,
+        monsterBall, brandNewBall,
+    ]
+
+    static let varenas: [CardDescriptor] = [
+        cardwood, primeParquet, lacktop, smacktop, boarderCourt, dimDome, triHardTiling,
+        policeum, kiddieCourt, rechargingResin, contactCourt, mvpiquia, polypaypylene,
+        recoverena, carouselCourt, traderousTarmac, clearcoatCourt, malicePalace,
+        turnstileTile, roleplayerPolymer, variaballVinyl, graviGym, vintageVarnish,
+        sellOutStadium, grayvstone, conCrete, spazzphalt, frostbiteFinish, tickTockTile,
+    ]
 
     // ── Game Breaks ───────────────────────────────────────────────────
     // Out of the deck: each retires into a Varena or a Variaball. The descriptors and the
@@ -848,12 +1073,21 @@ enum CardLibrary {
     /// Their own type. A Devastating Injury is the sub-type that lasts the game — see `Injury`.
     static let injuries: [CardDescriptor] = [boneBruise, tornAchilles]
 
+    static let tileTampering = CardDescriptor(
+        id: "tile-tampering", name: "Tile Tampering", type: .whistle,
+        effect: "Varena played: cancel it. #[TOV] +1", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .varenaPlayed, turnoverOnOffender: true))
+    static let overVaringEvidence = CardDescriptor(
+        id: "over-varing-evidence", name: "Over-Varing Evidence", type: .whistle,
+        effect: "Variaball played: cancel it. #[TOV] +1", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .variaballPlayed, turnoverOnOffender: true))
+
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
         discontinuedDribble,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
-        clearedToPlay, playOn, crewChiefReview,
+        clearedToPlay, playOn, crewChiefReview, tileTampering, overVaringEvidence,
     ]
 
     /// A card somebody else is holding, or one still in the deck.
@@ -887,7 +1121,7 @@ enum CardLibrary {
     static let standardPool: [CardDescriptor] = passesAndMoves
         + [contest, manToMan, closeOut, zone, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
         + whistles + intangibles + injuries + specialMoves
-        + varenas
+        + varenas + variaballs
 
     /// **Every card in the game.**
     ///

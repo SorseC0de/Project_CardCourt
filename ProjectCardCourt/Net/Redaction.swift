@@ -53,6 +53,8 @@ extension GameState {
            !copy.armedWhistles.contains(where: { $0.id == pending }) {
             copy.pendingClampVoid = nil
         }
+        // Dim Dome: SHOT is the ball holder's to read, and nobody else's.
+        if !copy.canReadShot(seat) { copy.shot = 0 }
         // Handing over the generator hands over every roll it has left.
         copy.rng = SeededRNG(seed: 0)
         return copy

@@ -20,4 +20,10 @@ enum Move: Hashable, Codable {
     case shoot
     /// Sixth Man: the second Shoot button, at the SHOT the Intangible offers.
     case shootAtOffer
+    /// Traderous Tarmac: one of the Clamps on you, onto another player.
+    case handOffClamp(clamp: UUID, to: Seat)
+    /// Varsitile: the floor, the ball or both, swapped for ones in the discard.
+    case exchangeSlots(court: UUID?, ball: UUID?)
+    /// S.O.S — Sell-Out Stadium: a three, put up as a two at double SHOT.
+    case playAsTwo(Card.ID)
 }

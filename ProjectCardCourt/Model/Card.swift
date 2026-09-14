@@ -143,6 +143,13 @@ struct IntangibleEffect: Hashable, Codable {
     var keepsOnPlay: [String] = []
     /// Fundamentalist: the ball goes back to Regulation when it lands.
     var discardsBallOnActivation = false
+    /// Varsitile: no limit on Varenas and Variaballs a possession, and once a possession the
+    /// floor, the ball or both can be swapped for ones in the discard.
+    var playsSlotsFreely = false
+    /// Brawl Handler: changing the ball takes your own Clamps off.
+    var clearsClampsOnBallChange = false
+    /// Baller: changing the ball draws you this many.
+    var drawsOnBallChange = 0
     /// Floor General: **every** target on the floor is named by this player instead —
     /// who a pass finds, and which card comes out of a hand you cannot see. **Not the
     /// choices a player makes about their own card**: which branch of a multi-effect card
@@ -262,6 +269,69 @@ struct InjuryEffect: Hashable, Codable {
 struct VarenaEffect: Hashable, Codable {
     /// `SHOT = x%` on every shot. Only an Intangible's override outranks it.
     var shotOverride: Int?
+    /// Spazzphalt: SHOT is a fresh roll, 0–100 in steps of 5, on every shot.
+    var randomShotOverride = false
+    /// On every shot. Prime Parquet, Lacktop, Kiddie Court, Gravi-Gym.
+    var shotBonus = 0
+    /// Kiddie Court: a dunk is worth this much more.
+    var dunkBonus = 0
+    /// Con-crete: every Move card played costs this much more.
+    var moveShotPenalty = 0
+    /// Turnstile Tile: plus this one possession, minus it the next.
+    var turnstileSwing = 0
+    /// Smacktop: the referees go when it lands, none can be played, and Clamps hit harder.
+    var clearsWhistlesOnArrival = false
+    var barsWhistles = false
+    var enhancesClamps = false
+    /// Policeum: a referee who calls one stays until the floor changes.
+    var refereesStay = false
+    /// Boarder Court: the shooter's own bid counts this many more.
+    var shooterReboundBonus = 0
+    /// Dim Dome: nobody but the ball holder reads SHOT.
+    var hidesShot = false
+    /// Tri-hard Tiling: hands are cut to this, and a draw into a full hand is discarded.
+    var handLimit: Int?
+    /// Kiddie Court and Vintage Varnish: no threes, and nothing that makes one.
+    var barsThrees = false
+    /// Kiddie Court: every basket is worth this.
+    var makesCount: Int?
+    /// Gravi-Gym: no card that dunks.
+    var barsDunks = false
+    /// Recharging Resin: everyone refills to this at the start of their possession.
+    var refillsTo: Int?
+    /// MVPiquia: only the highest scorer does.
+    var leaderRefillsTo: Int?
+    /// Contact Court: landed on by a Clamp, you shoot this many free throws.
+    var freeThrowsWhenClamped = 0
+    /// Polypaypylene: a make draws this many.
+    var drawsOnMake = 0
+    /// Recoverena: every Injury goes when it lands, and a new one is a card instead.
+    var healsInjuriesOnArrival = false
+    var injuriesBecomeDraws = false
+    /// Carousel Court: every possession, the hands move one seat the declared way.
+    var rotatesHands = false
+    /// Traderous Tarmac: the Clamps on you are yours to hand out.
+    var clampsHandOff = false
+    /// Clearcoat Court: referees, Clamps, Injuries and Intangibles off, every possession.
+    var wipesEachPossession = false
+    /// Malice Palace: the hand goes before the draw.
+    var discardsHandBeforeDraw = false
+    /// Roleplayer Polymer: everyone but the player with the ball draws this many.
+    var othersDrawEachPossession = 0
+    /// Variaball Vinyl: the draw for turn goes to a random player.
+    var turnDrawToRandomPlayer = false
+    /// Vintage Varnish: its own shot clock, no balls, one Intangible each.
+    var shotClockStart: Int?
+    var barsVariaballs = false
+    var intangibleSlots: Int?
+    /// S.O.S — Sell-Out Stadium: a three may go up as a two at double SHOT.
+    var threesAsDoubleTwos = false
+    /// Grayvstone: every possession, the ball is the last one discarded.
+    var ballFromDiscard = false
+    /// Frostbite Finish: a Move costs this many other cards.
+    var moveDiscardCost = 0
+    /// Tick-Tock Tile: every card played takes a tick off the clock.
+    var cardsTickClock = false
 }
 
 /// What a Variaball changes while it is the ball.
@@ -269,6 +339,36 @@ struct VariaballEffect: Hashable, Codable {
     /// `SHOT = x%` on every shot — Brick Ball's flat 25. Outranked by an Intangible's and
     /// the floor's; outranks a played card's.
     var shotOverride: Int?
+    /// Bag'n Ball: SHOT is this much for every card in the shooter's hand.
+    var shotPerCardInHand = 0
+    /// Med Ball: SHOT never goes past this.
+    var shotCeiling: Int?
+    /// Blaze Ball and Snow Ball It: every pass, on its own, whatever else the pass does.
+    var shotPerPass = 0
+    /// Dishcount Ball: one fewer for card costs and Clamps.
+    var discountsDiscards = false
+    /// Blight Ball: Injuries go wherever the ball goes.
+    var injuriesTravel = false
+    /// Bench Ball: caught off a pass, you go straight to the inbound.
+    var benchesReceiver = false
+    /// Dishtracting Ball: taking the ball costs a card, after the draw.
+    var receiverDiscards = 0
+    /// Hand Ball: a pass swaps hands.
+    var swapsHandsOnPass = false
+    /// Foot Ball: Moves and Passes lock instead of being spent.
+    var locksInsteadOfSpending = false
+    /// Recharge Rock: the draw for turn, this many times over.
+    var turnDrawMultiplier = 1
+    /// Shufflebag Ball: the hand goes into the deck and comes back out, every possession.
+    var reshufflesHandEachPossession = false
+    /// Bag'n Ball: its player draws this many when it arrives.
+    var drawsOnArrival = 0
+    /// Monster Ball: every Intangible goes into the ball.
+    var absorbsIntangibles = false
+    /// Brand New Ball: the chance, in per cent, that a shot is a turnover instead.
+    var turnoverChance = 0
+    /// Variaball: never sits in the slot. It puts a discarded ball there instead.
+    var rollsFromDiscard = false
 }
 
 /// How long an Injury stays on the man who drew it.

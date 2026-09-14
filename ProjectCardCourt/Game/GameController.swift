@@ -475,6 +475,8 @@ final class GameController {
     private(set) var shown: GameState
 
     private(set) var shownShot = 0
+    /// S.O.S: a three picked up on Sell-Out Stadium, waiting on whether it goes up as a two.
+    private(set) var sellOutChoice: Card?
     /// What the pile is showing. A card leaves the deck when it lands in a hand, not when
     /// the rules decide it has — the same lag `shownShot` carries, for the same reason.
     private(set) var shownDeck = 0
@@ -1605,9 +1607,37 @@ final class GameController {
             DevLog.say(.input, "tapped \(card.name) — ignored, gate is \(gate)")
             return
         }
+        // S.O.S: the same card, two ways to put it up. Asked before anything is played.
+        if Rules.legalMoves(shown, for: GameRules.localSeat).contains(.playAsTwo(card.id)) {
+            sellOutChoice = card
+            return
+        }
         DevLog.say(.input, "play \(card.name)"
                    + (card.descriptor.special?.shotOverride.map { "  (SHOT = \($0)%)" } ?? ""))
         choose(.play(card.id))
+    }
+
+    /// S.O.S answered: the three as printed, or a two at double SHOT. Nil backs out.
+    func sellOut(asTwo: Bool?) {
+        guard let card = sellOutChoice else { return }
+        sellOutChoice = nil
+        guard let asTwo, !isPaused, case .awaitingMove = gate else { return }
+        DevLog.say(.input, "play \(card.name) \(asTwo ? "as a two at double SHOT" : "as a three")")
+        choose(asTwo ? .playAsTwo(card.id) : .play(card.id))
+    }
+
+    /// Traderous Tarmac: one Clamp on the player, handed to somebody else.
+    func handOff(clamp: UUID, to seat: Seat) {
+        guard !isPaused, case .awaitingMove = gate else { return }
+        DevLog.say(.input, "hand a Clamp off to \(seat.name)")
+        choose(.handOffClamp(clamp: clamp, to: seat))
+    }
+
+    /// Varsitile: the floor, the ball or both, swapped for cards in the discard.
+    func exchange(court: UUID?, ball: UUID?) {
+        guard !isPaused, case .awaitingMove = gate, court != nil || ball != nil else { return }
+        DevLog.say(.input, "exchange the slots from the discard")
+        choose(.exchangeSlots(court: court, ball: ball))
     }
 
     /// **What throwing a card at the table means, wherever the throw came from.**

@@ -72,7 +72,8 @@ SHOT — that is what Moves are for. These cards change the conditions those car
 
 **Asymmetry is settled:** a card *may* single out a player, but **the game picks who, not the
 player who played it** — by score, by who holds the ball, by who took the shot. No targeting,
-no politics, and it plays identically on a table. MVPiquia is the precedent.
+no politics, and it plays identically on a table. MVPiquia is the precedent. **Traderous
+Tarmac is the exception**: the player assigns its Clamps.
 - **Whistles on these cards: resolved, yes.** See Tile Tampering and Over-Varing Evidence
   below. The old rule — no Whistle may ever fire on a Game Break — existed *because* they
   were not plays; these are plays now.
@@ -112,7 +113,7 @@ no politics, and it plays identically on a table. MVPiquia is the precedent.
 | **Variaball** | Variaball | The eponymous 1-of signature card. On play: pull all Variaballs from the discard, shuffle them face-down, and flip the top card into the ball slot. Then discard this card. (Tabletop: pull from deck if the discard is empty; digital rolls programmatically.) Guarantees a change; can't fizzle. Retires Fresh Ball | 1 |
 | **Shufflebag Ball** | Variaball | Persistent. Every possession, at the start of the active player's turn: shuffle their hand into the deck, draw the same number back, then proceed to their normal draw phase on top of that. Repeats every turn it's out — full hand randomization plus the normal draw, every single possession | 1 |
 | **Carousel Court** | Varena | Hands rotate one seat in a declared direction, every possession. Retires Trade Deadline | 1 |
-| **Traderous Tarmac** | Varena | During your turn, hand off any number of the Clamps on you to other players | 1 |
+| **Traderous Tarmac** | Varena | During your turn, hand off any number of the Clamps on you to other players. **The player assigns each one**: all to one player, one each, or any split | 1 |
 | **Clearcoat Court** | Varena | At the start of every possession: clear all referees, clamps, injuries, waiting effects (armed Whistles), and intangibles. The universal reset floor — every standing status type in the game, wiped each turn. Retires Official Timeout | 3 |
 | **Malice Palace** | Varena | At the start of your possession, before your draw phase: discard your whole hand. Palace is real NBA arena vocabulary; the name also nods at the actual brawl. Retires Huge Altercation | 1 |
 | **Turnstile Tile** | Varena | The shooter's SHOT alternates +25% / −25% each turn it's out. Visual: the floor recolors red/green each flip, Mario 3D flip-panel style — same cheap-recolor trick as Blight Ball's accumulation. Retires Home Court Advantage and Away Game | 3 |
@@ -198,6 +199,40 @@ Variaballs: dealt before then, they would do nothing.
 - **Like That** — Variaball effects still lower SHOT. The ball is what is altered, not the
   player, so Like That with Snow Ball out still loses SHOT. Not on the card.
 
+## Built — the rulings
+
+Settled while building them, 2026-09-14:
+
+- **Smacktop** — enhanced is +10% more reduction, one more card discarded, one more card locked.
+- **Tri-hard Tiling** — hands over 3 are cut to 3 when it lands, owner's pick; a draw into a
+  hand of 3 is discarded.
+- **Blight Ball** and **Dishtracting Ball** — any change of hands: passes, rebounds, inbounds.
+- **Brand New Ball** — the turnover ends the round.
+- **Dishcount Ball** — Clamps, Pound Dribble, Frostbite Finish, Stepback and Turnaround Three.
+  Not Bone Bruise.
+- **Vintage Varnish** — discards the ball in play when it lands.
+- **Tick-Tock Tile** — the tick is paid after the card resolves, so a shot at 01 still goes up.
+- **Bag'n Ball** — 10% per card in hand.
+- **Monster Ball** — swallows every Intangible already out, and every one drawn while it is.
+
+**Calls made where the design was silent** — each is one line to change:
+
+- Clearcoat Court wipes standing Clamps; Clamps still in the air land after the wipe.
+- Kiddie Court and Vintage Varnish shut Kick-Out off entirely.
+- Contact Court is one free throw however many Clamps land.
+- Recharging Resin and MVPiquia refill after the draw for turn; a tie for the lead counts.
+- Carousel Court's direction is declared by whoever plays it. Turnstile Tile starts on +25%.
+- The Variaball card pulls from the deck when the discards have no ball. Grayvstone never
+  raises the Variaball card itself.
+- S.O.S covers threes played from the hand, not Kick-Out's owed shot.
+- Policeum's called referees leave when the floor changes; uncalled ones still leave at the
+  end of the round.
+- Tick-Tock Tile's tick lands on whoever holds the ball once the card resolves — after a pass,
+  that is the receiver.
+- A Clamp handed on by Traderous Tarmac, or pulled by Gravity, waits through shots for its own
+  man's possession.
+- Like That still stops a Varena's reduction (Lacktop); only Variaballs get past it.
+
 ## Killed
 
 - **Ice Wrap** — Recoverena does it better, and *ice* is worth more as a ball.
@@ -243,6 +278,9 @@ Varenas and Variaballs, 481 with the audit's 101. **Then** Close-Out, Zone, Man-
 Three-Ball took it to 390, and Monster Ball made the balls 33 — **492 in all**.
 
 **The Intangible audit** (2026-09-13) cut three and added four: 391 without the slots. Brand New Ball made the balls 36 — **496 in all**.
+
+**Built** (2026-09-14): every card above is in the deck, with Tile Tampering and Over-Varing
+Evidence — **498 in all**, 69 in courts and 36 in balls.
 
 Most of the old 30 were singletons. Every replacement here needs 5–10+ copies to actually
 show up as a standing floor (Prime Parquet's count). That multiplies the deck's real estate

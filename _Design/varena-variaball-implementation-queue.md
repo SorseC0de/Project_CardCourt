@@ -74,7 +74,7 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
       once. It was never a rule.*
 - [x] **Playing one is an action**, like playing any card: it uses up a first action and a
       combo does not read through it.
-- [ ] Whistles can now fire on these plays (reversed from the old Game Break rule) — confirm
+- [x] Whistles can now fire on these plays (reversed from the old Game Break rule) — confirm
       `Whistle.trigger` gets a case for "Varena played" / "Variaball played" for Tile Tampering
       and Over-Varing Evidence.
       *So far: a Whistle watching any non-Whistle play already fires on them. The two named
@@ -83,6 +83,10 @@ Everything fights for the one slot; the hierarchy just decides who wins it.
       in the Standard deck.
 
 ## Phase 3 — Per-card wiring, grouped by system
+
+**Built 2026-09-14.** Every card below is in the deck and has a test in `Tools/slottests.swift`;
+`./Tools/sim --slots` reads out how often the house plays each one. The rulings are in the
+design doc.
 
 Grouping by what the card touches, since the plumbing is shared within a group even where the
 numbers differ. `TBC` counts are still open — do not invent numbers when porting.
@@ -185,14 +189,14 @@ Over-Varing Evidence (same, for a Variaball).
 - [ ] Ball sprite states: Handball-sized ball (Hand Ball), soccer ball with hexagons (Foot
       Ball) plus its two gags (GOOOOAAAAAAAAL text, the flying-in goalie on a miss),
       Katamari-style accumulating layers (Blight Ball).
-- [ ] Dim Dome's SHOT-hidden state in the HUD (flip the % readout face down).
+- [x] Dim Dome's SHOT-hidden state in the HUD (flip the % readout face down).
 
 ## Phase 5 — AI
 
-- [ ] `AIPolicy` must not read the true SHOT number while Dim Dome is out, or the AI plays with
+- [x] `AIPolicy` must not read the true SHOT number while Dim Dome is out, or the AI plays with
       information the human player doesn't have. This has to be a model-level withholding, not
       a view-level hide.
-- [ ] `AIPolicy` needs a policy for *when* to play a Varena/Variaball at all, and which one —
+- [x] `AIPolicy` needs a policy for *when* to play a Varena/Variaball at all, and which one —
       currently there's no analogue since Game Breaks auto-fired and were never chosen.
 
 ## Open questions carried over, unresolved

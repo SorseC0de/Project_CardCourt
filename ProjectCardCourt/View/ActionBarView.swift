@@ -10,6 +10,9 @@ struct ActionBarView: View {
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
     var onCombo: (CardDescriptor) -> Void = { _ in }
+    /// Traderous Tarmac and Varsitile open their own sheets, which the screen owns.
+    var onHandOff: () -> Void = {}
+    var onExchange: () -> Void = {}
     @Environment(\.floorIsHidden) private var floorIsHidden
 
     private var state: GameState { controller.shown }
@@ -95,6 +98,12 @@ struct ActionBarView: View {
             if case .awaitingDiscard = controller.gate { confirmDiscard }
             if case .awaitingGiveUp(let card, let count) = controller.gate {
                 confirmInjuryDiscard(card, count: count)
+            }
+            if case .awaitingMove = controller.gate, canHandOff || canExchange {
+                HStack(spacing: 8) {
+                    if canHandOff { sideButton("HAND OFF", run: onHandOff) }
+                    if canExchange { sideButton("EXCHANGE", run: onExchange) }
+                }
             }
             if case .awaitingMove = controller.gate, canShoot {
                 HStack(spacing: 8) {
@@ -309,6 +318,30 @@ struct ActionBarView: View {
             .frame(height: Act.height)
             .background(Capsule().fill(CardPalette.orange)
                 .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
+        }
+        .frame(width: Act.width * Act.secondShare)
+    }
+
+    /// Traderous Tarmac: Clamps on you, and somebody to hand them to.
+    private var canHandOff: Bool {
+        !Rules.handOffTargets(state, for: GameRules.localSeat).isEmpty
+    }
+
+    /// Varsitile: something in the discard to swap in.
+    private var canExchange: Bool {
+        let options = Rules.exchangeOptions(state, for: GameRules.localSeat)
+        return !options.courts.isEmpty || !options.balls.isEmpty
+    }
+
+    /// A white pill beside the shot, for a thing the floor lets you do that is not a card.
+    private func sideButton(_ word: String, run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            ActionText(word, size: Act.word * 0.8, ink: CardPalette.blue,
+                       drop: CardPalette.blue.opacity(0.35), taper: 0,
+                       tracking: Act.letterGap)
+                .frame(maxWidth: .infinity)
+                .frame(height: Act.height)
+                .background(Capsule().fill(.white))
         }
         .frame(width: Act.width * Act.secondShare)
     }

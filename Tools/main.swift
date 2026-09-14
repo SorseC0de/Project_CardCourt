@@ -167,6 +167,8 @@ if args.contains("--text") {
     probeClearOut()
 } else if args.contains("--shoot") {
     probeShootButton()
+} else if args.contains("--slots") {
+    slotCoverage()
 } else if args.contains("--soak") {
     soak()
 } else if args.contains("--test") {

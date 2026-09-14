@@ -65,6 +65,18 @@ struct AIPolicy {
             return .inbound(to: pickTarget(from: targets, state: state))
         }
 
+        // Traderous Tarmac: every Clamp on it goes to whoever is winning.
+        let receivers = Rules.handOffTargets(state, for: seat)
+        if let clamp = state[seat].clamps.first, !receivers.isEmpty {
+            let leader = receivers.max { state[$0].score < state[$1].score } ?? receivers[0]
+            return .handOffClamp(clamp: clamp.id, to: leader)
+        }
+
+        let canPass = playable.contains { playablePass($0, state: state) }
+        if let slot = slotCard(state, for: seat, from: playable, passing: canPass) {
+            return .play(slot)
+        }
+
         if state.movesThisPossession < moveAllowance(),
            let card = bestMoveCard(state, for: seat, from: playable) {
             return .play(card)
@@ -86,6 +98,11 @@ struct AIPolicy {
                 (lhs.descriptor.baseShotDelta, lhs.descriptor.special?.bonusPointOnMake ?? 0)
                     < (rhs.descriptor.baseShotDelta, rhs.descriptor.special?.bonusPointOnMake ?? 0)
             }), best.descriptor.baseShotDelta >= 0 || best.descriptor.special?.shotOverride != nil {
+                // S.O.S: a two at double the look, when that is worth more than the three.
+                if legal.contains(.playAsTwo(best.id)) {
+                    let look = min(100, max(0, state.shot + best.descriptor.baseShotDelta))
+                    if 2 * min(100, look * 2) > 3 * look { return .playAsTwo(best.id) }
+                }
                 return .play(best.id)
             }
             // Sixth Man's button, when it is the better look.
@@ -132,6 +149,29 @@ struct AIPolicy {
         // with nothing in it.
         guard !passes.isEmpty else { return .shoot }
         return .play(choosePass(state, for: seat, from: passes))
+    }
+
+    /// **A floor or a ball worth putting down.** Most go down as the first thing; the balls
+    /// that hurt whoever holds them only go down when there is a pass to hand them on with.
+    private mutating func slotCard(_ state: GameState, for seat: Seat, from playable: [Card],
+                                   passing: Bool) -> Card.ID? {
+        let slots = playable.filter {
+            $0.descriptor.varena != nil || $0.descriptor.variaball != nil
+        }
+        guard !slots.isEmpty, chance() < 0.7 else { return nil }
+        let weapons: Set<String> = [
+            CardLibrary.benchBall.id, CardLibrary.dishtractingBall.id, CardLibrary.blightBall.id,
+            CardLibrary.snowBallIt.id, CardLibrary.brickBall.id, CardLibrary.handBall.id,
+            CardLibrary.brandNewBall.id,
+        ]
+        for card in slots {
+            let id = card.descriptor.id
+            // Already out. Putting it down again changes nothing.
+            if id == state.currentCourt.id || id == state.currentBall?.id { continue }
+            if weapons.contains(id), !passing { continue }
+            return card.id
+        }
+        return nil
     }
 
     /// Behind-the-Back with nobody behind is a self-inflicted turnover.

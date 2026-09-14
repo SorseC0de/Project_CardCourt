@@ -6,6 +6,8 @@ import SwiftUI
 struct ShotBadgeView: View {
     let shot: Int
     var ballSize: CGFloat = 58
+    /// Dim Dome: the number is not this player's to read.
+    var hidden = false
 
     @State private var pulse: CGFloat = 1
     /// Green on the way up, red on the way down, for a beat.
@@ -42,12 +44,12 @@ struct ShotBadgeView: View {
                 .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
 
             HStack(alignment: .center, spacing: 0) {
-                Text("\(shot)")
+                Text(hidden ? "??" : "\(shot)")
                     .font(.custom(Chrome.display, size: numberSize))
                     .tracking(numberSize * CardLayout.badgeTracking)
                     .contentTransition(.numericText())
                     .foregroundStyle(ink(numberSize))
-                Text("%")
+                Text(hidden ? "" : "%")
                     .font(.custom(Chrome.display, size: signSize))
                     .foregroundStyle(ink(signSize))
             }

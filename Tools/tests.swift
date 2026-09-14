@@ -230,7 +230,10 @@ func runTests() {
                     !state[seat].intangibles.contains { $0.intangible?.playsFromOthers == true }
                 }
                 let sizes = dealt.map { state[$0].bag.count }
-                if sizes.contains(where: { $0 < state.rules.startingBagSize }) {
+                // Tri-hard Tiling deals to its own limit.
+                let full = min(state.rules.startingBagSize,
+                               state.floorEffect.handLimit ?? state.rules.startingBagSize)
+                if sizes.contains(where: { $0 < full }) {
                     Check.that(false, "halftime redeals a full hand (seed \(seed) gave \(sizes))")
                     break
                 }
@@ -1471,6 +1474,9 @@ func runTests() {
         Check.that(pounded.shotClock == plain.shotClock.map { $0 - 1 },
                    "Ball Pounder runs the Shot Clock down one more")
     }
+
+    slotTests()
+    slotTestsTwo()
 
     print("Serialisation")
     do {

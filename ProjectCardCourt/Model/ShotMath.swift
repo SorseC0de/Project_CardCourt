@@ -51,9 +51,13 @@ struct ShotModifiers: Hashable, Codable {
     /// which happens earlier — at interception, before this runs at all. **Only ever one**:
     /// when several claim it, `GameState.shotModifiers` decides which.
     var override: ShotOverride?
+    /// Med Ball: no shot goes past this. The ball's own tier, so an Intangible's or the
+    /// floor's override is not held to it.
+    var ceiling: ShotOverride?
 
     var isEmpty: Bool {
         adds.isEmpty && multipliers.isEmpty && debuffs.isEmpty && override == nil
+            && ceiling == nil
     }
 }
 
@@ -95,6 +99,10 @@ enum ShotMath {
                 record(override.label)
             }
         }
+        if let ceiling = modifiers.ceiling, running > ceiling.amount {
+            running = ceiling.amount
+            record(ceiling.label)
+        }
 
         return ShotResolution(base: base, steps: steps,
                               chance: max(rules.shotFloor,
@@ -126,17 +134,49 @@ extension GameState {
                 passiveOverride = ShotOverride(label: passive.name, amount: Double(over))
             }
         }
-        let courtOverride = currentCourt.varena?.shotOverride.map {
-            ShotOverride(label: currentCourt.name, amount: Double($0))
+        // The floor's standing numbers: a flat bonus, Turnstile Tile's swing, and Kiddie
+        // Court's low rim for a shot finished there.
+        let floor = floorEffect
+        if floor.shotBonus != 0 {
+            modifiers.adds.append(ShotModifier(label: currentCourt.name,
+                                               amount: Double(floor.shotBonus)))
         }
-        let ballOverride = currentBall.flatMap { ball in
-            ball.variaball?.shotOverride.map { ShotOverride(label: ball.name, amount: Double($0)) }
+        if floor.turnstileSwing != 0 {
+            let swing = turnstileUp ? floor.turnstileSwing : -floor.turnstileSwing
+            modifiers.adds.append(ShotModifier(label: currentCourt.name, amount: Double(swing)))
+        }
+        if floor.dunkBonus != 0, dunking != nil {
+            modifiers.adds.append(ShotModifier(label: currentCourt.name,
+                                               amount: Double(floor.dunkBonus)))
+        }
+        // S.O.S: a three sold out for a two, at double the look.
+        if sellingOut {
+            modifiers.multipliers.append(ShotModifier(label: CardLibrary.sellOutStadium.name,
+                                                      amount: 2))
+        }
+        let courtOverride = (floor.shotOverride ?? (floor.randomShotOverride ? courtShotRoll : nil))
+            .map { ShotOverride(label: currentCourt.name, amount: Double($0)) }
+        let ballOverride = currentBall.flatMap { ball -> ShotOverride? in
+            if let flat = ball.variaball?.shotOverride {
+                return ShotOverride(label: ball.name, amount: Double(flat))
+            }
+            // Bag'n Ball: the shot is worth the hand holding it.
+            if let per = ball.variaball?.shotPerCardInHand, per > 0 {
+                return ShotOverride(label: ball.name,
+                                    amount: Double(min(100, self[seat].bag.count * per)))
+            }
+            return nil
         }
         // **One override, and the highest claim to it wins:** an Intangible, then the floor,
         // then the ball, then the card just played.
         // Sixth Man's button, pressed, is the Intangible's claim.
-        modifiers.override = passiveShotOverride ?? passiveOverride ?? courtOverride ?? ballOverride
-            ?? pendingShotOverride
+        let intangibleClaim = passiveShotOverride ?? passiveOverride
+        modifiers.override = intangibleClaim ?? courtOverride ?? ballOverride ?? pendingShotOverride
+        // Med Ball holds everything under it in the hierarchy, and nothing over it.
+        if let cap = ballEffect.shotCeiling, intangibleClaim == nil, courtOverride == nil,
+           let ball = currentBall {
+            modifiers.ceiling = ShotOverride(label: ball.name, amount: Double(cap))
+        }
 
         // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
         // Nothing is cancelled, though that makes no odds — Clamps come off at the end of
@@ -146,8 +186,10 @@ extension GameState {
             $0.intangible?.ignoresClampDebuffs == true || $0.intangible?.shotCannotBeReduced == true
         }
         for clamp in (ignoringClamps || shrugs) ? [] : self[seat].clamps {
-            let debuff = clamp.card.clamp?.shotDebuff ?? 0
+            var debuff = clamp.card.clamp?.shotDebuff ?? 0
             guard debuff != 0 else { continue }
+            // Smacktop: every Clamp takes a step more.
+            if floorEffect.enhancesClamps, debuff < 0 { debuff -= 10 }
             modifiers.debuffs.append(ShotModifier(label: clamp.card.name, amount: Double(debuff)))
         }
         // Southpaw Shooter, before Like That, so a gain turned into a loss is still refused.

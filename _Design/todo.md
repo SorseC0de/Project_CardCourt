@@ -2,6 +2,20 @@
 
 Things agreed on but not built. Newest at the top.
 
+## Varena and Variaball visuals
+
+The rules for every card are in; these are the pictures, after the first playtest.
+
+- **The ∀ Varena type icon** is not drawn yet, so Varena cards show no icon.
+- **Foot Ball's two gags**: GOOOOAAAAAAAAL on a make, and the flying goalie on a miss.
+- **Hand Ball** shrinks the ball sprite to handball size.
+- **Turnstile Tile** recolours the floor red and green each flip; **Grayvstone** turns it gray.
+- **Grayvstone** finding no ball says so in the log only; it wants a brief animation.
+- **Monster Ball's scene**: the shaking card and the next two are in. The light beams sparking
+  from the discard pile to each winner are not.
+- **Blight Ball's** Katamari layers on the ball.
+- **Most Variaball Player** on the results screen.
+
 ## Intangibles become manual activation
 
 Decided in the Intangible audit, 2026-09-13; how activation works is not designed yet. An

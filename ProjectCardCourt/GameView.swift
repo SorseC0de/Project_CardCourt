@@ -28,6 +28,10 @@ struct GameView: View {
     @State private var detail: Card?
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
+    /// Traderous Tarmac's sheet, open while the player hands Clamps on.
+    @State private var handingOff = false
+    /// Varsitile's sheet, open while the player picks what to swap in.
+    @State private var exchanging = false
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
     @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
@@ -214,7 +218,9 @@ struct GameView: View {
                         ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
-                                      onCombo: { comboOf = $0 })
+                                      onCombo: { comboOf = $0 },
+                                      onHandOff: { handingOff = true },
+                                      onExchange: { exchanging = true })
                     }
                     // Out of the way rather than washed over. Two translucent sheets meeting
                     // multiply, and the seam where the hand's met the court's was a black
@@ -393,6 +399,52 @@ struct GameView: View {
                                    hand: controller.shown[victim].bag.count,
                                    chosen: $picked, ringed: ring,
                                    onPick: { takeTheOffer(.position($0)) })
+                    .zIndex(12)
+                }
+                if handingOff, case .awaitingMove(let seat) = controller.gate {
+                    let receivers = Rules.handOffTargets(controller.shown, for: seat)
+                    if !receivers.isEmpty {
+                        ClampHandOffView(clamps: controller.shown[seat].clamps,
+                                         receivers: receivers,
+                                         onHandOff: { clamp, to in
+                                             if controller.shown[seat].clamps.count <= 1 {
+                                                 handingOff = false
+                                             }
+                                             controller.handOff(clamp: clamp, to: to)
+                                         },
+                                         onDone: { handingOff = false })
+                            .zIndex(12)
+                    }
+                }
+                if exchanging, case .awaitingMove(let seat) = controller.gate {
+                    let options = Rules.exchangeOptions(controller.shown, for: seat)
+                    SlotExchangeView(courts: options.courts, balls: options.balls,
+                                     onExchange: { court, ball in
+                                         exchanging = false
+                                         controller.exchange(court: court, ball: ball)
+                                     },
+                                     onCancel: { exchanging = false })
+                        .zIndex(12)
+                }
+                if let card = controller.sellOutChoice {
+                    // S.O.S: the card held up, and the two ways it can go up.
+                    ZStack {
+                        DimLayer(on: true, amount: Theme.dimBrowser)
+                        Color.clear.contentShape(Rectangle()).ignoresSafeArea()
+                            .onTapGesture { controller.sellOut(asTwo: nil) }
+                        VStack(spacing: 14) {
+                            CardFrontView(descriptor: card.descriptor, displayWidth: 150,
+                                          expanded: true)
+                                .shadow(color: .black.opacity(0.55), radius: 20, y: 10)
+                            ChunkyButton(title: "Shoot the three", fill: CardPalette.gold,
+                                         stroke: CardPalette.gold, shade: CardPalette.orange,
+                                         size: 20) { controller.sellOut(asTwo: false) }
+                            ChunkyButton(title: "Two at double SHOT", fill: CardPalette.blue,
+                                         size: 20) { controller.sellOut(asTwo: true) }
+                        }
+                        .padding(.horizontal, 40)
+                    }
+                    .transition(.opacity)
                     .zIndex(12)
                 }
                 if case .awaitingMode(let card) = controller.gate {
@@ -760,6 +812,13 @@ struct GameView: View {
                               onInspectReferees: { open(.referees) })
                     .padding(.trailing, 18)
                     .padding(.top, 6)
+            }
+            // The floor and the ball in play, across from the SHOT.
+            .overlay(alignment: .topLeading) {
+                FloorAndBallView(state: controller.shown,
+                                 onSelect: { inspecting = (card: $0, from: $1) })
+                    .padding(.leading, 14)
+                    .padding(.top, 8)
             }
 
             )

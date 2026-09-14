@@ -87,6 +87,27 @@ enum GameEvent: Hashable, Codable {
     case deckReshuffled
     case halftime
     case gameEnded(winners: [Seat])
+    /// A ball put in the slot by something other than a card played — Grayvstone, the
+    /// Variaball card's roll — or taken out of it. Nil is a Regulation Ball.
+    case ballChanged(card: CardDescriptor?)
+    /// Grayvstone, with nothing in the discard to raise.
+    case graveyardEmpty
+    /// Bench Ball: caught off a pass, straight to the inbound.
+    case benched(Seat)
+    /// Carousel Court: every hand one seat round.
+    case handsRotated(clockwise: Bool)
+    /// Traderous Tarmac: a Clamp handed on.
+    case clampHandedOff(from: Seat, to: Seat, card: CardDescriptor)
+    /// Monster Ball, swallowing somebody's Intangible.
+    case intangibleAbsorbed(seat: Seat, card: CardDescriptor)
+    /// A Monster Ball board, won.
+    case intangibleWon(seat: Seat, card: CardDescriptor)
+    /// Clearcoat Court, at the top of a possession.
+    case floorWiped
+    /// Varsitile: the floor or the ball, swapped for ones out of the discard.
+    case slotsExchanged(seat: Seat, cards: [CardDescriptor])
+    /// Blight Ball: the Injuries going with the ball.
+    case injuriesMoved(from: Seat, to: Seat, count: Int)
 
     /// True for events the player should see spelled out; draws and clock sets are noise.
     var isLoggable: Bool {
@@ -123,11 +144,11 @@ enum GameEvent: Hashable, Codable {
             // the receiver played it credits them with somebody else's card.
             guard !returning else {
                 return "\(from.playerName) \(from.verb("gives", "give")) it right back → "
-                    + "\(to.playerName). SHOT \(shot)%."
+                    + "\(to.playerName). \(Self.shotText(shot))"
             }
-            return "\(from.playerName) \(from.verb("plays", "play")) \(card.name) → \(to.playerName). SHOT \(shot)%."
+            return "\(from.playerName) \(from.verb("plays", "play")) \(card.name) → \(to.playerName). \(Self.shotText(shot))"
         case .movePlayed(let seat, let card, let shot):
-            return "\(seat.playerName) \(seat.verb("plays", "play")) \(card.name). SHOT \(shot)%."
+            return "\(seat.playerName) \(seat.verb("plays", "play")) \(card.name). \(Self.shotText(shot))"
         case .discardedForShot(let seat, let card, let count):
             return "\(seat.playerName) \(seat.verb("feeds", "feed")) \(count) card\(count == 1 ? "" : "s") into \(card.name)."
         case .coinRun(let seat, let card, let heads):
@@ -224,7 +245,33 @@ enum GameEvent: Hashable, Codable {
             return winners.count == 1
                 ? "FINAL. \(winners[0].playerName) \(winners[0].verb("wins", "win"))."
                 : "FINAL. Tie: " + winners.map(\.playerName).joined(separator: ", ") + "."
+        case .ballChanged(let card):
+            return card.map { "The ball is now \($0.name)." } ?? "Back to a Regulation Ball."
+        case .graveyardEmpty:
+            return "Grayvstone reaches for a ball in the discards and finds none."
+        case .benched(let seat):
+            return "Bench Ball! \(seat.playerName) \(seat.verb("is", "are")) benched and \(seat.verb("inbounds", "inbound"))."
+        case .handsRotated(let clockwise):
+            return "Carousel Court: every hand moves one seat \(clockwise ? "left" : "right")."
+        case .clampHandedOff(let from, let to, let card):
+            return "\(from.playerName) \(from.verb("hands", "hand")) \(card.name) off to \(to.playerName)."
+        case .intangibleAbsorbed(let seat, let card):
+            return "Monster Ball swallows \(seat.playerName)'s \(card.name)."
+        case .intangibleWon(let seat, let card):
+            return "\(seat.playerName) \(seat.verb("comes", "come")) down with \(card.name)."
+        case .floorWiped:
+            return "Clearcoat Court: referees, Clamps, Injuries and Intangibles, wiped."
+        case .slotsExchanged(let seat, let cards):
+            return "\(seat.playerName) \(seat.verb("swaps", "swap")) in \(cards.map(\.name).joined(separator: " and "))."
+        case .injuriesMoved(let from, let to, let count):
+            return "Blight Ball: \(count) Injur\(count == 1 ? "y goes" : "ies go") from \(from.playerName) to \(to.playerName)."
         }
+    }
+
+    /// SHOT as a line says it. Dim Dome's floor hides it, which the rules mark with a
+    /// negative number.
+    static func shotText(_ shot: Int) -> String {
+        shot < 0 ? "SHOT ??." : "SHOT \(shot)%."
     }
 
     /// What one seat put in, on a board.

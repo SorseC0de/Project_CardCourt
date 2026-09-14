@@ -17,6 +17,9 @@ enum WhistleTrigger: String, Hashable, Codable {
     /// activates itself. Raised where it lands, like `injuryDrawn`.
     case intangibleRevealed
     case anyNonWhistlePlayed
+    /// Tile Tampering and Over-Varing Evidence: a floor or a ball being played.
+    case varenaPlayed
+    case variaballPlayed
     case shotAttempt
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
     case shotClockLowered
@@ -58,6 +61,10 @@ enum WhistleTrigger: String, Hashable, Codable {
             return card.descriptor.type == .whistle
         case (.anyNonWhistlePlayed, .playCard(_, let card)):
             return card.descriptor.type != .whistle
+        case (.varenaPlayed, .playCard(_, let card)):
+            return card.descriptor.varena != nil
+        case (.variaballPlayed, .playCard(_, let card)):
+            return card.descriptor.variaball != nil
         case (.shotClockLowered, .playCard(_, let card)):
             return card.descriptor.clockDelta < 0
         default:
@@ -165,6 +172,8 @@ struct ArmedWhistle: Hashable, Codable, Identifiable {
     let id: UUID
     let owner: Seat
     let card: Card
+    /// Policeum: called, and still standing on the floor.
+    var stayed = false
 
     init(owner: Seat, card: Card, id: UUID = UUID()) {
         self.id = id

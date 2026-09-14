@@ -109,7 +109,8 @@ struct StatusHUDView: View {
                 if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
                 if state.whistlesSilenced { silenced }
                 if !state.armedWhistles.isEmpty { watching }
-                ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize)
+                ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize,
+                              hidden: !state.canReadShot(GameRules.localSeat))
             }
             remaining
         }

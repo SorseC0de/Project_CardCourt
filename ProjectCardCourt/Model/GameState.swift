@@ -279,6 +279,26 @@ struct GameState: Codable {
     /// One of each a possession — see `Rules.legalMoves`.
     var playedVarenaThisPossession = false
     var playedVariaballThisPossession = false
+    /// Varsitile's swap, once a possession.
+    var slotsExchangedThisPossession = false
+    /// Carousel Court: which way the hands go round, declared when it was played.
+    var carouselClockwise: Bool?
+    /// Turnstile Tile: whether this possession is the plus one.
+    var turnstileUp = true
+    /// Spazzphalt's roll, for the shot being priced.
+    var courtShotRoll: Int?
+    /// Foot Ball: Moves and Passes played and locked until the possession ends.
+    var footLocked: [UUID] = []
+    /// Monster Ball: every Intangible it has swallowed, in order.
+    var monsterBallIntangibles: [CardDescriptor] = []
+    /// And the ones being rebounded for now it has gone, first up first.
+    var intangibleBoard: [CardDescriptor] = []
+    /// Blight Ball: who is carrying the pile.
+    var pileCarrier: Seat?
+    /// S.O.S: the shot on its way up is a two at double SHOT.
+    var sellingOut = false
+    /// Tick-Tock Tile: ticks owed by cards played, paid once each card has resolved.
+    var clockTicksOwed = 0
     /// Whistles set down and waiting. Resolved in the order they were armed, so a
     /// Whistle that cancels another Whistle has a defined winner.
     var armedWhistles: [ArmedWhistle] = []
@@ -355,6 +375,16 @@ struct GameState: Codable {
     var currentCourt: CardDescriptor { courtCard?.descriptor ?? CardLibrary.cardwood }
     /// The Variaball in play. Nil is a Regulation Ball.
     var currentBall: CardDescriptor? { ballCard?.descriptor }
+    /// What the floor does. Cardwood does nothing.
+    var floorEffect: VarenaEffect { currentCourt.varena ?? VarenaEffect() }
+    /// What the ball does. A Regulation Ball does nothing.
+    var ballEffect: VariaballEffect { currentBall?.variaball ?? VariaballEffect() }
+    /// Intangible slots on this floor.
+    var intangibleSlotLimit: Int { floorEffect.intangibleSlots ?? rules.intangibleSlots }
+    /// The shot clock on this floor.
+    var shotClockLength: Int { floorEffect.shotClockStart ?? rules.shotClockStart }
+    /// Dim Dome: whether this seat may read SHOT.
+    func canReadShot(_ seat: Seat) -> Bool { !floorEffect.hidesShot || ball == seat }
 }
 
 /// RNG access goes through these so no call site takes overlapping `inout` access to state.

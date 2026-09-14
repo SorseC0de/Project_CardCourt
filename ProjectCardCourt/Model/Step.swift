@@ -48,6 +48,10 @@ enum Step: Hashable, Codable {
     /// about a full board before the card that filled it had arrived. It waits here,
     /// in the order it came off the deck — see `Rules.drainBreaks`.
     case revealBreak(PendingBreak)
+    /// Frostbite Finish: a Move played, and the cards it costs still owed.
+    case tax(seat: Seat, count: Int, card: CardDescriptor)
+    /// Monster Ball, gone: the Intangibles it swallowed are rebounded for, one at a time.
+    case intangibleBoards
 
     /// **Where this sits in a drain, which is not the order it was pushed in.**
     ///
@@ -66,6 +70,8 @@ enum Step: Hashable, Codable {
         case .returnBall:   return 2
         case .shootAtOnce:  return 3
         case .takeTheLine:  return 4
+        case .tax:          return 0
+        case .intangibleBoards: return 5
         }
     }
 
@@ -79,10 +85,13 @@ enum Step: Hashable, Codable {
         case .handOverBall: return .handOverBall
         case .takeTheLine:  return .takeTheLine
         case .revealBreak:  return .revealBreak
+        case .tax:          return .tax
+        case .intangibleBoards: return .intangibleBoards
         }
     }
 
     enum Kind: String, Hashable, Codable {
         case spendHand, returnBall, shootAtOnce, handOverBall, takeTheLine, revealBreak
+        case tax, intangibleBoards
     }
 }
