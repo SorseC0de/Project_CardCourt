@@ -20,8 +20,8 @@ The rules for every card are in; these are the pictures, after the first playtes
 - **The Varena art**: every Varena draws the ISO court whole, no plate, until each has
   its own. The user is recolouring it.
 - **The ball icons** are in for Blaze, Dishcount, Dishtracting, Recharge Rock and Snow Ball
-  It; the rest wear the Variaball subject until theirs land. Each has a size in
-  `BallArt.scale` in `CardFrontView`.
+  It; the rest wear the Variaball subject until theirs land. All drawn on the Variaball plate's
+  artboard, so every ball is the same size, over the name banner and under the name.
 - **Foot Ball's two gags**: GOOOOAAAAAAAAL on a make, and the flying goalie on a miss.
 - **Hand Ball** shrinks the ball sprite to handball size.
 - **Turnstile Tile** recolours the floor red and green each flip; **Grayvstone** turns it gray.

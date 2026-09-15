@@ -233,6 +233,7 @@ for path in sorted((root / ICONS).glob("*.svg")):
             layers.setdefault(ALIASES.get(name, name), {})[part] = path
             break
 
+boxes: dict[str, tuple[float, float, float]] = {}
 for name in sorted(layers):
     parts = layers[name]
     # The plate is what carries the circle. A type that was never split is framed by the
@@ -266,13 +267,14 @@ for name in sorted(layers):
     for part in ("back", "front", "whole"):
         if part in parts and frame(parts[part], box):
             moved += 1
+    boxes[name] = (cx - MARGIN * r, cy - MARGIN * r, 2 * MARGIN * r)
     print(f"{name:16} circle ({cx:.1f}, {cy:.1f}) r {r:.1f}  "
           f"{'+'.join(sorted(parts))}   {box}")
 
 # **Drawings that are not type icons**, trimmed to their own ink the way they were before
 # Affinity wrote the artboard back out — with half the widest stroke kept, so no edge line
 # is cut.
-TRIMMED = ("ISO_Court", "CardCourt_Ball", "Shot_Icon")
+TRIMMED = ("ISO_Court", "ISO_Court_v2", "CardCourt_Ball", "Shot_Icon", "Balls/Dunk_Icon")
 
 
 def ink(text: str):
@@ -298,12 +300,7 @@ def ink(text: str):
     return got
 
 
-# **The ball icons**, one drawing per Variaball, each on its own artboard — trimmed to its ink
-# like the court, since none of them sits on a circle.
-BALLS = [path.relative_to(root / ICONS).with_suffix("").as_posix()
-         for path in sorted((root / ICONS / "Balls").glob("*.svg"))]
-
-for name in list(TRIMMED) + BALLS:
+for name in TRIMMED:
     path = root / ICONS / f"{name}.svg"
     if not path.exists():
         continue
@@ -318,5 +315,22 @@ for name in list(TRIMMED) + BALLS:
     if frame(path, trim):
         moved += 1
     print(f"{name:16} trimmed to its ink   {trim}")
+
+# **The ball icons**: each Variaball's own drawing, made on the Variaball plate's artboard so
+# every ball stands in the plate at one size and spills out of it the way it was drawn. So they
+# take the plate's box, as a subject layer would. Snow Ball It came out of Affinity on a 4022
+# artboard rather than 966, so its box is scaled to match; re-exported at 966, drop the entry.
+BALL_EXPORT_SCALE = {"snowball": 4022 / 966}
+if "Variaball" in boxes:
+    left, top, span = boxes["Variaball"]
+    for path in sorted((root / ICONS / "Balls").glob("*.svg")):
+        # Only the balls: the dunk mark is trimmed with the marks, and a court is not a ball.
+        if path.stem == "Dunk_Icon" or path.stem.startswith("ISO_Court"):
+            continue
+        k = BALL_EXPORT_SCALE.get(path.stem, 1)
+        box = f'viewBox="{n(left * k)} {n(top * k)} {n(span * k)} {n(span * k)}"'
+        if frame(path, box):
+            moved += 1
+        print(f"{'Balls/' + path.stem:16} on the Variaball plate   {box}")
 
 print(f"\n{moved} file(s) rewritten, {snapped} fill(s) snapped to the palette")

@@ -61,30 +61,40 @@ struct CardFrontView: View {
             // name banner — so the circle can be made as big as it likes without
             // swallowing anything. Only its subject comes back over the top, below.
             if face.type == .varena {
+                // **A Varena's court is its art**: over the inner ring and the name banner,
+                // under the wash the words are read on, the words, and the name.
+                border
+                namePlate(letters: false)
                 varenaArt
-            } else if passArt == nil {
-                icon
-            }
-            if !isBlank { textOverlay }
-            border
-            // Every card carries its name. Which side of the icon's plate the banner is
-            // drawn on is the question — `plateOverIcon` on the bench.
-            if !set.plateOverIcon { namePlate }
-            // The three basic passes say the rest with an icon alone; everything else
-            // gets its words.
-            if let art = passArt {
-                passMark(art)
-            } else if !isBlank {
+                textOverlay
                 effectText
                 footMarks
+                namePlate(banner: false)
+            } else {
+                if passArt == nil { icon }
+                if !isBlank { textOverlay }
+                border
+                // Every card carries its name. Which side of the icon's plate the banner is
+                // drawn on is the question — `plateOverIcon` on the bench.
+                if !set.plateOverIcon { namePlate(letters: !artOverName) }
+                // The three basic passes say the rest with an icon alone; everything else
+                // gets its words.
+                if let art = passArt {
+                    passMark(art)
+                } else if !isBlank {
+                    effectText
+                    footMarks
+                }
+                if set.plateOverIcon { namePlate(letters: !artOverName) }
+                // **What the icon puts in front of the plate.** The circle belongs behind the
+                // banner and the thing standing in it belongs over it — the ball on a Pass,
+                // the ankle on a Move — so the drawing is in two layers and the plate is
+                // printed between them. Nothing is drawn until that second layer exists; see
+                // `Card.typeIconFront`.
+                if passArt == nil, hasIconFront, !isBlank { iconFront }
+                // A ball spills out of its plate and over the banner, but never over the name.
+                if artOverName { namePlate(banner: false) }
             }
-            if set.plateOverIcon { namePlate }
-            // **What the icon puts in front of the plate.** The circle belongs behind the
-            // banner and the thing standing in it belongs over it — the ball on a Pass,
-            // the ankle on a Move — so the drawing is in two layers and the plate is
-            // printed between them. Nothing is drawn until that second layer exists; see
-            // `Card.typeIconFront`.
-            if passArt == nil, hasIconFront, !isBlank { iconFront }
             // **A three says so on the icon.** Bottom-right of the big drawing, over
             // everything it stands on, so a card worth an extra point is one glance rather
             // than a line of text.
@@ -289,7 +299,12 @@ struct CardFrontView: View {
     /// behind the banner and nothing has to be switched on.
     private var hasIconFront: Bool { UIImage(named: frontArt) != nil }
 
-    /// **What stands in the plate.** A Variaball with a drawing of its own wears it; every
+    /// **A Variaball's ball goes over the name banner and under the name.** Every ball is
+    /// drawn to spill out of its plate that way.
+    private var artOverName: Bool { face.type == .variaball && !isBlank }
+
+    /// **What stands in the plate.** A Variaball with a drawing of its own wears it — drawn
+    /// on the Variaball plate's own artboard, so every ball is the same size — and every
     /// other card wears its type's.
     private var frontArt: String {
         let ball = "Ball-\(descriptor.id)"
@@ -299,14 +314,10 @@ struct CardFrontView: View {
     private var iconFront: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
         let drop = width * set.iconDrop
-        // A ball's own drawing is trimmed to itself rather than framed on the plate's
-        // artboard, so it is sized against the circle it stands in.
-        let ownBall = frontArt != descriptor.artworkFront
-        let drawn = ownBall ? side * BallArt.share * (BallArt.scale[descriptor.id] ?? 1) : side
         return Image(frontArt)
             .resizable()
             .scaledToFit()
-            .frame(width: drawn, height: drawn)
+            .frame(width: side, height: side)
             .shadow(color: set.iconShadeInk(for: face),
                     radius: 0, x: drop, y: drop)
             .position(x: width / 2,
@@ -324,20 +335,15 @@ struct CardFrontView: View {
             .scaledToFit()
             .frame(width: width * VarenaArt.width)
             .position(x: width / 2,
-                      y: height * (set.iconTop + descriptor.iconYAdjust)
+                      y: height * (set.iconTop + descriptor.iconYAdjust - VarenaArt.lift)
                           + side * (0.5 - CardLayout.iconRingInset))
     }
 
     private enum VarenaArt {
         /// How wide the court is drawn, as a share of the card's width.
-        static let width: CGFloat = 0.86
-    }
-
-    private enum BallArt {
-        /// A ball's own drawing against the icon's side: inside the plate's circle.
-        static let share: CGFloat = 0.55
-        /// Per ball, since every drawing is trimmed to itself rather than squared.
-        static let scale: [String: CGFloat] = [:]
+        static let width: CGFloat = 1.0
+        /// How far above the icon's place it sits, as a share of the card's height.
+        static let lift: CGFloat = 0.06
     }
 
     /// Where a mark sits on the plate's rim, from the icon's middle. `side` is the icon's.
@@ -573,7 +579,10 @@ struct CardFrontView: View {
     }
 
     /// The plate carries its own curve on the left, so it only sits right at one Y.
-    private var namePlate: some View {
+    /// **The name banner, and the name on it.** Either can be left out, so art can be drawn
+    /// between the two — see `body`. A banner left out still holds its place, so the name
+    /// sits exactly where it does with the banner under it.
+    private func namePlate(banner: Bool = true, letters: Bool = true) -> some View {
         VStack(spacing: 0) {
             ZStack {
                 // The shadow is drawn here rather than baked into the SVG, so a card can
@@ -589,6 +598,7 @@ struct CardFrontView: View {
                     .foregroundStyle(set.plateFillInk(for: face))
                     .shadow(color: namePlateShadow, radius: 0, x: 0,
                             y: plateWidth * CardLayout.namePlateShadowFraction)
+                    .opacity(banner ? 1 : 0)
                 let nameSize = width * CardLayout.nameSizeFraction
                 SmallCapsText(text: descriptor.name,
                               font: "AvenirNextCondensed-Heavy",
@@ -607,6 +617,7 @@ struct CardFrontView: View {
                     .padding(.horizontal, width * 0.10)
                     .rotationEffect(.degrees(CardLayout.nameRotation))
                     .offset(y: height * CardLayout.nameTextYFraction)
+                    .opacity(letters ? 1 : 0)
             }
             Spacer()
         }
