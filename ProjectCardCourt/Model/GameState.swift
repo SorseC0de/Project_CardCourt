@@ -72,6 +72,8 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// and it is here so the breakdown at the end of a game and the all-time page on My
     /// Hooper have something to count when they arrive.
     var dunks = 0
+    /// Outlet Pass: owed the chance to Reset the Shot Clock as his next possession opens.
+    var mayResetShotClock = false
 
     /// Where he plays. The local seat's is what he built; the rest are rolled with the
     /// deal, so every device agrees on who finishes at the rim.
@@ -120,6 +122,8 @@ enum Phase: Hashable, Codable {
     /// — a Clear Out to step away and a Spin Move to take the defenders out of the air —
     /// and which one you spend is the decision.
     case awaitingCounter(seat: Seat, cards: [Card])
+    /// A card's "You may": one yes or no, asked of the man whose card it is.
+    case awaitingOption(seat: Seat, option: CardOption)
     /// At the line. One attempt at a time until the trip runs out.
     case freeThrows(trip: FreeThrowTrip)
     case gameOver
@@ -163,6 +167,7 @@ enum Phase: Hashable, Codable {
         case .awaitingIntangibleDrop(let seat, _): return seat
         case .awaitingToll(let seat, _): return seat
         case .awaitingCounter(let seat, _): return seat
+        case .awaitingOption(let seat, _): return seat
         case .awaitingNaming(let seat, _, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
@@ -172,6 +177,34 @@ enum Phase: Hashable, Codable {
     var isAwaitingRebound: Bool {
         if case .awaitingRebound = self { return true }
         return false
+    }
+}
+
+/// **A card's "You may"** — the optional halves the SHOT audit wrote in.
+enum CardOption: String, Hashable, Codable {
+    /// Lob: the current Ball comes out of play and into your hand as you pass.
+    case takeBall
+    /// No-Look: a coin as you pass. Heads draws a card.
+    case flipForDraw
+    /// Kick-Out: every Clamp on you goes to the new player.
+    case assignClamps
+    /// Outlet Pass: the Shot Clock back to the top as your next possession opens.
+    case resetShotClock
+    /// Turnaround Three: the whole hand, for SHOT = 100%.
+    case dumpHand
+    /// The Ankle Breaker combo: a card out of another player's hand.
+    case ankleBreaker
+
+    /// The card doing the asking.
+    var card: CardDescriptor {
+        switch self {
+        case .takeBall:       return CardLibrary.lob
+        case .flipForDraw:    return CardLibrary.noLook
+        case .assignClamps:   return CardLibrary.kickOut
+        case .resetShotClock: return CardLibrary.outletPass
+        case .dumpHand:       return CardLibrary.turnaroundThree
+        case .ankleBreaker:   return CardLibrary.crossover
+        }
     }
 }
 
@@ -281,6 +314,16 @@ struct GameState: Codable {
     var playedVariaballThisPossession = false
     /// Alley-Oop: whether this possession has been asked "Dunk It?" yet.
     var dunkOffered = false
+    /// What the passer said yes to, carried into the pass — see `CardOption`.
+    var passTakesBall = false
+    var passFlipsCoin = false
+    var passAssignsClamps = false
+    /// Rhythm Dribble: SHOT owed to the very next action, if that action is a shot.
+    var nextShotBonus = 0
+    /// Equalizer: the seat whose make, if it goes in, levels every player's points.
+    var levelsPointsFor: Seat?
+    /// The Future: the discard now open is buying a three up to four.
+    var fourPointOffer = false
     /// Varsitile's swap, once a possession.
     var slotsExchangedThisPossession = false
     /// Carousel Court: which way the hands go round, declared when it was played.

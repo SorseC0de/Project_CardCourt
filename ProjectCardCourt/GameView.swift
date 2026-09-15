@@ -349,6 +349,18 @@ struct GameView: View {
                                    onPick: takeTheOffer)
                         .zIndex(11)
                 }
+                if case .awaitingOption(let option) = controller.gate {
+                    // A card's "You may", asked with the card that says it.
+                    CardChoiceView(title: option.question, note: option.note,
+                                   offered: [option.card],
+                                   tint: CardPalette.orange,
+                                   taking: option.taking,
+                                   declining: "No thanks",
+                                   chosen: $picked, ringed: ring,
+                                   onDecline: declineTheOffer,
+                                   onPick: takeTheOffer)
+                        .zIndex(11)
+                }
                 if browsingDiscard {
                     DiscardBrowserView(cards: controller.shown.discard,
                                        onDismiss: { browsingDiscard = false })
@@ -1282,6 +1294,8 @@ struct GameView: View {
             controller.shoot()
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
             confirm()
+        case .awaitingOption:
+            controller.choose(option: true)
         case .awaitingCounter, .awaitingToll, .awaitingIntangibleDrop,
              .awaitingInjuryPick, .awaitingCardFrom:
             if let picked { takeTheOffer(picked) }
@@ -1388,6 +1402,8 @@ struct GameView: View {
             case .position(let at): taken = cards[safe: at]
             }
             controller.choose(counter: taken?.id)
+        case .awaitingOption:
+            controller.choose(option: true)
         case .awaitingToll:
             controller.choose(toll: pick)
         case .awaitingIntangibleDrop:
@@ -1408,6 +1424,7 @@ struct GameView: View {
     private func declineTheOffer() {
         switch controller.gate {
         case .awaitingCounter: controller.choose(counter: nil)
+        case .awaitingOption:  controller.choose(option: false)
         case .awaitingToll:    controller.choose(toll: nil)
         case .awaitingNaming:  controller.choose(naming: nil)
         default: break
@@ -1420,6 +1437,7 @@ struct GameView: View {
         case .awaitingBid:      controller.submitBid()
         case .awaitingDiscard:  controller.submitDiscard()
         case .awaitingGiveUp:   controller.submitGiveUp()
+        case .awaitingOption:   controller.choose(option: true)
         // The button under a sheet, which takes whatever has been picked off it.
         case .awaitingCounter, .awaitingToll, .awaitingIntangibleDrop,
              .awaitingInjuryPick, .awaitingCardFrom:

@@ -239,14 +239,15 @@ extension GameState {
             || self[seat].score == 6
     }
 
-    /// Sixth Man's second Shoot button: what it would shoot at, while a six is showing.
+    /// The second Shoot button — Sixth Man's while a six is showing, Equalizer's always. With
+    /// both on the board, the better shot is the one offered.
     func shotOffer(for seat: Seat) -> ShotOverride? {
-        for passive in self[seat].intangibles {
+        let offers = self[seat].intangibles.compactMap { passive -> ShotOverride? in
             guard let effect = passive.intangible, let offered = effect.offersShotAt,
-                  pays(effect, for: seat, fromThree: false) else { continue }
+                  pays(effect, for: seat, fromThree: false) else { return nil }
             return equalized(ShotOverride(label: passive.name, amount: Double(offered)), for: seat)
         }
-        return nil
+        return offers.max { $0.amount < $1.amount }
     }
 
     /// Equalizer: a SHOT = shot goes up at 100%, whatever it named.

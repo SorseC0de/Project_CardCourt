@@ -29,6 +29,9 @@ enum Prompts {
             Rules.resolveCounter(!state.pendingClamps.isEmpty || state.heldPossession == nil,
                                  state: &state)
             return true
+        case .awaitingOption(let seat, let option):
+            Rules.resolveOption(Rules.houseTakes(option, for: seat, in: state), state: &state)
+            return true
         case .awaitingDiscard(let seat, _, _):
             // Stepback and Turnaround Three ask the same question. Nothing fed in is
             // always a legal answer, which is what an absent player gives.

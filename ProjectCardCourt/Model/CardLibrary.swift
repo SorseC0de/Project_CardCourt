@@ -33,7 +33,8 @@ enum CardLibrary {
         id: "lob", name: "Lob", type: .pass,
         effect: "SHOT +10%. ~[Pass] to target player. They must shoot.",
         numberInDeck: 5,
-        passTarget: .choice, shotDelta: 10, forcesReceiverShot: true)
+        passTarget: .choice, shotDelta: 10, forcesReceiverShot: true, mayTakeBall: true,
+        bonus: "You may add current Ball to hand while passing.")
 
     static let nutmeg = CardDescriptor(
         id: "nutmeg", name: "Nutmeg", type: .pass,
@@ -44,7 +45,8 @@ enum CardLibrary {
     static let noLook = CardDescriptor(
         id: "no-look", name: "No-Look", type: .pass,
         effect: "SHOT +10%. ~[Pass] to random other player.", numberInDeck: 5,
-        passTarget: .random, shotDelta: 10)
+        passTarget: .random, shotDelta: 10, mayFlipForDraw: true,
+        bonus: "You may flip a coin while passing. If Heads, #[Draw] 1 card.")
 
     static let touchPass = CardDescriptor(
         id: "touch-pass", name: "Touch Pass", type: .pass,
@@ -73,7 +75,9 @@ enum CardLibrary {
         id: "outlet-pass", name: "Outlet Pass", type: .pass,
         effect: "SHOT +10%. ~[Pass] to target player. #[Shot Clock] +01.",
         numberInDeck: 5,
-        passTarget: .choice, shotDelta: 10, clockDelta: 1, replacesClockTick: true)
+        passTarget: .choice, shotDelta: 10, clockDelta: 1, replacesClockTick: true,
+        offersClockReset: true,
+        bonus: "You may #[Reset] the #[Shot Clock] at the start of your next possession")
 
     static let kickOut = CardDescriptor(
         id: "kick-out", name: "Kick-Out", type: .pass,
@@ -81,7 +85,8 @@ enum CardLibrary {
             + "#[Draw] 2 cards while passing.",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 10, drawCount: 2, upgradesToThree: true,
-        forcesImmediateShot: true, movesClampsToReceiver: true)
+        forcesImmediateShot: true, movesClampsToReceiver: true,
+        bonus: "You may #[Assign] all your ~[Clamps] to new player while passing.")
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet Pass", type: .pass,
@@ -118,13 +123,14 @@ enum CardLibrary {
         numberInDeck: 5,
         shotDelta: 10, comboAfterDribble: true, comboBonus: 10, isDribble: true,
         drawPerClamp: 1, clearsClamps: true,
-        combo: "After a @[Dribble]: SHOT +10% extra",
+        combo: "After a @[Dribble]: SHOT +10% extra. You may #[Discard] 1 card from target player's hand",
         bonus: "#[Draw] 1 card for each ~[Clamp] #[Cleared]")
 
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
         effect: "SHOT +10%. #[Draw] 1 card.", numberInDeck: 5,
-        shotDelta: 10, drawCount: 1, isDribble: true)
+        shotDelta: 10, drawCount: 1, isDribble: true, nextShotBonus: 10,
+        bonus: "If your next action is a Shot Attempt, it has SHOT +10% extra.")
 
     /// **Retired as a card** (2026-09-14): it is the combo a Crossover finishes off a
     /// Dribble now. Out of every pool.
@@ -605,8 +611,12 @@ enum CardLibrary {
 
     static let equalizer = CardDescriptor(
         id: "equalizer", name: "Equalizer", type: .intangible,
-        effect: "Any SHOT = shot you take becomes 100%", numberInDeck: 1,
-        intangible: IntangibleEffect(equalizesOverrides: true))
+        effect: "You may #[Discard] this card when shooting: SHOT = 100%. "
+            + "All players' pts become your new total pts.",
+        numberInDeck: 1,
+        // A second Shoot button, like Sixth Man's. Levelling the points waits for the make.
+        intangible: IntangibleEffect(offersShotAt: 100, spentOnOffer: true,
+                                     levelsPointsOnMake: true))
 
     static let varsitile = CardDescriptor(
         id: "varsitile", name: "Varsitile", type: .intangible,
@@ -752,7 +762,7 @@ enum CardLibrary {
     static let conCrete = CardDescriptor(
         id: "con-crete", name: "Con-crete", type: .varena,
         effect: "~[Move] cards: SHOT -10%", numberInDeck: 3,
-        varena: VarenaEffect(moveShotPenalty: -10))
+        varena: VarenaEffect(shotPerMovePlayed: -10))
     static let spazzphalt = CardDescriptor(
         id: "spazzphalt", name: "Spazzphalt", type: .varena,
         // Still a fresh roll, 0–100 in steps of 5. The card only says it is unknown.
@@ -766,6 +776,16 @@ enum CardLibrary {
         id: "tick-tock-tile", name: "Tick-Tock Tile", type: .varena,
         effect: "Playing any card also ticks the #[Shot Clock]", numberInDeck: 3,
         varena: VarenaEffect(cardsTickClock: true))
+    /// New in the SHOT audit (2026-09-14). Special Moves count as Moves on it.
+    static let theFuture = CardDescriptor(
+        id: "the-future", name: "The Future", type: .varena,
+        effect: "SHOT +10% and #[Draw] 1 card when playing a ~[Move] card.\n"
+            + "SHOT -10% while ~[Passing].",
+        numberInDeck: 1,
+        varena: VarenaEffect(shotPerMovePlayed: 10, drawsPerMovePlayed: 1, shotPerPass: -10,
+                             offersFourPointThree: true),
+        bonus: "You may #[Discard] 1 card during a #[Three] attempt to make it worth four pts "
+            + "(at SHOT -10%)")
 
     // ── Variaballs ────────────────────────────────────────────────────
 
@@ -858,6 +878,7 @@ enum CardLibrary {
         recoverena, carouselCourt, traderousTarmac, clearcoatCourt, malicePalace,
         turnstileTile, roleplayerPolymer, variaballVinyl, graviGym, vintageVarnish,
         sellOutStadium, grayvstone, conCrete, spazzphalt, frostbiteFinish, tickTockTile,
+        theFuture,
     ]
 
     // ── Game Breaks ───────────────────────────────────────────────────
@@ -1034,7 +1055,9 @@ enum CardLibrary {
         effect: "SHOT -30%.",
         numberInDeck: 1,
         shotDelta: -30,
-        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
+        special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
+                                   offersHandDumpAt: 3),
+        bonus: "If you have 3 or more cards in hand, you may #[Discard] them: SHOT = 100%")
 
     static let specialMoves: [CardDescriptor] = [
         fadeaway, fromTheHash, fromTheLogo, threeBall, fullCourtHeave, buzzerBeater, putbackTip,

@@ -79,6 +79,9 @@ enum Row {
             return cards.map { PadSpot.offer(.named($0.descriptor.id)) }
                 + [.confirm, .decline]
 
+        case .awaitingOption(let option):
+            return [PadSpot.offer(.named(option.card.id)), .confirm, .decline]
+
         case .awaitingToll(let victim):
             let board = controller.shown[victim].intangibles.map {
                 PadSpot.offer(.named($0.id))

@@ -166,6 +166,10 @@ struct IntangibleEffect: Hashable, Codable {
     /// is a bad hand for a round rather than a permanent handicap. Floor General and
     /// Point God both read as round-long from their wording and neither was meant to.
     var lastsRound = false
+    /// Equalizer: the offered shot discards the card that offered it.
+    var spentOnOffer = false
+    /// Equalizer: if that shot goes in, every player's points become the shooter's.
+    var levelsPointsOnMake = false
 }
 
 /// A one-off that fires the moment it is drawn.
@@ -275,8 +279,8 @@ struct VarenaEffect: Hashable, Codable {
     var shotBonus = 0
     /// Kiddie Court: a dunk is worth this much more.
     var dunkBonus = 0
-    /// Con-crete: every Move card played costs this much more.
-    var moveShotPenalty = 0
+    /// Every Move card played moves SHOT this much: Con-crete takes, The Future gives.
+    var shotPerMovePlayed = 0
     /// Turnstile Tile: plus this one possession, minus it the next.
     var turnstileSwing = 0
     /// Smacktop: the referees go when it lands, none can be played, and Clamps hit harder.
@@ -332,6 +336,11 @@ struct VarenaEffect: Hashable, Codable {
     var moveDiscardCost = 0
     /// Tick-Tock Tile: every card played takes a tick off the clock.
     var cardsTickClock = false
+    /// The Future: a card for every Move played, SHOT off every pass, and a three that can
+    /// be bought up to four.
+    var drawsPerMovePlayed = 0
+    var shotPerPass = 0
+    var offersFourPointThree = false
 }
 
 /// What a Variaball changes while it is the ball.
@@ -441,6 +450,8 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// `shotDelta`, once for every tick still on the Shot Clock — so +60% and −10% a tick
     /// is +50% at 01 and −40% at 10, read straight off the clock.
     var shotPerClockTick = 0
+    /// Turnaround Three: a hand at least this big may all be discarded, for SHOT = 100%.
+    var offersHandDumpAt: Int?
 }
 
 enum CardType: String, Hashable, Codable, CaseIterable {
@@ -523,8 +534,16 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var forcesReceiverShot = false
     /// Alley-Oop: he does not get to choose at all. It goes up the moment he has drawn.
     var forcesImmediateShot = false
-    /// Kick-Out: the Clamps on whoever passes it go with the ball to the receiver.
+    /// Kick-Out: the passer **may** Assign every Clamp on him to the receiver.
     var movesClampsToReceiver = false
+    /// Lob: the passer may take the current Ball out of play and into his hand.
+    var mayTakeBall = false
+    /// No-Look: the passer may flip a coin; Heads draws a card.
+    var mayFlipForDraw = false
+    /// Outlet Pass: the passer may Reset the Shot Clock as his next possession opens.
+    var offersClockReset = false
+    /// Rhythm Dribble: this much SHOT on the very next action, if that action is a shot.
+    var nextShotBonus = 0
     /// Right Back: he takes it and gives it straight back. Both legs pay, so the card is
     /// worth twice its own SHOT and a card to each of them — and whatever the trip cost
     /// him on the way happens in between.
@@ -600,6 +619,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
          forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
          movesClampsToReceiver: Bool = false,
+         mayTakeBall: Bool = false, mayFlipForDraw: Bool = false,
+         offersClockReset: Bool = false, nextShotBonus: Int = 0,
          returnsImmediately: Bool = false, matchesArrivingPass: Bool = false,
          drawIfFirstAction: Int = 0,
          clearsOut: Bool = false, firstActionOnly: Bool = false,
@@ -612,6 +633,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.forcesReceiverShot = forcesReceiverShot
         self.forcesImmediateShot = forcesImmediateShot
         self.movesClampsToReceiver = movesClampsToReceiver
+        self.mayTakeBall = mayTakeBall
+        self.mayFlipForDraw = mayFlipForDraw
+        self.offersClockReset = offersClockReset
+        self.nextShotBonus = nextShotBonus
         self.returnsImmediately = returnsImmediately
         self.matchesArrivingPass = matchesArrivingPass
         self.drawIfFirstAction = drawIfFirstAction

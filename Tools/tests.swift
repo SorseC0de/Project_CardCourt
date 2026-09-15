@@ -46,6 +46,8 @@ func answerArrival(_ state: inout GameState) {
         switch state.phase {
         case .awaitingCounter:
             Rules.resolveCounter(false, state: &state)
+        case .awaitingOption:
+            Rules.resolveOption(false, state: &state)
         case .awaitingToll:
             Rules.resolveToll(nil, state: &state)
         case .awaitingGiveUp(let seat, _, let count):
@@ -325,6 +327,43 @@ func runTests() {
         Check.that(events.contains { if case .coinRun = $0 { return true }; return false },
                    "Euro Step runs its coin")
         Check.that(state.ball == seat, "and does not shoot")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 83, cards: [CardLibrary.rhythmDribble])
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.armedWhistles = []
+        state.shot = 20
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        answerArrival(&state)
+        let events = Rules.apply(.shoot, by: seat, to: &state)
+        for case .shotAttempted(_, let chance, _) in events {
+            Check.that(chance == 40, "Rhythm Dribble's +10% and its extra +10% on the next shot")
+        }
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 84, cards: [CardLibrary.bulletPass])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        if case .awaitingTarget(_, _, let choices) = state.phase,
+           let receiver = choices.first(where: { $0 != seat }) {
+            Rules.resolveTarget(receiver, state: &state)
+            answerArrival(&state)
+            Check.that({ if case .awaitingCardFrom(let asked, _, let victim) = state.phase {
+                            return asked == seat && victim == receiver }
+                         return state[receiver].bag.isEmpty }(),
+                       "Bullet Pass has the passer pick the discard, face down")
+        }
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 85, cards: [])
+        state[seat].mayResetShotClock = true
+        state.shotClock = 3
+        var events: [GameEvent] = []
+        Rules.settleHands(state: &state, events: &events)
+        Check.that({ if case .awaitingOption(_, .resetShotClock) = state.phase { return true }
+                     return false }(), "Outlet Pass offers the Reset as the next possession opens")
+        Rules.resolveOption(true, state: &state)
+        Check.that(state.shotClock == state.shotClockLength, "and taking it resets the Shot Clock")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 77, cards: [CardLibrary.daggerThree])
@@ -1353,6 +1392,12 @@ func runTests() {
             state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
         }
         var events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        // Assigning the Clamps is the card's "You may"; this test says yes.
+        if case .awaitingOption(_, .assignClamps) = state.phase {
+            events += Rules.resolveOption(true, state: &state)
+        } else {
+            Check.that(false, "Kick-Out with Clamps on you asks whether to Assign them")
+        }
         if case .awaitingTarget(_, _, let choices) = state.phase, let receiver = choices.first {
             events += Rules.resolveTarget(receiver, state: &state)
             let drawn = events.filter {
@@ -1471,9 +1516,14 @@ func runTests() {
     do {
         var (state, seat, _) = openPossession(seed: 100, cards: [])
         state[seat].intangibles = [CardLibrary.equalizer]
-        state.pendingShotOverride = ShotOverride(label: "Heave", amount: 25)
-        Check.that(state.shotModifiers(for: seat).override?.amount == 100,
-                   "Equalizer turns a SHOT = shot into 100%")
+        state.armedWhistles = []
+        state[seat.left].points = 7
+        Check.that(state.shotOffer(for: seat)?.amount == 100, "Equalizer offers a 100% shot")
+        Rules.apply(.shootAtOffer, by: seat, to: &state)
+        Check.that(!state[seat].intangibles.contains { $0.id == CardLibrary.equalizer.id },
+                   "and is discarded taking it")
+        Check.that(state[seat.left].points == state[seat].points,
+                   "and the make levels every player's points to the shooter's")
     }
     do {
         var (state, seat, _) = openPossession(seed: 101, cards: [])

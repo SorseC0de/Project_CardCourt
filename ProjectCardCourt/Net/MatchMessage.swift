@@ -23,6 +23,7 @@ enum Decision: Codable {
     /// Which answer is being spent, or nil for none. **Which and not whether** — a hand
     /// can hold more than one card that answers the same arrival.
     case counter(UUID?)
+    case option(Bool)
     case cardFrom(UUID)
     case mode(Int)
 }

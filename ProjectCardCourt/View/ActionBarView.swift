@@ -145,6 +145,9 @@ struct ActionBarView: View {
     private var ask: String? {
         switch controller.gate {
         case .awaitingDiscard(let card, let each):
+            if state.fourPointOffer {
+                return "The Future: discard 1 to make \(card.name) worth 4, at SHOT \(each)%?"
+            }
             let most = Rules.legalDiscardForShot(state, for: GameRules.localSeat).upperBound
             if most == 1 { return "\(card.name): discard 1 for +\(each)%?" }
             if let limit = card.special?.discardForShotLimit {
@@ -381,7 +384,7 @@ struct ActionBarView: View {
         }
         return Button { controller.submitDiscard() } label: {
             Text(count == 0 ? (shoots ? "SHOOT AS IS" : "NO THANKS")
-                            : "\(shoots ? "FEED" : "SPEND") \(count) → +\(bonus)%")
+                            : "\(shoots ? "FEED" : "SPEND") \(count) → \(bonus >= 0 ? "+" : "")\(bonus)%")
                 .font(.system(size: 14, weight: .black)).tracking(1.1)
                 .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)

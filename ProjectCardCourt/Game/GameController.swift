@@ -432,6 +432,8 @@ final class GameController {
         case awaitingDiscard(card: CardDescriptor, bonusEach: Int)
         /// Stepping out of the play, asked the moment the ball reaches you.
         case awaitingCounter(cards: [Card])
+        /// A card's "You may": yes or no.
+        case awaitingOption(CardOption)
         /// Bone Bruise's toll at the top of the turn. Its own case, because the shot
         /// discard resolves into a shot and this one resolves into a turn.
         case awaitingGiveUp(card: CardDescriptor, count: Int)
@@ -1045,6 +1047,8 @@ final class GameController {
             return seat.isLocal ? .awaitingDiscard(card: card, bonusEach: bonus) : .thinking
         case .awaitingCounter(let seat, let cards):
             return seat.isLocal ? .awaitingCounter(cards: cards) : .thinking
+        case .awaitingOption(let seat, let option):
+            return seat.isLocal ? .awaitingOption(option) : .thinking
         case .awaitingTarget(let seat, let card, let choices):
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
@@ -1736,6 +1740,17 @@ final class GameController {
         }
     }
 
+    /// A card's "You may", answered.
+    func choose(option taken: Bool) {
+        guard !isPaused else { return }
+        guard case .awaitingOption = gate else { return }
+        if sendUp(.option(taken)) { return }
+        drive {
+            await present(Rules.resolveOption(taken, state: &state), playedCard: true)
+            await run()
+        }
+    }
+
     /// A card picked out of a hand nobody can see.
     func choose(card id: Card.ID) {
         guard !isPaused else { return }
@@ -2180,6 +2195,19 @@ final class GameController {
                 }
                 if Task.isCancelled { return }
                 await present(Rules.resolveCounter(chosen, state: &state), playedCard: true)
+                continue
+            }
+            if case .awaitingOption(let seat, let option) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                var taken = Rules.houseTakes(option, for: seat, in: state)
+                if case .option(let said)? = await decision(from: seat) {
+                    taken = said
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveOption(taken, state: &state), playedCard: true)
                 continue
             }
             if case .awaitingTarget(let seat, _, let choices) = state.phase {
