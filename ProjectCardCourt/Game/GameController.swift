@@ -2778,12 +2778,20 @@ final class GameController {
                     ($0, (rebounds: shown[$0].rebounds, assists: shown[$0].assists,
                           turnovers: shown[$0].turnovers))
                 })
+                let heldPhase = shown.phase
+                let heldRound = shown.round
+                let heldClock = shown.shotClock
                 catchUp()
                 for (seat, tally) in tallies {
                     shown[seat].rebounds = min(tally.rebounds, state[seat].rebounds)
                     shown[seat].assists = min(tally.assists, state[seat].assists)
                     shown[seat].turnovers = min(tally.turnovers, state[seat].turnovers)
                 }
+                // Nor whose turn it is, the round, or the clock: a lit seat or a reset clock
+                // says where the ball ends up before the scenes have taken it there.
+                shown.phase = heldPhase
+                shown.round = heldRound
+                shown.shotClock = heldClock
                 caughtUp = true
             }
             var scene = [event]
@@ -2880,7 +2888,8 @@ final class GameController {
             case .halftime:
                 // Held until tapped, before its own deal goes out.
                 await callTheHalf(in: [event])
-            case .roundBegan:
+            case .roundBegan(let round, _):
+                shown.round = round
                 await callTheRound(in: [event])
             default:
                 break
