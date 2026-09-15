@@ -19,9 +19,11 @@ The rules for every card are in; these are the pictures, after the first playtes
 
 - **The Varena art**: every Varena draws the ISO court whole, no plate, until each has
   its own. The user is recolouring it.
-- **The ball icons** are in for Blaze, Dishcount, Dishtracting, Recharge Rock and Snow Ball
-  It; the rest wear the Variaball subject until theirs land. All drawn on the Variaball plate's
-  artboard, so every ball is the same size, over the name banner and under the name.
+- **The ball icons** are in for every ball but Med Ball, Bench Ball, Shufflebag Ball and
+  Monster Ball, which wear the Variaball subject until theirs land. Each is drawn from the
+  subject's ball, so every ball is the same size, over the name banner and under the name.
+- **The plain Variaball's glow**: a multicolour glowing underlay beneath its ball, like Project
+  Stars' Start button (`SpectrumFill` is that face, already lifted into this game).
 - **Foot Ball's two gags**: GOOOOAAAAAAAAL on a make, and the flying goalie on a miss.
 - **Hand Ball** shrinks the ball sprite to handball size.
 - **Turnstile Tile** recolours the floor red and green each flip; **Grayvstone** turns it gray.
@@ -43,7 +45,7 @@ Free Agent stays out of the deck. Bringing it back is low priority.
 ## Stars start button text styling
 
 Low priority, shelved: the text styling on the imported Stars start button still needs
-correcting. The Variaball card's aura is **not** wanted.
+correcting.
 
 ## The cuts
 

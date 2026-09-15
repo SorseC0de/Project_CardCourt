@@ -66,6 +66,39 @@ def export_scale(path: pathlib.Path) -> float:
     return 1
 
 
+def canvas_matrices(path: pathlib.Path) -> list:
+    """Every element with a transform of its own, placed in canvas units: the file's
+    coordinates with any export scale taken back off."""
+    scale = export_scale(path)
+    found = []
+
+    def walk(node, up):
+        here = times(up, matrix(node))
+        if node.get("transform"):
+            found.append(tuple(v / scale for v in here))
+        for kid in node:
+            walk(kid, here)
+
+    walk(ET.fromstring(path.read_text()), (1, 0, 0, 1, 0, 0))
+    return found
+
+
+def frames_along(path: pathlib.Path, reference, left: float, top: float):
+    """How many frames along a ball's canvas sits: where its copy of the subject's ball stands
+    against the subject's own, in steps of the frame's offset. None if no copy is full size."""
+    if reference is None:
+        return None
+    for m in canvas_matrices(path):
+        if all(abs(x - y) < 1e-3 for x, y in zip(m[:4], reference[:4])):
+            reads = {round((m[4] - reference[4]) / -left)} if abs(left) >= 1 else set()
+            if abs(top) >= 1:
+                reads.add(round((m[5] - reference[5]) / -top))
+            if not reads:
+                return 0
+            return reads.pop() if len(reads) == 1 else None
+    return None
+
+
 def times(m, n) -> tuple:
     """`m` applied after `n`, both as SVG's six numbers."""
     a, b, c, d, e, f = m
@@ -336,15 +369,29 @@ for name in TRIMMED:
         moved += 1
     print(f"{name:16} trimmed to its ink   {trim}")
 
-# **The ball icons**: each Variaball's own drawing, made on the Variaball plate's artboard so
-# every ball stands in the plate at one size and spills out of it the way it was drawn. So they
-# take the plate's box, as a subject layer would, at whatever scale Affinity exported them.
-if "Variaball" in boxes:
+# **The ball icons**: each Variaball's own drawing, its ball copied from the Variaball subject,
+# so every ball stands in the plate at one size and spills out of it the way it was drawn.
+#
+# **A canvas opened from a framed export sits one frame along**: Affinity puts the viewBox's
+# corner at the canvas's, so the drawing moves by the frame's offset. The first balls were drawn
+# on the framed Variaball icon, one frame along; ball_template.aftemplate was opened from a
+# framed ball, two. Each ball's copy of the subject's ball says which, and it is framed back.
+BALL_TEMPLATE_FRAMES = 2
+# A ball whose copy of the subject's ball was resized can't be read, so it is named here.
+BALL_FRAMES = {"handball": 1}
+subject = layers.get("Variaball", {}).get("front")
+if "Variaball" in boxes and subject:
     left, top, side = boxes["Variaball"]
+    reference = next((m for m in canvas_matrices(subject) if m != (1, 0, 0, 1, 0, 0)), None)
     for path in sorted((root / ICONS / "Balls").glob("*.svg")):
-        box = viewbox(left, top, side, export_scale(path))
+        frames, how = frames_along(path, reference, left, top), "read"
+        if frames is None and path.stem in BALL_FRAMES:
+            frames, how = BALL_FRAMES[path.stem], "named"
+        if frames is None:
+            frames, how = BALL_TEMPLATE_FRAMES, "template"
+        box = viewbox((1 - frames) * left, (1 - frames) * top, side, export_scale(path))
         if frame(path, box):
             moved += 1
-        print(f"{'Balls/' + path.stem:16} on the Variaball plate   {box}")
+        print(f"{'Balls/' + path.stem:18} {frames} frame(s) along, {how:8}  {box}")
 
 print(f"\n{moved} file(s) rewritten, {snapped} fill(s) snapped to the palette")
