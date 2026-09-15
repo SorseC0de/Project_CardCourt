@@ -386,13 +386,15 @@ func runTests() {
     }
     do {
         var (state, seat, cards) = openPossession(seed: 79, cards: [CardLibrary.wideOpenThree])
-        state.armedWhistles = [ArmedWhistle(owner: seat.across,
-                                            card: matchCard(CardLibrary.charge, state.rules))]
-        let open = Rules.legalMoves(state, for: seat).contains {
-            if case .play(let id) = $0 { return id == cards[0].id }
-            return false
+        state.armedWhistles = []
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.shot = 0
+        state.possessedThisRound = Set(Seat.allCases)
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        for case .shotAttempted(_, let chance, _) in events {
+            Check.that(chance == 100, "Wide-Open Three is 100% once everyone has had the ball")
         }
-        Check.that(!open, "Wide-Open Three is closed with a Whistle out")
     }
 
     do {

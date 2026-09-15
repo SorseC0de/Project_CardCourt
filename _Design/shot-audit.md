@@ -49,7 +49,7 @@ row doesn't mention is unchanged.
 | Slam Dunk | +25% | | "SHOT = 100% if final SHOT is 75% or more" |
 | Turnaround Three | -30% | | "If you have 3 or more cards in hand, you may discard them: SHOT = 100%" |
 | Euro Step | per Heads | "Flip 4 coins." / "• 3 or fewer Heads: SHOT + 15% and Draw 1 card for each." / "• 4 Heads: TOV + 1 (This is a Travel)" | |
-| Wide-Open Three | = 100% | "(Must be played as your first action and have no Clamps, Injuries, or active Whistles)" | |
+| Wide-Open Three | = 100% | Revised 2026-09-15: "If all other players have had possession of the Ball this round: SHOT = 100%" | |
 | 2-Hand Jam | per discard | "Discard up to 2 cards. SHOT +25% for each" — 0 is allowed | "If played as the first action after your Rebound, you may Discard any number of cards: SHOT +10% extra for each." |
 | Give-and-Go Dunk | — | **Removed from the game** | |
 | Tomahawk | ±25% | "SHOT 50% or more: SHOT +25%" / "SHOT less than 50%: SHOT -25%" | |

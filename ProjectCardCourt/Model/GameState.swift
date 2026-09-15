@@ -328,6 +328,8 @@ struct GameState: Codable {
     var moveCardsThisPossession = 0
     /// One Intangible a possession, played by hand like a Varena.
     var playedIntangibleThisPossession = false
+    /// Everyone who has had the ball this round — Wide-Open Three asks.
+    var possessedThisRound: Set<Seat> = []
     /// Varsitile's swap, once a possession.
     var slotsExchangedThisPossession = false
     /// Carousel Court: which way the hands go round, declared when it was played.

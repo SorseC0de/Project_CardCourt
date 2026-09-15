@@ -436,9 +436,8 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// Which finish this card calls for. Nil lets the man's own position decide, which
     /// is what a plain possession does — see `Dunk.ordinary`.
     var dunkKind: Dunk?
-    /// Wide-Open Three: only as your first action, with no Clamps or Injuries on you and no
-    /// Whistles out on the floor.
-    var needsWideOpenLook = false
+    /// Wide-Open Three: `SHOT = x%` once every other player has had the ball this round.
+    var shotOverrideOnceAllHaveHadBall: Int?
     /// **A swing rather than a delta.** Tomahawk pays either way and the SHOT it is played
     /// on decides which: under the mark it costs, at or over it pays.
     var shotSwing: ShotSwing?

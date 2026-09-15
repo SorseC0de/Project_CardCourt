@@ -122,13 +122,6 @@ enum Rules {
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
-                // Wide-Open Three: the first thing you do, with nobody on you, nothing
-                // hurting and no referee out.
-                if card.descriptor.special?.needsWideOpenLook == true {
-                    if !isFirstAction(state) { return false }
-                    if !state[seat].clamps.isEmpty || !state[seat].injuries.isEmpty { return false }
-                    if !state.armedWhistles.isEmpty { return false }
-                }
                 // What the floor rules out: referees on Smacktop, threes on Kiddie Court
                 // and Vintage Varnish, balls on Vintage Varnish, dunks on Gravi-Gym.
                 if floor.barsWhistles, card.descriptor.type == .whistle { return false }
@@ -1087,8 +1080,13 @@ enum Rules {
                 // A tip-in is only a tip-in off the glass, and only as the first thing done
                 // with the board. From anywhere else the card is its ordinary self.
                 let tipIn = state.possessionFromRebound && isFirstAction(state)
+                // Wide-Open Three: every other player has had the ball this round.
+                let wideOpen = Seat.allCases.allSatisfy {
+                    $0 == seat || state.possessedThisRound.contains($0)
+                }
                 let override = special.shotOverride
                     ?? (tipIn ? special.shotOverrideAfterRebound : nil)
+                    ?? (wideOpen ? special.shotOverrideOnceAllHaveHadBall : nil)
                 if let override {
                     state.pendingShotOverride = ShotOverride(
                         label: descriptor.name, amount: Double(override),
@@ -2654,6 +2652,7 @@ enum Rules {
         state.nextShotBonus = 0
         state.moveCardsThisPossession = 0
         state.playedIntangibleThisPossession = false
+        state.possessedThisRound.insert(seat)
         // Blight Ball: the Injuries come with the ball, whoever it came from.
         if state.ballEffect.injuriesTravel {
             if let carrier = state.pileCarrier, carrier != seat, !state[carrier].injuries.isEmpty {
@@ -3094,6 +3093,7 @@ enum Rules {
         while let owed = state.owes(.spendHand) { pay(owed, state: &state, events: &events) }
         events.append(.roundEnded(state.round))
         state.shotsThisRound = 0
+        state.possessedThisRound = []
         state.shotCeilingThisRound = nil
         state.dimeFrom = nil
         state.mustShootFirst = nil

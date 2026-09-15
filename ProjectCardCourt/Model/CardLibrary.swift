@@ -913,7 +913,7 @@ enum CardLibrary {
         variaball: VariaballEffect(freeThrowsOnMiss: 1))
     static let heroBall = CardDescriptor(
         id: "hero-ball", name: "Hero Ball", type: .variaball,
-        effect: "Cannot play ~[Pass] cards. Made shots grant no #[AST]", numberInDeck: 3,
+        effect: "Cannot play ~[Pass] cards. Made shots grant no #[AST]", numberInDeck: 1,
         variaball: VariaballEffect(barsPasses: true, noAssists: true))
 
     /// **Alley-Oop**: a Lob, dunked as the first thing done with it. What the combo adds on
@@ -1098,11 +1098,10 @@ enum CardLibrary {
 
     static let wideOpenThree = CardDescriptor(
         id: "wide-open-three", name: "Wide-Open Three", type: .specialMove,
-        effect: "SHOT = 100%. (Must be played as your first action and have no ~[Clamps], "
-            + "~[Injuries], or active ~[Whistles])",
+        effect: "If all other players have had possession of the Ball this round: SHOT = 100%",
         numberInDeck: 5,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
-                                   shotOverride: 100, needsWideOpenLook: true))
+                                   shotOverrideOnceAllHaveHadBall: 100))
 
     static let turnaroundThree = CardDescriptor(
         id: "turnaround-three", name: "Turnaround Three", type: .specialMove,
