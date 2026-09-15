@@ -23,7 +23,9 @@ The rules for every card are in; these are the pictures, after the first playtes
   Monster Ball, which wear the Variaball subject until theirs land. Each is drawn from the
   subject's ball, so every ball is the same size, over the name banner and under the name.
 - **The plain Variaball's glow**: a multicolour glowing underlay beneath its ball, like Project
-  Stars' Start button (`SpectrumFill` is that face, already lifted into this game).
+  Stars' Start button (`SpectrumFill` is that face, already lifted into this game). Not a
+  priority, but wanted eventually. Not a
+  priority, but wanted eventually.
 - **Foot Ball's two gags**: GOOOOAAAAAAAAL on a make, and the flying goalie on a miss.
 - **Hand Ball** shrinks the ball sprite to handball size.
 - **Turnstile Tile** recolours the floor red and green each flip; **Grayvstone** turns it gray.
