@@ -146,9 +146,14 @@ struct ActionBarView: View {
         switch controller.gate {
         case .awaitingDiscard(let card, let each):
             let most = Rules.legalDiscardForShot(state, for: GameRules.localSeat).upperBound
-            return most == 1
-                ? "\(card.name): discard 1 for +\(each)%?"
-                : "\(card.name): feed it as many as you like, +\(each)% each"
+            if most == 1 { return "\(card.name): discard 1 for +\(each)%?" }
+            if let limit = card.special?.discardForShotLimit {
+                let beyond = card.special?.discardBeyondLimitBonus ?? 0
+                return Rules.discardsPastLimit(card, in: state)
+                    ? "\(card.name): +\(each)% each for \(limit), then +\(beyond)% each"
+                    : "\(card.name): discard up to \(limit), +\(each)% each"
+            }
+            return "\(card.name): feed it as many as you like, +\(each)% each"
         case .awaitingGiveUp(let card, let count):
             return "\(card.name): give up \(count)"
         case .awaitingBid:
@@ -365,15 +370,15 @@ struct ActionBarView: View {
 
     private var confirmDiscard: some View {
         let count = controller.bidSelection.count
-        var each = 0
+        var bonus = 0
         var shoots = false
         if case .awaitingDiscard(let card, let bonusEach) = controller.gate {
-            each = bonusEach
+            bonus = count == 0 ? 0 : Rules.shotBought(discarding: count, card: card,
+                                                       bonusEach: bonusEach, in: state)
             // Only a card that takes the shot itself can be shot as is. The rest are
             // Moves, and declining one of those is declining the extra, not the attempt.
             shoots = card.special?.shootsImmediately == true
         }
-        let bonus = each * count
         return Button { controller.submitDiscard() } label: {
             Text(count == 0 ? (shoots ? "SHOOT AS IS" : "NO THANKS")
                             : "\(shoots ? "FEED" : "SPEND") \(count) → +\(bonus)%")

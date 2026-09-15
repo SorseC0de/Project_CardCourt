@@ -152,7 +152,11 @@ enum GameEvent: Hashable, Codable {
         case .discardedForShot(let seat, let card, let count):
             return "\(seat.playerName) \(seat.verb("feeds", "feed")) \(count) card\(count == 1 ? "" : "s") into \(card.name)."
         case .coinRun(let seat, let card, let heads):
-            return "\(seat.playerName): \(card.name) — \(heads) head\(heads == 1 ? "" : "s") before tails."
+            // Bankshot flips once; Euro Step counts its Heads.
+            if card.special?.coinFlipShot ?? 0 != 0 {
+                return "\(seat.playerName): \(card.name) — \(heads == 1 ? "Heads" : "Tails")."
+            }
+            return "\(seat.playerName): \(card.name) — \(heads) Heads."
         case .comboLanded(let seat, let card, _, let bonus):
             return "\(seat.playerName) \(seat.verb("strings", "string")) it together — \(card.name) +\(bonus)% bonus."
         case .gameBreakRevealed(let seat, let card):

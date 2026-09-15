@@ -127,11 +127,11 @@ func runTests() {
 
     print("Clock")
     do {
-        var (state, seat, cards) = openPossession(seed: 6, cards: [CardLibrary.rhythmDribble])
+        var (state, seat, cards) = openPossession(seed: 6, cards: [CardLibrary.hesi])
         state.shotClock = 1
         let round = state.round
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(state[seat].turnovers == 1, "Rhythm Dribble to zero is a self-inflicted violation")
+        Check.that(state[seat].turnovers == 1, "Hesitation Dribble to zero is a self-inflicted violation")
         Check.that(state.round == round + 1, "and it ends the round")
     }
     do {
@@ -326,38 +326,69 @@ func runTests() {
                    "Euro Step runs its coin")
         Check.that(state.ball == seat, "and does not shoot")
     }
+    do {
+        var (state, seat, cards) = openPossession(seed: 77, cards: [CardLibrary.daggerThree])
+        state.shot = 0
+        state.shotClock = 1
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        for case .shotAttempted(_, let chance, _) in events {
+            Check.that(chance == 50, "Dagger Three at Shot Clock 01 is +60% less 10%")
+        }
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 78, cards: [CardLibrary.drive,
+                                                                     CardLibrary.tripleThreat])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let open = Rules.legalMoves(state, for: seat).contains {
+            if case .play(let id) = $0 { return id == cards[1].id }
+            return false
+        }
+        Check.that(!open, "Triple Threat cannot follow a Move")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 79, cards: [CardLibrary.wideOpenThree])
+        state.armedWhistles = [ArmedWhistle(owner: seat.across,
+                                            card: matchCard(CardLibrary.charge, state.rules))]
+        let open = Rules.legalMoves(state, for: seat).contains {
+            if case .play(let id) = $0 { return id == cards[0].id }
+            return false
+        }
+        Check.that(!open, "Wide-Open Three is closed with a Whistle out")
+    }
 
     do {
-        var (state, seat, cards) = openPossession(seed: 76, cards: [CardLibrary.turnaroundThree])
+        var (state, seat, cards) = openPossession(seed: 76, cards: [CardLibrary.twoHandJam])
         state.shot = 20
         let handed = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(!handed.contains { if case .shotAttempted = $0 { return true }; return false },
-                   "Turnaround Three asks before it shoots")
+                   "2-Hand Jam asks before it shoots")
         guard case .awaitingDiscard(_, _, let each) = state.phase else {
             Check.that(false, "it hands back an awaitingDiscard phase"); return
         }
-        Check.that(each == 10, "at ten a card")
+        Check.that(each == 25, "at 25 a card")
 
         let feed = Array(state[seat].bag.prefix(3).map(\.id))
         let events = Rules.resolveDiscardForShot(feed, state: &state)
         for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 50, "three fed cards carry 20 to 50")
+            Check.that(chance == 70, "only two of three fed cards count, carrying 20 to 70")
         }
         Check.that(events.contains { if case .shotAttempted = $0 { return true }; return false },
                    "and then the shot goes up")
     }
     do {
-        // What the discard bought belongs to that attempt and to nothing after it.
+        // Off your own board, as the first thing done, 2-Hand Jam takes the whole hand — and
+        // what the discard bought belongs to that attempt and to nothing after it.
         var (state, seat, _) = openPossession(seed: 402, cards: [])
         state.shot = 20
+        state.possessionFromOwnRebound = true
         state[seat].bag = (0..<3).map { _ in matchCard(CardLibrary.dribble, state.rules) }
-        state.phase = .awaitingDiscard(seat: seat, card: CardLibrary.turnaroundThree,
-                                       bonusEach: 10)
+        state.phase = .awaitingDiscard(seat: seat, card: CardLibrary.twoHandJam,
+                                       bonusEach: 25)
         let before = state.round
         let ids = state[seat].bag.map(\.id)
         let events = Rules.resolveDiscardForShot(ids, state: &state)
         for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 50, "three fed cards carry the attempt from 20 to 50")
+            Check.that(chance == 80, "two at 25 and one at 10 carry the attempt from 20 to 80")
         }
         if state.round == before {
             Check.that(state.shot == 20,
@@ -1573,7 +1604,7 @@ func runTests() {
         // it is played never writes — so all four fell through to "what would this man
         // throw down anyway", which for a guard is nothing.
         for (id, only) in [("slam-dunk", nil), ("two-hand-jam", Dunk.reverse),
-                           ("give-and-go-dunk", nil), ("tomahawk", Dunk.oneHand)]
+                           ("tomahawk", Dunk.oneHand)]
                           as [(String, Dunk?)] {
             guard let card = CardLibrary.byID[id] else {
                 Check.that(false, "\(id) is in the library"); continue
@@ -1587,6 +1618,10 @@ func runTests() {
                 let held = Card(card)
                 game[.south].bag = [held]
                 _ = Rules.apply(.play(held.id), by: .south, to: &game)
+                // 2-Hand Jam asks for its discards first; none is still a dunk.
+                if case .awaitingDiscard = game.phase {
+                    _ = Rules.resolveDiscardForShot([], state: &game)
+                }
                 if let got = game.dunking { thrown.insert(got) }
             }
             Check.that(!thrown.isEmpty, "\(card.name) throws one down")

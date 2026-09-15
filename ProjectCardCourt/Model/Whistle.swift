@@ -52,7 +52,7 @@ enum WhistleTrigger: String, Hashable, Codable {
         case (.passPlayed, .playCard(_, let card)):
             return card.descriptor.isPass
         case (.movePlayed, .playCard(_, let card)):
-            return card.descriptor.type == .move
+            return card.descriptor.isMove
         case (.dribblePlayed, .playCard(_, let card)):
             return card.descriptor.isDribble
         case (.clampPlayed, .playCard(_, let card)):

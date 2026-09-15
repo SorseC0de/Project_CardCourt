@@ -32,16 +32,14 @@ enum Rules {
 
     // MARK: - Legality
 
-    /// What a card has earned back off the clock it has watched run down.
+    /// What a card is worth against the Shot Clock as it reads right now.
     ///
-    /// Only Dagger Three uses it. A dagger is a shot taken late: it starts as a bad look
-    /// and pays for every tick already spent, so at the top of the clock it is the
-    /// penalty on the card and at 01 it is the best shot on the table.
+    /// Only Dagger Three uses it: SHOT −10% for every tick still on the clock, on top of its
+    /// own +60%, so at 01 it is the best shot on the table.
     static func clockBonus(_ special: SpecialMoveEffect?, in state: GameState) -> Int {
-        guard let special, special.shotPerClockSpent != 0,
-              let clock = state.shotClock else { return 0 }
-        let spent = max(0, state.shotClockLength - clock)
-        return spent * special.shotPerClockSpent
+        guard let special, special.shotPerClockTick != 0 else { return 0 }
+        let clock = state.shotClock ?? state.shotClockLength
+        return max(0, clock) * special.shotPerClockTick
     }
 
     static func legalMoves(_ state: GameState, for seat: Seat) -> [Move] {
@@ -85,15 +83,18 @@ enum Rules {
                 if zoned, card.descriptor.takesShot { return false }
                 // Park Shark sits the Moves and Special Moves down; Fundamentalist the
                 // Special Moves, and allows each Move once a turn.
-                if card.descriptor.type == .move,
+                if card.descriptor.isMove,
                    has(seat, in: state, { $0.blocksMoves }) { return false }
                 if card.descriptor.type == .specialMove,
                    has(seat, in: state, { $0.blocksSpecialMoves }) { return false }
                 if has(seat, in: state, { $0.oneOfEachMovePerTurn }),
                    card.descriptor.isMove,
                    state.movesPlayedThisPossession.contains(card.descriptor.id) { return false }
-                // Triple Threat closes the book on Moves for the possession.
+                // Triple Threat closes the book on Moves for the possession — the ones
+                // before it as well as after, so it cannot follow a Move either.
                 if card.descriptor.isMove, state.movesClosed { return false }
+                if card.descriptor.blocksFurtherMoves,
+                   !state.movesPlayedThisPossession.isEmpty { return false }
                 // Lob: the man it found has to put it up first. A dunk is putting it up —
                 // that is the Alley-Oop.
                 if state.mustShootFirst == seat, card.descriptor.special?.dunks != true {
@@ -110,12 +111,12 @@ enum Rules {
                 if let clock = card.descriptor.special?.onlyAtShotClock {
                     return state.shotClock == clock
                 }
-                // Give-and-Go: a clean look is one nobody has interfered with. Clamped, or
-                // anything gone off this possession that you did not choose, and the
-                // window has closed.
-                if card.descriptor.special?.needsCleanLook == true {
-                    if !state[seat].clamps.isEmpty { return false }
-                    if state.possessionWasInterrupted { return false }
+                // Wide-Open Three: the first thing you do, with nobody on you, nothing
+                // hurting and no referee out.
+                if card.descriptor.special?.needsWideOpenLook == true {
+                    if !isFirstAction(state) { return false }
+                    if !state[seat].clamps.isEmpty || !state[seat].injuries.isEmpty { return false }
+                    if !state.armedWhistles.isEmpty { return false }
                 }
                 // What the floor rules out: referees on Smacktop, threes on Kiddie Court
                 // and Vintage Varnish, balls on Vintage Varnish, dunks on Gravi-Gym.
@@ -126,7 +127,7 @@ enum Rules {
                 if floor.barsVariaballs, card.descriptor.variaball != nil { return false }
                 if floor.barsDunks, card.descriptor.special?.dunks == true { return false }
                 // Frostbite Finish: a Move needs other cards to pay for it.
-                if card.descriptor.type == .move,
+                if card.descriptor.isMove,
                    moveDiscardCost(in: state) > state[seat].bag.count - 1 { return false }
                 // One Varena and one Variaball a possession, unless Varsitile says otherwise.
                 if card.descriptor.varena != nil {
@@ -446,6 +447,10 @@ enum Rules {
         }
         for _ in 0..<(descriptor.drawPerClamp * shaken) {
             drawOnce(seat, state: &state, events: &events)
+        }
+        if descriptor.clockPerClamp != 0 {
+            _ = tickClock(by: descriptor.clockPerClamp * shaken, holder: seat,
+                          state: &state, events: &events)
         }
         if descriptor.clamperDiscardsPerClamp > 0 {
             for clamp in arriving {
@@ -791,7 +796,7 @@ enum Rules {
             let takesASlot = descriptor.varena != nil || descriptor.variaball != nil
             // Foot Ball: a Move or a Pass stays in the hand, locked until the possession ends.
             let footLocks = state.ballEffect.locksInsteadOfSpending
-                && (descriptor.type == .move || descriptor.isPass)
+                && (descriptor.isMove || descriptor.isPass)
             if descriptor.whistle?.trigger == nil, !kept, !takesASlot, !footLocks {
                 state.discard.append(card)
             } else if kept || footLocks {
@@ -801,7 +806,7 @@ enum Rules {
             // Tick-Tock Tile: the tick is paid once the card has done what it does.
             if state.floorEffect.cardsTickClock { state.clockTicksOwed += 1 }
             // Frostbite Finish: a Move is paid for in other cards, owner's pick.
-            if descriptor.type == .move, moveDiscardCost(in: state) > 0 {
+            if descriptor.isMove, moveDiscardCost(in: state) > 0 {
                 state.owe(.tax(seat: seat, count: moveDiscardCost(in: state),
                                card: state.currentCourt))
             }
@@ -819,7 +824,7 @@ enum Rules {
                 }
             }
             // Con-crete: hard on the joints.
-            if descriptor.type == .move { delta += state.floorEffect.moveShotPenalty }
+            if descriptor.isMove { delta += state.floorEffect.moveShotPenalty }
             let comboArmed = (descriptor.comboAfter != nil
                               && descriptor.comboAfter == state.lastPlayThisPossession)
                 || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
@@ -885,10 +890,13 @@ enum Rules {
                                 to: seat, offender: first.from, source: descriptor.name,
                                 state: &state, events: &events)
             }
+            // Pump Fake: the clock it costs per Clamp, paid with the card's own tick below.
+            var clampTicks = 0
             if descriptor.clearsClamps, !standing.isEmpty {
                 // Paid per Clamp shaken off, before they are cleared — Spin Move and
                 // Crossover turn being guarded into the reason they are good.
                 let shaken = standing.count
+                clampTicks = descriptor.clockPerClamp * shaken
                 if descriptor.shotPerClamp != 0 {
                     adjustShot(by: descriptor.shotPerClamp * shaken, state: &state)
                 }
@@ -916,10 +924,11 @@ enum Rules {
             if takesASlot {
                 playOntoItsSlot(card, by: seat, state: &state, events: &events)
             } else if let special = descriptor.special {
-                // A tip-in is only a tip-in off the glass. From anywhere else the card is
-                // its ordinary self.
+                // A tip-in is only a tip-in off the glass, and only as the first thing done
+                // with the board. From anywhere else the card is its ordinary self.
+                let tipIn = state.possessionFromRebound && isFirstAction(state)
                 let override = special.shotOverride
-                    ?? (state.possessionFromRebound ? special.shotOverrideAfterRebound : nil)
+                    ?? (tipIn ? special.shotOverrideAfterRebound : nil)
                 if let override {
                     state.pendingShotOverride = ShotOverride(
                         label: descriptor.name, amount: Double(override),
@@ -934,19 +943,26 @@ enum Rules {
                     events.append(.coinRun(seat: seat, card: descriptor,
                                            heads: heads ? 1 : 0))
                 }
-                if special.coinRunShot > 0 || special.coinRunDraw > 0 {
-                    // Flip until the tails run out, paying out per head. Two tails is
-                    // not two runs — a head between them keeps the same run going.
+                if special.coinRunFlips > 0 {
+                    // A fixed number of coins, paying out per head. Every one of them Heads
+                    // is a Travel — unless the man cannot be called for one.
+                    let flips = special.coinRunFlips
                     var heads = 0
-                    var tails = 0
-                    while tails < max(1, special.coinRunTails), heads < 12 {
-                        if state.roll(0...1) == 1 { heads += 1 } else { tails += 1 }
-                    }
-                    adjustShot(by: special.coinRunShot * heads, state: &state)
-                    for _ in 0..<(special.coinRunDraw * heads) {
-                        drawOnce(seat, state: &state, events: &events)
+                    for _ in 0..<flips {
+                        if state.roll(0...1) == 1 { heads += 1 }
                     }
                     events.append(.coinRun(seat: seat, card: descriptor, heads: heads))
+                    if heads < flips {
+                        adjustShot(by: special.coinRunShot * heads, state: &state)
+                        for _ in 0..<(special.coinRunDraw * heads) {
+                            drawOnce(seat, state: &state, events: &events)
+                        }
+                    } else if !has(seat, in: state, { $0.ignoresViolations }) {
+                        state[seat].turnovers += 1
+                        events.append(.turnover(seat, cause: "Travel"))
+                        reinbound(by: seat, state: &state, events: &events)
+                        return events
+                    }
                 }
                 if special.discardForShotBonus > 0 {
                     // Hand the choice back before the shot goes up.
@@ -1093,8 +1109,8 @@ enum Rules {
                 let pounded = descriptor.isDribble
                     ? state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.dribbleClockDelta ?? 0) }
                     : 0
-                if descriptor.clockDelta + pounded != 0 {
-                    _ = tickClock(by: descriptor.clockDelta + pounded, holder: seat,
+                if descriptor.clockDelta + pounded + clampTicks != 0 {
+                    _ = tickClock(by: descriptor.clockDelta + pounded + clampTicks, holder: seat,
                                   state: &state, events: &events)
                 }
                 // Stepback: the extra look is bought, and buying it is optional. Asked
@@ -1311,11 +1327,31 @@ enum Rules {
     /// How many a seat may feed a Turnaround Three.
     static func legalDiscardForShot(_ state: GameState, for seat: Seat) -> ClosedRange<Int> {
         var most = state[seat].bag.count
+        guard case .awaitingDiscard(_, let card, _) = state.phase else { return 0...most }
         // Stepback buys one extra look, not as many as the hand will pay for.
-        if case .awaitingDiscard(_, let card, _) = state.phase, card.optionalDiscardForShot > 0 {
-            most = min(most, 1)
+        if card.optionalDiscardForShot > 0 { most = min(most, 1) }
+        // 2-Hand Jam: two, unless its bonus has opened up the rest of the hand.
+        if let limit = card.special?.discardForShotLimit, !discardsPastLimit(card, in: state) {
+            most = min(most, limit)
         }
         return 0...most
+    }
+
+    /// 2-Hand Jam's bonus: straight off your own board, as the first thing you do with it,
+    /// any number of cards may go in past the limit.
+    static func discardsPastLimit(_ card: CardDescriptor, in state: GameState) -> Bool {
+        (card.special?.discardBeyondLimitBonus ?? 0) > 0
+            && state.possessionFromOwnRebound && isFirstAction(state)
+    }
+
+    /// **What discarding this many buys**: the card's price for each up to its limit, and
+    /// the beyond price past it. Dishcount Ball counts one card extra, free.
+    static func shotBought(discarding count: Int, card: CardDescriptor, bonusEach: Int,
+                           in state: GameState) -> Int {
+        let paid = count + (state.ballEffect.discountsDiscards ? 1 : 0)
+        guard let limit = card.special?.discardForShotLimit else { return bonusEach * paid }
+        let beyond = card.special?.discardBeyondLimitBonus ?? 0
+        return bonusEach * min(paid, limit) + beyond * max(0, paid - limit)
     }
 
     /// Everything a pass does once its man is known.
@@ -1754,7 +1790,8 @@ enum Rules {
         // Turnaround Three is a price paid for *that* attempt; letting it stay in SHOT
         // meant a miss handed the whole bonus to whoever took the rebound.
         // Dishcount Ball: the first card's worth comes free.
-        let bought = bonusEach * (spent.count + (state.ballEffect.discountsDiscards ? 1 : 0))
+        let bought = shotBought(discarding: spent.count, card: card, bonusEach: bonusEach,
+                                in: state)
         adjustShot(by: bought, state: &state)
         events.append(.discardedForShot(seat: seat, card: card, count: spent.count))
 

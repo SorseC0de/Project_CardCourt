@@ -13,11 +13,11 @@ func slotTests() {
         var (state, seat, _) = openPossession(seed: 201, cards: [])
         state[seat].intangibles = []
         state.courtCard = Card(CardLibrary.primeParquet)
-        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == 10 },
-                   "Prime Parquet: SHOT +10% on every shot")
+        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == 20 },
+                   "Prime Parquet: SHOT +20%")
         state.courtCard = Card(CardLibrary.lacktop)
-        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == -10 },
-                   "Lacktop: SHOT -10%")
+        Check.that(state.shotModifiers(for: seat).adds.contains { $0.amount == -20 },
+                   "Lacktop: SHOT -20%")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 202, cards: [CardLibrary.smacktop,
@@ -349,7 +349,7 @@ func slotTestsTwo() {
         state[seat].clamps = []
         state.shot = 30
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(state.shot == 40, "Con-crete: a Move pays 10% less")
+        Check.that(state.shot == 30, "Con-crete: a Move pays 10% less")
     }
     do {
         var (state, seat, _) = openPossession(seed: 232, cards: [])

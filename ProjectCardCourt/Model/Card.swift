@@ -403,9 +403,9 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// Which finish this card calls for. Nil lets the man's own position decide, which
     /// is what a plain possession does — see `Dunk.ordinary`.
     var dunkKind: Dunk?
-    /// Only playable off a clean look: nothing clamped on you, and nothing this possession
-    /// that you did not choose.
-    var needsCleanLook = false
+    /// Wide-Open Three: only as your first action, with no Clamps or Injuries on you and no
+    /// Whistles out on the floor.
+    var needsWideOpenLook = false
     /// **A swing rather than a delta.** Tomahawk pays either way and the SHOT it is played
     /// on decides which: under the mark it costs, at or over it pays.
     var shotSwing: ShotSwing?
@@ -427,22 +427,20 @@ struct SpecialMoveEffect: Hashable, Codable {
     var coinFlipShot = 0
     /// Skyhook goes up over everything. The debuff layer is skipped for this shot.
     var ignoresClamps = false
-    /// Euro Step: flip until tails, paying out per head.
-    /// Discard any number first, paying this much SHOT for each (Turnaround Three).
+    /// 2-Hand Jam: discard first, paying this much SHOT for each — up to the limit, and past
+    /// it at the beyond price when the card's bonus is on.
     var discardForShotBonus = 0
+    var discardForShotLimit: Int?
+    var discardBeyondLimitBonus = 0
+    /// Euro Step: flips exactly this many coins, paying out per head. All of them Heads is
+    /// a Travel instead.
     var coinRunShot = 0
     var coinRunDraw = 0
-    /// **How many tails end the run.** One by default; Euro Step asks for two, which is
-    /// the same payout per head over a run that lasts nearly twice as long.
-    var coinRunTails = 1
-    /// Dagger Three: worth more the later it is taken.
-    ///
-    /// Paid on top of the card's own `shotDelta`, once for every tick of the Shot Clock
-    /// already spent. So a −60% base and +10% a tick is −60% taken at the top of the
-    /// clock, level at 04 and +30% at 01 — which is the card's printed text, arithmetic
-    /// and all. Measured against `shotClockStart` rather than a fixed pivot, so it is the
-    /// *clock* that decides, not a number that happens to suit a ten-tick one.
-    var shotPerClockSpent = 0
+    var coinRunFlips = 0
+    /// Dagger Three: worth more the later it is taken. Paid on top of the card's own
+    /// `shotDelta`, once for every tick still on the Shot Clock — so +60% and −10% a tick
+    /// is +50% at 01 and −40% at 10, read straight off the clock.
+    var shotPerClockTick = 0
 }
 
 enum CardType: String, Hashable, Codable, CaseIterable {
@@ -513,6 +511,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Paid per Clamp cleared. Spin Move turns being guarded into an advantage.
     var shotPerClamp = 0
     var drawPerClamp = 0
+    /// Pump Fake: the Shot Clock, per Clamp cleared.
+    var clockPerClamp = 0
     /// And what it costs whoever sent them.
     var clamperDiscardsPerClamp = 0
     /// Bullet Pass: the man it lands on gives one up for the privilege.
@@ -594,7 +594,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          varena: VarenaEffect? = nil, variaball: VariaballEffect? = nil,
          special: SpecialMoveEffect? = nil, isDribble: Bool = false,
          selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
-         clamperDiscardsPerClamp: Int = 0,
+         clockPerClamp: Int = 0, clamperDiscardsPerClamp: Int = 0,
          freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
@@ -624,6 +624,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.blocksFurtherMoves = blocksFurtherMoves
         self.selfDiscard = selfDiscard; self.shotPerClamp = shotPerClamp
         self.drawPerClamp = drawPerClamp
+        self.clockPerClamp = clockPerClamp
         self.clamperDiscardsPerClamp = clamperDiscardsPerClamp
         self.id = id; self.name = name; self.type = type; self.effect = effect
         self.numberInDeck = numberInDeck; self.passTarget = passTarget
@@ -983,7 +984,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .variaball:    return "basketball"
         }
     }
-    var isMove: Bool { type == .move }
+    /// A Special Move is a Move card wherever a card says Move.
+    var isMove: Bool { type == .move || type == .specialMove }
 
     /// Always concrete on a dealt card — `buildDeck` bakes the passing bonus in, except
     /// on a card that is worth whatever found it. See `matchesArrivingPass`.
