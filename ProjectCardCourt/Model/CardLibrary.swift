@@ -69,7 +69,7 @@ enum CardLibrary {
         numberInDeck: 5,
         passTarget: .leftOrRight, shotDelta: 10, drawCount: 1,
         comboAfterDribble: true, comboBonus: 10, comboDraw: 1,
-        combo: "After a @[Dribble]: SHOT +10% and #[Draw] 1 extra card")
+        combo: "SHOT +10% and #[Draw] 1 extra card")
 
     static let outletPass = CardDescriptor(
         id: "outlet-pass", name: "Outlet Pass", type: .pass,
@@ -103,7 +103,7 @@ enum CardLibrary {
         id: "drive", name: "Drive", type: .move,
         effect: "SHOT +10%", numberInDeck: 15,
         shotDelta: 10, comboAfterDribble: true, comboBonus: 10,
-        combo: "After a @[Dribble]: SHOT +10% extra")
+        combo: "SHOT +10% extra")
 
     static let poundDribble = CardDescriptor(
         id: "pound-dribble", name: "Pound Dribble", type: .move,
@@ -123,7 +123,7 @@ enum CardLibrary {
         numberInDeck: 5,
         shotDelta: 10, comboAfterDribble: true, comboBonus: 10, isDribble: true,
         drawPerClamp: 1, clearsClamps: true,
-        combo: "After a @[Dribble]: SHOT +10% extra. You may #[Discard] 1 card from target player's hand",
+        combo: "SHOT +10% extra. You may #[Discard] 1 card from target player's hand",
         bonus: "#[Draw] 1 card for each ~[Clamp] #[Cleared]")
 
     static let rhythmDribble = CardDescriptor(
@@ -1003,7 +1003,7 @@ enum CardLibrary {
         special: SpecialMoveEffect(shootsImmediately: true, dunkKind: .reverse, dunks: true,
                                    discardForShotBonus: 25, discardForShotLimit: 2,
                                    discardBeyondLimitBonus: 10),
-        combo: "After a ~[Lob], as your first action: SHOT +10% extra",
+        combo: "SHOT +10% extra (as your first action)",
         bonus: "If played as the first action after your #[Rebound], you may #[Discard] any "
             + "number of cards: SHOT +10% extra for each.")
 
@@ -1024,7 +1024,7 @@ enum CardLibrary {
                                    dunkKind: .oneHand,
                                    shotSwing: ShotSwing(at: 50, under: -25, over: 25),
                                    dunks: true),
-        combo: "After a ~[Lob], as your first action: SHOT +10% extra")
+        combo: "SHOT +10% extra (as your first action)")
 
     static let slamDunk = CardDescriptor(
         id: "slam-dunk", name: "Slam Dunk", type: .specialMove,
@@ -1032,7 +1032,7 @@ enum CardLibrary {
         shotDelta: 25,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100,
                                    overrideRequiresAtLeast: 75, dunks: true),
-        combo: "After a ~[Lob], as your first action: SHOT +10% extra",
+        combo: "SHOT +10% extra (as your first action)",
         bonus: "SHOT = 100% if final SHOT is 75% or more")
 
     static let euroStep = CardDescriptor(

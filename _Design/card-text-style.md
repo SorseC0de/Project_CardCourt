@@ -47,7 +47,8 @@ Reset, Turn, Score. A Special Move **is** a Move card wherever a card says "Move
 
 ## Combos
 
-- Shown as pictures; the only words are the combo's name.
+- Shown as pictures; the only words are the combo's name and its payoff.
+- **No "After a …"**: the double dotted chevrons show which card comes first.
 - Printed on **every** card in the combo.
 - A partner that is any card of a type (any dunk) is that type's icon.
 - Until the combo has been pulled off, a circle with a question mark stands in for the partner.
