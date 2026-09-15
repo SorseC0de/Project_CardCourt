@@ -60,33 +60,54 @@ struct CardText: View {
         return run.ink?.colour(on: face) ?? ink
     }
 
-    private var written: AttributedString {
-        var whole = AttributedString()
-        for run in Marked.runs(of: text) {
-            var piece = AttributedString(run.text)
-            piece.font = .custom(font, size: size)
-            // **A named type takes the named type's colour**, which is the one thing the
-            // run itself has to be asked about — every other ink is a property of the
-            // card doing the printing. See `CardTextStyle.typeReference`.
-            piece.foregroundColor = highlight ? colour(of: run) : ink
-            // **Only a keyword is worth explaining.** A card named inside the text is
-            // already a card you can go and read; a mechanic is a rule you may never
-            // have been told.
-            // **The mechanic, not the run.** "Draw 2" is one marked span and two words,
-            // and it is a Draw that has a meaning rather than a Draw 2.
-            if highlight, run.ink == .keyword, onKeyword != nil, let word = run.word,
-               let link = URL(string: "\(Self.scheme)://"
-                             + (word.addingPercentEncoding(
-                                withAllowedCharacters: .urlHostAllowed) ?? word)) {
-                piece.link = link
-            }
-            whole.append(piece)
+    /// Brackets: a size down, and slanted by hand, since the face has no italic of its own.
+    private enum Aside {
+        static let scale: CGFloat = 0.8
+        static let slant: CGFloat = 0.2
+    }
+
+    private var asideFont: Font {
+        let slant = CGAffineTransform(a: 1, b: 0, c: Aside.slant, d: 1, tx: 0, ty: 0)
+        let slanted = UIFont(descriptor: uiFont.fontDescriptor.withMatrix(slant),
+                             size: size * Aside.scale)
+        return Font(slanted as CTFont)
+    }
+
+    /// One run as it is set: its face, its colour, and a link if it is a keyword — or the
+    /// picture it stands for.
+    private func piece(_ run: Marked.Run) -> Text {
+        if run.icon == "2X" {
+            return Text(Image(uiImage: TwoXMark.image(size: size)))
+                .baselineOffset(-size * TwoXMark.baselineDrop)
         }
-        return whole
+        var piece = AttributedString(run.text)
+        piece.font = run.aside ? asideFont : .custom(font, size: size)
+        // **A named type takes the named type's colour**, which is the one thing the
+        // run itself has to be asked about — every other ink is a property of the
+        // card doing the printing. See `CardTextStyle.typeReference`.
+        piece.foregroundColor = highlight ? colour(of: run) : ink
+        // **Only a keyword is worth explaining.** A card named inside the text is
+        // already a card you can go and read; a mechanic is a rule you may never
+        // have been told.
+        // **The mechanic, not the run.** "Draw 2" is one marked span and two words,
+        // and it is a Draw that has a meaning rather than a Draw 2.
+        if highlight, run.ink == .keyword, onKeyword != nil, let word = run.word,
+           let link = URL(string: "\(Self.scheme)://"
+                         + (word.addingPercentEncoding(
+                            withAllowedCharacters: .urlHostAllowed) ?? word)) {
+            piece.link = link
+        }
+        return Text(piece)
+    }
+
+    /// **Still one `Text`**, joined run by run, so the wrap stays the system's even with a
+    /// picture in the line.
+    private var written: Text {
+        Marked.runs(of: text).reduce(Text(verbatim: "")) { $0 + piece($1) }
     }
 
     var body: some View {
-        Text(written)
+        written
             .tracking(tracking)
             // The gap this exists to close. `lineSpacing` cannot go under the font's own
             // leading, so the negative half of the dial is spent here.

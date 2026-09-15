@@ -675,7 +675,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// **What this card does to SHOT**, for the ball at the foot of it. Nil on a card
     /// that does not touch SHOT at all, which is most of them.
     ///
-    /// Four types carry it: Passes and Special Moves, whose number lands on the man
+    /// Five types carry it: Passes, Moves and Special Moves, whose number lands on the man
     /// holding the ball; Game Breaks, whose lands on the possession; and Clamps, whose
     /// lands on **whoever gets the ball next** rather than on the holder. That last one
     /// is why a Clamp's percentage is printed in gold rather than white — see
@@ -683,7 +683,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// rather than something the card does when it is played.
     var shotEffect: Int? {
         switch type {
-        case .pass, .specialMove:
+        case .pass, .move, .specialMove:
             if let override = special?.shotOverride { return override }
             if baseShotDelta != 0 { return baseShotDelta }
             if let per = special?.discardForShotBonus, per != 0 { return per }
@@ -695,7 +695,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .gameBreak:
             if let shift = gameBreak?.shotThisPossession, shift != 0 { return shift }
             return nil
-        case .move, .whistle, .intangible, .injury, .varena, .variaball:
+        case .whistle, .intangible, .injury, .varena, .variaball:
             return nil
         }
     }
@@ -848,47 +848,22 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
                 of: "(?i)\\+\\s*1\\s*(?:PT|Point)\\s*on\\s*make", with: "",
                 options: .regularExpression)
         }
-        let figure = "(?i)SHOT\\s*[+\\-\u{2212}=]?\\s*\\d+%"
-        let bare = "^\\s*\(figure)\\s*$"
-
-        // "More" only makes sense as a second helping. A card with one figure — Contest's
-        // "Next player: SHOT -25%" — is stating its whole effect, not adding to it.
-        let hasBaseFigure = effect
-            .split(whereSeparator: { $0 == "." })
-            .contains { $0.trimmingCharacters(in: .whitespaces)
-                .range(of: bare, options: .regularExpression) != nil }
-        let kept = text
-            .split(whereSeparator: { $0 == "." })
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .compactMap { sentence -> String? in
-                // A bare figure is the card's own SHOT. On a pass the badge shows it, so
-                // it goes; anywhere else the words are the only place it appears, and it
-                // stays exactly as written — it is not a bonus, so never "More".
-                if sentence.range(of: bare, options: .regularExpression) != nil {
-                    return type == .pass ? nil : sentence
-                }
-                guard hasBaseFigure else { return sentence }
-                // Anything else carrying a figure is a separate, conditional modifier —
-                // Drive's "Following Dribble" is a second bonus, not a restatement.
-                guard sentence.range(of: "for each", options: .caseInsensitive) == nil else {
-                    return sentence
-                }
-                // An `=` figure replaces the number rather than adding to it, so there is
-                // no "more" about it — Putback Tip's hundred per cent off the glass is
-                // the whole SHOT, not a hundred on top of one.
-                guard sentence.range(of: "(?i)SHOT\\s*=",
-                                     options: .regularExpression) == nil else {
-                    return sentence
-                }
-                return sentence.replacingOccurrences(
-                    of: "(?i)SHOT\\s*([+\\-\u{2212}=]?\\s*\\d+%)",
-                    with: "$1 More", options: .regularExpression)
+        // **A sentence that is only the card's own SHOT goes: the badge says it.** Every
+        // other word is printed exactly as the card was written — see
+        // `_Design/card-text-style.md`. Split by line and then by sentence, so a bullet or
+        // a bracketed aside stays whole.
+        let bare = "(?i)^SHOT\\s*[+\\-\u{2212}=]?\\s*\\d+%\\.?$"
+        let badged = shotEffect != nil
+        return text.components(separatedBy: "\n")
+            .compactMap { line -> String? in
+                let kept = line.components(separatedBy: ". ")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                    .filter { !badged || $0.range(of: bare, options: .regularExpression) == nil }
+                return kept.isEmpty ? nil : kept.joined(separator: ". ")
             }
-
-        return kept.joined(separator: ". ")
-            .replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: CharacterSet(charactersIn: " ."))
+            .joined(separator: "\n")
+            .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
     }
 
     /// SF Symbol standing in for the effect, so a glance reads before the text does.

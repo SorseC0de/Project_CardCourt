@@ -66,6 +66,10 @@ enum Marked {
         /// two, `#[Draw|?]` is a Draw of however many. Kept alongside the run's text,
         /// which already reads "Draw 2" — see `Marked.runs(of:)`.
         var value: String?
+        /// Inside brackets: an aside that clarifies the rule, printed smaller and slanted.
+        var aside = false
+        /// A picture set in the line instead of a word — `$[2X]`.
+        var icon: String?
     }
 
     /// The keyword badge a card leads with, if it has one, and what is left to say.
@@ -88,16 +92,31 @@ enum Marked {
         var runs: [Run] = []
         var plain = ""
         var index = text.startIndex
+        var depth = 0
 
         func flush() {
             guard !plain.isEmpty else { return }
-            runs.append(Run(text: plain, ink: nil))
+            runs.append(Run(text: plain, ink: nil, aside: depth > 0))
             plain = ""
         }
 
         while index < text.endIndex {
             let character = text[index]
             let after = text.index(after: index)
+            // `$[2X]`: a picture set in the line rather than a word.
+            if character == "$", after < text.endIndex, text[after] == "[",
+               let close = text[after...].firstIndex(of: "]") {
+                flush()
+                let word = String(text[text.index(after: after)..<close])
+                runs.append(Run(text: word, ink: nil, word: word, aside: depth > 0, icon: word))
+                index = text.index(after: close)
+                continue
+            }
+            // **Brackets are an aside**: they clarify the rule rather than being it.
+            if character == "(" {
+                flush()
+                depth += 1
+            }
             // A marker is the character, a bracket, and something to close it. Anything
             // else that looks like one is simply text — an unclosed bracket prints.
             if let ink = Ink(rawValue: character), after < text.endIndex, text[after] == "[",
@@ -117,11 +136,15 @@ enum Marked {
                 // sentence around it already says how many, as in "Up to 5 Draw".
                 runs.append(Run(text: value == nil || value == "?" ? word
                                 : "\(word) \(value!)",
-                                ink: ink, word: word, value: value))
+                                ink: ink, word: word, value: value, aside: depth > 0))
                 index = text.index(after: close)
                 continue
             }
             plain.append(character)
+            if character == ")", depth > 0 {
+                flush()
+                depth -= 1
+            }
             index = after
         }
         flush()

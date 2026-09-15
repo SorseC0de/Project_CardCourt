@@ -107,7 +107,15 @@ struct ComboView: View {
                     } else {
                         CardFrontView(descriptor: card, displayWidth: Layout.cardWidth)
                         DottedChevrons()
-                        fan(opening.map { ($0.finisher, done.hasDone(card.id, into: $0.finisher.id)) })
+                        if !opening.isEmpty, opening.allSatisfy({ $0.name == "Alley-Oop" }) {
+                            // Any dunk card finishes it, so the partner is the dunk icon —
+                            // a question mark until one has been thrown down off it.
+                            partnerIcon("DunkIcon", isDone: opening.contains {
+                                done.hasDone(card.id, into: $0.finisher.id)
+                            })
+                        } else {
+                            fan(opening.map { ($0.finisher, done.hasDone(card.id, into: $0.finisher.id)) })
+                        }
                     }
                 }
                 payoffs
@@ -141,8 +149,38 @@ struct ComboView: View {
     /// card's own rule. From the other end, only for combos done, or it gives them away.
     private var payoffLines: [String] {
         if let finishing { return [finishing.finisher.combo].compactMap { $0 } }
+        // One line a combo: four dunks off a Lob are one Alley-Oop.
+        var named: Set<String> = []
         return opening.filter { done.hasDone(card.id, into: $0.finisher.id) }
-            .compactMap { combo in combo.finisher.combo.map { "\(combo.finisher.name): \($0)" } }
+            .compactMap { combo -> String? in
+                guard named.insert(combo.name).inserted, let payoff = combo.finisher.combo
+                else { return nil }
+                let who = combo.name == "Alley-Oop" ? combo.name : combo.finisher.name
+                return "\(who): \(payoff)"
+            }
+    }
+
+    /// A partner that is any card of a type, drawn as that type's icon on a plate — or a
+    /// question mark on the plate until the combo has been pulled off.
+    private func partnerIcon(_ asset: String, isDone: Bool) -> some View {
+        let side = Layout.cardWidth * 0.8
+        return ZStack {
+            Circle().fill(CardPalette.navy)
+            if isDone {
+                Image(asset)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(CardPalette.lightBlue)
+                    .padding(side * 0.2)
+            } else {
+                Text("?")
+                    .font(.system(size: side * 0.5, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black, radius: 0, x: side * 0.03, y: side * 0.03)
+            }
+        }
+        .frame(width: side, height: side)
     }
 
     private var payoffs: some View {

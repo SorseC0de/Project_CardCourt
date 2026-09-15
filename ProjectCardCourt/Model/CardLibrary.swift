@@ -377,7 +377,7 @@ enum CardLibrary {
 
     static let clutchGene = CardDescriptor(
         id: "clutch-gene", name: "Clutch Gene", type: .intangible,
-        effect: "SHOT = 2X if you have 1 card or fewer in hand, or the #[Shot Clock] is 03 or less",
+        effect: "SHOT = $[2X] if you have 1 card or fewer in hand, or the #[Shot Clock] is 03 or less",
         numberInDeck: 1,
         intangible: IntangibleEffect(shotMultiplier: 2,
                                      requiresHandAtMost: 1, requiresClockAtMost: 3))
@@ -752,7 +752,7 @@ enum CardLibrary {
                              intangibleSlots: 1))
     static let sellOutStadium = CardDescriptor(
         id: "sell-out-stadium", name: "S.O.S — Sell-Out Stadium", type: .varena,
-        effect: "A #[Three] may be attempted as a two at 2X SHOT", numberInDeck: 3,
+        effect: "A #[Three] may be attempted as a two at $[2X] SHOT", numberInDeck: 3,
         varena: VarenaEffect(threesAsDoubleTwos: true))
     static let grayvstone = CardDescriptor(
         id: "grayvstone", name: "Grayvstone", type: .varena,
