@@ -89,6 +89,8 @@ struct FannedBagView: View {
                               onKeyword: onKeyword,
                               onCombo: expanded ? { onCombo(card.descriptor) } : nil,
                               onBonus: expanded ? { onBonus(card.descriptor, $0) } : nil)
+                    .environment(\.tutorialReportsBadge, true)
+                    .tutorialTarget(.handCard(card.descriptor.id))
                     .overlay {
                         // One wash, whatever it is for. A held card wears the same red a
                         // refused one does, because it is the same fact: this one is not

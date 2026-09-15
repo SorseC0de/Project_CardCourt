@@ -380,6 +380,7 @@ struct CardFrontView: View {
             VStack {
                 Spacer()
                 footBall(ball, side: side * set.scale(of: .ball))
+                    .tutorialTarget(reportsBadge ? .cardBadge(descriptor.id) : nil)
                     .shadow(color: set.footShadeInk(for: face), radius: 0,
                             x: width * set.footDrop, y: width * set.footDrop)
                     .padding(.bottom, height * set.footBottom)
@@ -393,6 +394,7 @@ struct CardFrontView: View {
     /// the man, Game Breaks on the possession, Clamps on whoever gets the ball next —
     /// see `Card.shotEffect`, which is the one place that is decided.
     private var footBallShot: Int? { descriptor.shotEffect }
+    @Environment(\.tutorialReportsBadge) private var reportsBadge
 
     /// Whether there is a mark at the foot — which is what the words lift for.
     private var hasFootMarks: Bool { footBallShot != nil }

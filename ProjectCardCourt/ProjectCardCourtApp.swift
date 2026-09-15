@@ -18,7 +18,7 @@ struct ProjectCardCourtApp: App {
 /// `GameView` owns its own and would start a fresh game every time you came back.
 struct RootView: View {
     private enum Screen {
-        case front, lobby, game, gallery, hooper
+        case front, lobby, game, gallery, hooper, howToPlay
     }
 
     @State private var screen: Screen = .front
@@ -86,6 +86,7 @@ struct RootView: View {
             case .front:
                 EntryScreenView(
                     onPlay: { deal() },
+                    onHowToPlay: { screen = .howToPlay },
                     onLobby: { lobby() },
                     onGallery: { screen = .gallery },
                     onHooper: { screen = .hooper },
@@ -122,6 +123,9 @@ struct RootView: View {
                     .transition(.opacity)
             case .hooper:
                 HooperView(onDismiss: { screen = .front })
+                    .transition(.opacity)
+            case .howToPlay:
+                HowToPlayView(onDismiss: { screen = .front })
                     .transition(.opacity)
             }
         }

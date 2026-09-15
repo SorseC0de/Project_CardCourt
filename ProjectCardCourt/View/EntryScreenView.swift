@@ -7,6 +7,7 @@ import SwiftUI
 struct EntryScreenView: View {
     /// Into the match.
     var onPlay: () -> Void = {}
+    var onHowToPlay: () -> Void = {}
     var onLobby: () -> Void = {}
     var onGallery: () -> Void = {}
     var onHooper: () -> Void = {}
@@ -17,7 +18,7 @@ struct EntryScreenView: View {
     /// The middle of the wordmark, once it has been laid out — see `FlyingCards`.
     @State private var markAt: CGPoint?
     /// Which door the ring is on. Opens on the game, which is the last of them.
-    @State private var at = 5
+    @State private var at = 6
 
     private enum Front {
         static let title: CGFloat = SwisshWordmark.Mark.size
@@ -42,9 +43,10 @@ struct EntryScreenView: View {
     private var doors: [(label: String, run: () -> Void)] {
         [("Play online", onLobby),
          ("Settings", onSettings),
-         ("Card Gallery", onGallery),
+         ("How To Play", onHowToPlay),
          ("My Hooper", onHooper),
          ("Swisshing Well", onWell),
+         ("Card Gallery", onGallery),
          ("Check Rock!", onPlay)]
     }
 
@@ -97,20 +99,27 @@ struct EntryScreenView: View {
                 VStack(spacing: Front.gap) {
                     // Placeholders. Named and wearing their own art, so the shape of the
                     // screen is settled before any of them does anything.
-                    tile("Card Gallery", art: .symbol("rectangle.stack.fill"),
-                         run: onGallery)
+                    tile("How To Play", art: .symbol("questionmark.circle.fill"),
+                         run: onHowToPlay)
                         .padRing(ringed(2), corner: Front.corner)
                     tile("My Hooper", art: .image("MyHooperIcon"), run: onHooper)
                         .padRing(ringed(3), corner: Front.corner)
-                    tile("Swisshing Well", art: .image("SwisshingWellIcon"), run: onWell)
-                        .padRing(ringed(4), corner: Front.corner)
+                    // Half size, side by side.
+                    HStack(spacing: Front.gap) {
+                        tile("Swisshing Well", art: .image("SwisshingWellIcon"), compact: true,
+                             run: onWell)
+                            .padRing(ringed(4), corner: Front.corner)
+                        tile("Card Gallery", art: .symbol("rectangle.stack.fill"), compact: true,
+                             run: onGallery)
+                            .padRing(ringed(5), corner: Front.corner)
+                    }
 
                     // Last, and the only gold thing on the screen. Everything above it is
                     // somewhere to go; this is the game.
                     ChunkyButton(title: "Check Rock!", fill: CardPalette.gold,
                                  stroke: CardPalette.gold, shade: CardPalette.orange,
                                  size: 28, run: onPlay)
-                        .padRing(pill: ringed(5))
+                        .padRing(pill: ringed(6))
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 44)
@@ -180,11 +189,15 @@ struct EntryScreenView: View {
     /// an orange drop under it, and heavy white type over a hard navy one. The lobby
     /// settled this look — see `MatchLobbyView.chair` — and a second one here would be
     /// two games.
-    private func tile(_ title: String, art: Art, run: @escaping () -> Void) -> some View {
-        Button(action: run) {
+    /// - Parameter compact: half size, for two tiles sharing a row.
+    private func tile(_ title: String, art: Art, compact: Bool = false,
+                      run: @escaping () -> Void) -> some View {
+        let scale: CGFloat = compact ? 0.5 : 1
+        let chip = Front.tile * (compact ? 0.62 : 1)
+        return Button(action: run) {
             Panel(fill: CardPalette.blue) {
-                HStack(spacing: 12) {
-                    Chip(side: Front.tile) {
+                HStack(spacing: 12 * scale) {
+                    Chip(side: chip) {
                         Group {
                             switch art {
                             case .image(let name):
@@ -194,20 +207,20 @@ struct EntryScreenView: View {
                                 Image(systemName: name).resizable().scaledToFit()
                             }
                         }
-                        .frame(width: Front.tile * 0.8, height: Front.tile * 0.8)
+                        .frame(width: chip * 0.8, height: chip * 0.8)
                         .foregroundStyle(.white)
-                        .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
+                        .shadow(color: CardPalette.navy, radius: 0, x: 3 * scale, y: 3 * scale)
                     }
-                    SmallCapsText(text: title, font: Chrome.display, size: 30,
+                    SmallCapsText(text: title, font: Chrome.display, size: 30 * (compact ? 0.62 : 1),
                                   tracking: 1)
                         .foregroundStyle(.white)
-                        .shadow(color: CardPalette.navy, radius: 0, x: 4, y: 4)
+                        .shadow(color: CardPalette.navy, radius: 0, x: 4 * scale, y: 4 * scale)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                        .minimumScaleFactor(0.5)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 18)
+                .padding(.horizontal, compact ? 10 : 16)
+                .padding(.vertical, compact ? 10 : 18)
                 .frame(maxWidth: .infinity)
             }
         }

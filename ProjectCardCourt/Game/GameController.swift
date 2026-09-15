@@ -707,6 +707,59 @@ final class GameController {
         record(events)
     }
 
+    // MARK: - Lessons
+
+    /// **A How To Play table**: no deal, no opponents taking turns. The lesson stages each
+    /// hand and waits on the player — see `TutorialDirector`.
+    static func lesson() -> GameController {
+        let controller = GameController()
+        controller.isLesson = true
+        return controller
+    }
+
+    private(set) var isLesson = false
+    /// The player's plays in this lesson, counted once the table has shown each one.
+    private(set) var lessonPlays = 0
+    /// Set once the ball has left the player: the lesson's cue for what comes next.
+    private(set) var lessonBallGone = false
+
+    /// One leg of a lesson: these cards in the player's hand, the ball in his hands at the
+    /// top of a possession, and nothing else on the floor.
+    func stageLesson(hand: [CardDescriptor]) {
+        loop?.cancel()
+        let me = GameRules.localSeat
+        for seat in Seat.allCases {
+            state[seat].clamps = []
+            state[seat].injuries = []
+            state[seat].injuryUnlocked = []
+            state[seat].intangibles = []
+        }
+        state[me].bag = hand.map { Card($0.resolved(passShotBonus: state.rules.passShotBonus)) }
+        state.pendingClamps = []
+        state.armedWhistles = []
+        state.pending = []
+        state.courtCard = nil
+        state.ballCard = nil
+        state.ball = me
+        state.phase = .possession(holder: me)
+        state.lastPlayThisPossession = nil
+        state.lastPlayWasCombo = false
+        state.movesThisPossession = 0
+        state.movesPlayedThisPossession = []
+        state.moveCardsThisPossession = 0
+        state.movesClosed = false
+        state.lastPasser = nil
+        state.arrivedBy = nil
+        state.mustShootFirst = nil
+        state.shot = state.rules.startingShot
+        state.shotClock = state.shotClockLength
+        lessonBallGone = false
+        catchUp()
+        shownShot = state.shot
+        shownBall = me
+        gate = .awaitingMove(me)
+    }
+
     /// What the table can see of your chair — the staged board, like everything else
     /// the floor draws. See `shown`.
     var human: PlayerState { shown[GameRules.localSeat] }
@@ -1326,6 +1379,8 @@ final class GameController {
             return
         }
         hasBegun = true
+        // A lesson deals nothing and runs no loop of its own: it stages its hands.
+        if isLesson { return }
         // Rolled here rather than in `init`. SwiftUI re-creates a View struct on every
         // state change, so `@State private var controller = GameController()` runs that
         // initialiser every time and throws all but the first result away — but any side
@@ -2145,6 +2200,14 @@ final class GameController {
             if Task.isCancelled { return }
             if state.isOver { gate = .gameOver; return }
 
+            // A lesson has no opponents: once the ball has left the player, the lesson
+            // stages what comes next.
+            if isLesson, state.phase.actingSeat != GameRules.localSeat {
+                lessonBallGone = true
+                gate = .thinking
+                return
+            }
+
             if case .awaitingRebound(let shooter) = state.phase {
                 // No call in front of it. The board's own scene is black with the same
                 // streaks across it and the word "Rebound!" already on it — a card saying
@@ -2642,6 +2705,7 @@ final class GameController {
         let defenders = defenderCount(on: seat)
         let events = Rules.apply(move, by: seat, to: &state)
         await present(events, defenders: defenders, playedCard: true)
+        if isLesson, seat == GameRules.localSeat, !events.isEmpty { lessonPlays += 1 }
     }
 
     /// Everything the table is shown, in the order it happens at one.
@@ -2707,7 +2771,19 @@ final class GameController {
                 if Task.isCancelled { return }
             }
             if !caughtUp {
+                // **The tallies wait for their scenes.** Catching up hands the board the
+                // whole play at once, so a rebound, an assist or a turnover is put back
+                // until the scene that earns it has been shown — see below.
+                let tallies = Dictionary(uniqueKeysWithValues: Seat.allCases.map {
+                    ($0, (rebounds: shown[$0].rebounds, assists: shown[$0].assists,
+                          turnovers: shown[$0].turnovers))
+                })
                 catchUp()
+                for (seat, tally) in tallies {
+                    shown[seat].rebounds = min(tally.rebounds, state[seat].rebounds)
+                    shown[seat].assists = min(tally.assists, state[seat].assists)
+                    shown[seat].turnovers = min(tally.turnovers, state[seat].turnovers)
+                }
                 caughtUp = true
             }
             var scene = [event]
@@ -2810,8 +2886,20 @@ final class GameController {
                 break
             }
             if Task.isCancelled { return }
-            // Its lines, now that it has been seen.
+            // Its lines, now that it has been seen, and the tallies it earned.
             writeLog(scene)
+            for played in scene {
+                switch played {
+                case .rebounded(let seat):
+                    shown[seat].rebounds = min(shown[seat].rebounds + 1, state[seat].rebounds)
+                case .assisted(let seat):
+                    shown[seat].assists = min(shown[seat].assists + 1, state[seat].assists)
+                case .turnover(let seat, _):
+                    shown[seat].turnovers = min(shown[seat].turnovers + 1, state[seat].turnovers)
+                default:
+                    break
+                }
+            }
             index += scene.count
         }
         if !caughtUp { catchUp() }
@@ -2833,10 +2921,9 @@ final class GameController {
         holdTheScore(in: shot)
         cutscene = scene
         try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
-        // The board goes up **behind** the shot before the shot comes down.
-        if isLast, case .awaitingRebound(let shooter) = state.phase {
-            gate = .awaitingBid(shooter: shooter)
-        }
+        // **No board behind the shot.** The rebound goes up once this batch has finished
+        // playing — the loop puts it up — never under a scene still on screen.
+        _ = isLast
         cutscene = nil
         await celebrateThree(in: shot)
         await callTheScore(in: shot)

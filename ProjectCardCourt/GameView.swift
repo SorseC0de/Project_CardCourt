@@ -9,6 +9,8 @@ struct GameView: View {
     var onQuit: () -> Void = {}
     /// The same again, dealt fresh.
     var onRunItBack: () -> Void = {}
+    /// A How To Play lesson being taken on this table, when there is one.
+    var tutorial: TutorialDirector? = nil
     /// The pad, if one is plugged in, and where it is pointing. **Both are nothing until
     /// a controller is connected** — see `Pad.isAttached`, which is what keeps a ring off
     /// the screen of somebody playing on glass.
@@ -88,6 +90,16 @@ struct GameView: View {
             // opened and can close; the game is stopped until it is answered.
             if !controller.walkedOut.isEmpty { walkedOut.zIndex(6) }
             else if paused { pauseMenu.zIndex(5) }
+        }
+        .environment(\.tutorialFocus, tutorial?.focus ?? TutorialFocus())
+        .overlayPreferenceValue(TutorialFrames.self) { anchors in
+            if let tutorial {
+                GeometryReader { proxy in
+                    TutorialOverlay(director: tutorial, rects: anchors.mapValues { proxy[$0] },
+                                    onExit: onQuit)
+                }
+                .ignoresSafeArea()
+            }
         }
         // What the log's foot and the name plate are both measured in.
         .coordinateSpace(name: Chrome.screen)

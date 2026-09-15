@@ -111,6 +111,7 @@ struct StatusHUDView: View {
                 if !state.armedWhistles.isEmpty { watching }
                 ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize,
                               hidden: !state.canReadShot(GameRules.localSeat))
+                    .tutorialTarget(.shotHUD)
             }
             remaining
         }
