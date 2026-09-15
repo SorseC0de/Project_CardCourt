@@ -55,7 +55,7 @@ struct CardText: View {
 
     private func colour(of run: Marked.Run) -> Color {
         if run.ink == .type, let named = CardFace(named: run.word ?? run.text) {
-            return CardTextTuning.shared.typeReferenceInk(for: named)
+            return CardTextTuning.shared.typeReferenceInk(for: named, on: face)
         }
         return run.ink?.colour(on: face) ?? ink
     }

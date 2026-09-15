@@ -50,6 +50,46 @@ enum FootMark: String, CaseIterable, Hashable, Codable {
 /// **Named rather than raw**, because these numbers get pasted back into `CardTextStyle`
 /// and a hex triple in a source file says nothing about what it is. The list is the
 /// palette; a card is never printed in anything else.
+extension CardTextInk {
+    /// Under this, a coloured word is lost on the body it is printed on.
+    static let legibleContrast = 2.0
+
+    /// **This ink, readable on that body**: itself when it reads, otherwise its nearest
+    /// neighbour in the palette that does. One rule rather than a table per body, so a body
+    /// recoloured on the bench keeps its words readable.
+    func legible(on body: CardTextInk) -> CardTextInk {
+        guard contrast(with: body) < Self.legibleContrast else { return self }
+        return Self.allCases
+            .filter { $0 != body && $0.contrast(with: body) >= Self.legibleContrast }
+            .min { distance(to: $0) < distance(to: $1) } ?? self
+    }
+
+    private var channels: (red: Double, green: Double, blue: Double) {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        UIColor(colour).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return (Double(red), Double(green), Double(blue))
+    }
+
+    /// WCAG's relative luminance.
+    private var luminance: Double {
+        func linear(_ value: Double) -> Double {
+            value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        let rgb = channels
+        return 0.2126 * linear(rgb.red) + 0.7152 * linear(rgb.green) + 0.0722 * linear(rgb.blue)
+    }
+
+    private func contrast(with other: CardTextInk) -> Double {
+        let lighter = max(luminance, other.luminance), darker = min(luminance, other.luminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private func distance(to other: CardTextInk) -> Double {
+        let a = channels, b = other.channels
+        return pow(a.red - b.red, 2) + pow(a.green - b.green, 2) + pow(a.blue - b.blue, 2)
+    }
+}
+
 enum CardTextInk: String, CaseIterable, Hashable, Codable {
     case navy, white, black, gold, orange, blue, red, lightBlue, gray,
          tangerine, tan, brown, cloud, darkBlue, azure, cobalt, teal, darkRed, maroon, plum, blood,
@@ -386,13 +426,18 @@ final class CardTextTuning {
     var plateFill = CardTextStyle.plateFill
 
     func ink(for face: CardFace) -> Color { (text[face] ?? .navy).colour }
-    func keywordInk(for face: CardFace) -> Color { (keyword[face] ?? .orange).colour }
-    func nameReferenceInk(for face: CardFace) -> Color {
-        (nameReference[face] ?? .lightBlue).colour
+    func keywordInk(for face: CardFace) -> Color {
+        (keyword[face] ?? .orange).legible(on: body[face] ?? .blue).colour
     }
-    /// **Asked of the type being named**, not of the card naming it.
-    func typeReferenceInk(for named: CardFace) -> Color {
-        (typeReference[named] ?? .cloud).colour
+    func nameReferenceInk(for face: CardFace) -> Color {
+        (nameReference[face] ?? .lightBlue).legible(on: body[face] ?? .blue).colour
+    }
+    /// **Asked of the type being named**, not of the card naming it — and then made
+    /// readable on the card doing the naming, when one is given.
+    func typeReferenceInk(for named: CardFace, on face: CardFace? = nil) -> Color {
+        let ink = typeReference[named] ?? .cloud
+        guard let face else { return ink.colour }
+        return ink.legible(on: body[face] ?? .blue).colour
     }
     func ringInk(for face: CardFace) -> Color { (ring[face] ?? .navy).colour }
     func ringWeight(for face: CardFace) -> CGFloat { ringWidth[face] ?? 1 }

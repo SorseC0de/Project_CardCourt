@@ -101,7 +101,7 @@ enum CardLibrary {
 
     static let drive = CardDescriptor(
         id: "drive", name: "Drive", type: .move,
-        effect: "SHOT +10%", numberInDeck: 15,
+        effect: "SHOT +10%", numberInDeck: 16,
         shotDelta: 10, comboAfterDribble: true, comboBonus: 10,
         combo: "SHOT +10% extra")
 
@@ -501,7 +501,7 @@ enum CardLibrary {
 
     static let tornAchilles = CardDescriptor(
         id: "torn-achilles", name: "Torn Achilles", type: .injury,
-        effect: "Cannot Play Dunk Cards. Can only play 1 ~[Move] card per turn", numberInDeck: 1,
+        effect: "Cannot Play Dunk Cards. Can only play 1 ~[Move] card per possession", numberInDeck: 1,
         injury: InjuryEffect(lasts: .game, blocksDunks: true, movesPerPossession: 1))
 
     static let tornACL = CardDescriptor(
@@ -511,7 +511,7 @@ enum CardLibrary {
 
     static let tornMeniscus = CardDescriptor(
         id: "torn-meniscus", name: "Torn Meniscus", type: .injury,
-        effect: "Randomly #[Lock] all but 1 Card Each Turn", numberInDeck: 1,
+        effect: "Randomly #[Lock] all but 1 Card Each Possession", numberInDeck: 1,
         injury: InjuryEffect(lasts: .game, playableEachTurn: 1))
 
     static let patellarTendonTear = CardDescriptor(
@@ -873,7 +873,7 @@ enum CardLibrary {
     static let variaball = CardDescriptor(
         id: "variaball", name: "Variaball", type: .variaball,
         effect: "A random Variaball from the discards goes into play. Then discard this",
-        numberInDeck: 1,
+        numberInDeck: 2,
         variaball: VariaballEffect(rollsFromDiscard: true))
     static let shufflebagBall = CardDescriptor(
         id: "shufflebag-ball", name: "Shufflebag Ball", type: .variaball,
