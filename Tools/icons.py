@@ -55,6 +55,17 @@ def matrix(node) -> tuple:
     return (a, b, c, d, e, f)
 
 
+def export_scale(path: pathlib.Path) -> float:
+    """**Affinity sometimes exports at a print DPI**, the whole drawing wrapped in one uniform
+    scale: Snow Ball It came out at 300 (×4.16667). A box shared across files is scaled by it."""
+    kids = [kid for kid in ET.fromstring(path.read_text()) if kid.tag != SVG + "defs"]
+    if len(kids) == 1 and kids[0].tag == SVG + "g":
+        a, b, c, d, e, f = matrix(kids[0])
+        if a == d and b == c == e == f == 0:
+            return a
+    return 1
+
+
 def times(m, n) -> tuple:
     """`m` applied after `n`, both as SVG's six numbers."""
     a, b, c, d, e, f = m
@@ -187,6 +198,10 @@ def n(v: float) -> str:
     return f"{v:.4f}".rstrip("0").rstrip(".")
 
 
+def viewbox(left: float, top: float, side: float, scale: float = 1) -> str:
+    return f'viewBox="{n(left * scale)} {n(top * scale)} {n(side * scale)} {n(side * scale)}"'
+
+
 root = pathlib.Path(__file__).resolve().parent.parent
 known = palette(root)
 moved = snapped = 0
@@ -253,8 +268,8 @@ for name in sorted(layers):
         print(f"  ! {path.name}: the shape at the back is not a circle "
               f"({x1 - x0:.1f} by {y1 - y0:.1f})", file=sys.stderr)
 
-    box = (f'viewBox="{n(cx - MARGIN * r)} {n(cy - MARGIN * r)} '
-           f'{n(2 * MARGIN * r)} {n(2 * MARGIN * r)}"')
+    left, top, side = cx - MARGIN * r, cy - MARGIN * r, 2 * MARGIN * r
+    box = viewbox(left, top, side)
 
     # anything reaching past the canvas would be cut off at that framing
     edge = max(abs(whole[0] - cx), abs(whole[1] - cy), abs(whole[2] - cx), abs(whole[3] - cy))
@@ -263,11 +278,16 @@ for name in sorted(layers):
               f"{MARGIN} the canvas holds", file=sys.stderr)
 
     # **Every layer of this type takes the plate's box**, so they line up by being drawn
-    # at the same size in the same place.
+    # at the same size in the same place. The subject shares the plate's canvas, so it takes
+    # the box at its own export scale; a whole drawing was made on a canvas of its own.
+    unit = export_scale(path)
     for part in ("back", "front", "whole"):
-        if part in parts and frame(parts[part], box):
+        if part not in parts:
+            continue
+        scale = export_scale(parts[part]) / unit if part == "front" else 1
+        if frame(parts[part], viewbox(left, top, side, scale)):
             moved += 1
-    boxes[name] = (cx - MARGIN * r, cy - MARGIN * r, 2 * MARGIN * r)
+    boxes[name] = (left / unit, top / unit, side / unit)
     print(f"{name:16} circle ({cx:.1f}, {cy:.1f}) r {r:.1f}  "
           f"{'+'.join(sorted(parts))}   {box}")
 
@@ -318,14 +338,11 @@ for name in TRIMMED:
 
 # **The ball icons**: each Variaball's own drawing, made on the Variaball plate's artboard so
 # every ball stands in the plate at one size and spills out of it the way it was drawn. So they
-# take the plate's box, as a subject layer would. Snow Ball It came out of Affinity on a 4022
-# artboard rather than 966, so its box is scaled to match; re-exported at 966, drop the entry.
-BALL_EXPORT_SCALE = {"snowball": 4022 / 966}
+# take the plate's box, as a subject layer would, at whatever scale Affinity exported them.
 if "Variaball" in boxes:
-    left, top, span = boxes["Variaball"]
+    left, top, side = boxes["Variaball"]
     for path in sorted((root / ICONS / "Balls").glob("*.svg")):
-        k = BALL_EXPORT_SCALE.get(path.stem, 1)
-        box = f'viewBox="{n(left * k)} {n(top * k)} {n(span * k)} {n(span * k)}"'
+        box = viewbox(left, top, side, export_scale(path))
         if frame(path, box):
             moved += 1
         print(f"{'Balls/' + path.stem:16} on the Variaball plate   {box}")
