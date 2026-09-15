@@ -496,15 +496,60 @@ enum CardLibrary {
     // each is kept scarce. A Devastating one lasts the game, exists once, and never
     // returns to the deck.
 
-    static let boneBruise = CardDescriptor(
-        id: "bone-bruise", name: "Bone Bruise", type: .injury,
-        effect: "#[Discard] 1 each turn, after drawing", numberInDeck: 5,
-        injury: InjuryEffect(lasts: .round, discardsEachTurn: 1))
+    // Devastating Injuries (2026-09-15): the game, one of each. Landing one discards every
+    // other Injury, and while one is on you a new Injury is discarded.
 
     static let tornAchilles = CardDescriptor(
         id: "torn-achilles", name: "Torn Achilles", type: .injury,
-        effect: "Every turn: all but 1 random card is held", numberInDeck: 1,
+        effect: "Cannot Play Dunk Cards. Can only play 1 ~[Move] card per turn", numberInDeck: 1,
+        injury: InjuryEffect(lasts: .game, blocksDunks: true, movesPerPossession: 1))
+
+    static let tornACL = CardDescriptor(
+        id: "torn-acl", name: "Torn ACL", type: .injury,
+        effect: "Cannot Play ~[Move] Cards.", numberInDeck: 1,
+        injury: InjuryEffect(lasts: .game, blocksMoves: true))
+
+    static let tornMeniscus = CardDescriptor(
+        id: "torn-meniscus", name: "Torn Meniscus", type: .injury,
+        effect: "Randomly #[Lock] all but 1 Card Each Turn", numberInDeck: 1,
         injury: InjuryEffect(lasts: .game, playableEachTurn: 1))
+
+    static let patellarTendonTear = CardDescriptor(
+        id: "patellar-tendon-tear", name: "Patellar Tendon Tear", type: .injury,
+        effect: "Cannot #[Draw] Cards except at the start of your possession", numberInDeck: 1,
+        injury: InjuryEffect(lasts: .game, drawsOnlyAtPossessionStart: true))
+
+    // Injuries: the round, two of each.
+
+    static let boneBruise = CardDescriptor(
+        id: "bone-bruise", name: "Bone Bruise", type: .injury,
+        effect: "SHOT -10%", numberInDeck: 2,
+        injury: InjuryEffect(lasts: .round, shotBonus: -10))
+
+    static let rolledAnkle = CardDescriptor(
+        id: "rolled-ankle", name: "Rolled Ankle", type: .injury,
+        effect: "#[Discard] 1 card to play a ~[Move] card", numberInDeck: 2,
+        injury: InjuryEffect(lasts: .round, moveDiscardCost: 1))
+
+    static let fracturedCollarbone = CardDescriptor(
+        id: "fractured-collarbone", name: "Fractured Collarbone", type: .injury,
+        effect: "Cannot attempt #[Three]-point shots", numberInDeck: 2,
+        injury: InjuryEffect(lasts: .round, blocksThrees: true))
+
+    static let jammedFinger = CardDescriptor(
+        id: "jammed-finger", name: "Jammed Finger", type: .injury,
+        effect: "#[Discard] 1 card at random while receiving a ~[Pass]", numberInDeck: 2,
+        injury: InjuryEffect(lasts: .round, discardsOnReceivingPass: 1))
+
+    static let sprainedHamstring = CardDescriptor(
+        id: "sprained-hamstring", name: "Sprained Hamstring", type: .injury,
+        effect: "Your #[Rebound] Bids are worth 1 less", numberInDeck: 2,
+        injury: InjuryEffect(lasts: .round, reboundBidPenalty: 1))
+
+    static let hipContusion = CardDescriptor(
+        id: "hip-contusion", name: "Hip Contusion", type: .injury,
+        effect: "#[Discard] 1 card at random when playing a ~[Pass] card", numberInDeck: 2,
+        injury: InjuryEffect(lasts: .round, discardsOnPlayingPass: 1))
 
     static let tradedMidGame = CardDescriptor(
         id: "traded-mid-game", name: "Traded Mid-Game", type: .gameBreak,
@@ -844,8 +889,8 @@ enum CardLibrary {
         effect: "SHOT +10% as this Ball is ~[Passed]", numberInDeck: 5,
         variaball: VariaballEffect(shotPerPass: 10))
     /// Blaze Ball's opposite, worded to match.
-    static let snowBallIt = CardDescriptor(
-        id: "snow-ball-it", name: "Snow Ball It", type: .variaball,
+    static let snowBall = CardDescriptor(
+        id: "snow-ball", name: "Snow Ball", type: .variaball,
         effect: "SHOT -10% as this Ball is ~[Passed]", numberInDeck: 5,
         variaball: VariaballEffect(shotPerPass: -10))
     static let brickBall = CardDescriptor(
@@ -861,6 +906,14 @@ enum CardLibrary {
         id: "brand-new-ball", name: "Brand New Ball", type: .variaball,
         effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 3,
         variaball: VariaballEffect(turnoverChance: 25))
+    static let makeOrTakeBall = CardDescriptor(
+        id: "make-or-take-ball", name: "Make-or-Take Ball", type: .variaball,
+        effect: "Take 1 #[FT] after missing a shot attempt.", numberInDeck: 3,
+        variaball: VariaballEffect(freeThrowsOnMiss: 1))
+    static let heroBall = CardDescriptor(
+        id: "hero-ball", name: "Hero Ball", type: .variaball,
+        effect: "Cannot play ~[Pass] cards. Made shots grant no #[AST]", numberInDeck: 3,
+        variaball: VariaballEffect(barsPasses: true, noAssists: true))
 
     /// **Alley-Oop**: a Lob, dunked as the first thing done with it. What the combo adds on
     /// top of the Lob and the dunk card.
@@ -868,8 +921,8 @@ enum CardLibrary {
 
     static let variaballs: [CardDescriptor] = [
         medBall, dishcountBall, blightBall, benchBall, dishtractingBall, handBall, footBall,
-        rechargeRock, variaball, shufflebagBall, bagnBall, blazeBall, snowBallIt, brickBall,
-        monsterBall, brandNewBall,
+        rechargeRock, variaball, shufflebagBall, bagnBall, blazeBall, snowBall, brickBall,
+        monsterBall, brandNewBall, makeOrTakeBall, heroBall,
     ]
 
     static let varenas: [CardDescriptor] = [
@@ -1113,7 +1166,10 @@ enum CardLibrary {
         gameBreak: GameBreakEffect(waivesBreaks: 3))
 
     /// Their own type. A Devastating Injury is the sub-type that lasts the game — see `Injury`.
-    static let injuries: [CardDescriptor] = [boneBruise, tornAchilles]
+    static let injuries: [CardDescriptor] = [
+        tornAchilles, tornACL, tornMeniscus, patellarTendonTear,
+        boneBruise, rolledAnkle, fracturedCollarbone, jammedFinger, sprainedHamstring, hipContusion,
+    ]
 
     static let tileTampering = CardDescriptor(
         id: "tile-tampering", name: "Tile Tampering", type: .whistle,

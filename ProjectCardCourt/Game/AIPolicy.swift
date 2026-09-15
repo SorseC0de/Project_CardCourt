@@ -155,13 +155,18 @@ struct AIPolicy {
     /// that hurt whoever holds them only go down when there is a pass to hand them on with.
     private mutating func slotCard(_ state: GameState, for seat: Seat, from playable: [Card],
                                    passing: Bool) -> Card.ID? {
+        // An Intangible in hand goes down as soon as it can: one a possession, and a slot
+        // is worth nothing sitting in the hand.
+        if let passive = playable.first(where: { $0.descriptor.intangible != nil }) {
+            return passive.id
+        }
         let slots = playable.filter {
             $0.descriptor.varena != nil || $0.descriptor.variaball != nil
         }
         guard !slots.isEmpty, chance() < 0.7 else { return nil }
         let weapons: Set<String> = [
             CardLibrary.benchBall.id, CardLibrary.dishtractingBall.id, CardLibrary.blightBall.id,
-            CardLibrary.snowBallIt.id, CardLibrary.brickBall.id, CardLibrary.handBall.id,
+            CardLibrary.snowBall.id, CardLibrary.brickBall.id, CardLibrary.handBall.id,
             CardLibrary.brandNewBall.id,
         ]
         for card in slots {

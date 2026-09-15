@@ -744,20 +744,97 @@ func runTests() {
         Check.that(true, "drawing Breaks fill to their number and never discard past it")
     }
 
+    print("Injuries and the new balls")
+    do {
+        var (state, seat, _) = openPossession(seed: 301, cards: [])
+        state[seat].intangibles = []
+        state.armedWhistles = []
+        state[seat].injuries = [CardLibrary.boneBruise]
+        var events: [GameEvent] = []
+        state.deck.append(matchCard(CardLibrary.tornACL, state.rules))
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state[seat].injuries.map(\.id) == ["torn-acl"],
+                   "a Devastating Injury discards the others as it lands")
+        state.deck.append(matchCard(CardLibrary.jammedFinger, state.rules))
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state[seat].injuries.map(\.id) == ["torn-acl"],
+                   "and a new Injury on top of one is discarded")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 302, cards: [CardLibrary.drive])
+        state[seat].injuries = [CardLibrary.tornACL]
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
+                   "Torn ACL: no Move cards")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 303, cards: [])
+        state[seat].injuries = [CardLibrary.patellarTendonTear]
+        let before = state[seat].bag.count
+        var events: [GameEvent] = []
+        Rules.testDraw(seat, state: &state, events: &events)
+        Check.that(state[seat].bag.count == before,
+                   "Patellar Tendon Tear: no draw outside the start of a possession")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 304, cards: [])
+        state.phase = .awaitingRebound(shooter: seat.left)
+        for other in Seat.allCases {
+            state[other].intangibles = []
+            state[other].bag = [matchCard(CardLibrary.dribble, state.rules)]
+        }
+        state[seat].injuries = [CardLibrary.sprainedHamstring]
+        let bids: [Seat: [Card.ID]] = [seat: [state[seat].bag[0].id],
+                                       seat.across: [state[seat.across].bag[0].id]]
+        let events = Rules.resolveRebound(bids: bids, state: &state)
+        Check.that(events.contains { if case .rebounded(let who) = $0 { return who == seat.across }
+                                     return false },
+                   "Sprained Hamstring: a bid of one is worth nothing")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 305, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.heroBall)
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
+                   "Hero Ball: no Pass cards")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 306, cards: [])
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.ballCard = Card(CardLibrary.makeOrTakeBall)
+        state.shot = 0
+        var events: [GameEvent] = []
+        Rules.testShot(by: seat, state: &state, events: &events)
+        Check.that({ if case .freeThrows(let trip) = state.phase { return trip.thenRebound == seat }
+                     return false }(), "Make-or-Take Ball: a miss goes to the line")
+        Rules.resolveFreeThrow(made: true, state: &state)
+        Check.that({ if case .awaitingRebound(let shooter) = state.phase { return shooter == seat }
+                     return false }(), "and the rebound goes up after it")
+    }
+
     print("Intangibles")
     do {
+        // Played by hand now: drawn into the hand, one down a possession.
         var (state, seat, _) = openPossession(seed: 51, cards: [])
-        let bagBefore = state[seat].bag.count
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.armedWhistles = []
         state.deck.append(matchCard(CardLibrary.hotHand, state.rules))
         var events: [GameEvent] = []
         Rules.testDraw(seat, state: &state, events: &events)
-        Check.that(state[seat].intangibles.map(\.id) == ["hot-hand"], "a drawn passive takes a slot")
-        Check.that(!state[seat].bag.contains { $0.descriptor.id == "hot-hand" },
-                   "and never reaches the bag")
-        Check.that(state[seat].bag.count == bagBefore + 1,
-                   "but replaces itself, so slotting one is not a card down")
-        Check.that(events.contains { if case .intangibleRevealed = $0 { return true }; return false },
-                   "it is revealed on the way in")
+        let drawn = state[seat].bag.first { $0.descriptor.id == "hot-hand" }
+        Check.that(drawn != nil && state[seat].intangibles.isEmpty,
+                   "a drawn passive goes into the hand")
+        if let drawn {
+            state.deck.append(matchCard(CardLibrary.sniper, state.rules))
+            Rules.testDraw(seat, state: &state, events: &events)
+            let played = Rules.apply(.play(drawn.id), by: seat, to: &state)
+            Check.that(state[seat].intangibles.map(\.id) == ["hot-hand"], "playing it takes a slot")
+            Check.that(played.contains { if case .intangibleRevealed = $0 { return true }; return false },
+                       "and it is revealed as it goes down")
+            let second = state[seat].bag.first { $0.descriptor.id == "sniper" }
+            Check.that(second.map { !Rules.legalMoves(state, for: seat).contains(.play($0.id)) } ?? false,
+                       "and a second can't follow it the same possession")
+        }
     }
     do {
         var (state, seat, _) = openPossession(seed: 52, cards: [])
@@ -998,14 +1075,14 @@ func runTests() {
         Check.that(state.shotClock == 3, "and costs two ticks of five, not all of them")
     }
     do {
-        // The same trip, with a toll at the far end: Bone Bruise takes a card the moment
-        // he catches it. The clock must not care.
+        // The same trip, with a toll at the far end: Dishtracting Ball takes a card the
+        // moment he catches it. The clock must not care.
         var (state, seat, cards) = openPossession(seed: 56, cards: [CardLibrary.rightBack])
         state.shotClock = 5
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         guard case .awaitingTarget(_, _, let choices) = state.phase else { return }
         let victim = choices[0]
-        state[victim].injuries.append(CardLibrary.boneBruise)
+        state.ballCard = Card(CardLibrary.dishtractingBall)
         Rules.resolveTarget(victim, state: &state)
         declineCounter(&state)
         Check.that(state.ball == victim, "a toll at the far end holds the ball there")
@@ -1501,16 +1578,18 @@ func runTests() {
                    "and pays 25 on every shot")
     }
     do {
-        var (state, seat, _) = openPossession(seed: 99, cards: [])
+        var (state, seat, cards) = openPossession(seed: 99, cards: [CardLibrary.greatConditioning,
+                                                                    CardLibrary.fundamentalist])
+        state[seat].clamps = []
+        state.armedWhistles = []
         state[seat].injuries = [CardLibrary.boneBruise]
-        state.deck.append(matchCard(CardLibrary.greatConditioning, state.rules))
-        var events: [GameEvent] = []
-        Rules.testDraw(seat, state: &state, events: &events)
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state[seat].injuries.isEmpty,
                    "Great Conditioning clears the Injuries already carried")
         state.ballCard = Card(CardLibrary.cardwood)
-        state.deck.append(matchCard(CardLibrary.fundamentalist, state.rules))
-        Rules.testDraw(seat, state: &state, events: &events)
+        state.playedIntangibleThisPossession = false
+        answerArrival(&state)
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
         Check.that(state.ballCard == nil, "Fundamentalist discards the ball on activation")
     }
     do {

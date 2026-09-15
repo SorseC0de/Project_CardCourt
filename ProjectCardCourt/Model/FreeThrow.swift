@@ -25,6 +25,8 @@ struct FreeThrowTrip: Hashable, Codable {
     var attempted = 0
     var made = 0
     var remaining: Int
+    /// Make-or-Take Ball: a trip taken before a rebound, which goes up once it is over.
+    var thenRebound: Seat?
 
     var total: Int { attempted + remaining }
     /// 1-based, for "1 OF 2".

@@ -118,6 +118,12 @@ extension GameState {
                        fromThree: Bool = false) -> ShotModifiers {
         var modifiers = ShotModifiers()
         var passiveOverride: ShotOverride?
+        // Injuries: Bone Bruise, on every shot.
+        for injury in self[seat].injuries {
+            if let bonus = injury.injury?.shotBonus, bonus != 0 {
+                modifiers.adds.append(ShotModifier(label: injury.name, amount: Double(bonus)))
+            }
+        }
         // Adds first, in the order the passives were received.
         for passive in self[seat].intangibles {
             guard let effect = passive.intangible else { continue }

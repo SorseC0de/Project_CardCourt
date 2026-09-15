@@ -88,5 +88,5 @@ row doesn't mention is unchanged.
 |---|---|
 | Bag'n Ball | "Draw 1 card when played. SHOT = 10% for each card in your hand" |
 | Blaze Ball | "SHOT +10% as this Ball is Passed" |
-| Snow Ball It | "SHOT -10% as this Ball is Passed" — Blaze Ball's opposite |
+| Snow Ball | "SHOT -10% as this Ball is Passed" — Blaze Ball's opposite |
 | Brick Ball | unchanged |

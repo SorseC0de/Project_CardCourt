@@ -96,7 +96,7 @@ dunks), Con-crete (Moves −10). One field: `shotDelta: Int`, plus `noDunks`/`mo
 where a card pairs a delta with a rule.
 
 **Flat SHOT delta, ball-holder-scoped (Variaball):** none currently additive-only; see override
-group below — Med Ball and Blaze/Snow Ball It are the closest and each needs its own shape
+group below — Med Ball and Blaze/Snow Ball are the closest and each needs its own shape
 (ceiling, and per-pass accumulator, respectively).
 
 **SHOT override (Court, ranked above Ball):** Spazzphalt (random 0–100 by 5s).
@@ -105,7 +105,7 @@ group below — Med Ball and Blaze/Snow Ball It are the closest and each needs i
 
 **SHOT ceiling (Ball):** Med Ball (cannot exceed 50%).
 
-**Per-pass accumulator (Ball):** Blaze Ball (+10/pass, stacking), Snow Ball It (−10/pass,
+**Per-pass accumulator (Ball):** Blaze Ball (+10/pass, stacking), Snow Ball (−10/pass,
 stacking) — both explicitly ignore other pass modifiers, so they read the pass event directly
 rather than going through the normal SHOT-delta pipeline.
 

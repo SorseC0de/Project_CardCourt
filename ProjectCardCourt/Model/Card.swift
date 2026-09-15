@@ -266,6 +266,25 @@ struct InjuryEffect: Hashable, Codable {
     /// Torn Achilles: everything in the bag is held down but this many, rolled fresh each
     /// turn. Zero is no lock at all.
     var playableEachTurn: Int?
+    /// Bone Bruise: SHOT, on every shot.
+    var shotBonus = 0
+    /// Torn Achilles: no card that dunks, and at most this many Move cards a possession.
+    var blocksDunks = false
+    var movesPerPossession: Int?
+    /// Torn ACL: no Move cards at all.
+    var blocksMoves = false
+    /// Patellar Tendon Tear: no draws but the ones at the start of a possession.
+    var drawsOnlyAtPossessionStart = false
+    /// Rolled Ankle: a Move costs this many other cards.
+    var moveDiscardCost = 0
+    /// Fractured Collarbone: no three-point attempts.
+    var blocksThrees = false
+    /// Jammed Finger: cards lost at random as a pass arrives.
+    var discardsOnReceivingPass = 0
+    /// Sprained Hamstring: every Rebound bid is worth this many fewer.
+    var reboundBidPenalty = 0
+    /// Hip Contusion: cards lost at random as you play a Pass card.
+    var discardsOnPlayingPass = 0
 }
 
 /// What a Varena changes while it is the floor — one field per mechanic, like
@@ -352,7 +371,7 @@ struct VariaballEffect: Hashable, Codable {
     var shotPerCardInHand = 0
     /// Med Ball: SHOT never goes past this.
     var shotCeiling: Int?
-    /// Blaze Ball and Snow Ball It: every pass, on its own, whatever else the pass does.
+    /// Blaze Ball and Snow Ball: every pass, on its own, whatever else the pass does.
     var shotPerPass = 0
     /// Dishcount Ball: one fewer for card costs and Clamps.
     var discountsDiscards = false
@@ -378,6 +397,11 @@ struct VariaballEffect: Hashable, Codable {
     var turnoverChance = 0
     /// Variaball: never sits in the slot. It puts a discarded ball there instead.
     var rollsFromDiscard = false
+    /// Make-or-Take Ball: free throws after a miss, before anybody goes up for it.
+    var freeThrowsOnMiss = 0
+    /// Hero Ball: no Pass cards, and a make pays nobody an assist.
+    var barsPasses = false
+    var noAssists = false
 }
 
 /// How long an Injury stays on the man who drew it.

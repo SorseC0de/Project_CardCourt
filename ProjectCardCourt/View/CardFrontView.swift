@@ -341,7 +341,7 @@ struct CardFrontView: View {
 
     private enum VarenaArt {
         /// How wide the court is drawn, as a share of the card's width.
-        static let width: CGFloat = 1.0
+        static let width: CGFloat = 0.9
         /// How far above the icon's place it sits, as a share of the card's height.
         static let lift: CGFloat = 0.06
     }

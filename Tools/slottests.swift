@@ -455,11 +455,11 @@ func slotTestsTwo() {
     }
     do {
         var (state, seat, cards) = openPossession(seed: 281, cards: [CardLibrary.swingLeft])
-        state.ballCard = Card(CardLibrary.snowBallIt)
+        state.ballCard = Card(CardLibrary.snowBall)
         state.shot = 50
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
         Check.that(state.shot == 50 + cards[0].descriptor.baseShotDelta - 10,
-                   "Snow Ball It: SHOT -10% on every pass")
+                   "Snow Ball: SHOT -10% on every pass")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 282, cards: [CardLibrary.swingLeft])

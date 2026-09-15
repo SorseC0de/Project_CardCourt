@@ -324,6 +324,10 @@ struct GameState: Codable {
     var levelsPointsFor: Seat?
     /// The Future: the discard now open is buying a three up to four.
     var fourPointOffer = false
+    /// Move cards played this possession, counted rather than named — Torn Achilles allows one.
+    var moveCardsThisPossession = 0
+    /// One Intangible a possession, played by hand like a Varena.
+    var playedIntangibleThisPossession = false
     /// Varsitile's swap, once a possession.
     var slotsExchangedThisPossession = false
     /// Carousel Court: which way the hands go round, declared when it was played.

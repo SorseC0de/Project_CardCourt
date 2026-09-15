@@ -78,13 +78,24 @@ enum Rules {
                 if held.contains(card.id) { return false }
                 if passOnly, card.descriptor.passTarget == nil { return false }
                 // Close-Out and Park Shark take the threes away, and Zone every shot.
-                if closedOut || has(seat, in: state, { $0.blocksThrees }),
+                if closedOut || has(seat, in: state, { $0.blocksThrees })
+                    || injured(seat, in: state, { $0.blocksThrees }),
                    card.descriptor.isThree { return false }
                 if zoned, card.descriptor.takesShot { return false }
                 // Park Shark sits the Moves and Special Moves down; Fundamentalist the
                 // Special Moves, and allows each Move once a turn.
                 if card.descriptor.isMove,
                    has(seat, in: state, { $0.blocksMoves }) { return false }
+                // Injuries: Torn ACL takes the Moves, and Torn Achilles the dunks and every
+                // Move after the first each possession.
+                if card.descriptor.isMove, injured(seat, in: state, { $0.blocksMoves }) {
+                    return false
+                }
+                if card.descriptor.special?.dunks == true,
+                   injured(seat, in: state, { $0.blocksDunks }) { return false }
+                if card.descriptor.isMove,
+                   let most = state[seat].injuries.compactMap({ $0.injury?.movesPerPossession }).min(),
+                   state.moveCardsThisPossession >= most { return false }
                 if card.descriptor.type == .specialMove,
                    has(seat, in: state, { $0.blocksSpecialMoves }) { return false }
                 if has(seat, in: state, { $0.oneOfEachMovePerTurn }),
@@ -128,7 +139,13 @@ enum Rules {
                 if floor.barsDunks, card.descriptor.special?.dunks == true { return false }
                 // Frostbite Finish: a Move needs other cards to pay for it.
                 if card.descriptor.isMove,
-                   moveDiscardCost(in: state) > state[seat].bag.count - 1 { return false }
+                   moveDiscardCost(in: state, for: seat) > state[seat].bag.count - 1 { return false }
+                // Hero Ball: nobody passes it.
+                if state.ballEffect.barsPasses, card.descriptor.isPass { return false }
+                // One Intangible a possession, played by hand.
+                if card.descriptor.intangible != nil {
+                    return !state.playedIntangibleThisPossession
+                }
                 // One Varena and one Variaball a possession, unless Varsitile says otherwise.
                 if card.descriptor.varena != nil {
                     return slotsFreely || !state.playedVarenaThisPossession
@@ -217,9 +234,12 @@ enum Rules {
         return (courts, balls)
     }
 
-    /// Frostbite Finish's price for a Move, after Dishcount Ball's discount.
-    static func moveDiscardCost(in state: GameState) -> Int {
-        max(0, state.floorEffect.moveDiscardCost - (state.ballEffect.discountsDiscards ? 1 : 0))
+    /// A Move's price in other cards — Frostbite Finish's and Rolled Ankle's — after Dishcount
+    /// Ball's discount.
+    static func moveDiscardCost(in state: GameState, for seat: Seat) -> Int {
+        let ankles = state[seat].injuries.reduce(0) { $0 + ($1.injury?.moveDiscardCost ?? 0) }
+        return max(0, state.floorEffect.moveDiscardCost + ankles
+                      - (state.ballEffect.discountsDiscards ? 1 : 0))
     }
 
     // MARK: - Swissh-Ups
@@ -576,6 +596,16 @@ enum Rules {
         state.lastPlayThisPossession = card.descriptor.id
         state.lastPlayWasCombo = false
         state.movesThisPossession += 1
+        // An Intangible, played by hand: into its slot now, one a possession.
+        if card.descriptor.intangible != nil {
+            state.playedIntangibleThisPossession = true
+            activate(card, for: seat, state: &state, events: &events)
+            // Free Agent takes the whole hand, once the chain it landed in is done.
+            if card.descriptor.intangible?.playsFromOthers == true {
+                state.owe(.spendHand(seat))
+            }
+            return
+        }
         if card.descriptor.varena != nil {
             state.playedVarenaThisPossession = true
             setCourt(card, by: seat, state: &state, events: &events)
@@ -889,6 +919,16 @@ enum Rules {
             // Rhythm Dribble: its extra belongs to the next action, and only if that is a shot.
             let carriedShotBonus = state.nextShotBonus
             state.nextShotBonus = 0
+            // Hip Contusion: throwing a pass costs a card.
+            if descriptor.isPass {
+                let hip = state[seat].injuries.reduce(0) { $0 + ($1.injury?.discardsOnPlayingPass ?? 0) }
+                if hip > 0, let injury = state[seat].injuries.first(where: {
+                    ($0.injury?.discardsOnPlayingPass ?? 0) > 0
+                }) {
+                    for _ in 0..<hip { discardAtRandom(from: seat, state: &state) }
+                    events.append(.clampBit(seat: seat, card: injury, discarded: hip))
+                }
+            }
             // Everything is spent the moment it is played — except a Whistle being armed,
             // which is **private** until it is called. The discard is public, so a card
             // put there names the trap, and the whole point of arming one is that nobody
@@ -903,6 +943,7 @@ enum Rules {
             }
             // A Varena or a Variaball is not spent: it goes onto its slot, below.
             let takesASlot = descriptor.varena != nil || descriptor.variaball != nil
+                || descriptor.intangible != nil
             // Foot Ball: a Move or a Pass stays in the hand, locked until the possession ends.
             let footLocks = state.ballEffect.locksInsteadOfSpending
                 && (descriptor.isMove || descriptor.isPass)
@@ -915,11 +956,18 @@ enum Rules {
             // Tick-Tock Tile: the tick is paid once the card has done what it does.
             if state.floorEffect.cardsTickClock { state.clockTicksOwed += 1 }
             // Frostbite Finish: a Move is paid for in other cards, owner's pick.
-            if descriptor.isMove, moveDiscardCost(in: state) > 0 {
-                state.owe(.tax(seat: seat, count: moveDiscardCost(in: state),
-                               card: state.currentCourt))
+            if descriptor.isMove, moveDiscardCost(in: state, for: seat) > 0 {
+                // Named for whatever is charging it: the floor, or the ankle.
+                let charging = state.floorEffect.moveDiscardCost > 0 ? state.currentCourt
+                    : (state[seat].injuries.first { ($0.injury?.moveDiscardCost ?? 0) > 0 }
+                       ?? state.currentCourt)
+                state.owe(.tax(seat: seat, count: moveDiscardCost(in: state, for: seat),
+                               card: charging))
             }
-            if descriptor.isMove { state.movesPlayedThisPossession.insert(descriptor.id) }
+            if descriptor.isMove {
+                state.movesPlayedThisPossession.insert(descriptor.id)
+                state.moveCardsThisPossession += 1
+            }
             if descriptor.blocksFurtherMoves { state.movesClosed = true }
             if descriptor.nextShotBonus != 0 { state.nextShotBonus = descriptor.nextShotBonus }
 
@@ -1330,6 +1378,7 @@ enum Rules {
     /// converting in `takeTheLine` is what keeps the two from fighting.
     private static func awardFreeThrows(_ count: Int, to seat: Seat, offender: Seat?,
                                         source: String, endsPossession: Bool = false,
+                                        thenRebound: Seat? = nil,
                                         state: inout GameState, events: inout [GameEvent]) {
         guard count > 0 else { return }
 
@@ -1352,7 +1401,8 @@ enum Rules {
         state.owe(.takeTheLine(FreeThrowTrip(shooter: seat, offender: offender,
                                              source: source,
                                              endsPossession: endsPossession,
-                                             remaining: count + bonus)))
+                                             remaining: count + bonus,
+                                             thenRebound: thenRebound)))
         events.append(.freeThrowsAwarded(seat: seat, count: count + bonus, source: source))
         if bonus > 0, let card = state[seat].intangibles.first(where: {
             ($0.intangible?.bonusFreeThrows ?? 0) > 0
@@ -1424,6 +1474,11 @@ enum Rules {
         // does: the offender hands it back in and the round does not advance. A trip a
         // card handed out does not — play picks up where it left off, with two shots in
         // the middle of it. See `FreeThrowTrip.endsPossession`.
+        // Make-or-Take Ball: the miss it followed is still waiting to be rebounded.
+        if let shooter = trip.thenRebound {
+            state.phase = .awaitingRebound(shooter: shooter)
+            return events
+        }
         if trip.endsPossession, let offender = trip.offender {
             reinbound(by: offender, state: &state, events: &events)
         } else if let holder = state.ball {
@@ -1535,7 +1590,7 @@ enum Rules {
         if descriptor.upgradesToThree { state.pendingBonusPoint = 1 }
         state.lastPasser = seat
         state.arrivedBy = descriptor
-        // Blaze Ball and Snow Ball It: every pass, on its own terms.
+        // Blaze Ball and Snow Ball: every pass, on its own terms.
         if state.ballEffect.shotPerPass != 0 {
             adjustShot(by: state.ballEffect.shotPerPass, state: &state)
         }
@@ -1616,6 +1671,16 @@ enum Rules {
             state.inbounder = receiver
             state.phase = .inbound(inbounder: receiver)
             return
+        }
+        // Jammed Finger: the catch costs a card.
+        let jammed = state[receiver].injuries.reduce(0) {
+            $0 + ($1.injury?.discardsOnReceivingPass ?? 0)
+        }
+        if jammed > 0, let finger = state[receiver].injuries.first(where: {
+            ($0.injury?.discardsOnReceivingPass ?? 0) > 0
+        }) {
+            for _ in 0..<jammed { discardAtRandom(from: receiver, state: &state) }
+            events.append(.clampBit(seat: receiver, card: finger, discarded: jammed))
         }
         beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
                         state: &state, events: &events)
@@ -2033,7 +2098,10 @@ enum Rules {
             // Boarder Court: off his own miss, the shooter reaches one further.
             let boarder = seat == shooter && state.intangibleBoard.isEmpty
                 ? state.floorEffect.shooterReboundBonus : 0
-            counts[seat] = discarded.isEmpty ? 0 : discarded.count + reach + boarder
+            // Sprained Hamstring: a bid reaches one short.
+            let hamstring = state[seat].injuries.reduce(0) { $0 + ($1.injury?.reboundBidPenalty ?? 0) }
+            counts[seat] = discarded.isEmpty ? 0
+                : max(0, discarded.count + reach + boarder - hamstring)
         }
         // Built in the order it is read out — see `GameEvent.reboundBids`, which is a
         // list rather than a dictionary because a dictionary does not write the same
@@ -2217,11 +2285,12 @@ enum Rules {
             }
             // Wide-Open Three: everyone he named takes one, on top of whatever the pass
             // was already worth.
-            for helper in state.namedForAssist where helper != seat {
+            // Hero Ball: a make is nobody else's.
+            for helper in state.namedForAssist where helper != seat && !state.ballEffect.noAssists {
                 state[helper].assists += 1
                 events.append(.assisted(helper))
             }
-            if let passer = state.lastPasser, passer != seat {
+            if let passer = state.lastPasser, passer != seat, !state.ballEffect.noAssists {
                 // Dime pays twice: the assist every pass earns, and its own.
                 let extra = state.dimeFrom == passer ? 1 : 0
                 state[passer].assists += 1 + extra
@@ -2242,6 +2311,14 @@ enum Rules {
                                 fromOwnMiss: true, state: &state, events: &events)
             } else {
                 state.phase = .awaitingRebound(shooter: seat)
+                // Make-or-Take Ball: a miss still goes to the line, before anybody goes up.
+                let owed = state.ballEffect.freeThrowsOnMiss
+                if owed > 0 {
+                    awardFreeThrows(owed, to: seat, offender: nil,
+                                    source: state.currentBall?.name ?? "", thenRebound: seat,
+                                    state: &state, events: &events)
+                    takeTheLine(state: &state, events: &events)
+                }
             }
         }
     }
@@ -2575,6 +2652,8 @@ enum Rules {
         state.slotsExchangedThisPossession = false
         state.sellingOut = false
         state.nextShotBonus = 0
+        state.moveCardsThisPossession = 0
+        state.playedIntangibleThisPossession = false
         // Blight Ball: the Injuries come with the ball, whoever it came from.
         if state.ballEffect.injuriesTravel {
             if let carrier = state.pileCarrier, carrier != seat, !state[carrier].injuries.isEmpty {
@@ -2997,6 +3076,12 @@ enum Rules {
         state[seat].intangibles.contains { $0.intangible.map(test) ?? false }
     }
 
+    /// Whether an Injury this player is carrying says so.
+    static func injured(_ seat: Seat, in state: GameState,
+                        _ test: (InjuryEffect) -> Bool) -> Bool {
+        state[seat].injuries.contains { $0.injury.map(test) ?? false }
+    }
+
     /// Whoever holds Gravity, if anybody — the man every Clamp lands on.
     static func gravityHolder(in state: GameState) -> Seat? {
         Seat.allCases.first { has($0, in: state, { $0.attractsClamps }) }
@@ -3263,7 +3348,8 @@ enum Rules {
             if guarding.contains(where: \.blocksShooting)
                 || (state.pendingBonusPoint > 0
                     && (guarding.contains(where: \.blocksThrees)
-                        || has(shooter, in: state, { $0.blocksThrees }))) {
+                        || has(shooter, in: state, { $0.blocksThrees })
+                        || injured(shooter, in: state, { $0.blocksThrees }))) {
                 state.pendingBonusPoint = 0
                 return
             }
@@ -3383,7 +3469,14 @@ enum Rules {
             // was never carried.
             state.discard.append(card)
             draw(seat, state: &state, events: &events, allowBonus: false, depth: depth + 1)
+        } else if state[seat].injuries.contains(where: { $0.injury?.lasts == .game }) {
+            // Devastated already: a new Injury is discarded.
+            state.discard.append(card)
         } else {
+            // A Devastating Injury discards every other Injury as it lands.
+            if card.descriptor.injury?.lasts == .game, !state[seat].injuries.isEmpty {
+                healInjuries(of: seat, state: &state)
+            }
             state[seat].injuries.append(card.descriptor)
             rollInjuryLock(seat, state: &state)
         }
@@ -3478,6 +3571,9 @@ enum Rules {
         // a run of them cannot recurse without end. Dealing gets a longer rope because it
         // reshuffles past every Break it turns up.
         guard depth < (duringDeal ? 80 : 8) else { return }
+        // Patellar Tendon Tear: nothing comes in but the draws that open a possession.
+        if !opening, !duringDeal,
+           injured(seat, in: state, { $0.drawsOnlyAtPossessionStart }) { return }
         if state.deck.isEmpty {
             guard !state.discard.isEmpty else { return }
             state.deck = state.shuffled(state.discard)
@@ -3496,19 +3592,9 @@ enum Rules {
             return
         }
 
-        if card.descriptor.intangible != nil {
-            // Passives never reach a bag — they are revealed and take a slot at once,
-            // then replace themselves so slotting one never costs you a card.
-            activate(card, for: seat, state: &state, events: &events)
-            // Free Agent takes the whole hand, but not yet: turning it up second in an
-            // opening deal should cost the hand you end up with rather than the one card
-            // you happen to be holding. Settled by `settleHands`, once the chain is done.
-            if card.descriptor.intangible?.playsFromOthers == true {
-                state.owe(.spendHand(seat))
-            }
-            draw(seat, state: &state, events: &events,
-                 allowBonus: false, depth: depth + 1, duringDeal: duringDeal)
-        } else if card.descriptor.gameBreak != nil || card.descriptor.injury != nil {
+        // An Intangible is an ordinary card in the hand now (2026-09-15): played by hand,
+        // one a possession — see `playOntoItsSlot`.
+        if card.descriptor.gameBreak != nil || card.descriptor.injury != nil {
             // **Held, not fired.** A draw is one act however many cards it moves, and a
             // Break that resolved the moment it came off the deck moved SHOT under the
             // rest of the draws, took the ball off a man still owed cards, and asked

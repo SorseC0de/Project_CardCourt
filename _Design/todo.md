@@ -9,6 +9,24 @@ most of them: the Varenas and Variaballs, with the Game Breaks gone, should be b
 keep play rolling. Done card by card — I read each one out — and the card text audit rides
 along in the same pass.
 
+## After the playtest, 2026-09-15
+
+The deck back to 500: Snow Ball (not "Snow Ball It"), the injury rework and Make-or-Take Ball
+and Hero Ball at 3 each.
+
+- **Shelved**: a ball for "Discard any number of cards when shooting: SHOT +10% for each", the
+  mechanic Turnaround Three lost. Room for it later.
+
+- Court icon (Varena art) 100% ➜ 90% scale.
+- Clamps as a keyword prints red; check every keyword colour against the new card colours.
+- Variaballs: azure body, blue ring, gold name plate, orange name drop; name text azure over
+  navy.
+- Moves: green body, tangerine ring, and the Pass's whole name banner styling.
+- Special Moves: dark blue ring.
+- Re-import Injury_subject and Move_subject.
+- **Intangibles are played by hand now, one per possession** — it changes pacing, hand sizes
+  and rebounding. See "Intangibles become manual activation" below.
+
 ## How to Play
 
 A short tutorial. The user has the specs. Lower priority than getting the cards right first.
