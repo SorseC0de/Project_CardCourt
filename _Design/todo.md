@@ -2,11 +2,26 @@
 
 Things agreed on but not built. Newest at the top.
 
+## The SHOT walkback, with the card text audit
+
+Lower priority than getting the new cards right. Walk every SHOT +X% card and take 10% off
+most of them: the Varenas and Variaballs, with the Game Breaks gone, should be boost enough to
+keep play rolling. Done card by card — I read each one out — and the card text audit rides
+along in the same pass.
+
+## How to Play
+
+A short tutorial. The user has the specs. Lower priority than getting the cards right first.
+
 ## Varena and Variaball visuals
 
 The rules for every card are in; these are the pictures, after the first playtest.
 
-- **The ∀ Varena type icon** is not drawn yet, so Varena cards show no icon.
+- **The Varena art**: every Varena draws the ISO court whole, no plate, until each has
+  its own. The user is recolouring it.
+- **The ball icons** are in for Blaze, Dishcount, Dishtracting, Recharge Rock and Snow Ball
+  It; the rest wear the Variaball subject until theirs land. Each has a size in
+  `BallArt.scale` in `CardFrontView`.
 - **Foot Ball's two gags**: GOOOOAAAAAAAAL on a make, and the flying goalie on a miss.
 - **Hand Ball** shrinks the ball sprite to handball size.
 - **Turnstile Tile** recolours the floor red and green each flip; **Grayvstone** turns it gray.
@@ -29,11 +44,6 @@ Free Agent stays out of the deck. Bringing it back is low priority.
 
 Low priority, shelved: the text styling on the imported Stars start button still needs
 correcting. The Variaball card's aura is **not** wanted.
-
-## Nudge the three mark
-
-The mark on a three's icon wants to sit slightly north-east of where it is now —
-`CardLayout.threeMarkX` and `threeMarkY` in `View/CardArt.swift`.
 
 ## The cuts
 

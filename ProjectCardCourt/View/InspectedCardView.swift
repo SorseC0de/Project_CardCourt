@@ -123,7 +123,11 @@ struct ComboView: View {
             return finishing.openers.contains { done.hasDone($0.id, into: card.id) }
                 ? [finishing.name] : []
         }
+        // One name however many routes it has: four dunks off a Lob are one Alley-Oop.
         return opening.filter { done.hasDone(card.id, into: $0.finisher.id) }.map(\.name)
+            .reduce(into: [String]()) { names, name in
+                if !names.contains(name) { names.append(name) }
+            }
     }
 
     @ViewBuilder private var title: some View {

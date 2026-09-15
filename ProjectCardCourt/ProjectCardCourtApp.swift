@@ -110,6 +110,11 @@ struct RootView: View {
                     GameView(controller: game,
                              onQuit: { quit() },
                              onRunItBack: { deal() })
+                        // **A new game is a new screen.** Run It Back swaps the controller
+                        // with the screen still on `.game`, and without this SwiftUI kept
+                        // the old view — its `.task` never ran again, so the new game was
+                        // never begun and nothing was dealt.
+                        .id(ObjectIdentifier(game))
                         .transition(.opacity)
                 }
             case .gallery:

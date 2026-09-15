@@ -298,7 +298,12 @@ def ink(text: str):
     return got
 
 
-for name in TRIMMED:
+# **The ball icons**, one drawing per Variaball, each on its own artboard — trimmed to its ink
+# like the court, since none of them sits on a circle.
+BALLS = [path.relative_to(root / ICONS).with_suffix("").as_posix()
+         for path in sorted((root / ICONS / "Balls").glob("*.svg"))]
+
+for name in list(TRIMMED) + BALLS:
     path = root / ICONS / f"{name}.svg"
     if not path.exists():
         continue

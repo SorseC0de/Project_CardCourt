@@ -279,6 +279,8 @@ struct GameState: Codable {
     /// One of each a possession — see `Rules.legalMoves`.
     var playedVarenaThisPossession = false
     var playedVariaballThisPossession = false
+    /// Alley-Oop: whether this possession has been asked "Dunk It?" yet.
+    var dunkOffered = false
     /// Varsitile's swap, once a possession.
     var slotsExchangedThisPossession = false
     /// Carousel Court: which way the hands go round, declared when it was played.

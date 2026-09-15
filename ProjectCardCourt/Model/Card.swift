@@ -715,8 +715,8 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case .clamp:       return "TypeClamp"
         case .whistle:     return "TypeWhistle"
         case .intangible:  return "TypeIntangible"
-        // Not drawn yet — the ∀ mark is art, not text. See the implementation queue.
-        case .varena:      return "TypeVarena"
+        // Cardwood's court, for every Varena until each has its own.
+        case .varena:      return "ISO_Court"
         case .variaball:   return "TypeVariaball"
         case .gameBreak:   return "TypeGameBreak"
         case .injury:      return lasting == .game ? "TypeDevaInjury" : "TypeInjury"
@@ -801,14 +801,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// Threes say so with the hand rather than the words.
     var isThree: Bool { (special?.bonusPointOnMake ?? 0) > 0 }
 
-    /// **What the BONUS popover says.** "Shoot the ball" on every card that shoots — the face
-    /// carries a shoot mark instead — then the card's own conditional half.
-    var bonusLines: [String] {
-        var lines: [String] = []
-        if takesShot, !(bonus ?? "").contains("#[Shoot]") { lines.append("#[Shoot] the ball") }
-        if let bonus { lines.append(bonus) }
-        return lines
-    }
+    /// **What the BONUS bubble says**: the card's conditional half. That it shoots is the
+    /// shoot mark's to say, not a line of text.
+    var bonusLines: [String] { bonus.map { [$0] } ?? [] }
 
     /// The effect text with everything the card already says in pictures taken out —
     /// "Shoot the ball" is the shoot mark, and any SHOT figure is the ball badge.
@@ -968,7 +963,6 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         case "hand-off":                    return "hands.and.sparkles"
         case "outlet-pass":                 return "arrow.up.right.circle.fill"
         case "kick-out":                    return "arrow.turn.up.right"
-        case "alley-oop":                   return "arrow.up.forward.circle.fill"
         case "right-back":                  return "arrow.left.arrow.right"
         case "touch-pass":                  return "hand.tap.fill"
         case "clear-out":                   return "arrow.left.and.right.righttriangle.left.righttriangle.right.fill"

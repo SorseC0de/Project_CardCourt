@@ -1561,38 +1561,6 @@ final class GameController {
         if let card { undelivered.remove(card) }
     }
 
-    /// Cards flying in and cards turning face up, in the order they actually happened.
-    ///
-    /// These used to be two passes — every draw, then every reveal — which told the story
-    /// backwards for any card whose whole effect is drawing. MVP Vote filled a hand and
-    /// only then said it was MVP Vote, by which point there was nothing left to explain.
-    private func playDrawsAndReveals(in events: [GameEvent]) async {
-        for event in events {
-            if Task.isCancelled { return }
-            switch event {
-            case .drew(let seat, _, let card):
-                await fly(to: seat, over: Pacing.drawFlight, delivering: card)
-            case .gameBreakRevealed:
-                flight = nil
-                // Announced before it is shown: a Break is not something anybody played,
-                // and the call is what says so before the card can be mistaken for a play.
-                await announce(.gameBreak)
-                await showReveals(in: [event])
-            case .injuryRevealed:
-                flight = nil
-                // Nobody played this either, so it is called the same way.
-                await announce(.injury)
-                await showReveals(in: [event])
-            case .intangibleRevealed:
-                flight = nil
-                await showReveals(in: [event])
-            default:
-                break
-            }
-        }
-        flight = nil
-    }
-
     // MARK: - Human input
 
     func inbound(to seat: Seat) {
@@ -1880,54 +1848,7 @@ final class GameController {
             bidsFromWire.removeAll()
 
             let events = Rules.resolveRebound(bids: bids, state: &state)
-            broadcast(events)
-            var ledger = events
-
-            // The bids are shown before they are read out, and who won the board is not
-            // written until the numbers are on screen.
-            for case .reboundBids(let bids, _) in events {
-                revealedBids = Dictionary(uniqueKeysWithValues:
-                                            bids.map { ($0.seat, $0.count) })
-                try? await Task.sleep(for: .seconds(Pacing.bidReveal))
-                revealedBids = nil
-            }
-            release(.bid, from: &ledger)
-
-            if let scene = TurnoverCutscene(events: events) {
-                turnover = scene
-                try? await Task.sleep(for: .seconds(scene.hold))
-                turnover = nil
-            }
-            release(.turnover, from: &ledger)
-
-            // Off the scene before the winner's card flies. Whoever takes the board draws
-            // to open the possession that follows it, and that draw belongs to the
-            // possession — not to the scramble, which is over. Recording it here was
-            // moving the hand and the pile while the rebound was still on screen.
-            gate = .thinking
-            // **On the floor, before he draws for it.** The board is off the screen by
-            // now, so the man who won it goes up on the court itself — and the draw that
-            // opens the possession waits until he has come down with the ball.
-            for case .rebounded(let winner) in events {
-                catchUp()
-                reboundLeap = ReboundLeap(seat: winner)
-                try? await Task.sleep(for: .seconds(ReboundTiming.run))
-                reboundLeap = nil
-            }
-            // **Off the glass to himself.** A pass that named the man throwing it is not
-            // a pass across the floor — there is nowhere for the ball to go. He puts it
-            // up and takes it back, which is a rebound in every way that shows.
-            for case .passed(_, let from, let to, _, _) in events where from == to {
-                catchUp()
-                reboundLeap = ReboundLeap(seat: from, offTheGlass: true)
-                try? await Task.sleep(for: .seconds(ReboundTiming.run))
-                reboundLeap = nil
-            }
-            await playDrawsAndReveals(in: events)
-            release(.draw, from: &ledger)
-            release(.reveal, from: &ledger)
-
-            record(ledger)
+            await present(events)
             await run()
         }
     }
@@ -2241,14 +2162,16 @@ final class GameController {
                 await present(Rules.resolveFreeThrow(made: made, state: &state))
                 continue
             }
-            if case .awaitingCounter(let seat, _) = state.phase {
+            if case .awaitingCounter(let seat, let offered) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 // Worth it for what is about to land on him, and nothing otherwise: the
                 // card is a way out of the defenders, not a way of moving the ball.
                 // The house does not weigh one answer against another yet — it takes the
                 // first on offer when there is anything to break, and nothing otherwise.
-                var chosen = state.pendingClamps.isEmpty ? nil
-                    : Rules.countersOnOffer(to: seat, in: state).first?.id
+                // "Dunk It?" is always worth taking; a counter only with defenders coming.
+                var chosen = state.heldPossession == nil ? offered.first?.id
+                    : (state.pendingClamps.isEmpty ? nil
+                       : Rules.countersOnOffer(to: seat, in: state).first?.id)
                 if case .counter(let said)? = await decision(from: seat) {
                     chosen = said
                 } else if !Table.shared.isRemote(seat) {
@@ -2457,53 +2380,7 @@ final class GameController {
         }
     }
 
-    // MARK: - Telling the player in the right order
-
-    /// Which beat of the presentation an event belongs to.
-    ///
-    /// Everything a move does is decided the instant the rules run, but the player learns
-    /// it from the table, one beat at a time. Writing the whole log up front means the
-    /// reader is told the outcome before the scene that shows it — bid nothing and the
-    /// log already says who got the board. So each line is held until its own beat plays.
-    private enum Beat {
-        case play, whistle, draw, reveal, shot, turnover, bid, freeThrow, after
-    }
-
-    private func beat(of event: GameEvent) -> Beat {
-        switch event {
-        case .passed, .movePlayed, .clampSet, .whistleArmed, .whistleUsed, .comboLanded,
-             .coinRun, .discardedForShot:
-            return .play
-        case .whistleBlew, .whistleRefocused, .whistlesDismissed, .clampVoided,
-             .clampsShaken, .intangiblesStripped, .clampBit:
-            return .whistle
-        case .drew, .deckReshuffled:
-            return .draw
-        case .gameBreakRevealed, .injuryRevealed, .intangibleRevealed, .intangibleDisplaced:
-            return .reveal
-        case .shotAttempted, .shotMade, .shotMissed, .assisted:
-            return .shot
-        case .turnover, .failedReturn:
-            return .turnover
-        case .reboundBids, .rebounded:
-            return .bid
-        case .freeThrowsAwarded, .freeThrowBonus, .freeThrowMade, .freeThrowMissed,
-             .freeThrowsEnded:
-            return .freeThrow
-        default:
-            return .after
-        }
-    }
-
-    /// Writes the lines for one beat and takes them off the ledger, in the order the rules
-    /// produced them.
-    private func release(_ beat: Beat, from ledger: inout [GameEvent]) {
-        let due = ledger.filter { self.beat(of: $0) == beat }
-        guard !due.isEmpty else { return }
-        ledger.removeAll { self.beat(of: $0) == beat }
-        // A shot still on the ledger has not been watched, and SHOT would give it away.
-        record(due, settlingShot: !ledger.holdsAShot)
-    }
+    // MARK: - Scenes
 
     /// Every card turned up by this play, one at a time.
     private func showReveals(in events: [GameEvent]) async {
@@ -2736,17 +2613,6 @@ final class GameController {
         flashed = nil
         let defenders = defenderCount(on: seat)
         let events = Rules.apply(move, by: seat, to: &state)
-        // The throw-in gets its own beat before anything else happens: the ball crosses,
-        // and the man who threw it watches it go. Cutting to the next possession the
-        // instant the card is chosen is what made him warp off the sideline.
-        if case .inbound(let target) = move {
-            // Handed straight over: the throw takes the scene from here, so there is never
-            // a frame with neither of them set.
-            inbounding = nil
-            throwing = ThrowIn(from: seat, to: target)
-            try? await Task.sleep(for: .seconds(Pacing.inboundThrow + Pacing.inboundHold))
-            throwing = nil
-        }
         await present(events, defenders: defenders, playedCard: true)
     }
 
@@ -2763,19 +2629,19 @@ final class GameController {
 
     private func present(_ events: [GameEvent], defenders: Int = 0,
                          playedCard: Bool = false) async {
-        // The gate is what the stage draws from, and it still holds whatever the player
-        // was last asked for. Left alone, the rebound board sits behind every cutscene
-        // that follows a bid and flashes back the moment one clears.
-        gate = .thinking
+        // A board's bids are read out on the board itself, so the gate that draws it stays
+        // up until they have been — see the bid scene below.
+        let opensOnBids: Bool = {
+            if case .reboundBids? = events.first { return true }
+            return false
+        }()
+        if !opensOnBids { gate = .thinking }
         // **Whatever the last batch never got to show has been shown by events.** A
-        // presentation that is cancelled part-way — and on a guest that is most of them,
-        // since the next board off the wire cancels the one being played — leaves its
-        // remaining cards marked as still in the air. Nothing ever unmarks them, so the
-        // hand is one card short for the rest of the game and a passive slot stays empty
-        // for good. The board they belong to is already on the table by now.
+        // presentation cancelled part-way leaves its cards marked as still in the air, and
+        // nothing else ever unmarks them.
         undelivered.removeAll()
         unrevealed.removeAll()
-        // Marked before a single beat plays: the rules dealt these on the way in, and the
+        // Marked before a single scene plays: the rules dealt these on the way in, and the
         // hand must not have them until their flight says so.
         for case .drew(_, _, let card) in events { undelivered.insert(card) }
         for case .shotAttempted(_, let chance, _) in events { lastChance = chance }
@@ -2788,204 +2654,164 @@ final class GameController {
             DoneCombos.shared.record(opener, into: card.id)
         }
         broadcast(events)
-        // Anything but a pass moves the ball at once: an inbound, a rebound, a turnover.
-        // Only a throw has a journey to wait for.
+        DevLog.record(events)
+        // Anything but a pass moves the ball at once. Only a throw has a journey to wait for.
         if !events.contains(where: { if case .passed = $0 { return true }; return false }) {
             shownBall = state.ball
         }
-        var ledger = events
 
-        if playedCard {
-            // Held up first, then thrown. The card is what caused the pass, so it reads
-            // before the ball moves rather than over the top of it.
-            await showPlayedCard(in: events)
-        }
-        // **A cancelled chain stops here rather than playing itself out.** Whatever
-        // cancelled it has taken the floor, and two chains on one floor is the game
-        // carrying on behind whatever is on screen.
-        if Task.isCancelled { return }
-        // **Here, and not before.** Whatever the card did — a referee taking the floor, a
-        // count lighting up, a hand emptying — is shown once the card itself has gone.
-        catchUp()
-        release(.play, from: &ledger)
-
-        // **The board, for a device that is only being told.**
-        //
-        // These beats live in `submitBid`, which the host runs and a guest never reaches,
-        // so a guest folded the rebound batch, agreed with the host about it, and drew
-        // none of it. Played here rather than later because the host's order is bids →
-        // turnover → leap → *then* the draw that opens the possession he won: put after
-        // the draws, a guest watched the winner take his card before anybody had revealed
-        // who won.
-        //
-        // **Only on a batch that actually has a board in it.** `TurnoverCutscene` is built
-        // from any batch carrying a `.turnover` — a shot clock running out, a Travel, a
-        // failed Behind-the-Back — so running this on every batch played the loose-ball
-        // bit here *and* again at the end of `present`: two different rolls of it, back to
-        // back. And nothing is released here. `release` calls `record`, which is
-        // end-of-batch bookkeeping — it empties `unrevealed` and snaps the ball, the deck
-        // and the shot to where they ended up — so fired this early it showed a drawn
-        // passive before its own reveal scene and moved the ball before the turnover
-        // played. The events stay on the ledger and reach the log with the rest.
-        var boardShown = false
-        if isGuest, events.contains(where: {
-            if case .reboundBids = $0 { return true } else { return false }
-        }) {
-            boardShown = true
-            for case .reboundBids(let bids, _) in events {
-                revealedBids = Dictionary(uniqueKeysWithValues:
-                                            bids.map { ($0.seat, $0.count) })
+        // **One queue.** The rules wrote the play down in the order it happened, and it is
+        // shown in exactly that order: one event, its scene, its line in the log, then the
+        // next. Nothing is sorted into beats, so nothing can be shown before the thing that
+        // caused it — a turnover before the round it ended, a round before the shot that
+        // won it.
+        var heldCardUp = !playedCard
+        var caughtUp = false
+        var sinceTurnover = events.startIndex
+        var index = events.startIndex
+        while index < events.endIndex {
+            if Task.isCancelled { return }
+            let event = events[index]
+            // The card that started the play is held up before anything it did.
+            if !heldCardUp, PlayedCard.first(in: [event]) != nil {
+                heldCardUp = true
+                await showPlayedCard(in: [event])
+                if Task.isCancelled { return }
+            }
+            if !caughtUp {
+                catchUp()
+                caughtUp = true
+            }
+            var scene = [event]
+            switch event {
+            case .inbounded(let from, let to):
+                // The throw-in, and the man who threw it watching it go.
+                inbounding = nil
+                throwing = ThrowIn(from: from, to: to)
+                try? await Task.sleep(for: .seconds(Pacing.inboundThrow + Pacing.inboundHold))
+                throwing = nil
+            case .passed(_, let from, let to, let shot, _):
+                if shot >= 0 { shownShot = shot }
+                let travelled: Bool = {
+                    guard index + 1 < events.endIndex,
+                          case .turnover = events[index + 1] else { return false }
+                    return true
+                }()
+                if from == to, !travelled {
+                    // Off the glass and back to himself: a rebound in every way that shows.
+                    reboundLeap = ReboundLeap(seat: from, offTheGlass: true)
+                    try? await Task.sleep(for: .seconds(ReboundTiming.run))
+                    reboundLeap = nil
+                } else {
+                    stampSettled([event])
+                    // **The ball lands, and then he draws.**
+                    await settleTheThrow()
+                }
+            case .movePlayed(_, _, let shot):
+                if shot >= 0 { shownShot = shot }
+            case .discarded(let seat, let cards):
+                for _ in cards {
+                    if Task.isCancelled { return }
+                    await spendCard(from: seat)
+                }
+            case .whistleBlew:
+                await announce(.whistle)
+                await showWhistle(in: [event])
+            case .drew(let seat, _, let card):
+                await fly(to: seat, over: Pacing.drawFlight, delivering: card)
+                flight = nil
+            case .gameBreakRevealed:
+                // Called before it is shown: nobody played it.
+                await announce(.gameBreak)
+                await showReveals(in: [event])
+            case .injuryRevealed:
+                await announce(.injury)
+                await showReveals(in: [event])
+            case .intangibleRevealed:
+                await showReveals(in: [event])
+            case .clampedPossession(let seat, let clamps):
+                // Named before anybody swipes.
+                await announce(.clamped, clamps: clamps)
+                boundSeats.insert(seat)
+            case .clampBit:
+                await showClampBite(in: [event])
+            case .shotAttempted:
+                // The attempt and how it went are one scene.
+                var end = index + 1
+                while end < events.endIndex, events[end].tellsHowTheShotWent { end += 1 }
+                scene = Array(events[index..<end])
+                let anotherShot = events[end...].contains {
+                    if case .shotAttempted = $0 { return true }
+                    return false
+                }
+                await playTheShot(scene, defenders: defenders, isLast: !anotherShot)
+            case .calledGlass(let seat, let card):
+                // A called board pays in the open: the card says itself again, then he goes up.
+                reveal = RevealCutscene(seat: seat, card: card, isIntangible: false,
+                                        isNew: SeenCards.shared.meet(card.id))
+                await hold(false, seconds: Pacing.reveal) { self.reveal }
+                reveal = nil
+                reboundLeap = ReboundLeap(seat: seat, offTheGlass: true)
+                try? await Task.sleep(for: .seconds(ReboundTiming.run))
+                reboundLeap = nil
+            case .reboundBids(let bids, _):
+                revealedBids = Dictionary(uniqueKeysWithValues: bids.map { ($0.seat, $0.count) })
                 try? await Task.sleep(for: .seconds(Pacing.bidReveal))
                 revealedBids = nil
-            }
-            if let scene = TurnoverCutscene(events: events) {
-                turnover = scene
-                try? await Task.sleep(for: .seconds(scene.hold))
-                turnover = nil
-            }
-            for case .rebounded(let winner) in events {
-                catchUp()
+                // Off the board before anything it set off plays.
+                gate = .thinking
+            case .rebounded(let winner):
                 reboundLeap = ReboundLeap(seat: winner)
                 try? await Task.sleep(for: .seconds(ReboundTiming.run))
                 reboundLeap = nil
+            case .turnover:
+                // Read off everything since the last one: the whistle that called it, the
+                // pass that lost it, the return that had nowhere to go.
+                if let cutscene = TurnoverCutscene(events: Array(events[sinceTurnover...index])) {
+                    turnover = cutscene
+                    try? await Task.sleep(for: .seconds(cutscene.hold))
+                    turnover = nil
+                }
+                sinceTurnover = index + 1
+            case .halftime:
+                // Held until tapped, before its own deal goes out.
+                await callTheHalf(in: [event])
+            case .roundBegan:
+                await callTheRound(in: [event])
+            default:
+                break
             }
             if Task.isCancelled { return }
+            // Its lines, now that it has been seen.
+            writeLog(scene)
+            index += scene.count
         }
-        // What the card cost, thrown rather than deleted. Before the draws, because a card
-        // that pays for a draw pays for it first.
-        for case .discarded(let seat, let cards) in events {
-            let count = cards.count
-            for _ in 0..<count {
-                if Task.isCancelled { return }
-                await spendCard(from: seat)
-            }
-        }
-        // **Not while the card is still asking.** See `Phase.isMidPlay`: a play that has
-        // put a question up has not finished, and what it did to SHOT is not the board's
-        // until it has been answered.
-        //
-        // **And never over a shot.** The rules resolve the attempt in full before a frame
-        // of it is drawn, so by the time this line runs the number has already told you
-        // how it went: a make ends the round and takes SHOT back to its opening value, a
-        // miss leaves it where it was. The badge dropping to 25 was the bucket, half a
-        // second before the ball did. It waits for the ball to come down — see the
-        // cutscene below, which is where it catches up on a shot.
-        if !state.phase.isMidPlay, !events.holdsAShot {
-            shownShot = state.shot + state.holderShot
-        }
-        if events.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
-            await announce(.whistle)
-        }
-        await showWhistle(in: events)
-        if Task.isCancelled { return }
-        catchUp()
-        release(.whistle, from: &ledger)
-        stampSettled(events)
-        // **The shot is a wall.** Everything the rules did after the ball went up is
-        // shown after the ball comes down — the round ending, the half turning over, a
-        // whole new hand dealt. Flown in one pass they arrived in the order the rules
-        // produced them, which put the halftime deal on screen before the shot that
-        // caused it, and a card revealed out of that deal told you the make before you
-        // had watched it.
-        let (beforeShot, afterShot) = events.splitAtTheShot()
-        // **The ball lands, and then he draws.** The draw is the first thing a possession
-        // does and nothing may come between the two — a card flying while the ball is
-        // still crossing reads as two plays at once, and it is one.
-        await settleTheThrow()
-        await playDrawsAndReveals(in: beforeShot)
-        if Task.isCancelled { return }
-        catchUp()
-        release(.draw, from: &ledger)
-        release(.reveal, from: &ledger)
-        // Named before anybody swipes: the call is what the possession opens with, and a
-        // Clamp taking cards out of the bag first leaves the announcement explaining
-        // something that has already happened.
-        for case .clampedPossession(let seat, let clamps) in events {
-            await announce(.clamped, clamps: clamps)
-            boundSeats.insert(seat)
-            break
-        }
-        await showClampBite(in: events)
-        if Task.isCancelled { return }
-        catchUp()
-
-        if let scene = ShotCutscene(events: events, defenders: defenders,
-                                    lastPlay: state.lastPlayThisPossession,
-                                    dunk: state.dunking) {
-            // **The board waits for the call.** The points are in the state the moment
-            // the shot is folded, so without this the number climbed while the ball was
-            // still in the air and the call that announces it arrived seconds later,
-            // saying something the board had already given away.
-            holdTheScore(in: events)
-            cutscene = scene
-            try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
-            // The board goes up **behind** the shot before the shot comes down. Clearing
-            // the cutscene first put the bare floor on screen for the beat it took the
-            // loop to reach the rebound, which reads as the game losing its place between
-            // two halves of the same moment.
-            if case .awaitingRebound(let shooter) = state.phase {
-                gate = .awaitingBid(shooter: shooter)
-            }
-            cutscene = nil
-            // Now. The ball has come down, so the number is no longer a spoiler.
-            shownShot = state.shot + state.holderShot
-            await celebrateThree(in: events)
-            await callTheScore(in: events)
-        }
-        // **A called board pays in the open.** Off the Backboard is drawn a possession
-        // before it is worth anything, and it used to be honoured in silence: the miss
-        // came down, the ball went back to the man who missed it, and nothing on screen
-        // said why. The card says itself again, and then he goes up for it.
-        for case .calledGlass(let seat, let card) in events {
-            catchUp()
-            reveal = RevealCutscene(seat: seat, card: card, isIntangible: false,
-                                    isNew: SeenCards.shared.meet(card.id))
-            await hold(false, seconds: Pacing.reveal) { self.reveal }
-            reveal = nil
-            reboundLeap = ReboundLeap(seat: seat, offTheGlass: true)
-            try? await Task.sleep(for: .seconds(ReboundTiming.run))
-            reboundLeap = nil
-            if Task.isCancelled { return }
-        }
-        // **Whatever the shot set off, now that it has been watched.** Outside the
-        // cutscene's own branch: a batch carrying an attempt that builds no scene would
-        // otherwise strand every card the shot dealt, and a stranded draw is a card
-        // missing from a hand for the rest of the game.
-        // The half lands before its own deal — see `callTheHalf`.
-        await callTheHalf(in: afterShot)
-        if Task.isCancelled { return }
-        if !afterShot.isEmpty {
-            await playDrawsAndReveals(in: afterShot)
-            if Task.isCancelled { return }
-            catchUp()
-            release(.draw, from: &ledger)
-            release(.reveal, from: &ledger)
-        }
-        release(.shot, from: &ledger)
-        // **The round is called last, and it has to be.** The batch that begins a round is
-        // the same one that ended the last — the shot, the score, the halftime deal, all
-        // of it — so a round announced at the top of it says a possession is over before
-        // the ball has been watched, which is the make given away.
-        await callTheRound(in: events)
-        if Task.isCancelled { return }
-        // Whatever the shot did to the number, once there is nothing left to give away.
-        if events.holdsAShot, !state.phase.isMidPlay {
-            shownShot = state.shot + state.holderShot
-        }
-
-        if !boardShown, let scene = TurnoverCutscene(events: events) {
-            turnover = scene
-            try? await Task.sleep(for: .seconds(scene.hold))
-            turnover = nil
-        }
+        if !caughtUp { catchUp() }
 
         // **The turn does not start until the ball is in his hands.**
-        //
-        // Nothing waited for the catch: the beat ended at the throw, and the next play
-        // landed over the top of a man still closing his hands on the last one.
         await settleTheCatch()
         catchUp()
-        record(ledger)
+        settleBoard()
+    }
+
+    /// One attempt: the cutscene, and the calls that say how it went.
+    ///
+    /// The points are in the state the moment the shot is folded, so the board waits for the
+    /// call — see `holdTheScore`.
+    private func playTheShot(_ shot: [GameEvent], defenders: Int, isLast: Bool) async {
+        guard let scene = ShotCutscene(events: shot, defenders: defenders,
+                                       lastPlay: state.lastPlayThisPossession,
+                                       dunk: state.dunking) else { return }
+        holdTheScore(in: shot)
+        cutscene = scene
+        try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
+        // The board goes up **behind** the shot before the shot comes down.
+        if isLast, case .awaitingRebound(let shooter) = state.phase {
+            gate = .awaitingBid(shooter: shooter)
+        }
+        cutscene = nil
+        await celebrateThree(in: shot)
+        await callTheScore(in: shot)
     }
 
     /// Whatever is left of the throw alone — the ball reaching his hands.
@@ -3014,24 +2840,34 @@ final class GameController {
         try? await Task.sleep(for: .seconds(owing))
     }
 
-    private func record(_ events: [GameEvent], settlingShot: Bool = true) {
-        // Whatever is left was never flown — an event released outside the draw beat, or
-        // a presentation cut short. A card stranded here is a card missing from the hand.
-        for case .drew(_, _, let card) in events { undelivered.remove(card) }
-        // Anything still owed here was never turned over — a beat that did not play, or
-        // a presentation cut short. A passive stranded here is a slot missing from the
-        // board for the rest of the game.
-        unrevealed.removeAll()
-        // A man stays bound until the rules let him go.
-        boundSeats = boundSeats.filter { !state[$0].clamps.isEmpty }
-        if settlingShot, !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
-        shownBall = state.ball
-        // Catches a reshuffle, and anything that moved the pile without flying a card.
-        shownDeck = state.deck.count
+    /// A batch's lines and its board at once, for a deal nobody watches event by event.
+    private func record(_ events: [GameEvent]) {
         DevLog.record(events)
+        writeLog(events)
+        settleBoard()
+    }
+
+    /// The lines for what has just been shown, in the order it happened.
+    private func writeLog(_ events: [GameEvent]) {
+        // A card still marked in the air here was never flown. Stranded, it is a card
+        // missing from the hand for the rest of the game.
+        for case .drew(_, _, let card) in events { undelivered.remove(card) }
         for event in events where event.isLoggable {
             log.append(LogLine(text: event.logLine, kind: kind(of: event)))
         }
+    }
+
+    /// The lagging readouts, put where the board actually is once everything has played.
+    private func settleBoard() {
+        // Anything still owed here was never turned over — a slot missing from the board
+        // for the rest of the game if it stayed.
+        unrevealed.removeAll()
+        // A man stays bound until the rules let him go.
+        boundSeats = boundSeats.filter { !state[$0].clamps.isEmpty }
+        if !state.phase.isMidPlay { shownShot = state.shot + state.holderShot }
+        shownBall = state.ball
+        // Catches a reshuffle, and anything that moved the pile without flying a card.
+        shownDeck = state.deck.count
     }
 
     private func kind(of event: GameEvent) -> LogLine.Kind {
@@ -3042,6 +2878,16 @@ final class GameController {
         case .turnover:                             return .penalty
         case .roundBegan, .halftime, .gameEnded:    return .marker
         default:                                    return .normal
+        }
+    }
+}
+
+private extension GameEvent {
+    /// Whether this is part of the shot just attempted: how it went, and who is owed for it.
+    var tellsHowTheShotWent: Bool {
+        switch self {
+        case .shotMade, .shotMissed, .assisted: return true
+        default: return false
         }
     }
 }

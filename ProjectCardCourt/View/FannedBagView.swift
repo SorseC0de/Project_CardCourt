@@ -41,6 +41,8 @@ struct FannedBagView: View {
     var onKeyword: ((String) -> Void)?
     /// Opens a raised card's combo scene — see `ComboView`.
     var onCombo: (CardDescriptor) -> Void = { _ in }
+    /// Hangs a raised card's bonus off its BONUS button — see `BonusBubble`.
+    var onBonus: (CardDescriptor, CGPoint) -> Void = { _, _ in }
     @Binding var detail: Card?
     var onCommit: (Card) -> Void
 
@@ -85,7 +87,8 @@ struct FannedBagView: View {
                               expanded: expanded,
                               isDormant: dormant.contains(card.id),
                               onKeyword: onKeyword,
-                              onCombo: expanded ? { onCombo(card.descriptor) } : nil)
+                              onCombo: expanded ? { onCombo(card.descriptor) } : nil,
+                              onBonus: expanded ? { onBonus(card.descriptor, $0) } : nil)
                     .overlay {
                         // One wash, whatever it is for. A held card wears the same red a
                         // refused one does, because it is the same fact: this one is not

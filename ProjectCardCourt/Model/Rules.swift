@@ -94,8 +94,11 @@ enum Rules {
                    state.movesPlayedThisPossession.contains(card.descriptor.id) { return false }
                 // Triple Threat closes the book on Moves for the possession.
                 if card.descriptor.isMove, state.movesClosed { return false }
-                // Lob: the man it found has to put it up first.
-                if state.mustShootFirst == seat { return false }
+                // Lob: the man it found has to put it up first. A dunk is putting it up —
+                // that is the Alley-Oop.
+                if state.mustShootFirst == seat, card.descriptor.special?.dunks != true {
+                    return false
+                }
                 // Clear Out: you step aside before the play starts, or not at all — and
                 // only out of a ball that was going somewhere.
                 if card.descriptor.firstActionOnly, !isFirstAction(state) { return false }
@@ -343,8 +346,12 @@ enum Rules {
     /// another. A player is asked properly; see `countersOnOffer`.
     @discardableResult
     static func resolveCounter(_ taken: Bool, state: inout GameState) -> [GameEvent] {
-        guard case .awaitingCounter(let seat, _) = state.phase else { return [] }
-        let first = taken ? countersOnOffer(to: seat, in: state).first?.id : nil
+        guard case .awaitingCounter(let seat, let offered) = state.phase else { return [] }
+        // "Dunk It?" asks with the possession already open, so it has no held arrival.
+        let first = taken
+            ? (state.heldPossession == nil ? offered.first?.id
+                                           : countersOnOffer(to: seat, in: state).first?.id)
+            : nil
         return resolveCounter(first, state: &state)
     }
 
@@ -358,8 +365,19 @@ enum Rules {
     /// - Parameter chosen: which of the offered cards is being spent, or nil to decline.
     @discardableResult
     static func resolveCounter(_ chosen: Card.ID?, state: inout GameState) -> [GameEvent] {
-        guard case .awaitingCounter(let seat, _) = state.phase,
-              let held = state.heldPossession else { return [] }
+        guard case .awaitingCounter(let seat, let offered) = state.phase else { return [] }
+        // **"Dunk It?"** The possession is open and the question is only whether the Lob is
+        // finished with a dunk: yes plays it, no carries on with the possession.
+        if state.heldPossession == nil {
+            state.phase = .possession(holder: seat)
+            guard let chosen, offered.contains(where: { $0.id == chosen }) else {
+                var events: [GameEvent] = []
+                settleHands(state: &state, events: &events)
+                return events
+            }
+            return apply(.play(chosen), by: seat, to: &state)
+        }
+        guard let held = state.heldPossession else { return [] }
         var events: [GameEvent] = []
         state.heldPossession = nil
 
@@ -809,6 +827,10 @@ enum Rules {
             // is a dribble drive, and a different play from a Drive on its own.
             let afterCombo = comboArmed && state.lastPlayWasCombo
             if comboArmed { delta += descriptor.comboBonus }
+            // Alley-Oop: a Lob, dunked as the first thing done with it.
+            let alleyOop = descriptor.special?.dunks == true && isFirstAction(state)
+                && state.lastPasser != nil && state.arrivedBy?.id == CardLibrary.lob.id
+            if alleyOop { delta += CardLibrary.alleyOopBonus }
             // **Tomahawk pays either way.** What it is worth is read against the SHOT it
             // is played on rather than fixed on the card: under the mark it costs, at or
             // over it pays. Read here, before the attempt is priced, so it is the board
@@ -941,6 +963,11 @@ enum Rules {
                     state.phase = .awaitingNaming(seat: asker(instead: seat, in: state),
                                                   card: descriptor, named: [])
                     return events
+                }
+                if alleyOop {
+                    events.append(.comboLanded(seat: seat, card: descriptor,
+                                               opener: CardLibrary.lob.id,
+                                               bonus: CardLibrary.alleyOopBonus))
                 }
                 if special.shootsImmediately {
                     // The card is a shot attempt in its own right, so a Whistle watching
@@ -2300,6 +2327,7 @@ enum Rules {
         state.possessionFromOwnRebound = fromOwnMiss
         state.possessionWasInterrupted = false
         state.footLocked = []
+        state.dunkOffered = false
         state.slotsExchangedThisPossession = false
         state.sellingOut = false
         // Blight Ball: the Injuries come with the ball, whoever it came from.
@@ -2880,6 +2908,22 @@ enum Rules {
         switch state.phase {
         case .awaitingGiveUp, .awaitingRebound: return
         default: break
+        }
+        // **"Dunk It?"** Caught off a Lob with a dunk in hand: asked once, before anything
+        // else is done with the ball.
+        if case .possession(let holder) = state.phase, state.mustShootFirst == holder,
+           !state.dunkOffered, isFirstAction(state) {
+            state.dunkOffered = true
+            let dunks = legalMoves(state, for: holder).compactMap { move -> Card? in
+                guard case .play(let id) = move,
+                      let card = state[holder].bag.first(where: { $0.id == id }),
+                      card.descriptor.special?.dunks == true else { return nil }
+                return card
+            }
+            if !dunks.isEmpty {
+                state.phase = .awaitingCounter(seat: holder, cards: dunks)
+                return
+            }
         }
 
         // And the question a full board owes. **Read off the boards, never remembered**:

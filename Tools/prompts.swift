@@ -25,7 +25,9 @@ enum Prompts {
         case .awaitingCounter(let seat, _):
             // Worth it for what is about to land on him, and nothing otherwise.
             _ = seat
-            Rules.resolveCounter(!state.pendingClamps.isEmpty, state: &state)
+            // A Lob's "Dunk It?" is always worth taking.
+            Rules.resolveCounter(!state.pendingClamps.isEmpty || state.heldPossession == nil,
+                                 state: &state)
             return true
         case .awaitingDiscard(let seat, _, _):
             // Stepback and Turnaround Three ask the same question. Nothing fed in is

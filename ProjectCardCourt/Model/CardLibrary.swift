@@ -59,12 +59,6 @@ enum CardLibrary {
         passTarget: .choice, passesToOthersOnly: true,
         shotDelta: 15, returnsImmediately: true)
 
-    static let alleyOop = CardDescriptor(
-        id: "alley-oop", name: "Alley-Oop", type: .pass,
-        effect: "~[Pass] to target player. SHOT +30%. They must shoot.",
-        numberInDeck: 5,
-        passTarget: .choice, shotDelta: 30, forcesImmediateShot: true)
-
     static let handOff = CardDescriptor(
         id: "hand-off", name: "Hand-Off", type: .pass,
         effect: "~[Pass] Left or Right. SHOT +20%. #[Draw] 1",
@@ -833,6 +827,10 @@ enum CardLibrary {
         effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 3,
         variaball: VariaballEffect(turnoverChance: 25))
 
+    /// **Alley-Oop**: a Lob, dunked as the first thing done with it. What the combo adds on
+    /// top of the Lob and the dunk card.
+    static let alleyOopBonus = 10
+
     static let variaballs: [CardDescriptor] = [
         medBall, dishcountBall, blightBall, benchBall, dishtractingBall, handBall, footBall,
         rechargeRock, variaball, shufflebagBall, bagnBall, blazeBall, snowBallIt, brickBall,
@@ -960,7 +958,7 @@ enum CardLibrary {
         effect: "SHOT +25%", numberInDeck: 5,
         shotDelta: 25,
         special: SpecialMoveEffect(shootsImmediately: true, ignoresClamps: true),
-        bonus: "#[Shoot] the ball over every ~[Clamp]")
+        bonus: "The shot is unaffected by ~[Clamps]")
 
     static let twoHandJam = CardDescriptor(
         id: "two-hand-jam", name: "2-Hand Jam", type: .specialMove,
@@ -969,6 +967,7 @@ enum CardLibrary {
         shotDelta: 20,
         special: SpecialMoveEffect(shootsImmediately: true, dunkKind: .reverse,
                                    bonusOffOwnRebound: 10, dunks: true),
+        combo: "Off a ~[Lob], as your first action: SHOT +10%",
         bonus: "Another +10% straight off your own board")
 
     static let giveAndGoDunk = CardDescriptor(
@@ -978,7 +977,8 @@ enum CardLibrary {
         numberInDeck: 5,
         shotDelta: 30,
         special: SpecialMoveEffect(shootsImmediately: true, needsCleanLook: true,
-                                   dunks: true))
+                                   dunks: true),
+        combo: "Off a ~[Lob], as your first action: SHOT +10%")
 
     static let tomahawk = CardDescriptor(
         id: "tomahawk", name: "Tomahawk", type: .specialMove,
@@ -987,7 +987,8 @@ enum CardLibrary {
         special: SpecialMoveEffect(shootsImmediately: true,
                                    dunkKind: .oneHand,
                                    shotSwing: ShotSwing(at: 50, under: -15, over: 15),
-                                   dunks: true))
+                                   dunks: true),
+        combo: "Off a ~[Lob], as your first action: SHOT +10%")
 
     static let slamDunk = CardDescriptor(
         id: "slam-dunk", name: "Slam Dunk", type: .specialMove,
@@ -995,6 +996,7 @@ enum CardLibrary {
         shotDelta: 20,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100,
                                    overrideRequiresAtLeast: 75, dunks: true),
+        combo: "Off a ~[Lob], as your first action: SHOT +10%",
         bonus: "SHOT = 100% if it reaches 75%")
 
     static let euroStep = CardDescriptor(
@@ -1109,7 +1111,7 @@ enum CardLibrary {
     static let passesAndMoves: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
         dime, lob, nutmeg, noLook, bulletPass, handOff, outletPass, kickOut,
-        alleyOop, rightBack, touchPass,
+        rightBack, touchPass,
         dribble, drive, rhythmDribble, poundDribble, spinMove, crossover,
         ankleBreaker, hesi, pumpFake, stepback, tripleThreat, clearOut,
     ]
@@ -1176,6 +1178,7 @@ struct Combo: Hashable, Identifiable {
     /// "Dribble-Drive". Every Dribble route shares the one name, because the card says
     /// Dribble rather than naming one.
     var name: String {
+        if openers.map(\.id) == [CardLibrary.lob.id] { return "Alley-Oop" }
         let opener = finisher.comboAfterDribble ? "Dribble" : (openers.first?.name ?? "")
         return "\(opener)-\(finisher.name)"
     }
@@ -1190,7 +1193,12 @@ struct Combo: Hashable, Identifiable {
         }
         guard let after = card.comboAfter, let opener = CardLibrary.byID[after] else { return nil }
         return Combo(finisher: card, openers: [opener])
-    }
+    } + alleyOops
+
+    /// Alley-Oop: a Lob, finished by any card that dunks.
+    static let alleyOops: [Combo] = CardLibrary.standardPool
+        .filter { $0.special?.dunks == true }
+        .map { Combo(finisher: $0, openers: [CardLibrary.lob]) }
 
     /// Every combo a card is part of, from either end.
     static func involving(_ card: CardDescriptor) -> [Combo] {

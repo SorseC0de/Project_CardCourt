@@ -1477,6 +1477,7 @@ func runTests() {
 
     slotTests()
     slotTestsTwo()
+    alleyOopTests()
 
     print("Serialisation")
     do {

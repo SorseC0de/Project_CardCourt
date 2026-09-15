@@ -69,7 +69,14 @@ func soak() {
             }
             last = Rules.apply(m, by: seat, to: &state).map { "\($0)".prefix(while: { $0 != "(" }).description }
         }
-        if guardCounter >= 20000 { print("RAN LONG seed \(seed): \(state.phase)"); stalls += 1 }
+        if guardCounter >= 20000 {
+            let referees = state.armedWhistles.map { "\($0.card.name)\($0.stayed ? " (stayed)" : "")" }
+            print("RAN LONG seed \(seed): \(state.phase.label) round \(state.round) shot \(state.shot)"
+                  + " clock \(String(describing: state.shotClock)) | court \(state.currentCourt.name)"
+                  + " | ball \(state.currentBall?.name ?? "regulation") | referees \(referees)"
+                  + " | last \(last.suffix(8))")
+            stalls += 1
+        }
     }
     if owed > 0 { print("SOAK: \(owed) possessions opened with a step still owed") }
     print(stalls == 0 && owed == 0 ? "SOAK CLEAN"

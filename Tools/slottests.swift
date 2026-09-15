@@ -532,3 +532,101 @@ func slotCoverage() {
     print("events: " + kinds.map { "\($0) \(seen[$0] ?? 0)" }.joined(separator: " · "))
     print("stalls: \(stalls)")
 }
+
+/// Kick-Out out of a Contest, with Southpaw Shooter on either end. Prints each shot's stack.
+func probeSouthpaw() {
+    for southpawOnPasser in [true, false] {
+        var (state, seat, cards) = openPossession(seed: 301, cards: [CardLibrary.kickOut])
+        for other in Seat.allCases {
+            state[other].intangibles = []
+            state[other].clamps = []
+            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+        }
+        state.shot = 55
+        state[seat].clamps = [ActiveClamp(card: CardLibrary.contest, from: seat.right)]
+        var events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        guard case .awaitingTarget(_, _, let choices) = state.phase,
+              let receiver = choices.first(where: { $0 != seat }) else { print("no target"); continue }
+        state[southpawOnPasser ? seat : receiver].intangibles = [CardLibrary.southpawShooter]
+        events += Rules.resolveTarget(receiver, state: &state)
+        for case .shotAttempted(_, let chance, let breakdown) in events {
+            let stack = breakdown.steps.map { "\($0.label) → \($0.total)%" }.joined(separator: " · ")
+            print("Southpaw on \(southpawOnPasser ? "passer" : "receiver"): SHOT 55 → shot at \(chance)%  [\(breakdown.base)% · \(stack)]")
+        }
+    }
+}
+
+func alleyOopTests() {
+    print("Alley-Oop")
+    do {
+        var (state, seat, cards) = openPossession(seed: 310, cards: [CardLibrary.lob])
+        state.shot = 30
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        guard case .awaitingTarget(_, _, let choices) = state.phase,
+              let receiver = choices.first(where: { $0 != seat }) else {
+            Check.that(false, "a Lob asks who it goes to")
+            return
+        }
+        let dunk = matchCard(CardLibrary.slamDunk, state.rules)
+        state[receiver].bag.append(dunk)
+        for other in Seat.allCases {
+            state[other].intangibles = []
+            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+        }
+        Rules.resolveTarget(receiver, state: &state)
+        Check.that({ if case .awaitingCounter(let who, let offered) = state.phase {
+                         return who == receiver && offered.contains { $0.id == dunk.id } }
+                     return false }(),
+                   "a Lob caught with a dunk in hand asks \"Dunk It?\"")
+        let before = state.shot
+        let events = Rules.resolveCounter(dunk.id, state: &state)
+        Check.that(events.contains { event in
+            guard case .comboLanded(let who, _, let opener, let bonus) = event else { return false }
+            return who == receiver && opener == CardLibrary.lob.id && bonus == 10
+        }, "and dunking it is the Alley-Oop combo, SHOT +10%")
+        let chance = events.compactMap { event -> Int? in
+            if case .shotAttempted(_, let chance, _) = event { return chance }
+            return nil
+        }.first
+        let priced = before + CardLibrary.slamDunk.baseShotDelta + 10
+        Check.that(chance == (priced >= 75 ? 100 : priced), "priced as the dunk plus the combo")
+    }
+    do {
+        let lobbed = CardLibrary.standardPool.contains { $0.id == "alley-oop" }
+        Check.that(!lobbed && Combo.all.contains { $0.name == "Alley-Oop" },
+                   "Alley-Oop is a combo now, not a card")
+    }
+}
+
+/// One soak game, with the last stretch of phases and events printed — for a seed that ran long.
+func probeSeed(_ seed: UInt64) {
+    var state = Rules.newGame(seed: seed, rules: .standard).0
+    var ai = AITable(seed: seed)
+    var trail: [String] = []
+    var steps = 0
+    while !state.isOver && steps < 20000 {
+        steps += 1
+        let before = state.phase.label
+        var events: [GameEvent] = []
+        if case .freeThrows = state.phase {
+            events = stepFreeThrows(&state)
+        } else if case .awaitingRebound = state.phase {
+            var bids: [Seat: [Card.ID]] = [:]
+            for other in Seat.allCases { bids[other] = ai.reboundBid(state, for: other) }
+            events = Rules.resolveRebound(bids: bids, state: &state)
+        } else if Prompts.step(&state, &ai) {
+            trail.append("\(before) → prompt → \(state.phase.label)")
+            continue
+        } else if let seat = state.phase.actingSeat, let move = ai.move(state, for: seat) {
+            events = Rules.apply(move, by: seat, to: &state)
+            trail.append("\(before) \(seat.name) \(move) → \(state.phase.label)  [\(events.map(\.kind).joined(separator: " "))]")
+            continue
+        } else {
+            trail.append("NO MOVE at \(before)")
+            break
+        }
+        trail.append("\(before) → \(state.phase.label)  [\(events.map(\.kind).joined(separator: " "))]")
+    }
+    print("seed \(seed): \(steps) steps, over: \(state.isOver), round \(state.round), clock \(String(describing: state.shotClock)), court \(state.currentCourt.name), ball \(state.currentBall?.name ?? "regulation")")
+    for line in trail.suffix(24) { print("  " + line) }
+}

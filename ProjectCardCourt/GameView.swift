@@ -28,6 +28,8 @@ struct GameView: View {
     @State private var detail: Card?
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
+    /// A raised card's bonus, and the BONUS button it hangs off.
+    @State private var bonusOf: (card: CardDescriptor, at: CGPoint)?
     /// Traderous Tarmac's sheet, open while the player hands Clamps on.
     @State private var handingOff = false
     /// Varsitile's sheet, open while the player picks what to swap in.
@@ -110,7 +112,7 @@ struct GameView: View {
             guard !Task.isCancelled else { return }
             floorAsleep = true
         }
-        .onChange(of: controller.gate) { detail = nil; picked = nil; comboOf = nil }
+        .onChange(of: controller.gate) { detail = nil; picked = nil; comboOf = nil; bonusOf = nil }
         // **Every press lands in one place.** Only this screen knows what is over the
         // floor, so it is the only thing that can say whether a button was answering the
         // hand or the pause menu on top of it.
@@ -219,6 +221,7 @@ struct GameView: View {
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
                                       onCombo: { comboOf = $0 },
+                                      onBonus: { bonusOf = (card: $0, at: $1) },
                                       onHandOff: { handingOff = true },
                                       onExchange: { exchanging = true })
                     }
@@ -257,6 +260,12 @@ struct GameView: View {
                     ComboView(card: comboOf) { self.comboOf = nil }
                         .transition(.opacity)
                         .zIndex(9.8)
+                }
+                if let bonusOf {
+                    BonusBubble(lines: bonusOf.card.bonusLines, anchor: bonusOf.at) {
+                        self.bonusOf = nil
+                    }
+                    .zIndex(9.9)
                 }
                 if let played = controller.playedCard {
                     PlayedCardView(played: played, width: 210)
@@ -320,16 +329,20 @@ struct GameView: View {
                     // and a hand can hold both, so the question is which one you spend —
                     // and it is asked in the cards' own words rather than one of theirs.
                     let mixed = Set(cards.map(\.descriptor.clearsOut)).count > 1
-                    CardChoiceView(title: cards.count == 1
-                                   ? "\(cards[0].descriptor.name)?" : "Answer it?",
-                                   note: mixed
-                                       ? "Step aside, or break them before they land"
-                                       : (cards[0].descriptor.clearsOut
-                                          ? "Step aside and the ball carries on"
-                                          : "Break the clamps before they land"),
+                    // Caught off a Lob with a dunk in hand: the Alley-Oop, asked for by name.
+                    let dunking = cards.allSatisfy { $0.descriptor.special?.dunks == true }
+                    CardChoiceView(title: dunking ? "Dunk It?"
+                                   : (cards.count == 1 ? "\(cards[0].descriptor.name)?" : "Answer it?"),
+                                   note: dunking
+                                       ? "Finish the Lob: Alley-Oop, SHOT +10%"
+                                       : (mixed
+                                          ? "Step aside, or break them before they land"
+                                          : (cards[0].descriptor.clearsOut
+                                             ? "Step aside and the ball carries on"
+                                             : "Break the clamps before they land")),
                                    offered: cards.map(\.descriptor),
                                    tint: CardPalette.orange,
-                                   taking: "Play it!",
+                                   taking: dunking ? "Dunk it!" : "Play it!",
                                    declining: "No thanks",
                                    chosen: $picked, ringed: ring,
                                    onDecline: declineTheOffer,

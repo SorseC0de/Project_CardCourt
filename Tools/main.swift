@@ -167,6 +167,10 @@ if args.contains("--text") {
     probeClearOut()
 } else if args.contains("--shoot") {
     probeShootButton()
+} else if let at = args.firstIndex(of: "--seed"), at + 1 < args.count, let seed = UInt64(args[at + 1]) {
+    probeSeed(seed)
+} else if args.contains("--southpaw") {
+    probeSouthpaw()
 } else if args.contains("--slots") {
     slotCoverage()
 } else if args.contains("--soak") {

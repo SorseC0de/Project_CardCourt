@@ -10,6 +10,7 @@ struct ActionBarView: View {
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
     var onCombo: (CardDescriptor) -> Void = { _ in }
+    var onBonus: (CardDescriptor, CGPoint) -> Void = { _, _ in }
     /// Traderous Tarmac and Varsitile open their own sheets, which the screen owns.
     var onHandOff: () -> Void = {}
     var onExchange: () -> Void = {}
@@ -91,6 +92,7 @@ struct ActionBarView: View {
                                     else { return nil } }(),
                           onKeyword: onKeyword,
                           onCombo: onCombo,
+                          onBonus: onBonus,
                           detail: $detail,
                           onCommit: commit)
             asking

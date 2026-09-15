@@ -29,8 +29,9 @@ struct CardFrontView: View {
     /// Handed on a raised card: opens its combo scene, and puts the COMBO and BONUS buttons
     /// under its words. Nil leaves them off.
     var onCombo: (() -> Void)?
-
-    @State private var showingBonus = false
+    /// Handed on a raised card: the BONUS button, and where it is on screen, so the screen
+    /// can hang the bonus off it. See `BonusBubble`.
+    var onBonus: ((CGPoint) -> Void)?
 
 
     /// Everything inside is drawn at raster size; the whole thing is scaled back down
@@ -59,7 +60,11 @@ struct CardFrontView: View {
             // card prints on top of it — the court, the wash the words are read on, the
             // name banner — so the circle can be made as big as it likes without
             // swallowing anything. Only its subject comes back over the top, below.
-            if passArt == nil { icon }
+            if face.type == .varena {
+                varenaArt
+            } else if passArt == nil {
+                icon
+            }
             if !isBlank { textOverlay }
             border
             // Every card carries its name. Which side of the icon's plate the banner is
@@ -114,15 +119,17 @@ struct CardFrontView: View {
     private enum Extras {
         /// The buttons' lettering, as a share of the card's width.
         static let size: CGFloat = 0.06
-        /// Where the row sits, as a share of the card's height: under the words.
-        static let y: CGFloat = 0.92
+        /// How far the row sits in from the bottom edge of the text area, as a share of the
+        /// card's width.
+        static let inset: CGFloat = 0.025
     }
 
     private var combos: [Combo] { Combo.involving(descriptor) }
 
     private var showsExtras: Bool {
-        expanded && !isBlank && onCombo != nil
-            && (!combos.isEmpty || !descriptor.bonusLines.isEmpty)
+        guard expanded, !isBlank else { return false }
+        return (onCombo != nil && !combos.isEmpty)
+            || (onBonus != nil && !descriptor.bonusLines.isEmpty)
     }
 
     /// **COMBO and BONUS, under the words.** What a card strings together and its
@@ -133,12 +140,25 @@ struct CardFrontView: View {
             if let onCombo, !combos.isEmpty {
                 extrasCapsule("COMBO", size: size, action: onCombo)
             }
-            if !descriptor.bonusLines.isEmpty {
-                extrasCapsule("BONUS", size: size) { showingBonus = true }
-                    .popover(isPresented: $showingBonus) { bonusPopover }
+            if let onBonus, !descriptor.bonusLines.isEmpty {
+                extrasCapsule("BONUS", size: size) {}
+                    // Where it is on screen, so the bubble hangs off the button itself.
+                    .overlay {
+                        GeometryReader { button in
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    let frame = button.frame(in: .global)
+                                    onBonus(CGPoint(x: frame.midX, y: frame.minY))
+                                }
+                        }
+                    }
             }
         }
-        .position(x: width / 2, y: height * Extras.y)
+        // **At the bottom of the text area**, inside it.
+        .position(x: width / 2,
+                  y: height * (1 - CardLayout.textOverlayBottomFraction)
+                      - size * 0.8 - width * Extras.inset)
     }
 
     private func extrasCapsule(_ word: String, size: CGFloat,
@@ -153,19 +173,6 @@ struct CardFrontView: View {
                 .background(Capsule().fill(CardPalette.navy))
         }
         .buttonStyle(.plain)
-    }
-
-    private var bonusPopover: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(descriptor.bonusLines, id: \.self) { line in
-                CardText(text: line, font: CardFont.name(set.weight), size: 17,
-                         ink: CardPalette.navy, highlight: set.highlight, face: face)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: 280, alignment: .leading)
-        .presentationCompactAdaptation(.popover)
     }
 
     /// A combo not done yet: everything under a black wash, and a white question mark
@@ -280,15 +287,26 @@ struct CardFrontView: View {
     /// Whether this type's front layer has been drawn yet. The model only names it — an
     /// asset catalog is the view's business — so a type without one keeps its whole icon
     /// behind the banner and nothing has to be switched on.
-    private var hasIconFront: Bool { UIImage(named: descriptor.artworkFront) != nil }
+    private var hasIconFront: Bool { UIImage(named: frontArt) != nil }
+
+    /// **What stands in the plate.** A Variaball with a drawing of its own wears it; every
+    /// other card wears its type's.
+    private var frontArt: String {
+        let ball = "Ball-\(descriptor.id)"
+        return face.type == .variaball && UIImage(named: ball) != nil ? ball : descriptor.artworkFront
+    }
 
     private var iconFront: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
         let drop = width * set.iconDrop
-        return Image(descriptor.artworkFront)
+        // A ball's own drawing is trimmed to itself rather than framed on the plate's
+        // artboard, so it is sized against the circle it stands in.
+        let ownBall = frontArt != descriptor.artworkFront
+        let drawn = ownBall ? side * BallArt.share * (BallArt.scale[descriptor.id] ?? 1) : side
+        return Image(frontArt)
             .resizable()
             .scaledToFit()
-            .frame(width: side, height: side)
+            .frame(width: drawn, height: drawn)
             .shadow(color: set.iconShadeInk(for: face),
                     radius: 0, x: drop, y: drop)
             .position(x: width / 2,
@@ -296,18 +314,51 @@ struct CardFrontView: View {
                           + side * (0.5 - CardLayout.iconRingInset))
     }
 
-    /// The three's hand, pinned to the icon's bottom-left corner. Bottom-right is the shoot
-    /// mark's, which every shooting card wears, so it never moves.
+    /// **A Varena's own art**: the court, drawn whole where the icon would be, with no plate
+    /// behind it.
+    private var varenaArt: some View {
+        let side = width * CardLayout.iconSizeFraction * set.iconScale
+        return Image(descriptor.artwork?.name ?? "ISO_Court")
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: width * VarenaArt.width)
+            .position(x: width / 2,
+                      y: height * (set.iconTop + descriptor.iconYAdjust)
+                          + side * (0.5 - CardLayout.iconRingInset))
+    }
+
+    private enum VarenaArt {
+        /// How wide the court is drawn, as a share of the card's width.
+        static let width: CGFloat = 0.86
+    }
+
+    private enum BallArt {
+        /// A ball's own drawing against the icon's side: inside the plate's circle.
+        static let share: CGFloat = 0.55
+        /// Per ball, since every drawing is trimmed to itself rather than squared.
+        static let scale: [String: CGFloat] = [:]
+    }
+
+    /// Where a mark sits on the plate's rim, from the icon's middle. `side` is the icon's.
+    private func rimOffset(_ side: CGFloat) -> CGSize {
+        let angle = CardLayout.markRimAngle * .pi / 180
+        return CGSize(width: side * CardLayout.markRimRadius * CGFloat(cos(angle)),
+                      height: side * CardLayout.markRimRadius * CGFloat(sin(angle)))
+    }
+
+    /// The three's hand, bottom-left on the plate's rim. Bottom-right is the shoot mark's,
+    /// which every shooting card wears, so it never moves.
     private var threeMark: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
         return ThreeHandMark(width: side * CardLayout.threeMarkShare,
                              tint: CardPalette.lightBlue,
                              shadow: CardPalette.blue,
                              shadowOffset: width * CardLayout.threeMarkDrop)
-            .position(x: width / 2 - side * CardLayout.threeMarkX,
+            .position(x: width / 2 - rimOffset(side).width,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
                           + side * (0.5 - CardLayout.iconRingInset)
-                          + side * CardLayout.threeMarkY)
+                          + rimOffset(side).height)
     }
 
     /// **The ball at the foot of the card, and nothing else.**
@@ -392,24 +443,24 @@ struct CardFrontView: View {
             .frame(width: row, height: row)
     }
 
-    /// **It shoots**, pinned to the icon's bottom-right corner on every card that shoots, so
-    /// it is always in the same place. The three's hand takes the mirror, bottom-left, at
-    /// the same size and height.
-    ///
-    /// A silhouette in the card's own text ink, like everything else printed on the face.
+    /// **It shoots** — or it dunks — bottom-right on the plate's rim, on every card that
+    /// shoots, so it is always in the same place. Printed the way the three's hand is, a size
+    /// down from it.
     private var shootMark: some View {
         let side = width * CardLayout.iconSizeFraction * set.iconScale
-        let mark = side * CardLayout.threeMarkShare
-        return Image("ShootIcon")
+        let mark = side * CardLayout.shootMarkShare
+        let drop = width * CardLayout.threeMarkDrop
+        return Image(descriptor.special?.dunks == true ? "DunkIcon" : "ShootIcon")
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .frame(width: mark, height: mark)
-            .foregroundStyle(effectColour)
-            .position(x: width / 2 + side * CardLayout.threeMarkX,
+            .foregroundStyle(CardPalette.lightBlue)
+            .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+            .position(x: width / 2 + rimOffset(side).width,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
                           + side * (0.5 - CardLayout.iconRingInset)
-                          + side * CardLayout.threeMarkY)
+                          + rimOffset(side).height)
     }
 
     /// Applied only where a card asks for it, so no other icon pays for the masking.
