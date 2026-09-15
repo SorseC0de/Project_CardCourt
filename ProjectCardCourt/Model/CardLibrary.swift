@@ -691,7 +691,7 @@ enum CardLibrary {
     /// the deck as well, where playing one takes the court back to basic.
     static let cardwood = CardDescriptor(
         id: "cardwood", name: "Cardwood", type: .varena,
-        effect: "Changes the court back to basic", numberInDeck: 5,
+        effect: "Changes the court back to basic", numberInDeck: 6,
         varena: VarenaEffect())
 
     static let primeParquet = CardDescriptor(
@@ -721,6 +721,7 @@ enum CardLibrary {
         id: "tri-hard-tiling", name: "Tri-hard Tiling", type: .varena,
         effect: "Hand limit 3", numberInDeck: 3,
         varena: VarenaEffect(handLimit: 3))
+    /// **Out of the deck** (2026-09-15): its referees could lock a game into a loop.
     static let policeum = CardDescriptor(
         id: "policeum", name: "Policeum", type: .varena,
         effect: "Referees do not leave once triggered", numberInDeck: 3,
@@ -927,7 +928,7 @@ enum CardLibrary {
 
     static let varenas: [CardDescriptor] = [
         cardwood, primeParquet, lacktop, smacktop, boarderCourt, dimDome, triHardTiling,
-        policeum, kiddieCourt, rechargingResin, contactCourt, mvpiquia, polypaypylene,
+        kiddieCourt, rechargingResin, contactCourt, mvpiquia, polypaypylene,
         recoverena, carouselCourt, traderousTarmac, clearcoatCourt, malicePalace,
         turnstileTile, roleplayerPolymer, variaballVinyl, graviGym, vintageVarnish,
         sellOutStadium, grayvstone, conCrete, spazzphalt, frostbiteFinish, tickTockTile,
