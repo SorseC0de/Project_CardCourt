@@ -274,7 +274,7 @@ for name in sorted(layers):
 # **Drawings that are not type icons**, trimmed to their own ink the way they were before
 # Affinity wrote the artboard back out — with half the widest stroke kept, so no edge line
 # is cut.
-TRIMMED = ("ISO_Court", "ISO_Court_v2", "CardCourt_Ball", "Shot_Icon", "Balls/Dunk_Icon")
+TRIMMED = ("ISO_Court", "ISO_Court_v2", "CardCourt_Ball", "Shot_Icon", "Dunk_Icon")
 
 
 def ink(text: str):
@@ -324,9 +324,6 @@ BALL_EXPORT_SCALE = {"snowball": 4022 / 966}
 if "Variaball" in boxes:
     left, top, span = boxes["Variaball"]
     for path in sorted((root / ICONS / "Balls").glob("*.svg")):
-        # Only the balls: the dunk mark is trimmed with the marks, and a court is not a ball.
-        if path.stem == "Dunk_Icon" or path.stem.startswith("ISO_Court"):
-            continue
         k = BALL_EXPORT_SCALE.get(path.stem, 1)
         box = f'viewBox="{n(left * k)} {n(top * k)} {n(span * k)} {n(span * k)}"'
         if frame(path, box):
