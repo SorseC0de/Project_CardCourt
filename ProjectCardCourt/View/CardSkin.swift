@@ -86,6 +86,13 @@ struct CardSkin {
 
     static func printed(_ face: CardFace) -> PlateInks {
         switch face {
+        // **Two grays, one colour.** Its line and the shadow that line throws were drawn
+        // in the same gray, so a swap cannot tell them apart and both take the drop's
+        // colour. Splitting them wants two different fills in the drawing.
+        case .intangible: return PlateInks(circle: CardPalette.steel, line: CardPalette.gray,
+                                           lineShade: CardPalette.gray)
+        case .variaball:  return PlateInks(circle: CardPalette.gray, line: CardPalette.steel,
+                                           lineShade: CardPalette.black)
         case .pass:    return PlateInks(circle: CardPalette.tan, line: CardPalette.cloud,
                                         lineShade: CardPalette.lightBlue)
         // Its line shadow was drawn gray where every other court-line plate throws
@@ -100,12 +107,30 @@ struct CardSkin {
 
     /// The swaps that take this face's plate from how it was drawn to how the theme wants
     /// it. Empty when nothing about it moves.
+    /// **A plate of its own**, where a type wants colours the theme does not hand out.
+    /// The Intangible takes the Clamp's two; the Variaball is the odd one in the deck and
+    /// is printed like it.
+    static func ownPlate(_ face: CardFace) -> PlateInks? {
+        switch face {
+        case .intangible: return PlateInks(circle: CardPalette.purple,
+                                           line: CardPalette.azure,
+                                           lineShade: CardPalette.azure)
+        case .variaball:  return PlateInks(circle: CardPalette.navy,
+                                           line: CardPalette.azure,
+                                           lineShade: CardPalette.brown)
+        default:          return nil
+        }
+    }
+
     @MainActor
     static func plateSwaps(for face: CardFace) -> [PaletteSwap] {
         let drawn = printed(face)
         let skin = of(face)
+        let want = ownPlate(face)
         return zip([drawn.circle, drawn.line, drawn.lineShade],
-                   [skin.iconPlate, skin.iconLine, skin.iconLineShade])
+                   [want?.circle ?? skin.iconPlate,
+                    want?.line ?? skin.iconLine,
+                    want?.lineShade ?? skin.iconLineShade])
             .compactMap { from, to in
                 guard let from, let to, from != to else { return nil }
                 return PaletteSwap(from, to)
@@ -125,16 +150,25 @@ struct CardSkin {
         // **The circle a court-line plate stands on**, per theme. A Whistle's is gray
         // rather than the tan the other two wear.
         let plainCircle: Color = face == .whistle ? CardPalette.gray : CardPalette.tan
+        // **The two that wear a gold banner.** A Variaball and a Special Move are the
+        // showy half of the deck, so they are named in gold on orange rather than in
+        // their own colour — everywhere the badge is the type's, which is A and B.
+        // Theme C's badge is what says played-or-standing, so it keeps that job.
+        let gilded = face == .variaball || face == .specialMove
+        let badge: Color = gilded ? CardPalette.gold : type
+        let badgeShade: Color = gilded ? CardPalette.orange : shade
+        // A Special Move keeps its green ring whatever its banner does.
+        let ringInk: Color = face == .specialMove ? CardPalette.green : type
 
         switch theme {
         case .a:
             return CardSkin(
                 body: intent, panel: nil,
-                plate: type, plateShade: shade, ring: type,
+                plate: badge, plateShade: badgeShade, ring: ringInk,
                 iconPlate: plainCircle,
                 iconLine: CardPalette.cloud,
                 iconLineShade: CardPalette.lightBlue,
-                iconShade: nil,
+                iconShade: face == .variaball ? CardPalette.blood : nil,
                 text: standing ? CardPalette.cloud : CardPalette.navy,
                 nameTop: face.lettersDark ? CardPalette.navy : CardPalette.cloud,
                 nameBottom: face.lettersDark ? CardPalette.darkBlue : .white,
@@ -144,7 +178,7 @@ struct CardSkin {
             // brown for the black, and its plate takes the tan back.
             return CardSkin(
                 body: standing ? CardPalette.brown : CardPalette.tan, panel: nil,
-                plate: type, plateShade: shade, ring: type,
+                plate: badge, plateShade: badgeShade, ring: ringInk,
                 // A standing card takes the tan plate back, and everything that comes
                 // with it.
                 iconPlate: standing ? plainCircle : CardPalette.steel,
@@ -152,7 +186,8 @@ struct CardSkin {
                 iconLineShade: CardPalette.lightBlue,
                 // Gray under a tan body; a standing card takes back what accompanies
                 // the tan plate, which is the drop the face was tuned to.
-                iconShade: standing ? nil : CardPalette.gray,
+                iconShade: face == .variaball ? CardPalette.blood
+                                              : (standing ? nil : CardPalette.gray),
                 text: standing ? CardPalette.cloud : CardPalette.navy,
                 nameTop: face.lettersDark ? CardPalette.navy : CardPalette.cloud,
                 nameBottom: face.lettersDark ? CardPalette.darkBlue : .white,
