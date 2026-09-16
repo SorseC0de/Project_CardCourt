@@ -31,6 +31,11 @@ enum Pacing {
     static let reveal = 1.0
     /// The whistle, the back, the flip, and the name under it.
     static let whistleReveal = 3.0
+    /// **A call starts on the man making it.** How close the camera goes to him, how long
+    /// it takes to get there, and how long he is left blowing it before the card comes up.
+    static let whistleZoom: CGFloat = 1.8
+    static let whistleFrame = 0.28
+    static let whistleHold = 0.55
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
     /// How long a card takes to come off the pile. It was a third of a second, which is
@@ -2584,11 +2589,25 @@ final class GameController {
     }
 
     /// A Whistle turning face up.
+    /// **A call, in three beats.** The referee who made it first: the camera goes to him
+    /// and he blows it where he stands, so the call comes from a man on the floor rather
+    /// than from a card appearing. Then the card comes up as the Z with the whistle
+    /// shaking over it — that is the blast — and only then does it turn over and say what
+    /// it was. See `WhistleRevealView`, which runs the last two.
     private func showWhistle(in events: [GameEvent]) async {
         guard let scene = WhistleReveal.first(in: events, seen: SeenCards.shared) else { return }
+        // Which of the crew it was, by where his card stands in the line — the court lays
+        // the men out in that order, so the index is the man.
+        let slot = state.armedWhistles.firstIndex { $0.card.descriptor.id == scene.card.id }
         whistleReveal = scene
+        if let slot {
+            camera = CourtCamera(subjects: [.referee(slot)], zoom: Pacing.whistleZoom,
+                                 seconds: Pacing.whistleFrame)
+            try? await Task.sleep(for: .seconds(Pacing.whistleHold))
+        }
         await hold(scene.isNew, seconds: Pacing.whistleReveal) { self.whistleReveal }
         whistleReveal = nil
+        if slot != nil { camera = nil }
     }
 
     /// Waits out a scene: on a clock normally, on the player when the card is new to them.

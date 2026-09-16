@@ -41,6 +41,9 @@ struct WhistleRevealView: View {
     /// floor, at the size a card can carry. See `RefereeFigure.Duty.calling`.
     private static let rock: Double = 10
     private static let rockSeconds: Double = 0.15
+    /// How long the whistle is blown for before the card turns. Short: it is a blast, not
+    /// a pause, and the referee out on the floor is doing the same thing at the same time.
+    private static let blast: Double = 0.55
 
     var body: some View {
         ZStack {
@@ -49,8 +52,8 @@ struct WhistleRevealView: View {
             // reads as a rectangle growing rather than the lights going down.
             Color.clear
 
-            whistle
             card.opacity(backIn ? 1 : 0)
+            whistle
 
             VStack {
                 Spacer()
@@ -90,9 +93,10 @@ struct WhistleRevealView: View {
             // already covered up.
             .rotationEffect(.degrees(whistleIn ? 0 : -30))
             .rotationEffect(.degrees(rocked ? Self.rock : -Self.rock))
-            // Pushed back once the card is on top of it, rather than removed — it stays
-            // behind the card as the thing that summoned it.
-            .opacity(whistleIn ? (backIn ? 0.22 : 1) : 0)
+            // **On top of the Z card, not behind it.** The back comes up first and the
+            // whistle shakes over the middle of it — that is the beat the sound lands on
+            // — and it is gone by the time the card turns over and says what it was.
+            .opacity(whistleIn && !flipped ? 1 : 0)
     }
 
     private var card: some View {
@@ -159,15 +163,17 @@ struct WhistleRevealView: View {
         withAnimation(.easeOut(duration: 0.25)) { dimmed = true }
         try? await Task.sleep(for: .seconds(0.18))
 
-        // Already popped in, on the call — `ActionCall.whistle` shows this same gold
-        // whistle in place of a word. Playing it again here was the one thing said twice,
-        // and a beat spent saying it. It stays behind the card as what summoned it.
-        whistleIn = true
+        // **The back first, then the whistle on top of it.** The card arrives as the Z
+        // and the whistle comes down over the middle of it shaking — one short beat, which
+        // is where the sound goes — and only then does the card turn over.
+        withAnimation(.easeOut(duration: 0.3)) { backIn = true }
+        try? await Task.sleep(for: .seconds(0.22))
+
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.6)) { whistleIn = true }
         withAnimation(.easeInOut(duration: Self.rockSeconds)
             .repeatForever(autoreverses: true)) { rocked = true }
-
-        withAnimation(.easeOut(duration: 0.3)) { backIn = true }
-        try? await Task.sleep(for: .seconds(0.42))
+        // TODO: the whistle sound effect lands here, on the shake.
+        try? await Task.sleep(for: .seconds(Self.blast))
 
         withAnimation(.easeInOut(duration: 0.42)) { flipped = true }
         // Held until the card is past edge-on, so the peel is never seen in mirror.
