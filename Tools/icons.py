@@ -28,6 +28,7 @@ Two passes over `_Graphic Assets/Vectors/*_Icon_new.svg`:
 Measures rather than reformats: the geometry is read with a parser and the file is edited
 by hand on the two things that change, so the drawing comes back to Affinity as it left.
 """
+import copy
 import math
 import pathlib
 import re
@@ -393,5 +394,290 @@ if "Variaball" in boxes and subject:
         if frame(path, box):
             moved += 1
         print(f"{'Balls/' + path.stem:18} {frames} frame(s) along, {how:8}  {box}")
+
+# **The ball in play**: each drawing's ball on its own, without the aura behind it, trimmed to
+# itself — what the game draws in place of the plain ball while that Variaball is out.
+#
+# The ball is the group the subject's ball was copied into, found by its transform, deepest
+# first. Where the group holding it also holds the aura it is named here instead, as the
+# child indices from the root.
+BALL_GROUPS = {"blazeball": (0, 0, 1), "snowball": (0, 0, 0)}
+# Pieces of the aura drawn inside the ball's own group, taken out by the same indices.
+BALL_DROPPED = {"rechargerock": [(0, 8, 4)], "heroball": [(0, 0, 0, 0)]}
+# Balls with nothing of their own to put in play, and why.
+BALL_SKIPPED = {"brandnewball": "the plain ball, with the Gold Swisshbone's shine",
+                "variaball": "never stays in play"}
+ASSETS = root / "ProjectCardCourt/Assets.xcassets"
+INKS = root / "ProjectCardCourt/Art/BallSpriteInks.swift"
+PIXELS = root / "ProjectCardCourt/Art/PaletteFX.swift"
+
+for name in ("", "xlink", "serif"):
+    ET.register_namespace(name, {"": "http://www.w3.org/2000/svg",
+                                 "xlink": "http://www.w3.org/1999/xlink",
+                                 "serif": "http://www.serif.com/"}[name])
+
+
+def ball_trail(path: pathlib.Path, reference):
+    """Where the ball is: the named group, or the deepest copy of the subject's ball."""
+    if path.stem in BALL_GROUPS:
+        return BALL_GROUPS[path.stem]
+    scale = export_scale(path)
+    found = ()
+
+    def walk(node, up, trail):
+        nonlocal found
+        here = times(up, matrix(node))
+        if node.get("transform") and reference is not None:
+            m = tuple(v / scale for v in here)
+            if all(abs(x - y) < 1e-3 for x, y in zip(m[:4], reference[:4])):
+                if len(trail) >= len(found):
+                    found = tuple(trail)
+        for i, kid in enumerate(node):
+            walk(kid, here, trail + [i])
+
+    walk(ET.fromstring(path.read_text()), (1, 0, 0, 1, 0, 0), [])
+    return found
+
+
+def cut_out(path: pathlib.Path, trail) -> str:
+    """The ball alone: its group, inside copies of the groups that held it, trimmed square."""
+    source = ET.fromstring(path.read_text())
+    # Last first, so taking one out never moves the index of another under the same group.
+    for gone in sorted(BALL_DROPPED.get(path.stem, []), reverse=True):
+        parent = source
+        for step in gone[:-1]:
+            parent = list(parent)[step]
+        parent.remove(list(parent)[gone[-1]])
+    out = ET.Element(source.tag, {k: v for k, v in source.attrib.items() if k != "viewBox"})
+    for defs in source.iter(SVG + "defs"):
+        out.append(copy.deepcopy(defs))
+    # Every group on the way down keeps its own transform and style.
+    node, holder = source, out
+    for depth, step in enumerate(trail):
+        node = list(node)[step]
+        if depth == len(trail) - 1:
+            holder.append(copy.deepcopy(node))
+        else:
+            holder = ET.SubElement(holder, node.tag,
+                                   {k: v for k, v in node.attrib.items()
+                                    if k in ("transform", "style")})
+    if not trail:
+        for kid in source:
+            if kid.tag != SVG + "defs":
+                out.append(copy.deepcopy(kid))
+    text = ET.tostring(out, encoding="unicode")
+    x0, y0, x1, y1 = ink(text)
+    own = max(x1 - x0, y1 - y0)
+    # **Framed on the plain ball's side**, so a ball drawn smaller — Handball — is drawn
+    # smaller in the game too. Never tighter than the ball itself, or its edge is cut.
+    plain = BALL_SIDE * export_scale(path)
+    side = max(own, plain)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    box = f'viewBox="{n(cx - side / 2)} {n(cy - side / 2)} {n(side)} {n(side)}"'
+    return text.replace("<svg ", f"<svg {box} ", 1), own / plain
+
+
+def pixel_palette() -> dict:
+    found = re.findall(r"static let (\w+) = Color\(hex: 0x(\w{6})\)", PIXELS.read_text())
+    return {"#" + code.upper(): name for name, code in found}
+
+
+def fill_of(node, inherited):
+    """The fill a node paints in, as `#RRGGBB`: its own, or the one it inherits. None for none."""
+    got = re.search(r"fill\s*:\s*([^;]+)", node.get("style", "") or "")
+    value = got.group(1).strip() if got else node.get("fill")
+    if value is None:
+        return inherited
+    if re.fullmatch(r"#[0-9A-Fa-f]{6}", value):
+        return value.upper()
+    rgb = re.fullmatch(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", value)
+    if rgb:
+        return "#%02X%02X%02X" % tuple(int(v) for v in rgb.groups())
+    return None if value == "none" else inherited
+
+
+def outlines(node, m) -> list:
+    """A shape's edges as closed rings of points, its curves flattened."""
+    if node.tag in (SVG + "circle", SVG + "ellipse"):
+        cx, cy = float(node.get("cx", 0)), float(node.get("cy", 0))
+        rx = float(node.get("rx", node.get("r", 0)))
+        ry = float(node.get("ry", node.get("r", 0)))
+        return [[apply(m, cx + rx * math.cos(k * math.pi / 16), cy + ry * math.sin(k * math.pi / 16))
+                 for k in range(32)]]
+    d = node.get("d")
+    if not d:
+        return []
+    rings, ring, here, start = [], [], (0.0, 0.0), (0.0, 0.0)
+    for letter, body in re.findall(r"([MmLlCcZz])([^MmLlCcZz]*)", d):
+        nums = [float(v) for v in re.findall(r"-?\d*\.?\d+(?:[eE][-+]?\d+)?", body)]
+        rel = letter.islower()
+        if letter in "Zz":
+            if ring:
+                rings.append(ring)
+            ring, here = [], start
+        elif letter in "MmLl":
+            for i in range(0, len(nums) - 1, 2):
+                p = (here[0] + nums[i], here[1] + nums[i + 1]) if rel else (nums[i], nums[i + 1])
+                if letter in "Mm" and i == 0:
+                    if ring:
+                        rings.append(ring)
+                    ring, start = [p], p
+                else:
+                    ring.append(p)
+                here = p
+        else:
+            for i in range(0, len(nums) - 5, 6):
+                a, b, c = [(here[0] + nums[i + j], here[1] + nums[i + j + 1]) if rel
+                           else (nums[i + j], nums[i + j + 1]) for j in (0, 2, 4)]
+                for step in range(1, 7):
+                    t = step / 6
+                    u = 1 - t
+                    ring.append(tuple(u ** 3 * h + 3 * u * u * t * p + 3 * u * t * t * q + t ** 3 * e
+                                      for h, p, q, e in zip(here, a, b, c)))
+                here = c
+    if ring:
+        rings.append(ring)
+    return [[apply(m, *p) for p in r] for r in rings if len(r) > 2]
+
+
+def inside(x: float, y: float, rings: list) -> bool:
+    """Nonzero winding, which is how the drawings are filled."""
+    wind = 0
+    for ring in rings:
+        for (x0, y0), (x1, y1) in zip(ring, ring[1:] + ring[:1]):
+            side = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0)
+            if y0 <= y < y1 and side > 0:
+                wind += 1
+            elif y1 <= y < y0 and side < 0:
+                wind -= 1
+    return wind != 0
+
+
+def ball_inks(text: str) -> tuple:
+    """The drawing's body — the colour that shows over most of it — and the most-seen colour
+    lighter than that, each as the nearest Zuphy32 entry.
+
+    **What shows, not what is drawn.** A ball is laid over a dark disc and crossed by seams,
+    so counting shapes by size crowns the disc. The ball is sampled on a grid instead, and
+    each point takes the colour of the topmost shape over it."""
+    tree = ET.fromstring(text)
+    shapes = []
+    stack = [(tree, (1, 0, 0, 1, 0, 0), None)]
+    while stack:
+        node, up, fill = stack.pop(0)
+        here = times(up, matrix(node))
+        fill = fill_of(node, fill)
+        if node.tag in DRAWN and fill:
+            rings = outlines(node, here)
+            if rings:
+                xs = [p[0] for r in rings for p in r]
+                ys = [p[1] for r in rings for p in r]
+                shapes.append((fill, rings, (min(xs), min(ys), max(xs), max(ys))))
+        stack = [(kid, here, fill) for kid in node] + stack
+    x0, y0, x1, y1 = ink(text)
+    seen: dict[str, int] = {}
+    grid = 40
+    for i in range(grid):
+        for j in range(grid):
+            x = x0 + (i + 0.5) * (x1 - x0) / grid
+            y = y0 + (j + 0.5) * (y1 - y0) / grid
+            for fill, rings, (bx0, by0, bx1, by1) in reversed(shapes):
+                if bx0 <= x <= bx1 and by0 <= y <= by1 and inside(x, y, rings):
+                    seen[fill] = seen.get(fill, 0) + 1
+                    break
+    body = max(seen, key=seen.get)
+    bright = lambda code: sum(channels(code))
+    lighter = [c for c in seen if bright(c) > bright(body)]
+    light = max(lighter, key=seen.get) if lighter else body
+    pixels = pixel_palette()
+    body_name = nearest(body, pixels)[1]
+    rest = {c: name for c, name in pixels.items() if name != body_name}
+    light_name = nearest(light, rest if light == body or nearest(light, pixels)[1] == body_name
+                         else pixels)[1]
+    return body_name, light_name
+
+
+def write_if_changed(target: pathlib.Path, text: str) -> bool:
+    if target.exists() and target.read_text() == text:
+        return False
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text)
+    return True
+
+
+def json_contents(filename: str) -> str:
+    return ('{\n  "images" : [\n    {\n      "filename" : "%s",\n      "idiom" : "universal"\n'
+            '    }\n  ],\n  "info" : {\n    "author" : "xcode",\n    "version" : 1\n  },\n'
+            '  "properties" : {\n    "preserves-vector-representation" : true,\n'
+            '    "template-rendering-intent" : "original"\n  }\n}\n') % filename
+
+
+INKS_TEMPLATE = """import SwiftUI
+
+/// **The pixel ball's two colours, per Variaball in play.** `body` takes the sheet's
+/// `ballShade`, which is most of the ball, and `light` its `ball`.
+///
+/// Listed by `Tools/icons.py` for any ball not yet here, off the nearest Zuphy32 entries
+/// to the drawing's own body and highlight — and **never rewritten once listed**, so a
+/// correction made on `BallBench` stays made.
+enum BallSpriteInks {
+    static let byBall: [String: (body: Color, light: Color)] = [
+ROWS
+    ]
+}
+"""
+
+
+SIZES = root / "ProjectCardCourt/Art/BallSizes.swift"
+SIZES_TEMPLATE = """import CoreGraphics
+
+/// **How big each ball in play is against the plain one**, for the pixel ball — the drawings
+/// already carry it, framed on the plain ball's side. Only the ones that differ are listed.
+///
+/// Written by `Tools/icons.py` on every run; measured off the drawings, so edit those.
+enum BallSizes {
+    static let share: [String: CGFloat] = TABLE
+}
+"""
+
+if "Variaball" in boxes and subject:
+    plain_ball = root / ICONS / "Balls" / "variaball.svg"
+    edges = ink(plain_ball.read_text())
+    BALL_SIDE = max(edges[2] - edges[0], edges[3] - edges[1]) / export_scale(plain_ball)
+    sizes: dict[str, float] = {}
+    ids = {svg.stem: folder.name[len("Ball-"): -len(".imageset")]
+           for folder in ASSETS.glob("Ball-*.imageset") for svg in folder.glob("*.svg")}
+    # **Never rewritten once listed**: an entry here may have been corrected on the bench.
+    listed = {card: (body, light) for card, body, light in re.findall(
+        r'"([\w-]+)": \(body: PixelPalette\.(\w+), light: PixelPalette\.(\w+)\)',
+        INKS.read_text())} if INKS.exists() else {}
+    added = []
+    for path in sorted((root / ICONS / "Balls").glob("*.svg")):
+        if path.stem in BALL_SKIPPED:
+            print(f"{'in play/' + path.stem:18} skipped: {BALL_SKIPPED[path.stem]}")
+            continue
+        card = ids.get(path.stem)
+        if card is None:
+            print(f"  ! {path.name} has no Ball- asset to name its card", file=sys.stderr)
+            continue
+        trail = ball_trail(path, reference)
+        text, sizes[card] = cut_out(path, trail)
+        folder = ASSETS / f"BallInPlay-{card}.imageset"
+        if write_if_changed(folder / path.name, text):
+            moved += 1
+        write_if_changed(folder / "Contents.json", json_contents(path.name))
+        if card not in listed:
+            listed[card] = ball_inks(text)
+            added.append(card)
+        print(f"{'in play/' + path.stem:18} group {list(trail)}  size {sizes[card]:.2f}  "
+              f"sprite {listed[card][0]} over {listed[card][1]}{'  (new)' if card in added else ''}")
+    differ = [(card, share) for card, share in sorted(sizes.items()) if abs(share - 1) > 0.02]
+    table = ("[\n" + "\n".join(f'        "{card}": {share:.2f},' for card, share in differ)
+             + "\n    ]") if differ else "[:]"
+    write_if_changed(SIZES, SIZES_TEMPLATE.replace("TABLE", table))
+    if added or not INKS.exists():
+        rows = "\n".join(f'        "{card}": (body: PixelPalette.{b}, light: PixelPalette.{l}),'
+                         for card, (b, l) in sorted(listed.items()))
+        write_if_changed(INKS, INKS_TEMPLATE.replace("ROWS", rows))
 
 print(f"\n{moved} file(s) rewritten, {snapped} fill(s) snapped to the palette")

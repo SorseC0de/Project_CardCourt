@@ -7,6 +7,11 @@ struct AITuning {
     var shootThreshold = 60
     /// How wide the curve is around that centre. Smaller is more decisive.
     var shootSpread = 12.0
+    /// **A look not worth the board it hands over.** At or under this, anything else on
+    /// the table beats shooting: the attempt cannot score, and the miss puts the ball up
+    /// for a rebound that costs the whole table cards. A possession with nothing to do
+    /// ends on the clock instead, which at least hands the next man a fresh SHOT.
+    var hopelessShot = 10
     /// Cards this opponent tends to spend chasing a board.
     var reboundBidCap = 2
     /// Cards it prefers to keep back rather than bid.
@@ -147,7 +152,17 @@ struct AIPolicy {
 
         // Checked last, so a hand of Whistles and Clamps is never mistaken for a hand
         // with nothing in it.
-        guard !passes.isEmpty else { return .shoot }
+        guard !passes.isEmpty else {
+            // **Never heave at nothing.** A quarter of every attempt in the game used to
+            // be taken at 0%, and four in five of those had something else playable —
+            // each one a guaranteed miss that put the ball back up for a board.
+            if state.shot <= tuning.hopelessShot,
+               let anything = legal.first(where: { if case .play = $0 { return true }
+                                                   return false }) {
+                return anything
+            }
+            return .shoot
+        }
         return .play(choosePass(state, for: seat, from: passes))
     }
 

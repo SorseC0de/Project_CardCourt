@@ -14,6 +14,8 @@ struct ActionBarView: View {
     /// Traderous Tarmac and Varsitile open their own sheets, which the screen owns.
     var onHandOff: () -> Void = {}
     var onExchange: () -> Void = {}
+    /// Off in a lesson, which teaches the cards and never the shot.
+    var allowsShooting = true
     @Environment(\.floorIsHidden) private var floorIsHidden
 
     private var state: GameState { controller.shown }
@@ -107,7 +109,7 @@ struct ActionBarView: View {
                     if canExchange { sideButton("EXCHANGE", run: onExchange) }
                 }
             }
-            if case .awaitingMove = controller.gate, canShoot {
+            if case .awaitingMove = controller.gate, canShoot, allowsShooting {
                 HStack(spacing: 8) {
                     shootButton
                     if canBorrow { borrowButton }
@@ -207,6 +209,8 @@ struct ActionBarView: View {
         static let figure: CGFloat = 14
         static let ball: CGFloat = 22
         static let drop: CGFloat = 2
+        /// The pill's own drop, deeper than its lettering's.
+        static let pillDrop: CGFloat = 4
         /// **What counts as a special shot.** An override always does; a bonus has to be
         /// bigger than an ordinary card's to be worth lighting the button for. Twenty-five
         /// is the deck's own line — Hot Hand, Sniper and Skyhook sit there, and no
@@ -300,7 +304,7 @@ struct ActionBarView: View {
                 SpectrumFill(isLive: armed != nil && !floorIsHidden, resting: CardPalette.orange) {
                     Capsule()
                 }
-                .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
+                .shadow(color: CardPalette.blue, radius: 0, x: Act.pillDrop, y: Act.pillDrop))
         }
         .padRing(ringed == .shoot, corner: Act.height / 2)
         .frame(width: Act.width)
@@ -327,7 +331,7 @@ struct ActionBarView: View {
             .frame(maxWidth: .infinity)
             .frame(height: Act.height)
             .background(Capsule().fill(CardPalette.orange)
-                .shadow(color: CardPalette.red, radius: 0, x: Act.drop, y: Act.drop))
+                .shadow(color: CardPalette.blue, radius: 0, x: Act.pillDrop, y: Act.pillDrop))
         }
         .frame(width: Act.width * Act.secondShare)
     }

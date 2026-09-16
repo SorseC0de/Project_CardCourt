@@ -112,7 +112,7 @@ struct CardText: View {
             // The gap this exists to close. `lineSpacing` cannot go under the font's own
             // leading, so the negative half of the dial is spent here.
             .lineSpacing(uiFont.lineHeight * (lineHeight - 1))
-            .multilineTextAlignment(.center)
+            .multilineTextAlignment(.leading)
             .lineLimit(maxLines)
             .minimumScaleFactor(minScale)
             // A link paints itself in the accent colour unless something says otherwise,

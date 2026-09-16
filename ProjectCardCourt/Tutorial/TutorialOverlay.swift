@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// **A lesson over the table**: the wash with its holes, what the step says, and the blips
-/// for each leg. Taps on the wash move a tap step on; while the player is being asked to
+/// **A lesson over the table**: the wash with its holes, what the step says, the leg's name
+/// and the way out. Taps on the wash move a tap step on; while the player is being asked to
 /// play, the wash lets every touch through to the game underneath.
 struct TutorialOverlay: View {
     let director: TutorialDirector
@@ -20,11 +20,25 @@ struct TutorialOverlay: View {
         static let gap: CGFloat = 18
         static let margin: CGFloat = 16
         static let holePadding: CGFloat = 8
+        static let holeCorner: CGFloat = 12
         static let wash = 0.66
-        static let blip: CGFloat = 10
+        static let blip: CGFloat = 8
+        static let blipGap: CGFloat = 6
+        /// Between "Tap to continue" and the popover under it.
+        static let promptGap: CGFloat = 6
+        static let promptSize: CGFloat = 13
+        static let title: CGFloat = 16
+        static let exitSize: CGFloat = 14
+        static let fanCard: CGFloat = 64
+        static let fanTurn: Double = 14
+        static let fanSpread: CGFloat = 24
     }
 
     private var step: TutorialStep? { director.current }
+    private var face: CardFace { director.tutorial.face }
+    /// Printed the way the lesson's own cards are: the body, dropped in the inner ring.
+    private var popoverFill: Color { tuning.bodyInk(for: face) }
+    private var popoverDrop: Color { tuning.ringInk(for: face) }
 
     /// A step that waits on the player only shows itself while the player is being asked to
     /// play — a scene or a question on the table is left alone.
@@ -48,7 +62,8 @@ struct TutorialOverlay: View {
                         bubble(step, holes: holes, in: screen.size)
                     }
                 }
-                chrome
+                legTitle
+                exitButton
             }
             .animation(.easeInOut(duration: 0.2), value: isShowing)
             .animation(.easeInOut(duration: 0.2), value: director.step)
@@ -63,10 +78,22 @@ struct TutorialOverlay: View {
 
     // MARK: Pieces
 
-    @ViewBuilder private func wash(holes: [CGRect]) -> some View {
+    /// The holes are punched out of one layer, so two that overlap make one opening
+    /// rather than darkening where they cross.
+    private func wash(holes: [CGRect]) -> some View {
         let waiting = step?.advance == .tap || director.isFinished
-        HoledWash(holes: holes, padding: Layout.holePadding)
-            .fill(Color.black.opacity(Layout.wash), style: FillStyle(eoFill: true))
+        return Rectangle()
+            .fill(Color.black.opacity(Layout.wash))
+            .overlay {
+                ForEach(Array(holes.enumerated()), id: \.offset) { _, hole in
+                    let cut = hole.insetBy(dx: -Layout.holePadding, dy: -Layout.holePadding)
+                    RoundedRectangle(cornerRadius: Layout.holeCorner, style: .continuous)
+                        .frame(width: cut.width, height: cut.height)
+                        .position(x: cut.midX, y: cut.midY)
+                        .blendMode(.destinationOut)
+                }
+            }
+            .compositingGroup()
             .contentShape(Rectangle())
             .onTapGesture { director.tapped() }
             // Asked to play, the whole table is the player's to touch.
@@ -84,7 +111,7 @@ struct TutorialOverlay: View {
                 let room = max(0, union.minY - Layout.holePadding - Layout.gap)
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    card(step)
+                    popover(step)
                 }
                 .frame(width: Layout.bubbleWidth, height: room)
                 .position(x: centre, y: room / 2)
@@ -93,13 +120,13 @@ struct TutorialOverlay: View {
                 let top = union.maxY + Layout.holePadding + Layout.gap
                 let room = max(0, size.height - top)
                 VStack(spacing: 0) {
-                    card(step)
+                    popover(step)
                     Spacer(minLength: 0)
                 }
                 .frame(width: Layout.bubbleWidth, height: room)
                 .position(x: centre, y: top + room / 2)
             } else {
-                card(step)
+                popover(step)
                     .frame(width: Layout.bubbleWidth)
                     .position(x: size.width / 2, y: size.height / 2)
             }
@@ -108,93 +135,106 @@ struct TutorialOverlay: View {
         .transition(.opacity)
     }
 
-    private func card(_ step: TutorialStep) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CardText(text: step.text, font: CardFont.name(tuning.weight), size: Layout.textSize,
-                     ink: .white, highlight: tuning.highlight, face: .pass)
-                .fixedSize(horizontal: false, vertical: true)
-            if step.advance == .tap {
-                Text("Tap to continue")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .foregroundStyle(CardPalette.gold)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+    /// "Tap to continue" floating over the box, and the box: the words, then the blips.
+    private func popover(_ step: TutorialStep) -> some View {
+        VStack(spacing: Layout.promptGap) {
+            Text("Tap to continue")
+                .font(.system(size: Layout.promptSize, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .shadow(color: .black, radius: 0, x: 2, y: 2)
+            VStack(spacing: 10) {
+                CardText(text: step.text, font: CardFont.name(tuning.weight), size: Layout.textSize,
+                         ink: .white, highlight: tuning.highlight, face: face)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                blips
+            }
+            .padding(Layout.padding)
+            .background(box)
+        }
+    }
+
+    private var box: some View {
+        RoundedRectangle(cornerRadius: Layout.corner, style: .continuous)
+            .fill(popoverFill)
+            .shadow(color: popoverDrop, radius: 0, x: Layout.drop, y: Layout.drop)
+    }
+
+    /// One per leg, lit up to the one being taken.
+    private var blips: some View {
+        HStack(spacing: Layout.blipGap) {
+            ForEach(director.tutorial.legs.indices, id: \.self) { index in
+                Circle()
+                    .fill(index <= director.leg || director.isFinished ? popoverDrop : .black)
+                    .frame(width: Layout.blip, height: Layout.blip)
             }
         }
-        .padding(Layout.padding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Layout.corner, style: .continuous)
-            .fill(CardPalette.blue)
-            .shadow(color: CardPalette.gold, radius: 0, x: Layout.drop, y: Layout.drop))
     }
 
     private func farewell(in size: CGSize) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
+            fan
             CardText(text: director.tutorial.farewell, font: CardFont.name(tuning.weight),
                      size: Layout.textSize + 2, ink: .white, highlight: tuning.highlight,
-                     face: .pass)
+                     face: face)
                 .fixedSize(horizontal: false, vertical: true)
-            ChunkyButton(title: "Done", fill: CardPalette.gold, stroke: CardPalette.gold,
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ChunkyButton(title: "GOT IT!", fill: CardPalette.gold, stroke: CardPalette.gold,
                          shade: CardPalette.orange, size: 22, run: onExit)
+            blips
         }
         .padding(Layout.padding + 6)
         .frame(width: Layout.bubbleWidth)
-        .background(RoundedRectangle(cornerRadius: Layout.corner, style: .continuous)
-            .fill(CardPalette.blue)
-            .shadow(color: CardPalette.gold, radius: 0, x: Layout.drop, y: Layout.drop))
+        .background(box)
         .position(x: size.width / 2, y: size.height / 2)
     }
 
-    /// The leg blips, the leg's name, and the way out.
-    private var chrome: some View {
-        VStack {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        ForEach(director.tutorial.legs.indices, id: \.self) { index in
-                            Circle()
-                                .fill(index <= director.leg || director.isFinished
-                                      ? CardPalette.gold : Color.white.opacity(0.3))
-                                .frame(width: Layout.blip, height: Layout.blip)
-                                .overlay(Circle().stroke(CardPalette.navy, lineWidth: 1.5))
-                        }
-                    }
-                    if !director.isFinished {
-                        SmallCapsText(text: director.tutorial.legs[director.leg].title,
-                                      font: Chrome.display, size: 16)
-                            .foregroundStyle(.white)
-                            .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                    }
-                }
-                Spacer()
-                Button(action: onExit) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(CardPalette.red))
-                        .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                }
-                .buttonStyle(.plain)
+    /// Three cards of the lesson's type, blank and nameless, fanned from their feet.
+    private var fan: some View {
+        let card = director.tutorial.blankCard()
+        return ZStack {
+            ForEach(-1...1, id: \.self) { place in
+                CardFrontView(descriptor: card, displayWidth: Layout.fanCard)
+                    .rotationEffect(.degrees(Double(place) * Layout.fanTurn), anchor: .bottom)
+                    .offset(x: CGFloat(place) * Layout.fanSpread)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 64)
-            Spacer()
+        }
+        .frame(height: Layout.fanCard / CardMetrics.aspect)
+    }
+
+    @ViewBuilder private var legTitle: some View {
+        if !director.isFinished {
+            VStack {
+                HStack {
+                    SmallCapsText(text: director.tutorial.legs[director.leg].title,
+                                  font: Chrome.display, size: Layout.title)
+                        .foregroundStyle(.white)
+                        .shadow(color: CardPalette.navy, radius: 0, x: 4, y: 4)
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 64)
+                Spacer()
+            }
+            .allowsHitTesting(false)
         }
     }
 
-}
-
-/// The screen with rounded holes cut out of it. Filled even-odd, so the holes are clear.
-private struct HoledWash: Shape {
-    var holes: [CGRect]
-    var padding: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path(rect)
-        for hole in holes {
-            path.addRoundedRect(in: hole.insetBy(dx: -padding, dy: -padding),
-                                cornerSize: CGSize(width: 12, height: 12))
+    /// Under the log, where the game keeps its Varena.
+    @ViewBuilder private var exitButton: some View {
+        if let spot = rects[.exitSpot] {
+            Button(action: onExit) {
+                SmallCapsText(text: "Exit Tutorial", font: Chrome.display, size: Layout.exitSize)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(CardPalette.red)
+                        .shadow(color: CardPalette.gold, radius: 0, x: 3, y: 3))
+            }
+            .buttonStyle(.plain)
+            .fixedSize()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .offset(x: spot.minX, y: spot.minY)
         }
-        return path
     }
 }

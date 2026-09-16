@@ -39,6 +39,8 @@ struct InbounderFigure: View {
     @State private var look = PlayerLook.shared
     /// Observed, not just read — otherwise moving a slider changes nothing on screen.
     @State private var tune = InboundTextTuning.shared
+    /// The ball he holds takes the colours of the Variaball in play.
+    @Environment(\.ballInPlay) private var ballInPlay
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / fps)) { timeline in
@@ -51,7 +53,7 @@ struct InbounderFigure: View {
                     // **On the body, not on the pair.** The face is dressed in skin, not
                     // in a kit — put the swap round both and the man's shirt colour lands
                     // on his eyes. `HooperView` splits them the same way.
-                    .paletteSwap(swaps ?? look.kit(for: seat))
+                    .paletteSwap((swaps ?? look.kit(for: seat)) + BallInPlay.sprite(for: ballInPlay))
                 // **The face, and no head.** The body sheets have a head drawn on them
                 // already — they are simply faceless, which is what the face sheet is
                 // for. Laying a head on as well put a second head over the first, and

@@ -41,6 +41,8 @@ struct BoneSparkles: View {
     /// **A handful of big ones, not a field of small ones.** Many small twinkles read
     /// as glitter on the whole frame; a few large ones read as light coming off an object.
     var count: Int = 4
+    /// Places left empty, by their number in the ring — see `BallShine`.
+    var omitted: Set<Int> = []
 
     private enum Twinkle {
         /// Seconds for a full breath, fastest and slowest.
@@ -69,7 +71,8 @@ struct BoneSparkles: View {
         return TimelineView(.animation) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
             ZStack {
-                ForEach(Array(placed.enumerated()), id: \.offset) { index, spot in
+                ForEach(Array(placed.enumerated()).filter { !omitted.contains($0.offset) },
+                        id: \.offset) { index, spot in
                     let size = side * (Twinkle.smallest
                         + (Twinkle.largest - Twinkle.smallest) * spot.size)
                     star(size: size, beat: Self.beat(spot.rate, at: now),

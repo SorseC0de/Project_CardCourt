@@ -147,7 +147,21 @@ func play(seed: UInt64, moves: [String]) {
 }
 
 let args = CommandLine.arguments
-if args.contains("--text") {
+if args.contains("--density") {
+    measureDensity()
+} else if args.contains("--variety") {
+    measureVariety()
+} else if args.contains("--tempo") {
+    measureTempo()
+} else if args.contains("--shots") {
+    measureShots()
+} else if args.contains("--tilt") {
+    measureTilt()
+} else if args.contains("--bricks") {
+    measureBricks()
+} else if args.contains("--discards") {
+    measureDiscards()
+} else if args.contains("--text") {
     dumpText()
 } else if args.contains("--cardtexts") {
     dumpCardTexts()

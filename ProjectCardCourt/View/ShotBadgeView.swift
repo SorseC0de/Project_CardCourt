@@ -9,6 +9,8 @@ struct ShotBadgeView: View {
     /// Dim Dome: the number is not this player's to read.
     var hidden = false
 
+    /// The SHOT is drawn on whichever ball is in play.
+    @Environment(\.ballInPlay) private var ballInPlay
     @State private var pulse: CGFloat = 1
     /// Green on the way up, red on the way down, for a beat.
     @State private var flash: Color?
@@ -32,7 +34,8 @@ struct ShotBadgeView: View {
 
     var body: some View {
         ZStack {
-            Image("BallVector")
+            let art = BallInPlay.vector(for: ballInPlay)
+            Image(art)
                 .resizable()
                 .scaledToFit()
                 .frame(width: ballSize, height: ballSize)
@@ -42,6 +45,9 @@ struct ShotBadgeView: View {
                 // the image alone so the number keeps its numeric transition.
                 .drawingGroup()
                 .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+            if BallInPlay.shines(ballInPlay) {
+                BallShine(asset: art, side: ballSize)
+            }
 
             HStack(alignment: .center, spacing: 0) {
                 Text(hidden ? "??" : "\(shot)")

@@ -154,7 +154,9 @@ func slotTests() {
         state.courtCard = Card(CardLibrary.rechargingResin)
         state[seat.left].bag = []
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(state[seat.left].bag.count == 5, "Recharging Resin: a possession opens on 5")
+        // The match says how big a hand is, not the card — see `MatchRules.startingBagSize`.
+        Check.that(state[seat.left].bag.count == state.rules.startingBagSize,
+                   "Recharging Resin: a possession opens on a full hand")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 214, cards: [CardLibrary.swingLeft])
@@ -458,8 +460,23 @@ func slotTestsTwo() {
         state.ballCard = Card(CardLibrary.snowBall)
         state.shot = 50
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(state.shot == 50 + cards[0].descriptor.baseShotDelta - 10,
-                   "Snow Ball: SHOT -10% on every pass")
+        // **Instead of the pass, not on top of it**: passing it is a straight loss, or the
+        // ball breaks even for ever and never snowballs.
+        Check.that(state.shot == 40, "Snow Ball: a pass is SHOT -10% and nothing else")
+    }
+    do {
+        // **A feed worth more than the toll.** Hand-Off off a Dribble is ten printed and
+        // ten for the combo; none of it lands, or the ball breaks even at twenty and the
+        // thing never snowballs.
+        var (state, seat, cards) = openPossession(seed: 291, cards: [CardLibrary.handOff])
+        state.ballCard = Card(CardLibrary.snowBall)
+        state.lastPlayThisPossession = CardLibrary.dribble.id
+        state.shot = 50
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        if case .awaitingTarget(_, _, let choices) = state.phase, let pick = choices.first {
+            _ = Rules.resolveTarget(pick, state: &state)
+        }
+        Check.that(state.shot == 40, "and a pass worth more than the toll is still -10%")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 282, cards: [CardLibrary.swingLeft])
@@ -467,7 +484,8 @@ func slotTestsTwo() {
         state[seat.left].points = 10
         state[seat.left].bag = []
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(state[seat.left].bag.count == 5, "MVPiquia: the leader refills to 5")
+        Check.that(state[seat.left].bag.count == state.rules.startingBagSize,
+                   "MVPiquia: the leader refills to a full hand")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 283, cards: [CardLibrary.swingLeft])

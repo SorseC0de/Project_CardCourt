@@ -7,9 +7,21 @@ import Foundation
 /// and `GameController` has no business importing SwiftUI to find one out.
 enum PassTiming {
     /// How long the ball takes to cross.
-    static let flight: Double = 0.26
+    static var flight: Double { 0.26 * tempo }
     /// How long it stays in the receiver's hands before the sprite's own ball takes over.
-    static let hold: Double = 0.08
+    static var hold: Double { 0.08 * tempo }
+
+    /// How much slower than normal the ball is flying. One, except during a lesson's
+    /// slow-motion pass — see `GameController.setLessonSlowMotion(_:)`.
+    nonisolated(unsafe) static var tempo: Double = 1
+    static let slowMotion: Double = 4
+
+    /// How fast the throw sheet plays, slowed with the ball.
+    static var throwFPS: Double { 15 / tempo }
+    /// The throw sheet's first cell, where he still has it. The ball leaves after this.
+    static var windup: Double { 1 / throwFPS }
+    /// One pass of the throw sheet.
+    static var throwSeconds: Double { Double(Sprite.passRight.frames) / throwFPS }
 
     /// How fast the catch sheet plays — see `Theme.Figure` on rates.
     static let catchFPS: Double = 20

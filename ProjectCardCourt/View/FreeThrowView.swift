@@ -14,6 +14,15 @@ struct FreeThrowView: View {
     /// which the view flicks the ball to match.
     let auto: Bool?
     var onResult: (Bool) -> Void = { _ in }
+    /// The first armed Whistle, whose referee stands by the basket. Nil with none armed.
+    var referee: ArmedWhistle? = nil
+
+    /// The referee by the basket, in shares of the ring's width from its centre.
+    private enum Official {
+        static let scale: CGFloat = 4
+        static let across: CGFloat = 0.95
+        static let down: CGFloat = 1.1
+    }
 
     /// How far up a perfect flick pulls, as a fraction of the screen.
     private static let perfectPull: CGFloat = 0.45
@@ -106,6 +115,17 @@ struct FreeThrowView: View {
                     Spacer()
                 }
                 .zIndex(0)
+
+                // Side on until the ball goes up, then watching it.
+                if let referee {
+                    RefereeFigure(duty: launched ? .watching : .waiting, mirrored: true,
+                                  scale: Official.scale,
+                                  tone: PlayerLook.shared.refereeTone(for: referee.id),
+                                  frozen: true)
+                        .position(x: rim.x + Self.rimWidth * Official.across,
+                                  y: rim.y + Self.rimWidth * Official.down)
+                        .zIndex(0.5)
+                }
 
                 header.position(x: geo.size.width / 2, y: geo.size.height * 0.44)
 

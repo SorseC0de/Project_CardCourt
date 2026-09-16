@@ -65,6 +65,10 @@ struct CourtView: View {
     var onInspectPlayer: (Seat) -> Void = { _ in }
     /// A tap on any referee. There is one sheet for the whole crew.
     var onInspectReferees: () -> Void = {}
+    /// What the camera is framing — see `CourtCamera`. Nil is the whole floor.
+    var camera: CourtCamera?
+    /// The last pass thrown — see `GameController.passThrow`.
+    var passThrow: PassThrow?
 
     /// The name under a player's feet.
     ///
@@ -162,6 +166,10 @@ struct CourtView: View {
     /// can be thrown twice, which is what "players sometimes pass the ball twice" was.
     @State private var flewAt: Date?
     @State private var rebounding = ReboundTuning.shared
+    /// The pass being thrown, for one play of the throw sheet.
+    @State private var thrownBy: PassThrow?
+    /// How far each seat's sprite clock has been moved — see `throwClock`.
+    @State private var clockShift: [Seat: TimeInterval] = [:]
 
     private var selectableSeats: Set<Seat> { Self.choosable(at: gate, in: state) }
 
@@ -403,6 +411,14 @@ struct CourtView: View {
                 }
             }
             .animation(.spring(response: 0.42, dampingFraction: 0.72), value: state.ball)
+            // **The camera.** The floor and everyone on it; the HUD over the court is hung
+            // on outside this view and stays put. Clipped only while it is zoomed, so the
+            // floor's usual overhang is left alone.
+            .scaleEffect(camera?.zoom ?? 1)
+            .offset(lensOffset(on: court, in: geo.size))
+            .clipShape(Rectangle().inset(by: camera == nil ? -Lens.unclipped : 0))
+            .animation(.easeInOut(duration: camera?.seconds ?? CourtCamera.release),
+                       value: camera)
             // The throw-in has no `settledAt` of its own, so its landing is timed off the
             // same constant the ball is flown with.
             .task(id: throwing?.id) {
@@ -427,11 +443,17 @@ struct CourtView: View {
                     var vanish = Transaction(); vanish.disablesAnimations = true
                     withTransaction(vanish) { ballInFlight = false }
                 }
+                landedAt = nil
+                // **The wind-up first, and then the ball in one breath.** The throw sheet's
+                // first cell is him still holding it, so the ball waits that long — but the
+                // frame it appears on has to be the frame it starts travelling on. With the
+                // wait between the two, it appeared at his hands and sat there.
+                try? await Task.sleep(for: .seconds(PassTiming.windup))
+                if Task.isCancelled { return }
                 // On and off instantly — the sprite already holds a ball, so a fade
                 // would read as two balls dissolving into each other.
                 var appear = Transaction(); appear.disablesAnimations = true
                 withTransaction(appear) { passFlight = 0; ballInFlight = true }
-                landedAt = nil
 
                 // Every pass takes the same time, whoever it is between: the ball
                 // simply travels faster across the diamond than to a neighbour. The
@@ -445,6 +467,16 @@ struct CourtView: View {
         }
         // A body does not come apart the same way twice.
         .onChange(of: inbounding) { warpSeed = .random(in: .min ... .max) }
+        // One play of the throw sheet. Checked against the clock, because a task re-runs
+        // when its subtree is rebuilt and a throw already over is not thrown again.
+        .task(id: passThrow?.id) {
+            guard let passThrow,
+                  Date().timeIntervalSince(passThrow.at) < PassTiming.throwSeconds else { return }
+            clockShift[passThrow.from] = throwClock(for: passThrow)
+            thrownBy = passThrow
+            try? await Task.sleep(for: .seconds(PassTiming.throwSeconds))
+            if thrownBy?.id == passThrow.id { thrownBy = nil }
+        }
         // The scenery fades over 0.4s when the court stops; once it is gone it can stop.
         .task(id: courtIsRunning) {
             sceneryFaded = false
@@ -465,6 +497,88 @@ struct CourtView: View {
             try? await Task.sleep(for: .seconds(Pacing.warp))
             arrived = going
         }
+    }
+
+    // MARK: - Camera
+
+    private enum Lens {
+        /// How far out the clip sits while the camera is not zoomed: far enough to clip
+        /// nothing.
+        static let unclipped: CGFloat = 4000
+    }
+
+    /// Where the camera puts its subjects: their middle in the middle of the court, as
+    /// far as the zoomed floor still covers every edge.
+    private func lensOffset(on court: CourtGeometry, in size: CGSize) -> CGSize {
+        guard let camera, camera.zoom > 1, !camera.subjects.isEmpty else { return .zero }
+        let points = camera.subjects.map { focus(of: $0, on: court, in: size) }
+        let x = points.map(\.x).reduce(0, +) / CGFloat(points.count)
+        let y = points.map(\.y).reduce(0, +) / CGFloat(points.count)
+        let slackX = (camera.zoom - 1) * size.width / 2
+        let slackY = (camera.zoom - 1) * size.height / 2
+        return CGSize(width: min(max(-(x - size.width / 2) * camera.zoom, -slackX), slackX),
+                      height: min(max(-(y - size.height / 2) * camera.zoom, -slackY), slackY))
+    }
+
+    /// Where a subject is standing right now, in the court's own space.
+    private func focus(of subject: CourtCamera.Subject, on court: CourtGeometry,
+                       in size: CGSize) -> CGPoint {
+        let middle = CGPoint(x: size.width / 2, y: size.height / 2)
+        switch subject {
+        case .seat(let seat):
+            let footing = court.footing(of: seat, inbounding: thrower)
+            let scale = court.scale(of: seat, inbounding: thrower)
+            return CGPoint(x: footing.x, y: footing.y - Theme.Figure.height * scale / 2)
+        case .ball:
+            // Followed across a pass: the flight's own animation carries the camera with it.
+            if ballInFlight, let path = flightPath(on: court) {
+                return CGPoint(x: path.0.x + (path.1.x - path.0.x) * passFlight,
+                               y: path.0.y + (path.1.y - path.0.y) * passFlight)
+            }
+            guard let holder else { return middle }
+            return ballPoint(of: holder, on: court, catching: false)
+        case .referee(let place):
+            guard refereeCrew.indices.contains(place) else { return middle }
+            let post = refereeCrew[place].post
+            let scale = court.scale(at: post.depth)
+            return CGPoint(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,
+                           y: court.y(at: post.depth) - Theme.Figure.height * scale / 2)
+        }
+    }
+
+    /// **The throw keeps his feet.** A throw sheet is the run with its first eight cells
+    /// redrawn, so it has to begin where the run cycle does. His clock is moved to put the
+    /// cycle's first cell on the instant of the throw; the throw then counts from there, and
+    /// the run carries on from its own first cell when the throw is done.
+    private func throwClock(for pass: PassThrow) -> TimeInterval {
+        let cycle = Double(Sprite.run.frames) / Theme.Figure.playerFPS
+        let clock = pass.at.timeIntervalSinceReferenceDate + PlayerFigure.clockPhase(of: pass.from)
+        return -clock.truncatingRemainder(dividingBy: cycle)
+    }
+
+    /// The sheet this seat throws on, while it is throwing.
+    private func throwing(_ seat: Seat) -> (sheet: Sprite, at: Date)? {
+        guard let thrownBy, thrownBy.from == seat else { return nil }
+        return (Self.throwSheet(for: thrownBy, viewedFrom: viewer), thrownBy.at)
+    }
+
+    /// **Which way a pass goes on screen.** Far to near is over his shoulder, near to far is
+    /// straight ahead, and anything else is to his left or right as the floor is drawn. A
+    /// blind pass goes out behind him whoever it is for.
+    static func throwSheet(for pass: PassThrow, viewedFrom viewer: Seat) -> Sprite {
+        if pass.blind { return .passBehind }
+        let from = pass.from.slot(viewedFrom: viewer)
+        let to = pass.to.slot(viewedFrom: viewer)
+        if from == .north, to == .south { return .passBehind }
+        if from == .south, to == .north { return .passForward }
+        func across(_ slot: Seat) -> Int {
+            switch slot {
+            case .west: return -1
+            case .east: return 1
+            case .north, .south: return 0
+            }
+        }
+        return across(to) > across(from) ? .passRight : .passLeft
     }
 
     // MARK: - Floor
@@ -541,7 +655,7 @@ struct CourtView: View {
     /// through that seat's court scale — so one pair of numbers puts the ball in the same
     /// spot on all four, however near or far they stand.
     private func ballPoint(of seat: Seat, on court: CourtGeometry,
-                           catching: Bool) -> CGPoint {
+                           catching: Bool, throwing: Bool = false) -> CGPoint {
         // Where he is *now*, which during a throw-in is not where he usually stands —
         // the viewer steps into the thrower's vacated place, and the ball has to land in
         // the hands that are actually there.
@@ -553,7 +667,11 @@ struct CourtView: View {
         // receiver flips — the thrower is still dribbling, and dribbling never mirrors.
         let flip: CGFloat = catching
             && PlayerFigure.catchIsMirrored(seat: seat, facing: passer) ? -1 : 1
-        return CGPoint(x: footing.x + side * Theme.Pass.handX * flip,
+        // **A throw leaves the throwing hand.** The four throw sheets are drawn
+        // right-handed for every seat, so the ball starts on the near side of him rather
+        // than the far side the dribble holds it on.
+        let hand = throwing ? -Theme.Pass.handX : Theme.Pass.handX * flip
+        return CGPoint(x: footing.x + side * hand,
                        y: footing.y - side * Theme.Pass.handY)
     }
 
@@ -604,7 +722,9 @@ struct CourtView: View {
     private func flightPath(on court: CourtGeometry) -> (CGPoint, CGPoint)? {
         guard let holder else { return nil }
         let to = ballPoint(of: holder, on: court, catching: true)
-        let from = passer.map { ballPoint(of: $0, on: court, catching: false) } ?? to
+        let from = passer.map {
+            ballPoint(of: $0, on: court, catching: false, throwing: true)
+        } ?? to
         return (from, to)
     }
 
@@ -717,6 +837,18 @@ struct CourtView: View {
         }
         .fixedSize()
         .allowsHitTesting(false)
+    }
+
+    /// Set and waiting for the throw-in.
+    ///
+    /// **Not the man who has already caught it.** The thrower is held on the line for a
+    /// beat after the ball lands — see `Pacing.inboundHold` — and for the rest of that
+    /// hold the receiver was dropping back into the pose that asks for a throw-in, with
+    /// the ball in his hands.
+    private func waitingForThrow(_ seat: Seat) -> Bool {
+        guard isStill else { return false }
+        if let throwing, throwing.to == seat, caughtThrow == throwing.id { return false }
+        return true
     }
 
     /// Which way to turn to look at the thrower. He stands at one of two posts, so this
@@ -965,11 +1097,13 @@ struct CourtView: View {
                 // were jogging on the spot through the whole leap, which read as a play
                 // carrying on behind the one thing everybody is meant to be looking at.
                 // They pick their running back up the moment he comes down with it.
-                sprite: isStill ? .inboundReceiverBack : (watching(seat) ? .back : nil),
-                spriteFrame: isStill ? look.waiting(for: seat).cell : nil,
+                sprite: waitingForThrow(seat) ? .inboundReceiverBack
+                    : (watching(seat) ? .back : nil),
+                spriteFrame: waitingForThrow(seat) ? look.waiting(for: seat).cell : nil,
                 facing: passer,
-                mirrored: isStill ? (look.waiting(for: seat).mirrored
-                                     ? !facesThrower(seat) : facesThrower(seat)) : nil,
+                mirrored: waitingForThrow(seat) ? (look.waiting(for: seat).mirrored
+                                                   ? !facesThrower(seat) : facesThrower(seat))
+                    : nil,
                 // A throw-in is caught too. `holder` is not yet this seat during the
                 // throw — the rules moved the ball before the beat began — so the throw
                 // names its own receiver.
@@ -982,6 +1116,8 @@ struct CourtView: View {
                 // Nobody dribbles a ball that is still in the air. The thrower has let go
                 // and the receiver has not caught it yet, so both are simply running.
                 awaitingBall: ballInFlight && holder == seat,
+                throwing: throwing(seat),
+                clockShift: clockShift[seat] ?? 0,
                 // Whoever is inbounding is drawn on the sideline instead, further up this
                 // same stack. He warps off the floor rather than being cut from it — and
                 // the sprite alone comes apart, since a bag count in columns is a number

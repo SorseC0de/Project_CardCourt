@@ -6,10 +6,19 @@ struct HowToPlayView: View {
 
     /// The lesson being taken, and the table it is taken on. Made when one is opened.
     @State private var lesson: Lesson?
+    @State private var tuning = CardTextTuning.shared
 
     private struct Lesson {
         let controller: GameController
         let director: TutorialDirector
+    }
+
+    private enum Menu {
+        static let card: CGFloat = 60
+        static let turn: Double = 14
+        /// In from the button's end, and out over its top or bottom edge.
+        static let inset: CGFloat = 10
+        static let spill: CGFloat = 16
     }
 
     var body: some View {
@@ -28,7 +37,7 @@ struct HowToPlayView: View {
 
     private var menu: some View {
         ZStack {
-            CardPalette.blue.ignoresSafeArea()
+            CardPalette.navy.ignoresSafeArea()
             VStack(spacing: 20) {
                 HStack {
                     Button(action: onDismiss) {
@@ -43,18 +52,33 @@ struct HowToPlayView: View {
                     .buttonStyle(.plain)
                     Spacer()
                 }
-                ScreenTitle(text: "How To Play", size: 28, drop: CardPalette.navy)
+                ScreenTitle(text: "How To Play", size: 84, drop: CardPalette.navy)
                 Spacer()
-                ForEach(Tutorials.all) { tutorial in
-                    ChunkyButton(title: tutorial.title, fill: CardPalette.gold,
-                                 stroke: CardPalette.gold, shade: CardPalette.orange,
-                                 size: 26, run: { open(tutorial) })
+                ForEach(Array(Tutorials.all.enumerated()), id: \.element.id) { index, tutorial in
+                    lessonButton(tutorial, cardLeads: index.isMultiple(of: 2))
                 }
                 Spacer()
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
         }
+    }
+
+    /// Printed in its cards' colours, with one of them spilling off an end — the leading
+    /// end and the trailing end in turn down the list.
+    private func lessonButton(_ tutorial: Tutorial, cardLeads: Bool) -> some View {
+        let body = tuning.bodyInk(for: tutorial.face)
+        return ChunkyButton(title: tutorial.title, fill: body, stroke: body,
+                            shade: tuning.ringInk(for: tutorial.face),
+                            size: 26, run: { open(tutorial) })
+            .overlay(alignment: cardLeads ? .leading : .trailing) {
+                CardFrontView(descriptor: tutorial.blankCard(named: tutorial.cardName),
+                              displayWidth: Menu.card)
+                    .rotationEffect(.degrees(cardLeads ? -Menu.turn : Menu.turn))
+                    .offset(x: cardLeads ? Menu.inset : -Menu.inset,
+                            y: cardLeads ? -Menu.spill : Menu.spill)
+                    .allowsHitTesting(false)
+            }
     }
 
     private func open(_ tutorial: Tutorial) {

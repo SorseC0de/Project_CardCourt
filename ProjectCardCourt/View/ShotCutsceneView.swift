@@ -2,6 +2,38 @@ import SwiftUI
 
 struct ShotCutsceneView: View {
     let scene: ShotCutscene
+    /// The first armed Whistle, whose referee watches from beside the basket. Nil with
+    /// none armed.
+    var referee: ArmedWhistle? = nil
+
+    /// **How far off the basket stands.** The free throw is the near mark and keeps the
+    /// whole ring; a jumper is taken from further out than that, and a three from further
+    /// out again. The hoop, the floor behind it and the man officiating it all recede
+    /// together — the shooter does not, because he is the one standing near the camera.
+    private enum Distance {
+        static let jumper: CGFloat = 0.82
+        static let three: CGFloat = 0.58
+    }
+
+    private var distance: CGFloat { scene.isThree ? Distance.three : Distance.jumper }
+
+    /// Everything that stands off with the basket is scaled about the ring itself, so the
+    /// ball's target never moves and only the size of what it is aimed at changes.
+    private var rimAnchor: UnitPoint { UnitPoint(x: tuning.rimX, y: tuning.rimY) }
+
+    /// The dark the painted court fades into at its own horizon, off `SwisshCourt`. The
+    /// scene stands on this rather than on black, or the floor's top edge draws a seam
+    /// against the ground once it is stood back for a three.
+    private enum Court {
+        static let night = Color(red: 27 / 255, green: 26 / 255, blue: 25 / 255)
+    }
+
+    /// The referee by the basket, in shares of the ring's width from its centre.
+    private enum Official {
+        static let scale: CGFloat = 5.5
+        static let across: CGFloat = 1.05
+        static let down: CGFloat = 1.55
+    }
 
     @State private var flight: CGFloat = 0
     @State private var showResult = false
@@ -56,7 +88,10 @@ struct ShotCutsceneView: View {
     /// What is drawn over what. **Named, because two of them move**: a man finishing at
     /// the rim climbs from in front of the wall to behind it and back out over the ring.
     private enum Depth {
+        static let court: Double = -1
         static let backdrop: Double = 0
+        /// The referee, stood on the floor under the board.
+        static let official: Double = 0.5
         /// Whose shot this is, said across the top.
         static let name: Double = 1
         /// The ball, and a man on his way up to the ring — both between the board and
@@ -162,10 +197,31 @@ struct ShotCutsceneView: View {
         GeometryReader { geo in
             let stage = HoopStage.size
             ZStack {
-                Color.black.ignoresSafeArea()
+                Court.night.ignoresSafeArea()
 
                 // The scene, laid out in the canvas's own box — see `HoopStage`.
                 ZStack {
+                    // Wider than the stage and left unclipped, so a wide phone still has floor
+                    // to its edges without the stage itself growing.
+                    // TODO: more set dressing is coming for this floor, laid over it in code.
+                    Image("SwisshCourt")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .drawingGroup()
+                        .scaleEffect(distance, anchor: .bottom)
+                        .frame(width: stage.width, height: stage.height)
+                        .zIndex(Depth.court)
+
+                    if let referee {
+                        RefereeFigure(duty: .watching, mirrored: true, scale: Official.scale,
+                                      tone: PlayerLook.shared.refereeTone(for: referee.id),
+                                      frozen: true)
+                            .position(x: rimPoint(in: stage).x + tuning.rimWidth * Official.across,
+                                      y: rimPoint(in: stage).y + tuning.rimWidth * Official.down)
+                            .scaleEffect(distance, anchor: rimAnchor)
+                            .zIndex(Depth.official)
+                    }
+
                     // Backdrop, ball, then the near half of the rim on top — the ball
                     // passes between the two halves rather than over the ring.
                     VStack {
@@ -174,6 +230,7 @@ struct ShotCutsceneView: View {
                             .padding(.top, Hoop.drop)
                         Spacer()
                     }
+                    .scaleEffect(distance, anchor: rimAnchor)
                     .zIndex(Depth.backdrop)
 
                     // Whose shot this is, said across the top rather than under his feet: the
@@ -427,6 +484,7 @@ struct ShotCutsceneView: View {
                         .position(x: rimPoint(in: stage).x,
                                   y: rimPoint(in: stage).y + stage.height * tuning.rimNearY)
                         .offset(y: rimPull * tuning.rimWidth * DunkStyle.rimDrop)
+                        .scaleEffect(distance, anchor: rimAnchor)
                         .zIndex(Depth.rim)
                 }
                 .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))

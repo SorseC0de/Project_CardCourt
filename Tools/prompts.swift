@@ -12,6 +12,15 @@ enum Prompts {
     /// Answers whatever the state is waiting on. True if it answered something.
     @discardableResult
     static func step(_ state: inout GameState, _ ai: inout AITable) -> Bool {
+        answer(&state, &ai) != nil
+    }
+
+    /// The same answers, with what they cost — nil when there was nothing to answer.
+    ///
+    /// **One owner.** `step` is this, read as a yes or no: a measurement that wants to
+    /// know what a question took off a hand cannot have a second copy of the answers,
+    /// or the harness and the game drift apart question by question.
+    static func answer(_ state: inout GameState, _ ai: inout AITable) -> [GameEvent]? {
         switch state.phase {
         case .awaitingTarget(let seat, _, let choices):
             // Whoever holds the most: the man worth finding, and the man worth taking
@@ -20,31 +29,28 @@ enum Prompts {
                                               in: state)
             let pick = worth.max { state[$0].bag.count < state[$1].bag.count } ?? worth[0]
             _ = seat
-            Rules.resolveTarget(pick, state: &state)
-            return true
+            return Rules.resolveTarget(pick, state: &state)
         case .awaitingCounter(let seat, _):
             // Worth it for what is about to land on him, and nothing otherwise.
             _ = seat
             // A Lob's "Dunk It?" is always worth taking.
-            Rules.resolveCounter(!state.pendingClamps.isEmpty || state.heldPossession == nil,
-                                 state: &state)
-            return true
+            return Rules.resolveCounter(!state.pendingClamps.isEmpty
+                                        || state.heldPossession == nil, state: &state)
         case .awaitingOption(let seat, let option):
-            Rules.resolveOption(Rules.houseTakes(option, for: seat, in: state), state: &state)
-            return true
+            return Rules.resolveOption(Rules.houseTakes(option, for: seat, in: state),
+                                       state: &state)
         case .awaitingDiscard(let seat, _, _):
             // Stepback and Turnaround Three ask the same question. Nothing fed in is
             // always a legal answer, which is what an absent player gives.
-            Rules.resolveDiscardForShot(ai.discardForShot(state, for: seat), state: &state)
-            return true
+            return Rules.resolveDiscardForShot(ai.discardForShot(state, for: seat),
+                                               state: &state)
         case .awaitingMode(let seat, let card):
-            Rules.resolveMode(ai.mode(of: card, state, for: seat), state: &state)
-            return true
+            return Rules.resolveMode(ai.mode(of: card, state, for: seat), state: &state)
         case .awaitingCardFrom(_, _, let victim):
             // Face down to everybody, so there is nothing to be clever about — and an
             // empty hand is answered too, by taking nothing.
-            Rules.resolveCardFrom(state[victim].bag.randomElement()?.id ?? UUID(), state: &state)
-            return true
+            return Rules.resolveCardFrom(state[victim].bag.randomElement()?.id ?? UUID(),
+                                         state: &state)
         case .awaitingNaming(_, _, let named):
             // Everyone but the leader. The SHOT is worth having; handing the man in front
             // an assist is not.
@@ -53,34 +59,29 @@ enum Prompts {
             let next = Seat.allCases.first {
                 $0 != shooter && $0 != best && !named.contains($0)
             }
-            Rules.resolveNaming(next, state: &state)
-            return true
+            return Rules.resolveNaming(next, state: &state)
         case .awaitingToll(_, let victim):
             // A passive is worth more than a card off a hand nobody can read.
             let pick: CardPick = state[victim].intangibles.first.map { .named($0.id) }
                 ?? .position(Int.random(in: 0..<max(1, state[victim].bag.count)))
-            Rules.resolveToll(pick, state: &state)
-            return true
+            return Rules.resolveToll(pick, state: &state)
         case .awaitingIntangibleDrop(_, let offered):
             // A passive that only hurts is the one to give up; failing that, the oldest,
             // which is what the rule used to do on its own.
             let worst = offered.first { ($0.intangible?.shotBonus ?? 0) < 0
                                         || $0.intangible?.blocksMoves == true }
-            Rules.resolveIntangibleDrop(worst?.id ?? offered[0].id, state: &state)
-            return true
+            return Rules.resolveIntangibleDrop(worst?.id ?? offered[0].id, state: &state)
         case .awaitingInjuryPick:
             // Whatever is face up and mildest; failing that, whatever is on offer.
             let offered = state.injuriesOffered
             let seen = offered.filter { !state.injuriesHidden.contains($0.id) }
-            guard let pick = (seen.first ?? offered.first)?.id else { return false }
-            Rules.resolveInjuryPick(pick, state: &state)
-            return true
+            guard let pick = (seen.first ?? offered.first)?.id else { return nil }
+            return Rules.resolveInjuryPick(pick, state: &state)
         case .awaitingGiveUp(let seat, _, let count):
             let chosen = Array(ai.discardForShot(state, for: seat).prefix(count))
-            Rules.resolveGiveUp(chosen, state: &state)
-            return true
+            return Rules.resolveGiveUp(chosen, state: &state)
         default:
-            return false
+            return nil
         }
     }
 }

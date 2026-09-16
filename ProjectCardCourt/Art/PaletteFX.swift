@@ -75,6 +75,18 @@ enum PixelPalette {
     static let darkOrange = Color(hex: 0xD26D19)
     static let vermilion = Color(hex: 0xE6482E)
 
+    /// Every entry by name, for anything that lets a colour be picked — see `BallBench`.
+    static let named: [(name: String, colour: Color)] = [
+        ("warmBlack", warmBlack), ("mocha", mocha), ("coffee", coffee), ("maroon", maroon),
+        ("darkBrown", darkBrown), ("brown", brown), ("khaki", khaki), ("cream", cream),
+        ("iron", iron), ("steel", steel), ("stone", stone), ("slate", slate), ("ice", ice),
+        ("blue", blue), ("midnight", midnight), ("dusk", dusk), ("darkMagenta", darkMagenta),
+        ("sakura", sakura), ("gold", gold), ("orange", orange), ("darkRed", darkRed),
+        ("lavender", lavender), ("pewter", pewter), ("lime", lime), ("green", green),
+        ("indigo", indigo), ("pine", pine), ("deepTeal", deepTeal), ("aqua", aqua),
+        ("azure", azure), ("rose", rose), ("darkOrange", darkOrange), ("vermilion", vermilion),
+    ]
+
     // What the sheets are drawn with.
     static let skin = brown
     static let skinShade = darkBrown

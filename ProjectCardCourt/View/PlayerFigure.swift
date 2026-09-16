@@ -58,6 +58,12 @@ struct PlayerFigure: View {
     /// The ball is still crossing to them. They have not got it yet, so they are not
     /// dribbling it — they are running to meet it.
     var awaitingBall = false
+    /// Throwing a pass: which sheet, and when it was thrown. Played once and never
+    /// mirrored — the throws are drawn right-handed for every seat.
+    var throwing: (sheet: Sprite, at: Date)? = nil
+    /// Moves his sprite clock, so a throw starts on the first cell of the run cycle and the
+    /// run picks up on the first cell after it — see `CourtView.throwClock`.
+    var clockShift: TimeInterval = 0
     var scale: CGFloat = Theme.Figure.playerScale
     /// Warping off the floor, or back on to it — see `ColumnWarp`. **The sprite only.**
     /// What is hung on him is a reading rather than a body: a bag count cut into columns
@@ -66,6 +72,8 @@ struct PlayerFigure: View {
     var warpSeed: UInt64 = 0
 
     @State private var look = PlayerLook.shared
+    /// The ball he is carrying takes the colours of the Variaball in play.
+    @Environment(\.ballInPlay) private var ballInPlay
     @State private var catching = false
     /// Where he is in a jump, if he is in one.
     @State private var leap: Leap = .none
@@ -105,7 +113,9 @@ struct PlayerFigure: View {
     /// This figure's offset into the sprite clock, so four players do not run in unison.
     /// Read by the dust as well as by the sheet — a puff on a different phase is a bounce
     /// somebody else made.
-    private var clockPhase: TimeInterval { Double(seat.rawValue) * 1.3 }
+    private var clockPhase: TimeInterval { Self.clockPhase(of: seat) + clockShift }
+
+    static func clockPhase(of seat: Seat) -> TimeInterval { Double(seat.rawValue) * 1.3 }
 
     private var tint: Color { Theme.color(for: seat) }
 
@@ -140,6 +150,7 @@ struct PlayerFigure: View {
     /// finishes before the state does, or keeps playing after it.
     private var frameRate: Double {
         if let fps { return fps }
+        if throwing != nil { return PassTiming.throwFPS }
         return action == .catchBall ? Theme.Pass.catchFPS : Theme.Figure.playerFPS
     }
 
@@ -161,6 +172,7 @@ struct PlayerFigure: View {
         case .landing:          return facingYou ? .land : .landBack
         case .none:             break
         }
+        if let throwing { return throwing.sheet }
         if let pose { return pose }
         if catching { return .catchBall }
         guard isHolding, !awaitingBall else { return .run }
@@ -274,6 +286,7 @@ struct PlayerFigure: View {
     /// Dribbling is never mirrored — everyone dribbles right-handed. Only the catch and
     /// the idle glance turn, and the human only turns to meet the pass.
     private var isMirrored: Bool {
+        if throwing != nil { return false }
         // Turning to meet the ball beats any pose the cutscene had them held in.
         if action == .catchBall { return Self.catchIsMirrored(seat: seat, facing: facing) }
         if let mirrored { return mirrored }
@@ -310,17 +323,19 @@ struct PlayerFigure: View {
                             // wall clock — so every catch began on whatever frame the world
                             // happened to be on, and no two played the same.
                             playsOnce: leap == .rising || leap == .landing
-                                || playsOnce || action == .catchBall,
+                                || playsOnce || action == .catchBall || throwing != nil,
                             // Nothing cuts away mid-jump, and nothing else says where it
                             // stops: a leap plays its own sheet through.
-                            alternate: playsOnce || leaping ? nil : glance,
-                            alternateOr: playsOnce || leaping ? nil : glanceOr,
-                            alternateRare: playsOnce || leaping ? nil : glanceRare,
+                            alternate: playsOnce || leaping || throwing != nil ? nil : glance,
+                            alternateOr: playsOnce || leaping || throwing != nil ? nil : glanceOr,
+                            alternateRare: playsOnce || leaping || throwing != nil
+                                ? nil : glanceRare,
                             phase: clockPhase,
                             // A catch on the court counts from when the ball landed; one a
                             // cutscene asks for directly counts from when it appeared.
                             startedAt: leap == .none
-                                ? (action == .catchBall ? (caughtFrom ?? startedAt) : startedAt)
+                                ? (throwing?.at
+                                   ?? (action == .catchBall ? (caughtFrom ?? startedAt) : startedAt))
                                 : leapFrom,
                             stopAtFrame: leaping ? nil : stopAtFrame,
                             // **The man on the floor has a face.** He never did: the
@@ -340,7 +355,7 @@ struct PlayerFigure: View {
                 // the other way.
                 .animation(nil, value: isMirrored)
                 .onAppear { if playsOnce { startedAt = Date() } }
-                .paletteSwap(PlayerLook.shared.kit(for: seat))
+                .paletteSwap(PlayerLook.shared.kit(for: seat) + BallInPlay.sprite(for: ballInPlay))
                 .opacity(isDimmed ? Theme.Figure.dimmed : 1)
                 // Here rather than around the whole figure, so the badges below keep their
                 // own edges — and the overlay is placed against a frame the offsets do not
@@ -468,14 +483,16 @@ struct PlayerFigure: View {
 struct PixelBallView: View {
     var scale: CGFloat = Theme.Figure.playerScale
     var shot: Int?
+    @Environment(\.ballInPlay) private var ballInPlay
 
-    private var side: CGFloat { 6 * scale }
+    private var side: CGFloat { 6 * scale * BallInPlay.size(for: ballInPlay) }
 
     var body: some View {
         Image("Ball")
             .interpolation(.none)
             .resizable()
             .frame(width: side, height: side)
+            .paletteSwap(BallInPlay.sprite(for: ballInPlay))
             .overlay(alignment: .bottom) {
                 if let shot {
                     // Beside the ball rather than on it: at 18pt there is no room for a
@@ -498,11 +515,35 @@ struct PixelBallView: View {
 /// The rebound cutscene's ball, drawn large enough to want the vector.
 struct BallView: View {
     var diameter: CGFloat = 20
+    @Environment(\.ballInPlay) private var ballInPlay
 
     var body: some View {
-        Image("BallVector")
-            .resizable()
-            .scaledToFit()
-            .frame(width: diameter, height: diameter)
+        let art = BallInPlay.vector(for: ballInPlay)
+        ZStack {
+            Image(art)
+                .resizable()
+                .scaledToFit()
+                .frame(width: diameter, height: diameter)
+            if BallInPlay.shines(ballInPlay) {
+                BallShine(asset: art, side: diameter)
+            }
+        }
+    }
+}
+
+/// Brand New Ball catching the light: the Gold Swisshbone's shine and twinkles, less the
+/// one that sat bottom left.
+struct BallShine: View {
+    let asset: String
+    let side: CGFloat
+
+    /// The second place in the ring, which falls in its lower-left quarter.
+    private static let bottomLeft = 1
+
+    var body: some View {
+        ZStack {
+            MetalShine(asset: asset, side: side)
+            BoneSparkles(side: side, tint: Bone.gold.glow, omitted: [Self.bottomLeft])
+        }
     }
 }

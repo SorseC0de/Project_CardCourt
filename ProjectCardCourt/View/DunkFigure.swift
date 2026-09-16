@@ -42,6 +42,8 @@ struct DunkFigure: View {
     var onRimPull: (CGFloat, Animation?) -> Void = { _, _ in }
 
     @State private var tuning = DunkTuning.shared
+    /// The ball he carries up takes the colours of the Variaball in play.
+    @Environment(\.ballInPlay) private var ballInPlay
 
     /// How far he goes, how small he gets, and how long he takes — this finish's own
     /// numbers, not the three sharing a set. See `DunkStyle.Trip`.
@@ -95,7 +97,7 @@ struct DunkFigure: View {
         SpriteAnimation(sprite: showing, scale: scale,
                         isPlaying: false, restFrame: cell,
                         face: PlayerLook.shared.faceOn(seat))
-            .paletteSwap(PlayerLook.shared.kit(for: seat))
+            .paletteSwap(PlayerLook.shared.kit(for: seat) + BallInPlay.sprite(for: ballInPlay))
             .scaleEffect(drawnAt)
             // Pivoted on the hand holding the iron, not on the middle of the frame — a
             // man turning about his own belly is a man on a spit. A tumble has no hand on

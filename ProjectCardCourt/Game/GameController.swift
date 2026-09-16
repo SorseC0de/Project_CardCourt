@@ -139,6 +139,8 @@ struct ShotCutscene: Identifiable, Equatable {
 
     /// Whether this one gets a scene of its own.
     let signature: ShotSignature
+    /// Taken from three, which puts the floor further back under the hoop.
+    var isThree = false
 
     /// What a miss gets called.
     ///
@@ -326,7 +328,11 @@ struct PlayedCard: Identifiable, Equatable {
     static func first(in events: [GameEvent]) -> PlayedCard? {
         for event in events {
             switch event {
-            case .passed(let card, let from, _, _, _):
+            case .passed(let card, let from, _, _, let returning):
+                // **A leg home is not a second play.** Right Back sends the ball out and
+                // has it thrown straight back, and the return carries the same card from
+                // the other man's seat — which held the card up all over again.
+                if returning { continue }
                 return PlayedCard(seat: from, descriptor: card, faceDown: false)
             case .movePlayed(let seat, let card, _):
                 return PlayedCard(seat: seat, descriptor: card, faceDown: false)
@@ -723,9 +729,42 @@ final class GameController {
     /// Set once the ball has left the player: the lesson's cue for what comes next.
     private(set) var lessonBallGone = false
 
+    /// The ball crosses slower while a lesson shows a pass, and the camera follows it.
+    private(set) var lessonSlowMotion = false
+
+    func setLessonSlowMotion(_ slow: Bool) {
+        lessonSlowMotion = slow
+        PassTiming.tempo = slow ? PassTiming.slowMotion : 1
+        if !slow { camera = nil }
+    }
+
+    /// What the court's camera is framing, if anything — see `CourtCamera`.
+    private(set) var camera: CourtCamera?
+    /// Points the court's camera, or gives it back the whole floor with nil.
+    func frame(_ shot: CourtCamera?) { camera = shot }
+    /// The last pass thrown, which the court plays the throw off.
+    private(set) var passThrow: PassThrow?
+
+    /// **The referee the set pieces draw**: whoever was on the floor as this batch began.
+    ///
+    /// Read live off `shown`, he gave the game away — `shown` jumps to the end of a batch
+    /// at its first event, so a Whistle spent by the shot took the referee out of the scene
+    /// that was still playing, and a shot scene with no referee in it was a shot that had
+    /// gone in.
+    private(set) var refereeOnFloor: ArmedWhistle?
+
+    /// A coin in the air, held long enough to be watched — see `CoinFlipView`.
+    private(set) var coinFlip: CoinFlip?
+
     /// One leg of a lesson: these cards in the player's hand, the ball in his hands at the
-    /// top of a possession, and nothing else on the floor.
-    func stageLesson(hand: [CardDescriptor]) {
+    /// top of a possession, and nothing else on the floor. No hand carries on as things
+    /// stand. Either way the next draws turn up `deckTop`, first draw first.
+    func stageLesson(hand: [CardDescriptor]?, deckTop: [CardDescriptor] = []) {
+        // Drawn off the end, so the first draw goes on last.
+        state.deck.append(contentsOf: deckTop.reversed().map {
+            Card($0.resolved(passShotBonus: state.rules.passShotBonus))
+        })
+        guard let hand else { return }
         loop?.cancel()
         let me = GameRules.localSeat
         for seat in Seat.allCases {
@@ -1517,6 +1556,7 @@ final class GameController {
     func quit() {
         loop?.cancel()
         loop = nil
+        if isLesson { setLessonSlowMotion(false) }
         watchdog?.cancel()
         watchdog = nil
         ready?.cancel()
@@ -2216,6 +2256,8 @@ final class GameController {
                 return
             }
             if case .freeThrows(let trip) = state.phase {
+                // The line takes the screen from the shot that awarded it, in one change.
+                cutscene = nil
                 if trip.shooter == GameRules.localSeat {
                     gate = .awaitingFreeThrow(trip)
                     return
@@ -2575,13 +2617,20 @@ final class GameController {
     /// seconds behind the card that caused it — the ball crossed long after the play had
     /// been read. The draw now flies alongside it, which is also the order they happen in.
     private func stampSettled(_ events: [GameEvent]) {
-        for case .passed in events {
+        for case .passed(let card, let from, let to, _, _) in events {
+            passThrow = PassThrow(from: from, to: to,
+                                  blind: [CardLibrary.noLook.id, CardLibrary.behindTheBack.id]
+                                      .contains(card.id),
+                                  at: Date())
+            if lessonSlowMotion {
+                camera = CourtCamera(subjects: [.ball], zoom: CourtCamera.lessonPass)
+            }
             ballSettledAt = Date()
             passLeftAt = Date()
             // Handed over when it lands, not when it was played. The court flies it for
             // exactly this long — both read the same constant, so they cannot drift.
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(PassTiming.flight))
+                try? await Task.sleep(for: .seconds(PassTiming.windup + PassTiming.flight))
                 self.shownBall = self.state.ball
             }
             return
@@ -2728,6 +2777,8 @@ final class GameController {
             return false
         }()
         if !opensOnBids { gate = .thinking }
+        // Before a single scene plays, and before the board catches up — see `refereeOnFloor`.
+        refereeOnFloor = shown.armedWhistles.first
         // **Whatever the last batch never got to show has been shown by events.** A
         // presentation cancelled part-way leaves its cards marked as still in the air, and
         // nothing else ever unmarks them.
@@ -2888,6 +2939,13 @@ final class GameController {
             case .halftime:
                 // Held until tapped, before its own deal goes out.
                 await callTheHalf(in: [event])
+            case .coinRun(let seat, let card, let heads):
+                // Thrown where it can be seen. It decided something, and it was over
+                // inside a frame — see `CoinFlipView`.
+                coinFlip = CoinFlip(seat: seat, card: card, heads: heads,
+                                    flips: max(1, card.special?.coinRunFlips ?? 1))
+                try? await Task.sleep(for: .seconds(CoinFlip.seconds))
+                coinFlip = nil
             case .roundBegan(let round, _):
                 shown.round = round
                 await callTheRound(in: [event])
@@ -2917,6 +2975,11 @@ final class GameController {
         await settleTheCatch()
         catchUp()
         settleBoard()
+        // A scene held open for the line — see `playTheShot` — comes down if the line
+        // never arrived.
+        if cutscene != nil {
+            if case .freeThrows = state.phase {} else { cutscene = nil }
+        }
     }
 
     /// One attempt: the cutscene, and the calls that say how it went.
@@ -2924,16 +2987,28 @@ final class GameController {
     /// The points are in the state the moment the shot is folded, so the board waits for the
     /// call — see `holdTheScore`.
     private func playTheShot(_ shot: [GameEvent], defenders: Int, isLast: Bool) async {
-        guard let scene = ShotCutscene(events: shot, defenders: defenders,
+        guard var scene = ShotCutscene(events: shot, defenders: defenders,
                                        lastPlay: state.lastPlayThisPossession,
                                        dunk: state.dunking) else { return }
+        // Worth more than a make, or taken off a card that shoots a three.
+        scene.isThree = shot.contains {
+            if case .shotMade(_, let points, _, _) = $0 { return points > state.rules.madeShotPoints }
+            return false
+        } || (state.lastPlayThisPossession.flatMap { CardLibrary.byID[$0]?.isThree } ?? false)
         holdTheScore(in: shot)
         cutscene = scene
         try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
         // **No board behind the shot.** The rebound goes up once this batch has finished
         // playing — the loop puts it up — never under a scene still on screen.
         _ = isLast
-        cutscene = nil
+        // **Held for the line.** Make-or-Take sends him to the free throws off this very
+        // miss: taking the scene down here put the floor on screen for the beat between
+        // the two, which reads as the shot being over and something else starting.
+        let toTheLine = shot.contains {
+            if case .freeThrowsAwarded = $0 { return true }
+            return false
+        }
+        if !toTheLine { cutscene = nil }
         await celebrateThree(in: shot)
         await callTheScore(in: shot)
     }
@@ -2945,7 +3020,7 @@ final class GameController {
     /// the other is when the man has finished closing his hands on it.
     private func settleTheThrow() async {
         guard let thrown = passLeftAt else { return }
-        let owing = PassTiming.flight - Date().timeIntervalSince(thrown)
+        let owing = PassTiming.windup + PassTiming.flight - Date().timeIntervalSince(thrown)
         guard owing > 0 else { return }
         try? await Task.sleep(for: .seconds(owing))
     }
@@ -2958,7 +3033,7 @@ final class GameController {
     private func settleTheCatch() async {
         guard let thrown = passLeftAt else { return }
         passLeftAt = nil
-        let whole = PassTiming.flight + PassTiming.catchSeconds
+        let whole = PassTiming.windup + PassTiming.flight + PassTiming.catchSeconds
         let owing = whole - Date().timeIntervalSince(thrown)
         guard owing > 0 else { return }
         try? await Task.sleep(for: .seconds(owing))

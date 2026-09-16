@@ -65,6 +65,10 @@ struct SmokePuff: View {
 /// the bounce is a cell of a looping sheet nobody starts or stops, so a puff on its own
 /// clock drifts out of step with it within seconds. Asked the same way
 /// `SpriteAnimation.cell(of:at:fps:phase:)` asks it, and answered the same.
+///
+/// TODO: Recolour the bounce smoke to the Variaball in play, the way the pixel ball is —
+/// see `BallInPlay.sprite(for:)`. Project Stars' smoke sheets slot in once they are turned
+/// from horizontal strips to vertical ones.
 struct DribbleDust: View {
     var scale: CGFloat = Theme.Figure.playerScale
     /// The figure's own offset into the sprite clock, so this lands on *his* bounce.

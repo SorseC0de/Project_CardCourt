@@ -148,7 +148,7 @@ enum Spectrum {
 #if DEBUG
 #Preview("Spectrum fill") {
     ZStack {
-        CardPalette.navy.ignoresSafeArea()
+        CardPalette.black.ignoresSafeArea()
         VStack(spacing: 30) {
             SpectrumFill {
                 Text("4").font(.custom("AvenirNextCondensed-Heavy", size: 160))

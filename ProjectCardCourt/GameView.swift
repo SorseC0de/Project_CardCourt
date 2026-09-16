@@ -92,6 +92,7 @@ struct GameView: View {
             else if paused { pauseMenu.zIndex(5) }
         }
         .environment(\.tutorialFocus, tutorial?.focus ?? TutorialFocus())
+        .environment(\.ballInPlay, controller.shown.currentBall)
         .overlayPreferenceValue(TutorialFrames.self) { anchors in
             if let tutorial {
                 GeometryReader { proxy in
@@ -235,7 +236,8 @@ struct GameView: View {
                                       onCombo: { comboOf = $0 },
                                       onBonus: { bonusOf = (card: $0, at: $1) },
                                       onHandOff: { handingOff = true },
-                                      onExchange: { exchanging = true })
+                                      onExchange: { exchanging = true },
+                                      allowsShooting: tutorial == nil)
                     }
                     // Out of the way rather than washed over. Two translucent sheets meeting
                     // multiply, and the seam where the hand's met the court's was a black
@@ -317,7 +319,7 @@ struct GameView: View {
     private var floorSheets: AnyView {
         AnyView(ZStack {
                 if let scene = controller.cutscene {
-                    ShotCutsceneView(scene: scene)
+                    ShotCutsceneView(scene: scene, referee: controller.refereeOnFloor)
                         .transition(.opacity)
                         .zIndex(10)
                 }
@@ -535,16 +537,24 @@ struct GameView: View {
                         .transition(.opacity)
                         .zIndex(15)
                 }
+                if let flip = controller.coinFlip {
+                    CoinFlipView(flip: flip)
+                        .id(flip.id)
+                        .transition(.opacity)
+                        .zIndex(17)
+                }
                 // The player's own trip is a gate; an opponent's plays itself. Both use the
                 // same scene, so a free throw looks the same from either seat.
                 if case .awaitingFreeThrow(let trip) = controller.gate {
                     FreeThrowView(trip: trip, auto: nil,
-                                  onResult: { controller.shootFreeThrow(made: $0) })
+                                  onResult: { controller.shootFreeThrow(made: $0) },
+                                  referee: controller.refereeOnFloor)
                         .id(trip.attempted)
                         .transition(.opacity)
                         .zIndex(16)
                 } else if let shot = controller.aiFreeThrow {
-                    FreeThrowView(trip: shot.trip, auto: shot.made)
+                    FreeThrowView(trip: shot.trip, auto: shot.made,
+                                  referee: controller.refereeOnFloor)
                         .id(shot.id)
                         .transition(.opacity)
                         .zIndex(16)
@@ -838,8 +848,11 @@ struct GameView: View {
                   calling: controller.whistleReveal != nil,
                   shooting: controller.cutscene != nil,
                   showingClamps: beingRead?.clamp != nil,
-                  onInspectPlayer: { open(.player($0)) },
-                  onInspectReferees: { open(.referees) })
+                  // A lesson is about the cards; nobody on the floor opens.
+                  onInspectPlayer: { seat in if tutorial == nil { open(.player(seat)) } },
+                  onInspectReferees: { open(.referees) },
+                  camera: controller.camera,
+                  passThrow: controller.passThrow)
             // No inset: the floor and the streaks run to the screen edges, and
             // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
@@ -851,14 +864,32 @@ struct GameView: View {
                     .padding(.top, 6)
             }
             // The floor and the ball in play, across from the SHOT.
-            .overlay(alignment: .topLeading) {
-                FloorAndBallView(state: controller.shown,
-                                 onSelect: { inspecting = (card: $0, from: $1) })
-                    .padding(.leading, 14)
-                    .padding(.top, 8)
-            }
+            .overlay(alignment: .topLeading) { floorCorner }
 
             )
+    }
+
+    /// The Varena and the ball in play, top left of the court — and in a lesson, the bare
+    /// spot its way out is drawn from instead.
+    ///
+    /// **Erased where it joins the court**, which is already as deep as SwiftUI can build.
+    /// A plain `if` here is another conditional wrapping that whole type, and the walk ran
+    /// off the end of the stack the moment a lesson made the second branch real — a crash
+    /// in `court.getter` on opening a lesson, which is the same fault `court` itself
+    /// carries a note about.
+    private var floorCorner: AnyView {
+        guard tutorial == nil else {
+            // A lesson has no Varena. Its way out stands here — see `TutorialOverlay`.
+            return AnyView(Color.clear
+                .frame(width: 1, height: 1)
+                .tutorialTarget(.exitSpot)
+                .padding(.leading, 14)
+                .padding(.top, 8))
+        }
+        return AnyView(FloorAndBallView(state: controller.shown,
+                                        onSelect: { inspecting = (card: $0, from: $1) })
+            .padding(.leading, 14)
+            .padding(.top, 8))
     }
 
     /// Sits under the scoreboard: a scrim rather than a solid panel, so the top of the
@@ -913,7 +944,8 @@ struct GameView: View {
                 SmallCapsText(text: "Half \(controller.shown.half)",
                               font: Chrome.display, size: 15, tracking: 0.6)
                     .foregroundStyle(CardPalette.gray)
-                pauseButton
+                // A lesson leaves by its own button.
+                if tutorial == nil { pauseButton }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -1085,8 +1117,7 @@ struct GameView: View {
             // **Scrolled, because the card grew.** The winners, the verdict, a nine-row
             // board at its reading size and three buttons do not fit a phone between
             // them — and what went off the bottom was the way out of the screen.
-            ScrollView {
-                VStack(spacing: 14) {
+            VStack(spacing: 14) {
                 HStack(spacing: 22) {
                     ForEach(Array(winners.enumerated()), id: \.element) { place, seat in
                         // Facing the room with the ball, not jogging upcourt — the game
@@ -1139,15 +1170,11 @@ struct GameView: View {
                 }
                 .padding(.top, 4)
                 }
-                // **The card's own margins.** A `ScrollView` offers its content the full
-                // width and takes none for itself, so wrapping the column in one dropped
-                // every edge it used to keep clear — the winners' figures and the board
-                // ran off both sides. Given back here, where the scroll can see them.
-                .padding(.horizontal, 18)
-                .padding(.vertical, 24)
-                .frame(maxWidth: .infinity)
-            }
-            .scrollBounceBehavior(.basedOnSize)
+            // **The card's own margins.** It is laid out rather than scrolled: the column
+            // fits the screen, and a scroll view under a result card reads as a list.
+            .padding(.horizontal, 18)
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
             .opacity(reviewingLog ? 0 : 1)
 
             if reviewingLog { logReview }
@@ -1222,6 +1249,7 @@ struct GameView: View {
 
         switch action {
         case .pause:
+            guard tutorial == nil else { return }
             controller.pause()
             withAnimation(.easeOut(duration: 0.2)) { paused = true }
         case .previous, .next:
@@ -1301,7 +1329,8 @@ struct GameView: View {
     private func offered() {
         switch controller.gate {
         case .awaitingMove:
-            guard Rules.legalMoves(controller.shown, for: GameRules.localSeat)
+            guard tutorial == nil,
+                  Rules.legalMoves(controller.shown, for: GameRules.localSeat)
                 .contains(.shoot) else { return }
             controller.shoot()
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
@@ -1383,7 +1412,7 @@ struct GameView: View {
     private func look(at spot: PadSpot?) {
         switch spot {
         case .card(let id): detail = focused(id)
-        case .seat(let seat): onFloor = .player(seat)
+        case .seat(let seat): if tutorial == nil { onFloor = .player(seat) }
         default: break
         }
     }

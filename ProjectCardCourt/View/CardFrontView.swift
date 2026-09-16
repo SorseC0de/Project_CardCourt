@@ -10,6 +10,8 @@ struct CardFrontView: View {
     /// Everything about how the words are set — see `CardTextBench`. **One set for all
     /// seven types**; only the two colours in it are asked per card.
     @State private var set = CardTextTuning.shared
+    /// Where COMBO and BONUS sit, and how big — see `ExtrasBench`.
+    @State private var extras = ExtrasTuning.shared
 
     let descriptor: CardDescriptor
     /// Width in points. Everything else is a fraction of it, so the card holds together
@@ -108,7 +110,7 @@ struct CardFrontView: View {
                 shotBadge(shot)
             }
             if isBlank { lockedMarks }
-            if showsExtras { extrasButtons }
+            if hasExtras { extrasButtons }
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
@@ -129,58 +131,90 @@ struct CardFrontView: View {
     private enum Extras {
         /// The buttons' lettering, as a share of the card's width.
         static let size: CGFloat = 0.06
-        /// How far the row sits in from the bottom edge of the text area, as a share of the
-        /// card's width.
-        static let inset: CGFloat = 0.025
+        /// Between the row and the top of the text area, as a share of the card's width.
+        static let gap: CGFloat = 0.02
+        /// Each button's drop, as a share of its lettering.
+        static let drop: CGFloat = 0.2
+        /// **What the words need to be readable.** A card drawn at least this wide says
+        /// COMBO and BONUS whether or not it has been raised; the fan shows the shapes
+        /// alone, so nothing pops in when one is lifted out of it.
+        static let wordsFrom: CGFloat = 110
     }
+
+    /// Whether the buttons say what they are, rather than standing as shapes.
+    private var showsExtraWords: Bool { expanded || displayWidth >= Extras.wordsFrom }
 
     private var combos: [Combo] { Combo.involving(descriptor) }
 
+    /// Whether the card has a combo or a bonus at all. The buttons' shapes are printed on
+    /// every size of it, so raising one does not make them pop in.
+    private var hasExtras: Bool {
+        guard !isBlank else { return false }
+        return !combos.isEmpty || !descriptor.bonusLines.isEmpty
+    }
+
+    /// Raised, with somewhere for a press to go.
     private var showsExtras: Bool {
         guard expanded, !isBlank else { return false }
         return (onCombo != nil && !combos.isEmpty)
             || (onBonus != nil && !descriptor.bonusLines.isEmpty)
     }
 
-    /// **COMBO and BONUS, under the words.** What a card strings together and its
-    /// conditional half live behind these rather than on the face, which has no room.
+    /// **COMBO and BONUS, over the words.** Centred alone, side by side together. Words
+    /// only on a raised card; a card in the hand shows the shapes.
     private var extrasButtons: some View {
-        let size = width * Extras.size
-        return HStack(spacing: size * 0.6) {
-            if let onCombo, !combos.isEmpty {
-                extrasCapsule("COMBO", size: size, action: onCombo)
+        let size = width * Extras.size * extras.scale
+        let across = width * CardLayout.textOverlayWidthFraction
+        let textTop = height * (1 - CardLayout.textOverlayBottomFraction)
+            - across * CardLayout.textOverlayAspect
+        // **Printed as the card is.** COMBO wears the body with the inner ring under it;
+        // BONUS wears the name plate, its drop and its lettering — so both read as parts
+        // of this card rather than as two buttons the app put on top of it.
+        return VStack(spacing: size * 0.4) {
+            if !combos.isEmpty {
+                extrasCapsule("COMBO", size: size, fill: set.bodyInk(for: face),
+                              drop: ringColour, ink: effectColour) { onCombo?() }
             }
-            if let onBonus, !descriptor.bonusLines.isEmpty {
-                extrasCapsule("BONUS", size: size) {}
+            if !descriptor.bonusLines.isEmpty {
+                extrasCapsule("BONUS", size: size, fill: set.plateFillInk(for: face),
+                              drop: namePlateShadow,
+                              ink: set.nameBottomInk(for: face)) {}
                     // Where it is on screen, so the bubble hangs off the button itself.
                     .overlay {
-                        GeometryReader { button in
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    let frame = button.frame(in: .global)
-                                    onBonus(CGPoint(x: frame.midX, y: frame.minY))
-                                }
+                        if let onBonus {
+                            GeometryReader { button in
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        let frame = button.frame(in: .global)
+                                        onBonus(CGPoint(x: frame.midX, y: frame.minY))
+                                    }
+                            }
                         }
                     }
             }
         }
-        // **At the bottom of the text area**, inside it.
-        .position(x: width / 2,
-                  y: height * (1 - CardLayout.textOverlayBottomFraction)
-                      - size * 0.8 - width * Extras.inset)
+        .allowsHitTesting(showsExtras)
+        // **Hung from the top.** The tuned spot is the row's highest point, so a second
+        // button hangs under the first rather than shifting the pair off it.
+        .frame(width: width, height: height, alignment: .top)
+        .offset(x: width * extras.x,
+                y: textTop - size * 0.9 - width * Extras.gap + height * extras.y)
     }
 
-    private func extrasCapsule(_ word: String, size: CGFloat,
-                               action: @escaping () -> Void) -> some View {
+    private func extrasCapsule(_ word: String, size: CGFloat, fill: Color, drop: Color,
+                               ink: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(word)
                 .font(.system(size: size, weight: .heavy, design: .rounded))
                 .tracking(size * 0.08)
-                .foregroundStyle(.white)
+                .foregroundStyle(ink)
+                .opacity(showsExtraWords ? 1 : 0)
                 .padding(.horizontal, size * 0.8)
                 .padding(.vertical, size * 0.3)
-                .background(Capsule().fill(CardPalette.navy))
+                .background(Capsule().fill(fill)
+                    .shadow(color: drop, radius: 0,
+                            x: size * Extras.drop, y: size * Extras.drop))
         }
         .buttonStyle(.plain)
     }
@@ -505,7 +539,7 @@ struct CardFrontView: View {
                         // be read is not, which is the only size the words can be
                         // pressed at anyway.
                         onKeyword: expanded ? onKeyword : nil)
-            .frame(width: width - inset * 2)
+            .frame(width: width - inset * 2, alignment: .leading)
             .position(x: width / 2,
                       y: height * (set.y - (hasFootMarks ? set.footLift : 0)))
     }

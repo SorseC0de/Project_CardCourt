@@ -1009,6 +1009,9 @@ enum Rules {
             // a Move card wearing a Special Move's coat, and its SHOT is the board's.
             // Man-To-Man: every card played while guarded costs SHOT.
             delta += state[seat].clamps.reduce(0) { $0 + ($1.card.clamp?.shotPerCardPlayed ?? 0) }
+            // **Snow Ball: none of what the pass is worth lands** — its number, its combo,
+            // the clock, the lot. What is charged for playing a card at all still does.
+            if overridesPassGain(descriptor, in: state) { delta = min(delta, 0) }
             // Southpaw Shooter: every gain is a loss and every loss a gain.
             if has(seat, in: state, { $0.reversesShotChanges }) { delta = -delta }
             let priced = descriptor.special?.shootsImmediately == true
@@ -2689,6 +2692,13 @@ enum Rules {
                     ? state.pick(from: Seat.allCases) : seat
                 drawTogether([drawer], count: count, state: &state, events: &events,
                              opening: true)
+                // Hero Ball: a board pays a card of its own. A game of nothing but misses
+                // and rebounds still puts cards in hands, so the hands cannot run down to
+                // nothing with the ball stuck at the rim.
+                if fromRebound, state.ballEffect.drawsOnRebound > 0 {
+                    drawTogether([seat], count: state.ballEffect.drawsOnRebound,
+                                 state: &state, events: &events, opening: true)
+                }
             }
             refills(for: seat, state: &state, events: &events)
         }
@@ -2938,10 +2948,12 @@ enum Rules {
     private static func refills(for seat: Seat, state: inout GameState,
                                 events: inout [GameEvent]) {
         let floor = state.floorEffect
-        var target = floor.refillsTo
-        if let leaderTarget = floor.leaderRefillsTo,
+        // **A full hand is whatever the match deals**, not a number printed on the floor.
+        let hand = state.rules.startingBagSize
+        var target: Int? = floor.refillsToHand ? hand : nil
+        if floor.leaderRefillsToHand,
            state[seat].score == (state.players.map(\.score).max() ?? 0) {
-            target = max(target ?? 0, leaderTarget)
+            target = hand
         }
         if let target {
             while state[seat].bag.count < target {
@@ -3008,8 +3020,18 @@ enum Rules {
     /// card the one the ball arrived by.
     private static func printedWorth(of descriptor: CardDescriptor,
                                      in state: GameState) -> Int {
+        if overridesPassGain(descriptor, in: state) { return 0 }
         guard descriptor.matchesArrivingPass else { return descriptor.baseShotDelta }
         return state.arrivedBy?.baseShotDelta ?? 0
+    }
+
+    /// **Snow Ball: passing pays nothing, whatever the pass was worth.** The ball's own
+    /// −10% is the whole of what a pass does to SHOT — a feed worth more than that would
+    /// otherwise cancel the toll out and leave the ball breaking even for ever, which is
+    /// the opposite of snowballing. See `VariaballEffect.overridesPassShot`.
+    private static func overridesPassGain(_ descriptor: CardDescriptor,
+                                          in state: GameState) -> Bool {
+        descriptor.isPass && state.ballEffect.overridesPassShot
     }
 
     private static func adjustShot(by delta: Int, state: inout GameState) {
@@ -3164,13 +3186,14 @@ enum Rules {
     }
 
     private static func halftime(state: inout GameState, events: inout [GameEvent]) {
-        var pool = state.deck + state.discard
+        // **Nothing goes back into the deck.** The hands are spent into the discard and
+        // the new ones dealt out of whatever is left, so a game works its way down one
+        // deck instead of meeting the same cards again after the break. The deck still
+        // comes back off the discard when it finally runs out — see `draw`.
         for seat in Seat.allCases {
-            pool += state[seat].bag
+            state.discard.append(contentsOf: state[seat].bag)
             state[seat].bag.removeAll()
         }
-        state.deck = state.shuffled(pool)
-        state.discard.removeAll()
         // **Called before it deals.** The half is the moment; the deal is what the half
         // does. Appended after the cards, it read as twenty cards arriving from nowhere
         // and *then* being explained.
@@ -3331,7 +3354,9 @@ enum Rules {
         // whatever else the trip cost him — that is the point of the card.
         case .returnBall(let home, let leg):
             guard case .possession(let holder) = state.phase, holder != home else { return }
-            adjustShot(by: leg.baseShotDelta, state: &state)
+            // Priced the way any pass is, so a ball that overrides what passing pays
+            // covers the leg home too.
+            adjustShot(by: printedWorth(of: leg, in: state), state: &state)
             completePass(leg, from: holder, to: home, returning: true,
                          state: &state, events: &events)
 

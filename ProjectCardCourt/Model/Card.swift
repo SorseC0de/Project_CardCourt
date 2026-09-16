@@ -320,10 +320,11 @@ struct VarenaEffect: Hashable, Codable {
     var makesCount: Int?
     /// Gravi-Gym: no card that dunks.
     var barsDunks = false
-    /// Recharging Resin: everyone refills to this at the start of their possession.
-    var refillsTo: Int?
+    /// Recharging Resin: everyone fills their hand at the start of their possession.
+    /// **A full hand is the match's own** — see `MatchRules.startingBagSize`.
+    var refillsToHand = false
     /// MVPiquia: only the highest scorer does.
-    var leaderRefillsTo: Int?
+    var leaderRefillsToHand = false
     /// Contact Court: landed on by a Clamp, you shoot this many free throws.
     var freeThrowsWhenClamped = 0
     /// Polypaypylene: a make draws this many.
@@ -373,6 +374,14 @@ struct VariaballEffect: Hashable, Codable {
     var shotCeiling: Int?
     /// Blaze Ball and Snow Ball: every pass, on its own, whatever else the pass does.
     var shotPerPass = 0
+    /// Hero Ball: SHOT for the man taking the shot. Nobody can pass it to him, so the
+    /// ball pays him what a pass would have.
+    var shotWhenShooting = 0
+    /// Snow Ball: **instead of** what the pass is worth, not on top of it. Nothing a pass
+    /// gains lands while this is the ball — its printed number, its combo, its clock bonus
+    /// — so `shotPerPass` is the whole of what passing does. A feed worth more than the
+    /// toll would otherwise cancel it out and leave the ball breaking even for ever.
+    var overridesPassShot = false
     /// Dishcount Ball: one fewer for card costs and Clamps.
     var discountsDiscards = false
     /// Blight Ball: Injuries go wherever the ball goes.
@@ -391,6 +400,9 @@ struct VariaballEffect: Hashable, Codable {
     var reshufflesHandEachPossession = false
     /// Bag'n Ball: its player draws this many when it arrives.
     var drawsOnArrival = 0
+    /// Hero Ball: this many extra to whoever comes down with it, so a run of misses and
+    /// boards still puts cards in hands.
+    var drawsOnRebound = 0
     /// Monster Ball: every Intangible goes into the ball.
     var absorbsIntangibles = false
     /// Brand New Ball: the chance, in per cent, that a shot is a turnover instead.

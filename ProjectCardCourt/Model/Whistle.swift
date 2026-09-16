@@ -20,6 +20,9 @@ enum WhistleTrigger: String, Hashable, Codable {
     /// Tile Tampering and Over-Varing Evidence: a floor or a ball being played.
     case varenaPlayed
     case variaballPlayed
+    /// Extravagant Mechanics: the showy plays — a passive onto a board, a floor, a ball,
+    /// or a Special Move.
+    case slotOrSpecialPlayed
     case shotAttempt
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
     case shotClockLowered
@@ -65,6 +68,10 @@ enum WhistleTrigger: String, Hashable, Codable {
             return card.descriptor.varena != nil
         case (.variaballPlayed, .playCard(_, let card)):
             return card.descriptor.variaball != nil
+        case (.slotOrSpecialPlayed, .playCard(_, let card)):
+            let type = card.descriptor.type
+            return type == .intangible || type == .specialMove
+                || card.descriptor.varena != nil || card.descriptor.variaball != nil
         case (.shotClockLowered, .playCard(_, let card)):
             return card.descriptor.clockDelta < 0
         default:

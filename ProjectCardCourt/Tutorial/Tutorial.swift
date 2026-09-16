@@ -10,6 +10,8 @@ enum TutorialTarget: Hashable {
     case cardBadge(String)
     /// The SHOT readout at the top of the court.
     case shotHUD
+    /// Where the way out is drawn: under the log, in the corner the Varena takes in a game.
+    case exitSpot
 }
 
 /// What moves a step on.
@@ -29,21 +31,36 @@ struct TutorialStep {
     /// Drawn bigger while the step is up.
     var enlarged: Set<TutorialTarget> = []
     var advance: TutorialAdvance = .tap
+    /// The ball crosses in slow motion, with the screen zoomed in on it.
+    var slowMotion = false
 }
 
-/// One stretch of a lesson, played from a fresh hand. A blip at the top of the screen.
+/// One stretch of a lesson. A blip on the popover.
 struct TutorialLeg {
     var title: String
-    var hand: [CardDescriptor]
+    /// The hand the leg starts from. Nil carries on from wherever the last leg left off.
+    var hand: [CardDescriptor]?
+    /// What the next draws turn up, first draw first.
+    var deckTop: [CardDescriptor] = []
     var steps: [TutorialStep]
 }
 
 struct Tutorial: Identifiable {
     let id: String
     let title: String
+    /// The card type it teaches, as its cards are named.
+    let cardName: String
+    /// And as they are printed, which the popovers and the menu button are printed in too.
+    let face: CardFace
     let legs: [TutorialLeg]
     /// Said when the last step is done.
     let farewell: String
+
+    /// A card of this type with nothing on it but its icon, and a name if given one.
+    func blankCard(named name: String = "") -> CardDescriptor {
+        CardDescriptor(id: "blank-\(id)", name: name, type: face.type, effect: "",
+                       numberInDeck: 0)
+    }
 }
 
 // MARK: - Running one
@@ -107,19 +124,26 @@ final class TutorialDirector {
     private func stage(leg index: Int) {
         leg = index
         step = 0
-        controller.stageLesson(hand: tutorial.legs[index].hand)
-        playsAtStepStart = controller.lessonPlays
+        let plan = tutorial.legs[index]
+        controller.stageLesson(hand: plan.hand, deckTop: plan.deckTop)
+        stepBegan()
     }
 
     private func next() {
         if step + 1 < tutorial.legs[leg].steps.count {
             step += 1
-            playsAtStepStart = controller.lessonPlays
+            stepBegan()
         } else if leg + 1 < tutorial.legs.count {
             stage(leg: leg + 1)
         } else {
             isFinished = true
+            controller.setLessonSlowMotion(false)
         }
+    }
+
+    private func stepBegan() {
+        playsAtStepStart = controller.lessonPlays
+        controller.setLessonSlowMotion(current?.slowMotion ?? false)
     }
 }
 
@@ -201,7 +225,7 @@ enum Tutorials {
     static let passes: Tutorial = {
         let swing = CardLibrary.swingRight.id
         let dime = CardLibrary.dime.id
-        return Tutorial(id: "passes", title: "Pass Cards", legs: [
+        return Tutorial(id: "passes", title: "Pass Cards", cardName: "Pass", face: .pass, legs: [
             TutorialLeg(title: "Playing a card", hand: [CardLibrary.swingRight], steps: [
                 TutorialStep(text: "Every card type has its own colour, so you can read a hand at "
                                  + "a glance. Pass cards are blue.",
@@ -214,7 +238,7 @@ enum Tutorials {
                                  + "it, and the other players' Passes raise it for you too.",
                              focus: [.cardBadge(swing), .shotHUD], enlarged: [.shotHUD]),
                 TutorialStep(text: "Play Swing Right. It passes the ball to the player on your right.",
-                             focus: [.handCard(swing)], advance: .pass),
+                             focus: [.handCard(swing)], advance: .pass, slowMotion: true),
             ]),
             TutorialLeg(title: "A Pass with an effect", hand: [CardLibrary.dime], steps: [
                 TutorialStep(text: "Some Passes do more, and the words on the card say what. Dime "
@@ -229,8 +253,9 @@ enum Tutorials {
     static let moves: Tutorial = {
         let dribble = CardLibrary.dribble.id
         let drive = CardLibrary.drive.id
-        return Tutorial(id: "moves", title: "Move Cards", legs: [
-            TutorialLeg(title: "Dribble", hand: [CardLibrary.dribble], steps: [
+        return Tutorial(id: "moves", title: "Move Cards", cardName: "Move", face: .move, legs: [
+            TutorialLeg(title: "Dribble", hand: [CardLibrary.dribble],
+                        deckTop: [CardLibrary.drive], steps: [
                 TutorialStep(text: "Move cards are green. You keep the ball after a Move, so you can "
                                  + "play as many as you like in one possession.",
                              focus: [.handCard(dribble)], enlarged: [.handCard(dribble)]),
@@ -239,16 +264,16 @@ enum Tutorials {
                 TutorialStep(text: "Play Dribble: tap it, then tap it again.",
                              focus: [.handCard(dribble)], advance: .plays(1)),
             ]),
-            TutorialLeg(title: "Drive", hand: [CardLibrary.drive], steps: [
-                TutorialStep(text: "Drive raises SHOT by 10%.",
+            TutorialLeg(title: "Drive", hand: nil, steps: [
+                TutorialStep(text: "Your Dribble drew a Drive. Drive raises SHOT by 10%.",
                              focus: [.cardBadge(drive), .shotHUD], enlarged: [.shotHUD]),
                 TutorialStep(text: "Play Drive.", focus: [.handCard(drive)], advance: .plays(1)),
+                TutorialStep(text: "A Drive straight after a Dribble is a combo: SHOT +10% extra.",
+                             focus: [.shotHUD], enlarged: [.shotHUD]),
             ]),
-            TutorialLeg(title: "Combos", hand: [CardLibrary.dribble, CardLibrary.drive], steps: [
-                TutorialStep(text: "Some cards pay extra when they follow another: a combo. Drive "
-                                 + "straight after a Dribble is SHOT +10% extra.",
-                             focus: [.handCard(dribble), .handCard(drive)]),
-                TutorialStep(text: "Play Dribble, then Drive.",
+            TutorialLeg(title: "Combos", hand: [CardLibrary.dribble, CardLibrary.drive],
+                        deckTop: [CardLibrary.drive], steps: [
+                TutorialStep(text: "Now string one on purpose. Play Dribble, then Drive.",
                              focus: [.handCard(dribble), .handCard(drive)], advance: .plays(2)),
                 TutorialStep(text: "That's a combo. A raised card's COMBO button shows which card "
                                  + "it pays off after."),

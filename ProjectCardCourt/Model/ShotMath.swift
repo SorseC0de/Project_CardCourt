@@ -155,6 +155,10 @@ extension GameState {
             modifiers.adds.append(ShotModifier(label: currentCourt.name,
                                                amount: Double(floor.dunkBonus)))
         }
+        // Hero Ball: it pays the man taking the shot, since nobody can pass it to him.
+        if let ball = currentBall, let paid = ball.variaball?.shotWhenShooting, paid != 0 {
+            modifiers.adds.append(ShotModifier(label: ball.name, amount: Double(paid)))
+        }
         // S.O.S: a three sold out for a two, at double the look.
         if sellingOut {
             modifiers.multipliers.append(ShotModifier(label: CardLibrary.sellOutStadium.name,

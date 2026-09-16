@@ -96,8 +96,8 @@ enum CardLibrary {
 
     static let dribble = CardDescriptor(
         id: "dribble", name: "Dribble", type: .move,
-        effect: "#[Draw] 1. SHOT -10%", numberInDeck: 15,
-        shotDelta: -10, drawCount: 1, isDribble: true)
+        effect: "#[Draw] 2. SHOT -10%", numberInDeck: 15,
+        shotDelta: -10, drawCount: 2, isDribble: true)
 
     static let drive = CardDescriptor(
         id: "drive", name: "Drive", type: .move,
@@ -107,8 +107,8 @@ enum CardLibrary {
 
     static let poundDribble = CardDescriptor(
         id: "pound-dribble", name: "Pound Dribble", type: .move,
-        effect: "SHOT +10%. #[Draw] 2 cards then #[Discard] 1. #[Shot Clock] -01", numberInDeck: 5,
-        shotDelta: 10, drawCount: 2, clockDelta: -1, isDribble: true, selfDiscard: 1)
+        effect: "SHOT +10%. #[Draw] 3 cards then #[Discard] 1. #[Shot Clock] -01", numberInDeck: 5,
+        shotDelta: 10, drawCount: 3, clockDelta: -1, isDribble: true, selfDiscard: 1)
 
     static let spinMove = CardDescriptor(
         id: "spin-move", name: "Spin Move", type: .move,
@@ -128,8 +128,8 @@ enum CardLibrary {
 
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
-        effect: "SHOT +10%. #[Draw] 1 card.", numberInDeck: 5,
-        shotDelta: 10, drawCount: 1, isDribble: true, nextShotBonus: 10,
+        effect: "SHOT +10%. #[Draw] 2 cards.", numberInDeck: 5,
+        shotDelta: 10, drawCount: 2, isDribble: true, nextShotBonus: 10,
         bonus: "If your next action is a Shot Attempt, it has SHOT +10% extra.")
 
     /// **Retired as a card** (2026-09-14): it is the combo a Crossover finishes off a
@@ -141,8 +141,8 @@ enum CardLibrary {
 
     static let hesi = CardDescriptor(
         id: "hesi", name: "Hesitation Dribble", type: .move,
-        effect: "SHOT +10%. #[Draw] 1 card. #[Shot Clock] -01.", numberInDeck: 5,
-        shotDelta: 10, drawCount: 1, clockDelta: -1, isDribble: true)
+        effect: "SHOT +10%. #[Draw] 2 cards. #[Shot Clock] -01.", numberInDeck: 5,
+        shotDelta: 10, drawCount: 2, clockDelta: -1, isDribble: true)
 
     static let pumpFake = CardDescriptor(
         id: "pump-fake", name: "Pump Fake", type: .move,
@@ -246,11 +246,19 @@ enum CardLibrary {
         effect: "Cancel Next ~[Move]. #[TOV] +1. Side-out.", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true))
 
+    /// **Out of the deck.** It answers a Game Break, and there are none — see `whistles`.
     static let playOn = CardDescriptor(
         id: "play-on", name: "Play-On", type: .whistle,
         effect: "On ~[Game Break]: #[Cancel] and #[Draw] again",
-        numberInDeck: 1,
+        numberInDeck: 0,
         whistle: WhistleEffect(trigger: .gameBreakDrawn))
+
+    static let extravagantMechanics = CardDescriptor(
+        id: "extravagant-mechanics", name: "Extravagant Mechanics", type: .whistle,
+        effect: "On ~[Intangible], ~[Varena], ~[Variaball] or ~[Special Move] play: "
+            + "#[Cancel] it",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .slotOrSpecialPlayed))
 
     static let crewChiefReview = CardDescriptor(
         id: "crew-chief-review", name: "Crew Chief Review", type: .whistle,
@@ -732,18 +740,18 @@ enum CardLibrary {
         varena: VarenaEffect(shotBonus: 10, dunkBonus: 10, barsThrees: true, makesCount: 2))
     static let rechargingResin = CardDescriptor(
         id: "recharging-resin", name: "Recharging Resin", type: .varena,
-        effect: "Everyone refills to a hand of 5 at the start of their possession",
+        effect: "Everyone refills their hand at the start of their possession",
         numberInDeck: 3,
-        varena: VarenaEffect(refillsTo: 5))
+        varena: VarenaEffect(refillsToHand: true))
     static let contactCourt = CardDescriptor(
         id: "contact-court", name: "Contact Court", type: .varena,
         effect: "Being clamped: take 1 #[FT]. The ~[Clamp] still lands", numberInDeck: 3,
         varena: VarenaEffect(freeThrowsWhenClamped: 1))
     static let mvpiquia = CardDescriptor(
         id: "mvpiquia", name: "MVPiquia", type: .varena,
-        effect: "The highest scorer refills to 5 at the start of their possession",
+        effect: "The highest scorer refills their hand at the start of their possession",
         numberInDeck: 1,
-        varena: VarenaEffect(leaderRefillsTo: 5))
+        varena: VarenaEffect(leaderRefillsToHand: true))
     static let polypaypylene = CardDescriptor(
         id: "polypaypylene", name: "Polypaypylene", type: .varena,
         effect: "Making a shot: #[Draw] 3", numberInDeck: 1,
@@ -893,7 +901,7 @@ enum CardLibrary {
     static let snowBall = CardDescriptor(
         id: "snow-ball", name: "Snow Ball", type: .variaball,
         effect: "SHOT -10% as this Ball is ~[Passed]", numberInDeck: 5,
-        variaball: VariaballEffect(shotPerPass: -10))
+        variaball: VariaballEffect(shotPerPass: -10, overridesPassShot: true))
     static let brickBall = CardDescriptor(
         id: "brick-ball", name: "Brick Ball", type: .variaball,
         effect: "SHOT = 25%", numberInDeck: 2,
@@ -913,8 +921,11 @@ enum CardLibrary {
         variaball: VariaballEffect(freeThrowsOnMiss: 1))
     static let heroBall = CardDescriptor(
         id: "hero-ball", name: "Hero Ball", type: .variaball,
-        effect: "Cannot play ~[Pass] cards. Made shots grant no #[AST]", numberInDeck: 1,
-        variaball: VariaballEffect(barsPasses: true, noAssists: true))
+        effect: "Cannot play ~[Pass] cards. Made shots grant no #[AST]. SHOT +25% while "
+            + "shooting. #[Draw] 1 extra when this Ball is rebounded",
+        numberInDeck: 1,
+        variaball: VariaballEffect(shotWhenShooting: 25, drawsOnRebound: 1,
+                                   barsPasses: true, noAssists: true))
 
     /// **Alley-Oop**: a Lob, dunked as the first thing done with it. What the combo adds on
     /// top of the Lob and the dunk card.
@@ -1185,7 +1196,8 @@ enum CardLibrary {
         discontinuedDribble,
         coachsChallenge, officialReview, goaltending, timeout, delayOfGameWarning,
         blockingFoul, flagrantFoul, flagrantFoulII, charge, technicalFoul, clearPathFoul,
-        clearedToPlay, playOn, crewChiefReview, tileTampering, overVaringEvidence,
+        clearedToPlay, extravagantMechanics, crewChiefReview, tileTampering,
+        overVaringEvidence,
     ]
 
     /// A card somebody else is holding, or one still in the deck.

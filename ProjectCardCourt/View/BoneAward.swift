@@ -37,38 +37,7 @@ struct BoneAward: View {
     static let signLift: CGFloat = -0.16
     static let signTuck: CGFloat = 0.10
 
-    /// Drives the shine down the bone. One long linear repeat rather than a timer: the
-    /// strip spends most of its travel off the metal, and that gap **is** the wait.
-    @State private var sweeping = false
-
     private var pop: Animation { .spring(response: 0.42, dampingFraction: 0.52) }
-
-    /// A band of light walking down the metal.
-    ///
-    /// **Clipped to the bone, not to a box.** The gradient is a wide angled strip, and
-    /// masking it with the drawing is what makes the light look like it is on the object
-    /// rather than passing in front of it. Screened rather than added: a highlight that
-    /// blows out to white stops reading as a surface.
-    private var shine: some View {
-        LinearGradient(stops: [
-            .init(color: .clear, location: 0),
-            .init(color: .white.opacity(0.85), location: 0.5),
-            .init(color: .clear, location: 1),
-        ], startPoint: .top, endPoint: .bottom)
-            .frame(width: side * 2.4, height: side * 0.38)
-            .rotationEffect(.degrees(-30))
-            // Well past the bone at both ends, so the strip is off it for most of the
-            // trip — which is the pause between passes, without a second animation.
-            .offset(y: sweeping ? side * 1.6 : -side * 1.6)
-            .frame(width: side, height: side)
-            .mask {
-                Image(bone.asset)
-                    .resizable().scaledToFit()
-                    .frame(width: side, height: side)
-            }
-            .blendMode(.screen)
-            .allowsHitTesting(false)
-    }
 
     /// The light behind the bone. **Crystal has no colour of its own** — it is lit by
     /// whatever passes through it, so its halo walks the hue wheel and swells as it goes
@@ -143,7 +112,7 @@ struct BoneAward: View {
                             .frame(width: side, height: side)
                             .blendMode(pass.element)
                     }
-                    if bone.shines { shine }
+                    if bone.shines { MetalShine(asset: bone.asset, side: side) }
                 }
                 .rotationEffect(.degrees(Self.lean))
                 // **Gold twinkles.** Drawn, not a sheet: the bone is a vector with its
@@ -179,12 +148,49 @@ struct BoneAward: View {
                     try? await Task.sleep(for: .seconds(0.11))
                 }
             }
-            if bone.shines, !sweeping {
+        }
+    }
+}
+
+/// A band of light walking down a drawing now and then — a Swisshbone's metal, and Brand
+/// New Ball.
+///
+/// **Clipped to the drawing, not to a box.** The gradient is a wide angled strip, and
+/// masking it with the drawing is what makes the light look like it is on the object
+/// rather than passing in front of it. Screened rather than added: a highlight that
+/// blows out to white stops reading as a surface.
+struct MetalShine: View {
+    let asset: String
+    let side: CGFloat
+
+    /// Drives the shine down it. One long linear repeat rather than a timer: the strip
+    /// spends most of its travel off the drawing, and that gap **is** the wait.
+    @State private var sweeping = false
+
+    var body: some View {
+        LinearGradient(stops: [
+            .init(color: .clear, location: 0),
+            .init(color: .white.opacity(0.85), location: 0.5),
+            .init(color: .clear, location: 1),
+        ], startPoint: .top, endPoint: .bottom)
+            .frame(width: side * 2.4, height: side * 0.38)
+            .rotationEffect(.degrees(-30))
+            // Well past the drawing at both ends, so the strip is off it for most of the
+            // trip — which is the pause between passes, without a second animation.
+            .offset(y: sweeping ? side * 1.6 : -side * 1.6)
+            .frame(width: side, height: side)
+            .mask {
+                Image(asset)
+                    .resizable().scaledToFit()
+                    .frame(width: side, height: side)
+            }
+            .blendMode(.screen)
+            .allowsHitTesting(false)
+            .onAppear {
                 withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false)) {
                     sweeping = true
                 }
             }
-        }
     }
 }
 

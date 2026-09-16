@@ -49,7 +49,8 @@ enum Row {
         case .awaitingMove:
             let legal = Rules.legalMoves(controller.shown, for: seat)
             var row = hand
-            if legal.contains(.shoot) { row.append(.shoot) }
+            // A lesson has no Shoot button to walk onto.
+            if legal.contains(.shoot), !controller.isLesson { row.append(.shoot) }
             if legal.contains(where: { if case .borrow = $0 { return true }; return false }) {
                 row.append(.borrow)
             }

@@ -139,10 +139,8 @@ struct TurnoverCutsceneView: View {
                 .opacity(lit ? 1 : 0)
 
             if ballVisible {
-                Image("BallVector")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: Loose.ballSide)
+                // The Variaball in play, if it has a drawing of its own.
+                BallView(diameter: Loose.ballSide)
                     // Spin first, place second, travel third — rotating after `.position`
                     // turns the whole layer about the container instead of the ball.
                     // Turned by how far it has actually rolled, so it never spins faster

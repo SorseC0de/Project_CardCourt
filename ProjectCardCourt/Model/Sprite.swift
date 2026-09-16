@@ -9,6 +9,13 @@ import CoreGraphics
 
 enum Sprite: String, CaseIterable {
     case catchBall = "Player_Catch"
+    /// Throwing a pass, one sheet per way it goes on screen. All four are drawn
+    /// right-handed, so none is ever mirrored. The first cell still holds the ball.
+    case passLeft = "Pass_Left"
+    case passRight = "Pass_Right"
+    /// Back over his shoulder: toward the camera, and every blind pass.
+    case passBehind = "Pass_Behind"
+    case passForward = "Pass_Forward"
     case dribble = "Player_Dribble"
     case run = "Player_Run"
     case runLook = "Player_Run_Look"

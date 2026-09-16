@@ -90,7 +90,6 @@ struct FannedBagView: View {
                               onCombo: expanded ? { onCombo(card.descriptor) } : nil,
                               onBonus: expanded ? { onBonus(card.descriptor, $0) } : nil)
                     .environment(\.tutorialReportsBadge, true)
-                    .tutorialTarget(.handCard(card.descriptor.id))
                     .overlay {
                         // One wash, whatever it is for. A held card wears the same red a
                         // refused one does, because it is the same fact: this one is not
@@ -133,6 +132,8 @@ struct FannedBagView: View {
                     .allowsHitTesting(!justPlayed.contains(card.id))
                     .padRing(ringed == card.id && !justPlayed.contains(card.id),
                              corner: 76 * CardLayout.cornerFraction)
+                    // Outside the ring, so a lesson's enlargement grows the ring with the card.
+                    .tutorialTarget(.handCard(card.descriptor.id))
                     .modifier(ShakeEffect(progress: refused == card.id ? refusal : 0))
                     .rotationEffect(.degrees(lifted || expanded ? 0 : placement.angle))
                     // Grown from the bottom edge, so it rises out of the hand rather
