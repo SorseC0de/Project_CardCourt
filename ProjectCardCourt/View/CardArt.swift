@@ -253,9 +253,9 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
     /// Whether the type's own colour is light enough that lettering on it has to be dark.
     /// Whether the badge under the name is light enough that the lettering has to be
     /// dark. Both the gilded types are — see `CardSkin`, which is what gilds them.
-    var lettersDark: Bool {
-        self == .specialMove || self == .variaball || self == .intangible
-    }
+    /// Whether the badge under the name is light enough that the lettering has to be
+    /// dark. The gold ones are; a Special Move's is dark teal and takes its own gold.
+    var lettersDark: Bool { self == .variaball || self == .intangible }
 
     /// The type it is by the rules, for anything that has to ask that instead.
     var type: CardType {

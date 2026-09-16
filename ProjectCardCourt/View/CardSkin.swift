@@ -117,7 +117,7 @@ struct CardSkin {
                                            lineShade: CardPalette.azure)
         case .variaball:  return PlateInks(circle: CardPalette.navy,
                                            line: CardPalette.azure,
-                                           lineShade: CardPalette.brown)
+                                           lineShade: CardPalette.blood)
         default:          return nil
         }
     }
@@ -150,14 +150,17 @@ struct CardSkin {
         // **The circle a court-line plate stands on**, per theme. A Whistle's is gray
         // rather than the tan the other two wear.
         let plainCircle: Color = face == .whistle ? CardPalette.gray : CardPalette.tan
-        // **The two that wear a gold banner.** A Variaball and a Special Move are the
-        // showy half of the deck, so they are named in gold on orange rather than in
-        // their own colour — in every theme. The ring is a separate question: in A and B
-        // it is the type's, and in C it stays the white or the black, which is what says
-        // whether the card is played or standing.
-        let gilded = face == .variaball || face == .specialMove
-        let badge: Color = gilded ? CardPalette.gold : type
-        let badgeShade: Color = gilded ? CardPalette.orange : shade
+        // **The Variaball wears a gold banner**, in every theme. The ring is a separate
+        // question: in A and B it is the type's, and in C it stays the white or the black,
+        // which is what says whether the card is played or standing.
+        let gilded = face == .variaball
+        // **A Special Move is a Move in deeper water.** Its ring is the Move's teal like
+        // any other, but it is named on dark teal with teal under it, and the name itself
+        // is gold over orange — so it reads as the same colour, gone richer.
+        let special = face == .specialMove
+        let badge: Color = special ? PixelPalette.deepTeal : (gilded ? CardPalette.gold : type)
+        let badgeShade: Color = special ? CardPalette.teal
+                                        : (gilded ? CardPalette.orange : shade)
         // A Special Move is a Move and carries a Move's colour, so its ring is simply the
         // type's like everyone else's.
         let ringInk: Color = type
@@ -170,10 +173,12 @@ struct CardSkin {
                 iconPlate: plainCircle,
                 iconLine: CardPalette.cloud,
                 iconLineShade: CardPalette.lightBlue,
-                iconShade: face == .variaball ? CardPalette.blood : nil,
+                iconShade: face == .variaball ? CardPalette.brown : nil,
                 text: standing ? CardPalette.cloud : CardPalette.navy,
-                nameTop: face.lettersDark ? CardPalette.navy : CardPalette.cloud,
-                nameBottom: face.lettersDark ? CardPalette.darkBlue : .white,
+                nameTop: special ? CardPalette.gold
+                                 : (face.lettersDark ? CardPalette.navy : CardPalette.cloud),
+                nameBottom: special ? CardPalette.orange
+                                    : (face.lettersDark ? CardPalette.darkBlue : .white),
                 overlay: type)
         case .b:
             // Cloud for tan, and tan for steel on the icon plates. A standing card takes
@@ -188,17 +193,19 @@ struct CardSkin {
                 iconLineShade: CardPalette.lightBlue,
                 // Gray under a tan body; a standing card takes back what accompanies
                 // the tan plate, which is the drop the face was tuned to.
-                iconShade: face == .variaball ? CardPalette.blood
+                iconShade: face == .variaball ? CardPalette.brown
                                               : (standing ? nil : CardPalette.gray),
                 text: standing ? CardPalette.cloud : CardPalette.navy,
-                nameTop: face.lettersDark ? CardPalette.navy : CardPalette.cloud,
-                nameBottom: face.lettersDark ? CardPalette.darkBlue : .white,
+                nameTop: special ? CardPalette.gold
+                                 : (face.lettersDark ? CardPalette.navy : CardPalette.cloud),
+                nameBottom: special ? CardPalette.orange
+                                    : (face.lettersDark ? CardPalette.darkBlue : .white),
                 overlay: type)
         case .c:
             // Turned inside out: the type is the paper, and the white or black is the
             // frame it sits in, the badge it is named on and the ring round it.
             return CardSkin(
-                body: intent, panel: type,
+                body: intent, panel: special ? PixelPalette.deepTeal : type,
                 // **The banner's drop follows the banner**: dark blue under a black one,
                 // light blue under a cloud one.
                 plate: gilded ? CardPalette.gold : intent,
