@@ -55,9 +55,9 @@ struct CourtView: View {
     var frozen = false
 
     /// A Whistle going off right now — see `GameController.whistleReveal`.
-    /// **Which official is making a call**, by the id of the card he is calling. Nil is a
-    /// crew with nothing to say. One man blows it, not all three.
-    var callingCard: String?
+    /// **Which official is making a call**, by his own id rather than by his card — any
+    /// of the three can be the one who sees a travel. Nil is a crew with nothing to say.
+    var callingRef: UUID?
     /// A shot in the air, from the moment it is taken — see `GameController.cutscene`.
     var shooting = false
 
@@ -886,7 +886,7 @@ struct CourtView: View {
     /// the whole reason anybody is looking at him. Everything that holds the players in a
     /// pose stands him still, which is the same rule the scenery follows.
     private func refereeDuty(_ call: RefereeCall) -> RefereeFigure.Duty {
-        if call.whistle.card.descriptor.id == callingCard { return .calling }
+        if call.whistle.id == callingRef { return .calling }
         if shooting { return .watching }
         return courtIsRunning && !frozen ? .working : .waiting
     }

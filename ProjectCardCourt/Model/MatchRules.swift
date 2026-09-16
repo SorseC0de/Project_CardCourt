@@ -12,6 +12,10 @@ struct MatchRules: Hashable, Codable {
     var roundsPerGame: Int
     var roundsPerHalf: Int
     var startingBagSize: Int
+    /// **How many Move cards a possession holds.** A core rule rather than a card: every
+    /// Move draws, so a run of them is a run of cards, and this is what stops the engine
+    /// running for ever. The Travel official lowers it by one while he is working.
+    var movesPerPossession: Int
     /// **The most cards a hand may hold.** A draw that would take a player past it is
     /// converted instead — see `overflowShot`.
     var handLimit: Int
@@ -55,6 +59,7 @@ extension MatchRules {
             roundsPerGame: 8,
             roundsPerHalf: 4,
             startingBagSize: 5,
+            movesPerPossession: 3,
             handLimit: 5,
             overflowShot: 10,
             shotClockStart: 10,

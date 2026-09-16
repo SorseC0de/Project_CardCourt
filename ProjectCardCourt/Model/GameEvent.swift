@@ -28,7 +28,7 @@ enum GameEvent: Hashable, Codable {
     /// Without it the log says a Travel cancelled an Ankle Breaker and leaves you to guess
     /// whose Ankle Breaker it was.
     case whistleBlew(owner: Seat?, card: CardDescriptor, cancelled: String,
-                     cancelledCard: CardDescriptor?, against: Seat?)
+                     cancelledCard: CardDescriptor?, against: Seat?, caller: UUID? = nil)
     /// Clear Out: he was not there, and the ball went on to the next man.
     case clearedOut(seat: Seat, to: Seat?)
     case whistleArmed(seat: Seat)
@@ -201,7 +201,7 @@ enum GameEvent: Hashable, Codable {
             return "\(seat.playerName) \(seat.verb("clamps", "clamp")) down — \(card.name)."
         case .clampBit(let seat, let card, let discarded):
             return "\(card.name) on \(seat.playerName): \(discarded) card\(discarded == 1 ? "" : "s") gone."
-        case .whistleBlew(let owner, let card, let cancelled, _, _):
+        case .whistleBlew(let owner, let card, let cancelled, _, _, _):
             // The crew's calls have no name in front of them — nobody set them down.
             guard let owner else { return "WHISTLE! \(card.name) cancels \(cancelled)." }
             return "WHISTLE! \(owner.playerName)'s \(card.name) cancels \(cancelled)."

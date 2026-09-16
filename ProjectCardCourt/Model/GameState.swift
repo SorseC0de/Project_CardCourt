@@ -323,6 +323,11 @@ struct GameState: Codable {
     /// One of each a possession — see `Rules.legalMoves`.
     var playedVarenaThisPossession = false
     var playedVariaballThisPossession = false
+    /// **Whether a round is in the middle of ending.** Ending one pays what it owes and
+    /// deals the next hand, and both settle hands — which is where a stranded man is
+    /// checked for, and a stranded man ends the round. Without this the check calls the
+    /// thing it is inside and the stack runs out.
+    var roundEnding = false
     /// Alley-Oop: whether this possession has been asked "Dunk It?" yet.
     var dunkOffered = false
     /// **How the attempt in the air was taken.** Set the moment a shoot button is pressed
@@ -448,6 +453,17 @@ struct GameState: Codable {
     var floorEffect: VarenaEffect { currentCourt.varena ?? VarenaEffect() }
     /// What the ball does. A Regulation Ball does nothing.
     var ballEffect: VariaballEffect { currentBall?.variaball ?? VariaballEffect() }
+    /// **How many Moves this possession holds**, and nil where nothing is counting — Med
+    /// Ball lifts the limit entirely. The officials tighten it: a referee watching for
+    /// Traveling takes one off for as long as he is working.
+    var moveLimit: Int? {
+        guard !ballEffect.ignoresMoveLimit else { return nil }
+        let tighter = armedWhistles.reduce(0) {
+            $0 + ($1.card.descriptor.whistle?.lowersMoveLimit ?? 0)
+        }
+        return max(1, rules.movesPerPossession - tighter)
+    }
+
     /// **The most cards a hand may hold.** The match's, unless the floor is stricter.
     var handLimit: Int { min(rules.handLimit, floorEffect.handLimit ?? rules.handLimit) }
     /// Intangible slots on this floor.

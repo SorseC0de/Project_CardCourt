@@ -239,6 +239,8 @@ enum Rules {
     /// Checked at the edges of a chain rather than inside one, because a hand that is dead
     /// halfway through a draw is not dead — it is halfway through a draw.
     private static func strandOut(state: inout GameState, events: inout [GameEvent]) {
+        // A round already on its way out is not a possession anybody is stuck in.
+        guard !state.roundEnding else { return }
         guard case .possession(let holder) = state.phase else { return }
         // Traderous Tarmac: a man who can still hand his Clamps on has something to do.
         guard handOffTargets(state, for: holder).isEmpty else { return }
@@ -943,6 +945,15 @@ enum Rules {
             guard legalMoves(state, for: seat).contains(.play(cardID)) else { return [] }
             // Declared but not yet resolved — a Whistle gets to speak here.
             let declared = state[seat].bag[index]
+            // **Traveling, called by the rules.** The limit is the match's and the crew
+            // only tightens it, so the call is made whether or not a referee is watching
+            // for one — see `GameState.moveLimit`. The Move being declared is the one that
+            // breaks it, so it counts itself: at a limit of three the fourth travels.
+            if declared.descriptor.isMove, let limit = state.moveLimit,
+               state.movesThisPossession >= limit {
+                travel(on: .playCard(seat: seat, card: declared), state: &state, events: &events)
+                return events
+            }
             if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: state) {
                 // Negating the effect, not the activation: the Clamp is allowed to be
                 // played and to resolve. The Whistle waits for those defenders to try to
@@ -2439,13 +2450,6 @@ enum Rules {
             if whistle.card.descriptor.whistle?.requiresShotDebuffClamp == true {
                 return state[action.actor].clamps.contains { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
             }
-            // The Move being declared is the one that breaks the limit, so it counts
-            // itself: at a limit of three the fourth is the travel.
-            if let limit = whistle.card.descriptor.whistle?.requiresMovesThisPossession {
-                // Med Ball: the man carrying it can run all day.
-                guard !state.ballEffect.ignoresMoveLimit else { return false }
-                return state.movesThisPossession >= limit
-            }
             return true
         }
     }
@@ -2488,6 +2492,25 @@ enum Rules {
         guard whistle.card.descriptor.whistle?.endsPossession == true else { return }
         state.chainBroken = true
         reinbound(by: seat, state: &state, events: &events)
+    }
+
+    /// **The travel call.**
+    ///
+    /// Blown through the same path a referee's call takes, so the scene, the cancel, the
+    /// turnover and the side-out are the ones every other call gets — but the card it is
+    /// announced with is the rule's rather than one standing on the floor. Where the
+    /// Travel official *is* working, it is his: the camera goes to him.
+    private static func travel(on action: PendingAction,
+                               state: inout GameState, events: inout [GameEvent]) {
+        // **Any of them can blow it, and which one is a coin toss.** Traveling is not one
+        // official's brief — it is the rule they are all working to — so the call goes to
+        // whoever on the crew happens to see it, and the camera goes to him.
+        let crew = state.armedWhistles
+        let caller = crew.isEmpty ? nil : crew[state.roll(0...(crew.count - 1))]
+        // His card, but the rule's words: whoever makes the call, it is a travel.
+        let announced = Card(CardLibrary.travel)
+        let called = ArmedWhistle(owner: nil, card: announced, id: caller?.id ?? UUID())
+        blow(called, on: action, state: &state, events: &events)
     }
 
     /// Spends the Whistle, cancels what tripped it, and applies its effects.
@@ -2550,7 +2573,7 @@ enum Rules {
         state.possessionWasInterrupted = true
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                    cancelled: cancelled, cancelledCard: cancelledCard,
-                                   against: action.actor))
+                                   against: action.actor, caller: whistle.id))
 
         // Dirty Player: the referees have their eye on him, whoever the call was against.
         for other in Seat.allCases {
@@ -3266,6 +3289,8 @@ enum Rules {
     }
 
     private static func endRound(state: inout GameState, events: inout [GameEvent]) {
+        state.roundEnding = true
+        defer { state.roundEnding = false }
         // **A hand owed to the pile goes before the round does.** Huge Altercation queues
         // every hand to the edge of its chain, and a free throw in that chain can end the
         // round first — at the half it was then paid out of the five halftime had dealt.

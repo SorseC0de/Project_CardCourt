@@ -1181,7 +1181,10 @@ func runTests() {
 
     print("Whistle cards")
     do {
-        var (state, seat, cards) = openPossession(seed: 41, cards: [CardLibrary.travel])
+        // **Not Travel.** That one waits on nothing now — the speed limit is a match rule
+        // and his card only tightens it — so the arming tests use one that still lies in
+        // wait. See `CardLibrary.travel`.
+        var (state, seat, cards) = openPossession(seed: 41, cards: [CardLibrary.backCourtViolation])
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state.armedWhistles.count == 1, "playing a Whistle arms it")
         Check.that(events.contains { if case .whistleArmed = $0 { return true }; return false },
@@ -1191,12 +1194,12 @@ func runTests() {
         Check.that(state.ball == seat, "and the possession continues")
     }
     do {
-        // Travel watches Move cards; the offender loses the ball and hands it back in
-        // without the round advancing.
+        // **Traveling is the rules' call, and no referee has to be watching for it.** The
+        // fourth Move is played, discarded for nothing, and the offender hands the ball
+        // back in without the round advancing.
         var (state, seat, cards) = openPossession(seed: 42, cards: [CardLibrary.dribble])
-        state.armedWhistles = [ArmedWhistle(owner: nil, card: matchCard(CardLibrary.travel, state.rules))]
-        // Three Moves are free; the fourth travels — see `CardLibrary.travel`.
-        state.movesThisPossession = 3
+        state.armedWhistles = []
+        state.movesThisPossession = state.rules.movesPerPossession
         let round = state.round
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state[seat].turnovers == 1, "Travel charges the turnover")
@@ -1251,22 +1254,15 @@ func runTests() {
 
     do {
         var (state, seat, cards) = openPossession(
-            seed: 47, cards: [CardLibrary.travel, CardLibrary.shotClockViolation])
+            seed: 47, cards: [CardLibrary.backCourtViolation, CardLibrary.shotClockViolation])
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         Check.that(state.armedWhistles.count == 2, "Whistles gather rather than replacing")
-        Check.that(state.armedWhistles[0].card.descriptor.id == "travel",
+        Check.that(state.armedWhistles[0].card.descriptor.id == "back-court-violation",
                    "and the first one set is still the first in line")
         // An armed Whistle is private. The discard is public, so it must not be there.
-        Check.that(!state.discard.contains { $0.descriptor.id == "travel" },
+        Check.that(!state.discard.contains { $0.descriptor.id == "back-court-violation" },
                    "an armed Whistle stays out of the public pile")
-
-        // And reaches it exactly once when called, never twice.
-        var spent = state
-        spent.armedWhistles = [spent.armedWhistles[0]]
-        Rules.apply(.shoot, by: seat, to: &spent)
-        Check.that(spent.discard.filter { $0.descriptor.id == "travel" }.count <= 1,
-                   "and lands in the pile once when it is spent, not twice")
     }
 
     do {
@@ -1303,7 +1299,7 @@ func runTests() {
         state.shot = 60
         let events = Rules.apply(.shootAs(.dunk), by: seat, to: &state)
         var called: String?
-        for case .whistleBlew(_, let card, _, _, _) in events { called = card.id }
+        for case .whistleBlew(_, let card, _, _, _, _) in events { called = card.id }
         Check.that(called == "charge",
                    "the one set first is the one that fires (got \(called ?? "none"))")
         Check.that(state.armedWhistles.count == 2

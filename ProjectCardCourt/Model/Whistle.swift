@@ -141,10 +141,10 @@ struct WhistleEffect: Hashable, Codable {
     /// Only fires when the man shooting is actually being held down. A Whistle with a
     /// condition rather than only a trigger — see `Rules.interceptor`.
     var requiresShotDebuffClamp = false
-    /// **The speed limit.** Traveling is called on the man who has already made this many
-    /// Moves this possession, so a run of them is free until it is not. Every Move draws a
-    /// card, and this is what stops the engine running for ever.
-    var requiresMovesThisPossession: Int?
+    /// **Tighter officiating.** The speed limit is a core rule now — see
+    /// `MatchRules.movesPerPossession` — and a referee watching for Traveling does not
+    /// bring it, he lowers it: one fewer Move a possession for as long as he is working.
+    var lowersMoveLimit = 0
     /// **Which finish the crew is watching.** A call on dunks says nothing about a layup.
     /// This is the half of the matrix a Clamp forces a player into.
     var requiresShotType: ShotType?

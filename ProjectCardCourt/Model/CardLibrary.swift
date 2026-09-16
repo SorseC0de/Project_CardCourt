@@ -345,14 +345,16 @@ enum CardLibrary {
         whistle: WhistleEffect(trigger: .cardDrawn, cancelsCard: false,
                                offenderInbounds: true, endsPossession: true))
 
-    /// **The speed limit.** Every Move draws a card, so a run of them is a run of cards —
-    /// this is what stops the engine running for ever. Three are free; the fourth travels.
+    /// **Tighter officiating.** The speed limit is the match's — see
+    /// `MatchRules.movesPerPossession` — and this referee does not bring it, he lowers it.
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
-        effect: "4th ~[Move] this possession: #[Cancel] it. #[TOV] +1. Side-out.",
+        effect: "1 fewer ~[Move] card a possession",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true,
-                               requiresMovesThisPossession: 3))
+        // **No trigger: he never intercepts.** The call is the rules' and is made whether
+        // or not he is working — all he does is tighten the limit. His card is still what
+        // the call is announced with, so `Rules.travel` reaches for him when he is out.
+        whistle: WhistleEffect(turnoverOnOffender: true, lowersMoveLimit: 1))
 
     /// **Out of the deck.** It answers a Game Break, and there are none — see `whistles`.
     static let playOn = CardDescriptor(

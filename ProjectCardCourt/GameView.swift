@@ -853,7 +853,7 @@ struct GameView: View {
                   frozen: dim > 0 || onFloor != nil,
                   // The crew's two moments. He is stood behind whatever is on screen for
                   // both, which is the point — the floor is what the call is about.
-                  callingCard: controller.whistleReveal?.card.id,
+                  callingRef: controller.whistleReveal?.caller,
                   shooting: controller.cutscene != nil,
                   showingClamps: beingRead?.clamp != nil,
                   // A lesson is about the cards; nobody on the floor opens.

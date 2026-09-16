@@ -249,7 +249,7 @@ if args.contains("--density") {
                 if case .movePlayed(_, let c, _) = e { moves[c.name, default: 0] += 1 }
                 if case .whistleArmed = e { armed += 1 }
                 if case .whistleRefocused = e { refocused += 1 }
-                if case .whistleBlew(_, let c, _, _, _) = e { blew[c.name, default: 0] += 1 }
+                if case .whistleBlew(_, let c, _, _, _, _) = e { blew[c.name, default: 0] += 1 }
                 if case .clampSet = e { clampsSet += 1 }
                 if case .reinbound = e { reinbounds += 1 }
                 if case .shotAttempted(_, let pct, _) = e { shotPct += pct }

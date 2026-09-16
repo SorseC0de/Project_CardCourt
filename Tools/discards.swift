@@ -41,7 +41,7 @@ func measureDiscards() {
             case .movePlayed(_, let card, _):      cause = "played \(card.name)"
             case .passed(let card, _, _, _, _):    cause = "played \(card.name)"
             case .clampSet(_, let card):           cause = "clamp \(card.name)"
-            case .whistleBlew(_, let card, _, _, _): cause = "whistle \(card.name)"
+            case .whistleBlew(_, let card, _, _, _, _): cause = "whistle \(card.name)"
             case .gameBreakRevealed(_, let card):  cause = card.name
             case .injuryRevealed(_, let card):     cause = "injury \(card.name)"
             case .intangibleRevealed(_, let card): cause = card.name

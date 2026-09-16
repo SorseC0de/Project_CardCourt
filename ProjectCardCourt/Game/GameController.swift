@@ -299,7 +299,7 @@ struct TurnoverCutscene: Identifiable, Equatable {
         for event in events {
             switch event {
             case .failedReturn:                 kind = .badReturn
-            case .whistleBlew(_, let card, _, _, _): kind = .whistle(card.name)
+            case .whistleBlew(_, let card, _, _, _, _): kind = .whistle(card.name)
             case .turnover(let who, let cause):
                 seat = who
                 // Nil is the clock, which is the only turnover nobody caused.
@@ -382,6 +382,9 @@ struct ScoreCall: Identifiable, Equatable {
 
 struct WhistleReveal: Identifiable, Equatable {
     let id = UUID()
+    /// **Which official blew it**, by his place in the crew rather than by his card — any
+    /// of the three can call a travel, so the card no longer names the man.
+    var caller: UUID?
     /// **Nil for the crew**, which is every referee now: they are dealt face-up off the
     /// officials deck and belong to nobody.
     let owner: Seat?
@@ -395,9 +398,10 @@ struct WhistleReveal: Identifiable, Equatable {
     /// A Whistle counts as met when it is *called*, not when it is set down — a badge on
     /// the face-down card would give away the trap the game works hard to keep.
     static func first(in events: [GameEvent], seen: SeenCards) -> WhistleReveal? {
-        for case .whistleBlew(let owner, let card, let cancelled, let victim, _) in events {
-            return WhistleReveal(owner: owner, card: card, cancelled: cancelled,
-                                 cancelledCard: victim, isNew: seen.meet(card.id))
+        for case .whistleBlew(let owner, let card, let cancelled, let victim, _, let caller) in events {
+            return WhistleReveal(caller: caller, owner: owner, card: card,
+                                 cancelled: cancelled, cancelledCard: victim,
+                                 isNew: seen.meet(card.id))
         }
         return nil
     }
@@ -2598,7 +2602,7 @@ final class GameController {
         guard let scene = WhistleReveal.first(in: events, seen: SeenCards.shared) else { return }
         // Which of the crew it was, by where his card stands in the line — the court lays
         // the men out in that order, so the index is the man.
-        let slot = state.armedWhistles.firstIndex { $0.card.descriptor.id == scene.card.id }
+        let slot = state.armedWhistles.firstIndex { $0.id == scene.caller }
         whistleReveal = scene
         if let slot {
             camera = CourtCamera(subjects: [.referee(slot)], zoom: Pacing.whistleZoom,

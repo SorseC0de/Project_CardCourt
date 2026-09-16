@@ -121,7 +121,7 @@ enum DevLog {
                 say(.whistle, "\(seat.dev) calls \(card.name)")
             case .whistleArmed(let seat):
                 say(.whistle, "\(seat.dev) arms one")
-            case .whistleBlew(let owner, let card, let cancelled, _, let against):
+            case .whistleBlew(let owner, let card, let cancelled, _, let against, _):
                 // Whose card, not just which card. The name on its own left you working
                 // out which of the four an Ankle Breaker had belonged to.
                 say(.whistle, (owner.map { "\($0.dev)'s " } ?? "") + "\(card.name) cancels "
