@@ -293,11 +293,18 @@ struct ActionBarView: View {
     /// **Three buttons, not one.** A layup is always there; the other two are earned, and
     /// a button that is not on offer is simply not drawn — what it wanted is printed on
     /// the card of whatever is keeping it away.
+    ///
+    /// **Laid out by hand rather than with a `ForEach`.** There are exactly three of them
+    /// and which ones are offered changes as the look and the hand move — so as a dynamic
+    /// list, each pill's identity came and went underneath it, and the `SpectrumFill` in
+    /// its background is a view with `@State` of its own. SwiftUI was updating a state box
+    /// belonging to a child the list had already rebuilt, which is a crash rather than a
+    /// glitch. Three fixed slots give each button a permanent place in the tree.
     private var shootPill: some View {
         HStack(spacing: 6) {
-            ForEach(finishes) { finish in
-                finishPill(finish)
-            }
+            if finishes.contains(.layup) { finishPill(.layup) }
+            if finishes.contains(.dunk) { finishPill(.dunk) }
+            if finishes.contains(.three) { finishPill(.three) }
         }
     }
 
