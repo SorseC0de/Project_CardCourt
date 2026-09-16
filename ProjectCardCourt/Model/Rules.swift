@@ -2442,6 +2442,8 @@ enum Rules {
             // The Move being declared is the one that breaks the limit, so it counts
             // itself: at a limit of three the fourth is the travel.
             if let limit = whistle.card.descriptor.whistle?.requiresMovesThisPossession {
+                // Med Ball: the man carrying it can run all day.
+                guard !state.ballEffect.ignoresMoveLimit else { return false }
                 return state.movesThisPossession >= limit
             }
             return true

@@ -951,8 +951,8 @@ enum CardLibrary {
 
     static let medBall = CardDescriptor(
         id: "med-ball", name: "Med Ball", type: .variaball,
-        effect: "SHOT cannot exceed 50%", numberInDeck: 1,
-        variaball: VariaballEffect(shotCeiling: 50))
+        effect: "SHOT cannot exceed 50%. ~[Move] cards never @[Travel]", numberInDeck: 1,
+        variaball: VariaballEffect(shotCeiling: 50, ignoresMoveLimit: true))
     static let dishcountBall = CardDescriptor(
         id: "dishcount-ball", name: "Dishcount Ball", type: .variaball,
         effect: "#[Discard] one fewer for card costs and ~[Clamps]", numberInDeck: 1,
@@ -1411,7 +1411,7 @@ enum CardLibrary {
     /// are categories, not cards, and colouring them read as a reference to something
     /// that does not exist.
     static let namesReferencedInText: [String] = [
-        "Rhythm Dribble", "Timeout", "Dribble", "Drive",
+        "Rhythm Dribble", "Timeout", "Dribble", "Drive", "Travel",
     ]
 
     static func buildDeck(pool: [CardDescriptor], passShotBonus: Int) -> [Card] {

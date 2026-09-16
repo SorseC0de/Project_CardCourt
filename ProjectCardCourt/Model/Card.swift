@@ -457,6 +457,12 @@ struct VariaballEffect: Hashable, Codable {
     var injuriesTravel = false
     /// Bench Ball: caught off a pass, you go straight to the inbound.
     var benchesReceiver = false
+    /// **Med Ball: the man holding it is never called for Traveling.** A ball whose only
+    /// word was a ceiling was a card you were sorry to be handed; this is the half that
+    /// makes picking it up a decision — you cannot get a good look with it, but you can
+    /// run all day. See `WhistleEffect.requiresMovesThisPossession`, which is the limit it
+    /// lifts.
+    var ignoresMoveLimit = false
     /// Dishtracting Ball: putting it up costs a card. **On the shot, not on the catch** —
     /// a toll every player paid the moment the ball reached them taxed the whole table on
     /// every change of possession, which is a lot of hand for a ball nobody chose to hold.

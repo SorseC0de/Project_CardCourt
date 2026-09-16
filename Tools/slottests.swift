@@ -152,6 +152,28 @@ func slotTests() {
                    "Bench Ball: caught off a pass, no draw, straight to the inbound")
     }
     do {
+        // **Med Ball lifts the speed limit.** Travel is called on the fourth Move of a
+        // possession; the man carrying this one can run all day, which is the half of the
+        // card that makes picking it up a decision rather than a punishment.
+        var (state, seat, cards) = openPossession(seed: 213, cards: [CardLibrary.drive])
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.travel, state.rules))]
+        state.movesThisPossession = 3
+        let called = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(called.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "the fourth Move travels")
+
+        var (loose, runner, running) = openPossession(seed: 213, cards: [CardLibrary.drive])
+        loose.ballCard = Card(CardLibrary.medBall)
+        loose.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.travel, loose.rules))]
+        loose.movesThisPossession = 3
+        let waved = Rules.apply(.play(running[0].id), by: runner, to: &loose)
+        Check.that(!waved.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "Med Ball: Move cards never Travel")
+    }
+
+    do {
         // **On the shot, not on the catch.** Taking the ball is free; putting it up is
         // what costs a card, and it is the shooter who pays.
         var (state, seat, cards) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
