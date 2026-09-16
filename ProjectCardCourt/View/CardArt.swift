@@ -347,12 +347,22 @@ struct CardBodyFill: View {
 
     /// What this card is printed on — the face's own colour, injuries included, so a
     /// knock and a season-ender are picked on the bench like everything else.
-    private var ground: Color { tuning.bodyInk(for: face) }
+    private var skin: CardSkin { CardSkin.of(face) }
+    private var ground: Color { skin.body }
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
                 Rectangle().fill(isDormant ? CardPalette.gray : ground)
+                // **Theme C's panel.** The frame is the white or the black and the type
+                // is the paper inside it, so the body is drawn twice: the intent, then
+                // the colour inset to where the ring runs.
+                if let panel = skin.panel, !isDormant {
+                    RoundedRectangle(cornerRadius: geo.size.width * CardLayout.strokeCornerFraction,
+                                     style: .continuous)
+                        .fill(panel)
+                        .padding(geo.size.width * CardLayout.strokeInsetFraction)
+                }
                 if CardPalette.isStriped(face.type), !isDormant {
                     HStack(spacing: 0) {
                         ForEach(0..<stripes, id: \.self) { index in
@@ -434,11 +444,15 @@ enum CardLayout {
 
     static let cornerFraction: CGFloat = 0.08
 
-    static let strokeFraction: CGFloat = 21 / across
+    /// **Thinner than it was drawn.** The ring was 21 across, which is a heavy line for
+    /// something whose only job is to say where the card stops — and every point of it is
+    /// a point the words do not get. At 12 the frame still reads and the text area is
+    /// wide enough for four legible lines.
+    static let strokeFraction: CGFloat = 12 / across
     static let strokeInsetFraction: CGFloat = 15 / across
     static let strokeCornerFraction: CGFloat = 50 / across
 
-    static let textOverlayWidthFraction: CGFloat = 0.75
+    static let textOverlayWidthFraction: CGFloat = 0.82
     static let textOverlayBottomFraction: CGFloat = 51 / down
     /// The court overlay's own shape — 1792 by 1063 on its artboard. Written down so the
     /// dark panel can be given the same box without laying the drawing out to find it.

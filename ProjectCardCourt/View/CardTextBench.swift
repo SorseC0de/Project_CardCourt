@@ -443,6 +443,9 @@ final class CardTextTuning {
     var y = CardTextStyle.y
     var weight = CardTextStyle.weight
 
+    /// **Which theme the deck is printed in.** A debug switch until it is a setting —
+    /// on the tuning rather than as a bare global so a card repaints the moment it moves.
+    var theme: CardTheme = .a
     var darkBodies = CardTextStyle.darkBodies
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
@@ -678,6 +681,11 @@ struct CardTextBench: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.white)
                 chip(raised ? "raised" : "in hand", on: true) { raised.toggle() }
+                // **The theme, switched here until it is a setting.** A, B and C — see
+                // `CardTheme`. The whole bench repaints, which is the point of it.
+                ForEach(CardTheme.allCases) { theme in
+                    chip(theme.label, on: tune.theme == theme) { tune.theme = theme }
+                }
                 Spacer()
                 Button { withAnimation(.easeOut(duration: 0.2)) { open.toggle() } } label: {
                     Image(systemName: open ? "chevron.down" : "chevron.up")

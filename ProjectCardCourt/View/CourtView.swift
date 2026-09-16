@@ -998,8 +998,13 @@ struct CourtView: View {
             // by his depth, so the label divides that back out and comes out at exactly
             // `Referee.name` points — the same on every post and every phone.
             let nameScale = 1 / court.scale(at: post.depth)
+            // **A referee works with his back to the play until he has something to say.**
+            // The sheet faces one way and the left-hand posts turn him round; both are
+            // turned again on top of that, so the crew stands looking out at the house —
+            // and a man making a call turns in to make it.
             RefereeFigure(duty: refereeDuty,
-                          mirrored: post.isLeft, phase: post.phase,
+                          mirrored: refereeDuty == .calling ? post.isLeft : !post.isLeft,
+                          phase: post.phase,
                           tone: look.refereeTone(for: called.id),
                           frozen: frozen)
                 // **What he is watching for**, over his head. Nobody owns a referee any

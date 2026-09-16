@@ -172,13 +172,13 @@ struct CardFrontView: View {
         // of this card rather than as two buttons the app put on top of it.
         return VStack(spacing: size * 0.4) {
             if !combos.isEmpty {
-                extrasCapsule("COMBO", size: size, fill: set.bodyInk(for: face),
+                extrasCapsule("COMBO", size: size, fill: skin.body,
                               drop: ringColour, ink: effectColour) { onCombo?() }
             }
             if !descriptor.bonusLines.isEmpty {
-                extrasCapsule("BONUS", size: size, fill: set.plateFillInk(for: face),
+                extrasCapsule("BONUS", size: size, fill: skin.plate,
                               drop: namePlateShadow,
-                              ink: set.nameBottomInk(for: face)) {}
+                              ink: skin.nameBottom) {}
                     // Where it is on screen, so the bubble hangs off the button itself.
                     .overlay {
                         if let onBonus {
@@ -315,6 +315,12 @@ struct CardFrontView: View {
                                 side: side * (descriptor.artwork?.scale ?? 1),
                                 slash: set.iconShadeInk(for: face)))
         .rotationEffect(.degrees(descriptor.iconRotation))
+        // **The circle the subject stands in, recoloured.** Every type icon is drawn with
+        // the same tan plate under it, so the theme swaps that one entry rather than
+        // keeping a recoloured copy of every drawing — the court lines printed on it are
+        // cloud and are left exactly as they are. See `CardSkin.printedIconPlate`.
+        .paletteSwap(skin.iconPlate == CardSkin.printedIconPlate
+                     ? [] : [PaletteSwap(CardSkin.printedIconPlate, skin.iconPlate)])
         .shadow(color: set.iconShadeInk(for: face), radius: 0, x: drop, y: drop)
         // **Placed by the top of its circle, not by its centre or its frame**, because
         // what the number has to hold is how far the icon disappears behind the name
@@ -562,8 +568,7 @@ struct CardFrontView: View {
                 Image("CardTextOverlay")
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(CardLayout.tint(for: face)
-                        .colour(on: face))
+                    .foregroundStyle(skin.overlay)
                     .blendMode(CardLayout.blend(for: face))
                     .opacity(CardLayout.opacity(for: face))
                 // Over the court rather than under it: the lines are as much of what the
@@ -588,11 +593,12 @@ struct CardFrontView: View {
     /// dark enough to swallow navy lettering, which is Intangibles and Game Breaks both.
     /// What this card is printed in. One table, asked once — see `CardInk`.
     private var ink: CardInk { CardInk.of(face) }
-    private var ringColour: Color { ink.ring }
+    private var skin: CardSkin { CardSkin.of(face) }
+    private var ringColour: Color { skin.ring }
     /// The name sits on the gold plate, so it stays navy whatever the body is. This is the
     /// effect text, which sits on the body itself.
-    private var effectColour: Color { ink.text }
-    private var namePlateShadow: Color { ink.plate }
+    private var effectColour: Color { skin.text }
+    private var namePlateShadow: Color { skin.plateShade }
 
     /// **The one line round the card.** Its weight is per type — see
     /// `CardTextStyle.ringWidth`, which says why the same number does not look the same
@@ -610,7 +616,7 @@ struct CardFrontView: View {
     /// is a gradient of a colour against itself — so there is no separate single-ink case
     /// to keep in step with this one.
     private func nameFill(size: CGFloat) -> LinearGradient {
-        .hardSplit(set.nameTopInk(for: face), set.nameBottomInk(for: face),
+        .hardSplit(skin.nameTop, skin.nameBottom,
                    in: UIFont(name: "AvenirNextCondensed-Heavy", size: size))
     }
 
@@ -631,7 +637,7 @@ struct CardFrontView: View {
                     .frame(width: plateWidth)
                     // The drawing is one flat shape, so its colour is a tint rather than
                     // anything baked in — see `CardTextStyle.plateFill`.
-                    .foregroundStyle(set.plateFillInk(for: face))
+                    .foregroundStyle(skin.plate)
                     .shadow(color: namePlateShadow, radius: 0, x: 0,
                             y: plateWidth * CardLayout.namePlateShadowFraction)
                     .opacity(banner ? 1 : 0)
