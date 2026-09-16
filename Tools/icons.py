@@ -328,7 +328,11 @@ for name in sorted(layers):
 # **Drawings that are not type icons**, trimmed to their own ink the way they were before
 # Affinity wrote the artboard back out — with half the widest stroke kept, so no edge line
 # is cut.
-TRIMMED = ("ISO_Court", "ISO_Court_v2", "CardCourt_Ball", "Shot_Icon", "Dunk_Icon")
+# **Move_meter** is the Move subject with the two leading dashes cut off it: the HUD
+# draws those three as pips instead, so the drawing has to start where its long bar
+# does. See `TravelMeter`.
+TRIMMED = ("ISO_Court", "ISO_Court_v2", "CardCourt_Ball", "Shot_Icon", "Dunk_Icon",
+           "Move_meter")
 
 
 def ink(text: str):
