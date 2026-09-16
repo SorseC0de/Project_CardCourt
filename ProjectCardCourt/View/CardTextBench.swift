@@ -167,6 +167,12 @@ enum CardTextStyle {
     ///
     /// **The same box the court overlay is drawn in**, corner aside — see
     /// `CardLayout.textOverlay*`, which both of them are laid out by.
+    /// **The other paper.** Every card is printed on cloud; turning this on prints the
+    /// whole deck on black instead and flips the lettering with it. One switch rather than
+    /// a second set of tables, because the only thing that changes is the ground and what
+    /// reads on it — the badges and the rings are the type's colour either way.
+    static let darkBodies = false
+
     static let panel = false
     /// Its corner, against the card's width.
     static let panelCorner: CGFloat = 0.05
@@ -437,6 +443,7 @@ final class CardTextTuning {
     var y = CardTextStyle.y
     var weight = CardTextStyle.weight
 
+    var darkBodies = CardTextStyle.darkBodies
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
 
@@ -477,7 +484,9 @@ final class CardTextTuning {
     var plateDrop = CardTextStyle.plateDrop
     var plateFill = CardTextStyle.plateFill
 
-    func ink(for face: CardFace) -> Color { (text[face] ?? .navy).colour }
+    func ink(for face: CardFace) -> Color {
+        darkBodies ? CardPalette.cloud : (text[face] ?? .navy).colour
+    }
     func keywordInk(for face: CardFace) -> Color {
         (keyword[face] ?? .orange).legible(on: body[face] ?? .blue).colour
     }
@@ -493,7 +502,9 @@ final class CardTextTuning {
     }
     func ringInk(for face: CardFace) -> Color { (ring[face] ?? .navy).colour }
     func ringWeight(for face: CardFace) -> CGFloat { ringWidth[face] ?? 1 }
-    func bodyInk(for face: CardFace) -> Color { (body[face] ?? .blue).colour }
+    func bodyInk(for face: CardFace) -> Color {
+        darkBodies ? CardPalette.black : (body[face] ?? .cloud).colour
+    }
     func nameTopInk(for face: CardFace) -> Color { (nameTop[face] ?? .navy).colour }
     func nameBottomInk(for face: CardFace) -> Color { (nameBottom[face] ?? .navy).colour }
     /// What falls behind the banner.
@@ -505,6 +516,7 @@ final class CardTextTuning {
         size = CardTextStyle.size; inset = CardTextStyle.inset
         lineHeight = CardTextStyle.lineHeight; tracking = CardTextStyle.tracking
         y = CardTextStyle.y; weight = CardTextStyle.weight
+        darkBodies = CardTextStyle.darkBodies
         shadows = CardTextStyle.shadows; shadowDrop = CardTextStyle.shadowDrop
         footSize = CardTextStyle.footSize; footGap = CardTextStyle.footGap
         footBottom = CardTextStyle.footBottom
@@ -565,6 +577,7 @@ final class CardTextTuning {
         static let iconScale: CGFloat = \(n(iconScale))
         static let iconDrop: CGFloat = \(n(iconDrop))
         static let iconTop: CGFloat = \(n(iconTop))
+        static let darkBodies = \(darkBodies)
         static let panel = \(panel)
         static let panelCorner: CGFloat = \(n(panelCorner))
         static let panelDark: CGFloat = \(n(panelDark))

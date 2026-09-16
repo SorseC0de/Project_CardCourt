@@ -263,8 +263,9 @@ ring is the cloud body showing outside the inset stroke.
 The officials deck has its own back — `RefereeCardBack`, the stripes off the face carried
 down the length of the card with a gold whistle in the middle.
 
-**Not built:** the black body as a switchable option. Everything is keyed off one table, so
-it is a second set of values rather than a second code path.
+Black is the other option and it is one switch: `CardTextStyle.darkBodies` prints the whole
+deck on black and flips the lettering to cloud. The badges and the rings are the type's
+colour either way, so nothing else has to change.
 
 ---
 
