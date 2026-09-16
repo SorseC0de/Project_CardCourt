@@ -211,16 +211,21 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
     ///
     /// One pair per face, and the whole of what colour says on a card now: the bodies are
     /// all the same paper, so the type is read off the name badge, the inner ring and the
-    /// tint the words sit on. Moves are teal — green had them arguing with the court.
+    /// tint the words sit on.
+    ///
+    /// **Five types, five colours**, in the words the cards use for them rather than the
+    /// words the palette does: Pass is blue, a Move is *green* and drawn in teal, a Clamp
+    /// is red, a Ball is *purple* and drawn in azure, and an Intangible is *yellow* and
+    /// drawn in gold. A Special Move is a Move, so it is a Move's colour — what makes it
+    /// special is the gold banner it wears, not a colour of its own. See `CardSkin`.
     var colour: CardTextInk {
         switch self {
         case .pass:              return .blue
-        case .move:              return .teal
-        case .specialMove:       return .gold
+        case .move, .specialMove: return .teal
         case .clamp:             return .red
         case .whistle:           return .black
         case .gameBreak:         return .purple
-        case .intangible:        return .green
+        case .intangible:        return .gold
         case .injury:            return .blood
         case .devastatingInjury: return .maroon
         case .varena:            return .plum
@@ -233,12 +238,11 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
     var shade: CardTextInk {
         switch self {
         case .pass:              return .darkBlue
-        case .move:              return .cobalt
-        case .specialMove:       return .orange
+        case .move, .specialMove: return .cobalt
         case .clamp:             return .darkRed
         case .whistle:           return .navy
         case .gameBreak:         return .plum
-        case .intangible:        return .cobalt
+        case .intangible:        return .orange
         case .injury:            return .maroon
         case .devastatingInjury: return .plum
         case .varena:            return .cobalt
@@ -249,7 +253,9 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
     /// Whether the type's own colour is light enough that lettering on it has to be dark.
     /// Whether the badge under the name is light enough that the lettering has to be
     /// dark. Both the gilded types are — see `CardSkin`, which is what gilds them.
-    var lettersDark: Bool { self == .specialMove || self == .variaball }
+    var lettersDark: Bool {
+        self == .specialMove || self == .variaball || self == .intangible
+    }
 
     /// The type it is by the rules, for anything that has to ask that instead.
     var type: CardType {

@@ -867,7 +867,7 @@ struct CourtView: View {
     /// yours, so an opponent's used to go from a running court straight to a ball in the
     /// air; the phase says it a whole presentation early, so the floor set up behind the
     /// scenes that were still playing. The controller says when.
-    private var isStill: Bool { throwing != nil || inbounding != nil }
+    private var isStill: Bool { throwing != nil || inbounding != nil || callingRef != nil }
 
     /// Whether the play is actually running, which is what the moving scenery asks.
     ///
@@ -887,8 +887,21 @@ struct CourtView: View {
     /// pose stands him still, which is the same rule the scenery follows.
     private func refereeDuty(_ call: RefereeCall) -> RefereeFigure.Duty {
         if call.whistle.id == callingRef { return .calling }
-        if shooting { return .watching }
+        // **The rest of the crew turn to look at him.** Which way depends on where he is
+        // standing against them, so a man to their left is looked at leftward.
+        if let caller = crewPost(callingRef) {
+            return .turned(caller.lateral < call.post.lateral ? 1 : 2)
+        }
+        // **Nobody watches an ordinary basket.** Three of them are out there every round
+        // now, and three men turning to follow every shot read as a crowd rather than as
+        // officials. A free throw still gets watched — see `FreeThrowView`.
         return courtIsRunning && !frozen ? .working : .waiting
+    }
+
+    /// Where on the floor the official making the call is standing.
+    private func crewPost(_ id: UUID?) -> RefereePost? {
+        guard let id else { return nil }
+        return refereeCrew.first { $0.whistle.id == id }?.post
     }
 
     /// Whether this seat is watching somebody else go up for the board.
@@ -1000,13 +1013,13 @@ struct CourtView: View {
             // by his depth, so the label divides that back out and comes out at exactly
             // `Referee.name` points — the same on every post and every phone.
             let nameScale = 1 / court.scale(at: post.depth)
-            // **A referee works with his back to the play until he has something to say.**
-            // The sheet faces one way and the left-hand posts turn him round; both are
-            // turned again on top of that, so the crew stands looking out at the house —
-            // and a man making a call turns in to make it.
+            // The sheet faces the right-hand touchline and the left-hand posts turn him
+            // round. **A turned pose faces the caller instead**, and the sheet already
+            // says which way, so it is never mirrored on top of that.
             let duty = refereeDuty(call)
+            let turned = { if case .turned = duty { return true }; return false }()
             RefereeFigure(duty: duty,
-                          mirrored: duty == .calling ? post.isLeft : !post.isLeft,
+                          mirrored: turned ? false : post.isLeft,
                           phase: post.phase,
                           tone: look.refereeTone(for: called.id),
                           frozen: frozen)
@@ -1105,8 +1118,10 @@ struct CourtView: View {
                 // were jogging on the spot through the whole leap, which read as a play
                 // carrying on behind the one thing everybody is meant to be looking at.
                 // They pick their running back up the moment he comes down with it.
+                // A call stops the play: everybody stands, turned away, while the
+                // official makes it — the same pose they hold for a rebound.
                 sprite: waitingForThrow(seat) ? .inboundReceiverBack
-                    : (watching(seat) ? .back : nil),
+                    : ((watching(seat) || callingRef != nil) ? .back : nil),
                 spriteFrame: waitingForThrow(seat) ? look.waiting(for: seat).cell : nil,
                 facing: passer,
                 mirrored: waitingForThrow(seat) ? (look.waiting(for: seat).mirrored

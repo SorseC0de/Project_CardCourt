@@ -33,6 +33,13 @@ enum Sprite: String, CaseIterable {
     case refereeRight = "Referee_Right"
     case refereeCall = "Referee_Call"
     case refereeShot = "Referee_Shot"
+    /// **Turned to the play.** Three held frames: nought looking straight out, one looking
+    /// left and two looking right — so a crew watching one of their own make a call all
+    /// turn the right way. See `RefereeFigure.Duty.watching(_:)`.
+    case refereeFront = "Referee_front"
+    /// And the same man following a free throw up, which he takes from frame nought of
+    /// `refereeFront` the moment it is launched.
+    case refereeShotFront = "Referee_shot_front"
     /// Throwing it back in from the sideline. Four frames, and deliberately slow.
     case inbounder = "Player_Inbounder"
     /// What three of the four do during an inbound: turned upcourt toward the thrower.
@@ -102,7 +109,8 @@ enum Sprite: String, CaseIterable {
         case .sparkleBurst2: return 18
         case .sparkleBurst3: return 17
         case .front, .back, .right, .akuma, .praised, .gooseneck, .holdBall: return 1
-        case .refereeRight, .refereeCall, .refereeShot: return 1
+        case .refereeRight, .refereeCall, .refereeShot, .refereeShotFront: return 1
+        case .refereeFront: return 3
         case .heads, .faces: return 9
         case .inbounder:    return 4
         // Three ways of standing about waiting for a throw.

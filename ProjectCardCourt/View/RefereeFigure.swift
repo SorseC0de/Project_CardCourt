@@ -6,7 +6,7 @@ import SwiftUI
 /// for — that a referee is out there at all is the whole tell.
 struct RefereeFigure: View {
     /// What he is doing, which is one loop and three held poses.
-    enum Duty {
+    enum Duty: Equatable {
         /// Jogging and looking about, which is the only one that moves on its own.
         case working
         /// Stood still, because the game is. Anything that holds the players in a pose
@@ -14,7 +14,11 @@ struct RefereeFigure: View {
         case waiting
         /// Blowing it. The pose does the shouting; the shake is this view's.
         case calling
-        /// Watching a shot go up, from the moment it is taken.
+        /// **Turned to the play.** Nought is looking straight out, one is looking left and
+        /// two is looking right — which is how the rest of the crew turn toward whichever
+        /// of them is making a call.
+        case turned(Int)
+        /// Following a free throw up, from the moment it is launched.
         case watching
 
         var sheet: Sprite {
@@ -22,8 +26,15 @@ struct RefereeFigure: View {
             case .working:  return .refereeRunLook
             case .waiting:  return .refereeRight
             case .calling:  return .refereeCall
-            case .watching: return .refereeShot
+            case .turned:   return .refereeFront
+            case .watching: return .refereeShotFront
             }
+        }
+
+        /// Which cell he is held on. Only the turned poses pick one.
+        var frame: Int {
+            if case .turned(let at) = self { return at }
+            return 0
         }
     }
 
@@ -62,7 +73,8 @@ struct RefereeFigure: View {
                 let shake = rattle(at: tick.date)
                 SpriteAnimation(sprite: duty.sheet, scale: scale,
                                 fps: Theme.Figure.playerFPS,
-                                isPlaying: duty == .working && !frozen, phase: phase)
+                                isPlaying: duty == .working && !frozen,
+                                restFrame: duty.frame, phase: phase)
                     .scaleEffect(x: mirrored ? -1 : 1)
                     .offset(x: shake.x * scale, y: shake.y * scale)
             }

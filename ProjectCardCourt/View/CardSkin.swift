@@ -158,9 +158,9 @@ struct CardSkin {
         let gilded = face == .variaball || face == .specialMove
         let badge: Color = gilded ? CardPalette.gold : type
         let badgeShade: Color = gilded ? CardPalette.orange : shade
-        // **A Special Move is a Move**, so it is ringed in the Move's teal — the colour
-        // the cards call green.
-        let ringInk: Color = face == .specialMove ? CardFace.move.colour.colour : type
+        // A Special Move is a Move and carries a Move's colour, so its ring is simply the
+        // type's like everyone else's.
+        let ringInk: Color = type
 
         switch theme {
         case .a:

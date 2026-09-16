@@ -213,7 +213,10 @@ struct ShotCutsceneView: View {
                         .zIndex(Depth.court)
 
                     if let referee {
-                        RefereeFigure(duty: .watching, mirrored: true, scale: Official.scale,
+                        // Turned to the play rather than following the ball: three of them
+                        // work every round now, and an official craning after every shot
+                        // read as a crowd. Only a free throw is watched up.
+                        RefereeFigure(duty: .turned(0), mirrored: false, scale: Official.scale,
                                       tone: PlayerLook.shared.refereeTone(for: referee.id),
                                       frozen: true)
                             .position(x: rimPoint(in: stage).x + tuning.rimWidth * Official.across,

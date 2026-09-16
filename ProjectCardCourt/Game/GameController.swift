@@ -2592,6 +2592,11 @@ final class GameController {
         }
     }
 
+    /// **Which official is making a call, while he is making it.** Set before the card is
+    /// shown and cleared after it, so the floor plays the call out on its own first — see
+    /// `showWhistle`. The reveal is the card; this is the man.
+    private(set) var callOnFloor: UUID?
+
     /// A Whistle turning face up.
     /// **A call, in three beats.** The referee who made it first: the camera goes to him
     /// and he blows it where he stands, so the call comes from a man on the floor rather
@@ -2603,14 +2608,20 @@ final class GameController {
         // Which of the crew it was, by where his card stands in the line — the court lays
         // the men out in that order, so the index is the man.
         let slot = state.armedWhistles.firstIndex { $0.id == scene.caller }
-        whistleReveal = scene
+        // **The floor first, and nothing over it.** Play stops, the crew turn to the man
+        // making the call, he blows it where he stands and the camera goes to him — all of
+        // it readable, because the card is not on top of it yet.
+        callOnFloor = scene.caller
         if let slot {
             camera = CourtCamera(subjects: [.referee(slot)], zoom: Pacing.whistleZoom,
                                  seconds: Pacing.whistleFrame)
-            try? await Task.sleep(for: .seconds(Pacing.whistleHold))
         }
+        try? await Task.sleep(for: .seconds(Pacing.whistleHold))
+        // Only then the Z card, and the turn.
+        whistleReveal = scene
         await hold(scene.isNew, seconds: Pacing.whistleReveal) { self.whistleReveal }
         whistleReveal = nil
+        callOnFloor = nil
         if slot != nil { camera = nil }
     }
 

@@ -118,7 +118,10 @@ struct FreeThrowView: View {
 
                 // Side on until the ball goes up, then watching it.
                 if let referee {
-                    RefereeFigure(duty: launched ? .watching : .waiting, mirrored: true,
+                    // **Facing the line until the ball is up.** Frame nought of the
+                    // turned sheet is him looking straight out; the moment it is launched
+                    // he follows it. Never mirrored — the sheet already faces forward.
+                    RefereeFigure(duty: launched ? .watching : .turned(0), mirrored: false,
                                   scale: Official.scale,
                                   tone: PlayerLook.shared.refereeTone(for: referee.id),
                                   frozen: true)
