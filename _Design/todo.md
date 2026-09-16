@@ -326,18 +326,12 @@ Making Traveling a standing rule rather than a card somebody sets down turned it
 **"you didn't say Uno"** of this game: four Move cards in one possession is a call any
 player at the table can make on any other, out loud, and everyone can count it because the
 cards played this possession are face-up in front of the man playing them. Nothing enforces
-it but the people sitting there, which is exactly the kind of rule a table enjoys.
+it but the people sitting there.
 
-**The digital version gives that away.** The app calls it the instant the fourth Move is
-played, so the moment of somebody spotting it never happens. Worth deciding which of these
-the app does:
-
-- call it automatically, as now
-- show a count of Moves played this possession and let a player press the referee
-- show the count and still call it — the count is the tell, and seeing it climb is most of
-  the tension
-
-The count is cheap either way: `GameState.movesThisPossession` already holds it.
+**The app calls it automatically, and that is right.** Handling the ruling for you is what
+an automated version is for — the same way a duelling sim is not trying to be a table and
+nobody asks it to be. The two are different games to play, and the difference is understood
+rather than a gap to close. Nothing to decide here.
 
 **To revisit (the user's, when there is time):** Intangibles and Move cards that play around
 the rule — cards that raise the limit, lower it for somebody else, or make a fourth Move
