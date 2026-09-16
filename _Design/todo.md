@@ -336,3 +336,21 @@ rather than a gap to close. Nothing to decide here.
 **To revisit (the user's, when there is time):** Intangibles and Move cards that play around
 the rule — cards that raise the limit, lower it for somebody else, or make a fourth Move
 worth taking the call for. Med Ball is the first of them: it lifts the limit entirely.
+
+## The deck's last slots (the user's, when there is time)
+
+At 298, with two held for two more balls. Two things the user has flagged to look at:
+
+- **Intangibles to a round 30.** One more card. It has to come from somewhere: either one
+  of the two held ball slots, or off the swings — and taking it off the swings moves Skip
+  Pass too, since the across is half of one (20/20/10 today). Coming off the swings is the
+  cheaper of the two: 19/19/10 would be lopsided, so it is really 18/18/9, which frees four.
+
+- **Special Moves outnumber Moves, and they are the sub-class.** Sixteen unique Special
+  Moves against twelve unique Moves. By *cards* it is not close — 70 Moves to 16 — but a
+  sub-class having more distinct cards than the class it belongs to is backwards however
+  the copies fall. Bringing them to eleven or fewer kinds frees five or more slots and
+  settles the Intangible at the same time.
+
+The rework doc already says the Special Moves were never dissolved into Move and Intangible
+the way the plan called for; they were only cut to one copy each. This is the same job.
