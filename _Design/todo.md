@@ -319,3 +319,26 @@ Worth knowing while looking: `Theme.color(for: CardType)` is a **second, stale c
 type colours that says Intangibles are gold and Moves are green, against `CardPalette`'s
 black and orange. Only the gallery's filter capsule reads it, but it is exactly the kind of
 duplicate that produces a gold card edge nobody can find in the drawing code.
+
+## The travel call is a table call
+
+Making Traveling a standing rule rather than a card somebody sets down turned it into the
+**"you didn't say Uno"** of this game: four Move cards in one possession is a call any
+player at the table can make on any other, out loud, and everyone can count it because the
+cards played this possession are face-up in front of the man playing them. Nothing enforces
+it but the people sitting there, which is exactly the kind of rule a table enjoys.
+
+**The digital version gives that away.** The app calls it the instant the fourth Move is
+played, so the moment of somebody spotting it never happens. Worth deciding which of these
+the app does:
+
+- call it automatically, as now
+- show a count of Moves played this possession and let a player press the referee
+- show the count and still call it — the count is the tell, and seeing it climb is most of
+  the tension
+
+The count is cheap either way: `GameState.movesThisPossession` already holds it.
+
+**To revisit (the user's, when there is time):** Intangibles and Move cards that play around
+the rule — cards that raise the limit, lower it for somebody else, or make a fourth Move
+worth taking the call for. Med Ball is the first of them: it lifts the limit entirely.
