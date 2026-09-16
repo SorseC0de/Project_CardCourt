@@ -152,13 +152,15 @@ struct CardSkin {
         let plainCircle: Color = face == .whistle ? CardPalette.gray : CardPalette.tan
         // **The two that wear a gold banner.** A Variaball and a Special Move are the
         // showy half of the deck, so they are named in gold on orange rather than in
-        // their own colour — everywhere the badge is the type's, which is A and B.
-        // Theme C's badge is what says played-or-standing, so it keeps that job.
+        // their own colour — in every theme. The ring is a separate question: in A and B
+        // it is the type's, and in C it stays the white or the black, which is what says
+        // whether the card is played or standing.
         let gilded = face == .variaball || face == .specialMove
         let badge: Color = gilded ? CardPalette.gold : type
         let badgeShade: Color = gilded ? CardPalette.orange : shade
-        // A Special Move keeps its green ring whatever its banner does.
-        let ringInk: Color = face == .specialMove ? CardPalette.green : type
+        // **A Special Move is a Move**, so it is ringed in the Move's teal — the colour
+        // the cards call green.
+        let ringInk: Color = face == .specialMove ? CardFace.move.colour.colour : type
 
         switch theme {
         case .a:
@@ -199,8 +201,9 @@ struct CardSkin {
                 body: intent, panel: type,
                 // **The banner's drop follows the banner**: dark blue under a black one,
                 // light blue under a cloud one.
-                plate: intent,
-                plateShade: standing ? CardPalette.darkBlue : CardPalette.lightBlue,
+                plate: gilded ? CardPalette.gold : intent,
+                plateShade: gilded ? CardPalette.orange
+                                   : (standing ? CardPalette.darkBlue : CardPalette.lightBlue),
                 ring: intent,
                 // Measured off card_colors.png: a standing card's circle is gray there,
                 // not steel — steel is what theme B's play cards use.

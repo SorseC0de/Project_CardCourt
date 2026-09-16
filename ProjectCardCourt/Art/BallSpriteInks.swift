@@ -17,6 +17,7 @@ enum BallSpriteInks {
         "foot-ball": (body: PixelPalette.vermilion, light: PixelPalette.midnight),
         "hand-ball": (body: PixelPalette.midnight, light: PixelPalette.vermilion),
         "hero-ball": (body: PixelPalette.blue, light: PixelPalette.vermilion),
+        "med-ball": (body: PixelPalette.midnight, light: PixelPalette.deepTeal),
         "monster-ball": (body: PixelPalette.darkRed, light: PixelPalette.darkMagenta),
         "recharge-rock": (body: PixelPalette.gold, light: PixelPalette.aqua),
         "snow-ball": (body: PixelPalette.aqua, light: PixelPalette.ice),
