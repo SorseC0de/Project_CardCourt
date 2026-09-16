@@ -137,13 +137,109 @@ struct CardSkin {
             }
     }
 
-    /// **On the main actor**, because theme A reads the bench's dials — which are an
-    /// `@Observable` the cards watch, and watching it is how a tweak repaints them.
+    /// **Every role the bench can put a colour on.** One name per field, so an override
+    /// is a colour against a role rather than a copy of the whole skin — which is what
+    /// keeps the dump short and readable.
+    enum Role: String, CaseIterable, Hashable, Codable {
+        case body, panel, plate, plateShade, ring
+        case iconPlate, iconLine, iconLineShade, iconShade
+        case text, nameTop, nameBottom, overlay
+
+        /// How it reads on the bench.
+        var label: String {
+            switch self {
+            case .body:          return "the body"
+            case .panel:         return "the panel inside the frame"
+            case .plate:         return "the name banner"
+            case .plateShade:    return "and its drop"
+            case .ring:          return "the inner ring"
+            case .iconPlate:     return "the plate's circle"
+            case .iconLine:      return "its court lines"
+            case .iconLineShade: return "and their shadow"
+            case .iconShade:     return "under the icon"
+            case .text:          return "the words"
+            case .nameTop:       return "the name, top"
+            case .nameBottom:    return "and bottom"
+            case .overlay:       return "what the words are laid on"
+            }
+        }
+    }
+
+    /// Reads a role off a skin, and writes one back. Used by the bench and by nothing else.
+    subscript(role: Role) -> Color? {
+        get {
+            switch role {
+            case .body: return body
+            case .panel: return panel
+            case .plate: return plate
+            case .plateShade: return plateShade
+            case .ring: return ring
+            case .iconPlate: return iconPlate
+            case .iconLine: return iconLine
+            case .iconLineShade: return iconLineShade
+            case .iconShade: return iconShade
+            case .text: return text
+            case .nameTop: return nameTop
+            case .nameBottom: return nameBottom
+            case .overlay: return overlay
+            }
+        }
+        set {
+            guard let newValue else { return }
+            switch role {
+            case .body: body = newValue
+            case .panel: panel = newValue
+            case .plate: plate = newValue
+            case .plateShade: plateShade = newValue
+            case .ring: ring = newValue
+            case .iconPlate: iconPlate = newValue
+            case .iconLine: iconLine = newValue
+            case .iconLineShade: iconLineShade = newValue
+            case .iconShade: iconShade = newValue
+            case .text: text = newValue
+            case .nameTop: nameTop = newValue
+            case .nameBottom: nameBottom = newValue
+            case .overlay: overlay = newValue
+            }
+        }
+    }
+
+    /// **What the theme works out, with whatever the bench has said instead.**
+    ///
+    /// All three themes are live: an override is a colour put against one role of one face
+    /// in one theme, so B and C can be tried on a card exactly as A can — see
+    /// `CardTextStyle.skinInks`, which is where the overrides are kept and dumped from.
     @MainActor
     static func of(_ face: CardFace) -> CardSkin { of(face, theme: CardTheme.current) }
 
     @MainActor
     static func of(_ face: CardFace, theme: CardTheme) -> CardSkin {
+        var skin = derived(face, theme: theme)
+        for (role, ink) in CardTextTuning.shared.skinInks[theme]?[face] ?? [:] {
+            skin[role] = ink.colour
+        }
+        return skin
+    }
+
+    /// **The name, in two inks, decided by what it is printed on.** White over light blue
+    /// on a dark banner or a coloured one; dark blue over navy on a light one.
+    static func nameTop(on plate: Color) -> Color {
+        isLight(plate) ? CardPalette.darkBlue : .white
+    }
+
+    static func nameBottom(on plate: Color) -> Color {
+        isLight(plate) ? CardPalette.navy : CardPalette.lightBlue
+    }
+
+    /// Whether lettering on this needs to be dark. The palette's light half, by name
+    /// rather than by measurement — there are four of them and they are not going to move.
+    private static func isLight(_ plate: Color) -> Bool {
+        [CardPalette.gold, CardPalette.cloud, CardPalette.tan, CardPalette.steel]
+            .contains(plate)
+    }
+
+    /// The theme's own answer, before the bench has said anything.
+    static func derived(_ face: CardFace, theme: CardTheme) -> CardSkin {
         let standing = face.isStanding
         let type = face.colour.colour
         let shade = face.shade.colour
@@ -170,24 +266,17 @@ struct CardSkin {
 
         switch theme {
         case .a:
-            // **A is the bench's.** Every colour in it comes off the dials so it can be
-            // tried on a live card and dumped back out as source — see `CardTextBench`.
-            // B and C are worked out from the type rather than dialled, so a change made
-            // here reaches them through `CardFace.colour`.
-            let tuned = CardTextTuning.shared
             return CardSkin(
-                body: tuned.bodyInk(for: face), panel: nil,
-                plate: tuned.plateFillInk(for: face),
-                plateShade: tuned.plateDropInk(for: face),
-                ring: tuned.ringInk(for: face),
-                iconPlate: tuned.iconPlateInk(for: face),
-                iconLine: tuned.iconLineInk(for: face),
-                iconLineShade: tuned.iconLineShadeInk(for: face),
-                iconShade: tuned.iconShadeInk(for: face),
-                text: tuned.ink(for: face),
-                nameTop: tuned.nameTopInk(for: face),
-                nameBottom: tuned.nameBottomInk(for: face),
-                overlay: tuned.overlayInk(for: face))
+                body: intent, panel: nil,
+                plate: badge, plateShade: badgeShade, ring: ringInk,
+                iconPlate: plainCircle,
+                iconLine: CardPalette.cloud,
+                iconLineShade: CardPalette.lightBlue,
+                iconShade: face == .variaball ? CardPalette.brown : nil,
+                text: standing ? CardPalette.cloud : CardPalette.navy,
+                nameTop: special ? CardPalette.gold : nameTop(on: badge),
+                nameBottom: special ? CardPalette.orange : nameBottom(on: badge),
+                overlay: type)
         case .b:
             // Cloud for tan, and tan for steel on the icon plates. A standing card takes
             // brown for the black, and its plate takes the tan back.
@@ -204,10 +293,8 @@ struct CardSkin {
                 iconShade: face == .variaball ? CardPalette.brown
                                               : (standing ? nil : CardPalette.gray),
                 text: standing ? CardPalette.cloud : CardPalette.navy,
-                nameTop: special ? CardPalette.gold
-                                 : (face.lettersDark ? CardPalette.navy : CardPalette.cloud),
-                nameBottom: special ? CardPalette.orange
-                                    : (face.lettersDark ? CardPalette.darkBlue : .white),
+                nameTop: special ? CardPalette.gold : nameTop(on: badge),
+                nameBottom: special ? CardPalette.orange : nameBottom(on: badge),
                 overlay: type)
         case .c:
             // Turned inside out: the type is the paper, and the white or black is the
@@ -227,8 +314,8 @@ struct CardSkin {
                 iconLineShade: CardPalette.lightBlue,
                 iconShade: nil,
                 text: .white,
-                nameTop: standing ? CardPalette.cloud : CardPalette.navy,
-                nameBottom: standing ? .white : CardPalette.darkBlue,
+                nameTop: nameTop(on: gilded ? CardPalette.gold : intent),
+                nameBottom: nameBottom(on: gilded ? CardPalette.gold : intent),
                 overlay: intent)
         }
     }

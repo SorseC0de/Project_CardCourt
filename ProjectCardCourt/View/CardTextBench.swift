@@ -177,21 +177,27 @@ enum CardTextStyle {
     /// bottom-trailing corner. Every corner is its own radius, and the size and the nudge
     /// off the corner are dials too — all as shares of the card's width, so it holds
     /// together at any size like everything else on the face.
-    static let patch = false
-    static let patchWidth: CGFloat = 0.34
-    static let patchHeight: CGFloat = 0.14
-    static let patchX: CGFloat = 0
-    static let patchY: CGFloat = 0
-    static let patchTopLeading: CGFloat = 0.06
+    static let patch = true
+    static let patchWidth: CGFloat = 0.200
+    static let patchHeight: CGFloat = 0.100
+    static let patchX: CGFloat = -0.040
+    static let patchY: CGFloat = -0.040
+    static let patchTopLeading: CGFloat = 0.300
     static let patchTopTrailing: CGFloat = 0
     static let patchBottomLeading: CGFloat = 0
-    static let patchBottomTrailing: CGFloat = 0.06
+    /// The inner ring's own corner, so the patch sits into it rather than beside it.
+    static let patchBottomTrailing: CGFloat = CardLayout.strokeCornerFraction
+
+    /// **Colours put against a role by hand**, per theme and per face — everything the
+    /// theme does not already work out. Empty is the theme's own answer; see
+    /// `CardSkin.of(_:theme:)`, which lays these over it.
+    static let skinInks: [CardTheme: [CardFace: [CardSkin.Role: CardTextInk]]] = [:]
 
     /// **How loud the wash under the words is**, and how wide it runs. Both were baked
     /// into `CardLayout`; they are dials because the answer is a judgement and the bench
     /// is where it is made.
-    static let overlayWash: CGFloat = 0.25
-    static let overlayWidth: CGFloat = 0.82
+    static let overlayWash: CGFloat = 0.100
+    static let overlayWidth: CGFloat = 0.700
 
     static let panel = false
     /// Its corner, against the card's width.
@@ -512,6 +518,7 @@ final class CardTextTuning {
     var patchTopTrailing = CardTextStyle.patchTopTrailing
     var patchBottomLeading = CardTextStyle.patchBottomLeading
     var patchBottomTrailing = CardTextStyle.patchBottomTrailing
+    var skinInks = CardTextStyle.skinInks
     var darkBodies = CardTextStyle.darkBodies
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
@@ -610,6 +617,7 @@ final class CardTextTuning {
         patchTopTrailing = CardTextStyle.patchTopTrailing
         patchBottomLeading = CardTextStyle.patchBottomLeading
         patchBottomTrailing = CardTextStyle.patchBottomTrailing
+        skinInks = CardTextStyle.skinInks
         nameTop = CardTextStyle.nameTop; nameBottom = CardTextStyle.nameBottom
         ringWidth = CardTextStyle.ringWidth
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
@@ -629,6 +637,20 @@ final class CardTextTuning {
             CardFace.allCases.map { ".\($0.caseName): .\((inks[$0] ?? .navy).rawValue)" }
                 .joined(separator: ", ")
         }
+        // **Only what was said by hand.** A theme with nothing put against it prints
+        // nothing, so the block stays the size of the corrections rather than the size of
+        // the deck.
+        let overrideSource = CardTheme.allCases.compactMap { theme -> String? in
+            guard let faces = skinInks[theme], !faces.isEmpty else { return nil }
+            let rows = CardFace.allCases.compactMap { face -> String? in
+                guard let roles = faces[face], !roles.isEmpty else { return nil }
+                let put = CardSkin.Role.allCases.compactMap { role -> String? in
+                    roles[role].map { ".\(role.rawValue): .\($0.rawValue)" }
+                }.joined(separator: ", ")
+                return "                .\(face.caseName): [\(put)],"
+            }.joined(separator: "\n")
+            return "            .\(theme.rawValue): [\n\(rows)\n            ],"
+        }.joined(separator: "\n")
         return """
         static let size: CGFloat = \(n(size))
         static let inset: CGFloat = \(n(inset))
@@ -663,6 +685,7 @@ final class CardTextTuning {
         static let iconDrop: CGFloat = \(n(iconDrop))
         static let iconTop: CGFloat = \(n(iconTop))
         static let darkBodies = \(darkBodies)
+        static let skinInks: [CardTheme: [CardFace: [CardSkin.Role: CardTextInk]]] = [\(overrideSource)]
         static let patch = \(patch)
         static let patchWidth: CGFloat = \(n(patchWidth))
         static let patchHeight: CGFloat = \(n(patchHeight))
@@ -855,16 +878,20 @@ struct CardTextBench: View {
                         heading("the words' own wash")
                         dial("loud", $tune.overlayWash, 0...1)
                         dial("wide", $tune.overlayWidth, 0.4...1)
-                        heading("\(face.shortLabel): what it is laid on")
-                        inks(tune.overlay[face] ?? .blue) { tune.overlay[face] = $0 }
+                        role(.overlay)
 
-                        heading("\(face.shortLabel): the plate, circle then lines")
-                        inks(tune.iconPlate[face] ?? .tan) { tune.iconPlate[face] = $0 }
-                        inks(tune.iconLine[face] ?? .cloud) { tune.iconLine[face] = $0 }
-                        heading("\(face.shortLabel): and the lines' shadow")
-                        inks(tune.iconLineShade[face] ?? .lightBlue) {
-                            tune.iconLineShade[face] = $0
-                        }
+                        role(.body)
+                        role(.panel)
+                        role(.plate)
+                        role(.plateShade)
+                        role(.ring)
+                        role(.text)
+                        role(.nameTop)
+                        role(.nameBottom)
+                        role(.iconPlate)
+                        role(.iconLine)
+                        role(.iconLineShade)
+                        role(.iconShade)
 
                         heading("the patch, over the ring")
                         row("patch", tune.patch ? "on" : "off") {
@@ -924,30 +951,21 @@ struct CardTextBench: View {
                                          set: { tune.footScale[mark] = $0 }),
                                  0.2...2.5)
                         }
-                        heading("\(face.shortLabel): the ink")
-                        inks(tune.text[face] ?? .navy) { tune.text[face] = $0 }
+                        // **The two the skin does not own.** Everything else a card is
+                        // printed in is a role, above, and per theme — these two are the
+                        // same on every card whatever it is printed on.
                         heading("\(face.shortLabel): the mechanics")
                         inks(tune.keyword[face] ?? .orange) { tune.keyword[face] = $0 }
-                        heading("\(face.shortLabel): the body")
-                        inks(tune.body[face] ?? .blue) { tune.body[face] = $0 }
-                        heading("\(face.shortLabel): the name, top then bottom")
-                        inks(tune.nameTop[face] ?? .navy) { tune.nameTop[face] = $0 }
-                        inks(tune.nameBottom[face] ?? .navy) { tune.nameBottom[face] = $0 }
-                        heading("\(face.shortLabel): the name banner")
-                        inks(tune.plateFill[face] ?? .white) { tune.plateFill[face] = $0 }
                         heading("a card named in the words")
                         inks(tune.nameReference[face] ?? .lightBlue) {
                             tune.nameReference[face] = $0
                         }
                         heading("\(face.shortLabel) named in another card's words")
                         inks(tune.typeReference[face] ?? .cloud) { tune.typeReference[face] = $0 }
-                        heading("\(face.shortLabel): the inner ring")
-                        inks(tune.ring[face] ?? .navy) { tune.ring[face] = $0 }
+                        heading("\(face.shortLabel): the ring's thickness")
                         dial("thickness", Binding(
                             get: { tune.ringWidth[face] ?? 1 },
                             set: { tune.ringWidth[face] = $0 }), 0.3...1.6)
-                        heading("\(face.shortLabel): under the name")
-                        inks(tune.plateDrop[face] ?? .blue) { tune.plateDrop[face] = $0 }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 8)
                 }
@@ -965,6 +983,34 @@ struct CardTextBench: View {
     /// **Swatches, not names.** Twenty-five colours spelled out took three lines and read
     /// as a paragraph; the same twenty-five as squares fit on one and are picked by eye,
     /// which is how a colour is picked anyway.
+    /// **A role's colour, for the theme on screen.** Reading shows what the card is
+    /// actually drawn in — the theme's own answer until something has been put against it
+    /// — and picking puts one there. See `CardSkin.Role`.
+    private func role(_ role: CardSkin.Role) -> some View {
+        let put = tune.skinInks[tune.theme]?[face]?[role]
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                heading("\(face.shortLabel) \(tune.theme.label): \(role.label)")
+                if put != nil {
+                    Spacer()
+                    chip("clear", on: false) {
+                        tune.skinInks[tune.theme]?[face]?[role] = nil
+                    }
+                }
+            }
+            inks(put ?? nearest(CardSkin.derived(face, theme: tune.theme)[role])) { ink in
+                tune.skinInks[tune.theme, default: [:]][face, default: [:]][role] = ink
+            }
+        }
+    }
+
+    /// Which palette entry a drawn colour is, so an untouched role still shows the swatch
+    /// the card is wearing rather than nothing at all.
+    private func nearest(_ colour: Color?) -> CardTextInk {
+        guard let colour else { return .navy }
+        return CardTextInk.allCases.first { $0.colour == colour } ?? .navy
+    }
+
     private func inks(_ chosen: CardTextInk,
                       _ pick: @escaping (CardTextInk) -> Void) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 17), spacing: 3)], spacing: 3) {
