@@ -17,7 +17,10 @@ enum BallSpriteInks {
         "foot-ball": (body: PixelPalette.vermilion, light: PixelPalette.midnight),
         "hand-ball": (body: PixelPalette.midnight, light: PixelPalette.vermilion),
         "hero-ball": (body: PixelPalette.blue, light: PixelPalette.vermilion),
-        "med-ball": (body: PixelPalette.midnight, light: PixelPalette.deepTeal),
+        // **Wine over midnight.** The drawing reads deep teal because of how it is
+        // lit, and a sprite has no lighting to explain that away. Maroon rather
+        // than the darker red: that one is brick, and Brick Ball is already it.
+        "med-ball": (body: PixelPalette.midnight, light: PixelPalette.maroon),
         "monster-ball": (body: PixelPalette.darkRed, light: PixelPalette.darkMagenta),
         "recharge-rock": (body: PixelPalette.gold, light: PixelPalette.aqua),
         "snow-ball": (body: PixelPalette.aqua, light: PixelPalette.ice),
