@@ -164,7 +164,7 @@ struct CardFrontView: View {
     /// only on a raised card; a card in the hand shows the shapes.
     private var extrasButtons: some View {
         let size = width * Extras.size * extras.scale
-        let across = width * CardLayout.textOverlayWidthFraction
+        let across = width * set.overlayWidth
         let textTop = height * (1 - CardLayout.textOverlayBottomFraction)
             - across * CardLayout.textOverlayAspect
         // **Printed as the card is.** COMBO wears the body with the inner ring under it;
@@ -561,7 +561,7 @@ struct CardFrontView: View {
     /// giving it a frame of its own is how the two end up a few points apart on a card
     /// nobody thinks to check.
     private var textOverlay: some View {
-        let across = width * CardLayout.textOverlayWidthFraction
+        let across = width * set.overlayWidth
         let down = across * CardLayout.textOverlayAspect
         return VStack {
             Spacer()
@@ -571,7 +571,7 @@ struct CardFrontView: View {
                     .scaledToFit()
                     .foregroundStyle(skin.overlay)
                     .blendMode(CardLayout.blend(for: face))
-                    .opacity(CardLayout.opacity(for: face))
+                    .opacity(Double(set.overlayWash))
                 // Over the court rather than under it: the lines are as much of what the
                 // words have to be read against as the body colour is.
                 if set.panel {
@@ -611,6 +611,24 @@ struct CardFrontView: View {
                           lineWidth: width * CardLayout.strokeFraction
                               * set.ringWeight(for: face))
             .padding(width * CardLayout.strokeInsetFraction)
+            .overlay(alignment: .bottomTrailing) { patch }
+    }
+
+    /// **The patch**, over the inner ring and pinned to its bottom-trailing corner. Every
+    /// corner is its own radius — see `CardTextStyle.patch`, which is where all of it is
+    /// dialled. Off until something is put in it.
+    @ViewBuilder private var patch: some View {
+        if set.patch {
+            UnevenRoundedRectangle(
+                topLeadingRadius: width * set.patchTopLeading,
+                bottomLeadingRadius: width * set.patchBottomLeading,
+                bottomTrailingRadius: width * set.patchBottomTrailing,
+                topTrailingRadius: width * set.patchTopTrailing,
+                style: .continuous)
+                .fill(ringColour)
+                .frame(width: width * set.patchWidth, height: width * set.patchHeight)
+                .offset(x: width * set.patchX, y: width * set.patchY)
+        }
     }
 
     /// **Two inks, per face.** A name in one colour is that colour top and bottom, which

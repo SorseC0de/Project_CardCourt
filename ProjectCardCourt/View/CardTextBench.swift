@@ -173,6 +173,26 @@ enum CardTextStyle {
     /// reads on it — the badges and the rings are the type's colour either way.
     static let darkBodies = false
 
+    /// **The patch**: an `UnevenRoundedRectangle` laid over the inner ring, pinned to the
+    /// bottom-trailing corner. Every corner is its own radius, and the size and the nudge
+    /// off the corner are dials too — all as shares of the card's width, so it holds
+    /// together at any size like everything else on the face.
+    static let patch = false
+    static let patchWidth: CGFloat = 0.34
+    static let patchHeight: CGFloat = 0.14
+    static let patchX: CGFloat = 0
+    static let patchY: CGFloat = 0
+    static let patchTopLeading: CGFloat = 0.06
+    static let patchTopTrailing: CGFloat = 0
+    static let patchBottomLeading: CGFloat = 0
+    static let patchBottomTrailing: CGFloat = 0.06
+
+    /// **How loud the wash under the words is**, and how wide it runs. Both were baked
+    /// into `CardLayout`; they are dials because the answer is a judgement and the bench
+    /// is where it is made.
+    static let overlayWash: CGFloat = 0.25
+    static let overlayWidth: CGFloat = 0.82
+
     static let panel = false
     /// Its corner, against the card's width.
     static let panelCorner: CGFloat = 0.05
@@ -381,6 +401,37 @@ enum CardTextStyle {
         .varena: .purple, .variaball: .azure,
     ]
 
+    /// **The plate the subject stands in**, by role — the circle, the court lines across
+    /// it and the shadow those lines throw. Seeded from what theme A draws; a type whose
+    /// plate is nobody else's shape keeps its own, so these only reach the three that
+    /// share the court-line plate. See `CardSkin.plateSwaps(for:)`.
+    static let iconPlate: [CardFace: CardTextInk] = [
+        .pass: .tan, .move: .tan, .specialMove: .tan, .clamp: .purple,
+        .whistle: .gray, .gameBreak: .tan, .intangible: .purple,
+        .injury: .tan, .devastatingInjury: .tan,
+        .varena: .tan, .variaball: .navy,
+    ]
+    static let iconLine: [CardFace: CardTextInk] = [
+        .pass: .cloud, .move: .cloud, .specialMove: .cloud, .clamp: .azure,
+        .whistle: .cloud, .gameBreak: .cloud, .intangible: .azure,
+        .injury: .cloud, .devastatingInjury: .cloud,
+        .varena: .cloud, .variaball: .azure,
+    ]
+    static let iconLineShade: [CardFace: CardTextInk] = [
+        .pass: .lightBlue, .move: .lightBlue, .specialMove: .lightBlue, .clamp: .azure,
+        .whistle: .lightBlue, .gameBreak: .lightBlue, .intangible: .azure,
+        .injury: .lightBlue, .devastatingInjury: .lightBlue,
+        .varena: .lightBlue, .variaball: .blood,
+    ]
+
+    /// **What the words are laid on**, per type, and how much of it — see `overlayWash`.
+    static let overlay: [CardFace: CardTextInk] = [
+        .pass: .blue, .move: .teal, .specialMove: .teal, .clamp: .red,
+        .whistle: .black, .gameBreak: .purple, .intangible: .gold,
+        .injury: .blood, .devastatingInjury: .maroon,
+        .varena: .plum, .variaball: .azure,
+    ]
+
     /// **The inner ring is the type.** One of the two places colour is left on a card.
     static let ring: [CardFace: CardTextInk] = [
         .pass: .blue,
@@ -446,6 +497,21 @@ final class CardTextTuning {
     /// **Which theme the deck is printed in.** A debug switch until it is a setting —
     /// on the tuning rather than as a bare global so a card repaints the moment it moves.
     var theme: CardTheme = .a
+    var iconPlate = CardTextStyle.iconPlate
+    var iconLine = CardTextStyle.iconLine
+    var iconLineShade = CardTextStyle.iconLineShade
+    var overlay = CardTextStyle.overlay
+    var overlayWash = CardTextStyle.overlayWash
+    var overlayWidth = CardTextStyle.overlayWidth
+    var patch = CardTextStyle.patch
+    var patchWidth = CardTextStyle.patchWidth
+    var patchHeight = CardTextStyle.patchHeight
+    var patchX = CardTextStyle.patchX
+    var patchY = CardTextStyle.patchY
+    var patchTopLeading = CardTextStyle.patchTopLeading
+    var patchTopTrailing = CardTextStyle.patchTopTrailing
+    var patchBottomLeading = CardTextStyle.patchBottomLeading
+    var patchBottomTrailing = CardTextStyle.patchBottomTrailing
     var darkBodies = CardTextStyle.darkBodies
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
@@ -514,6 +580,12 @@ final class CardTextTuning {
     func plateDropInk(for face: CardFace) -> Color { (plateDrop[face] ?? .blue).colour }
     /// And the banner itself.
     func plateFillInk(for face: CardFace) -> Color { (plateFill[face] ?? .white).colour }
+    func iconPlateInk(for face: CardFace) -> Color { (iconPlate[face] ?? .tan).colour }
+    func iconLineInk(for face: CardFace) -> Color { (iconLine[face] ?? .cloud).colour }
+    func iconLineShadeInk(for face: CardFace) -> Color {
+        (iconLineShade[face] ?? .lightBlue).colour
+    }
+    func overlayInk(for face: CardFace) -> Color { (overlay[face] ?? .blue).colour }
 
     func reset() {
         size = CardTextStyle.size; inset = CardTextStyle.inset
@@ -528,6 +600,16 @@ final class CardTextTuning {
         ring = CardTextStyle.ring; plateDrop = CardTextStyle.plateDrop
         plateFill = CardTextStyle.plateFill
         body = CardTextStyle.body
+        iconPlate = CardTextStyle.iconPlate; iconLine = CardTextStyle.iconLine
+        iconLineShade = CardTextStyle.iconLineShade; overlay = CardTextStyle.overlay
+        overlayWash = CardTextStyle.overlayWash; overlayWidth = CardTextStyle.overlayWidth
+        patch = CardTextStyle.patch
+        patchWidth = CardTextStyle.patchWidth; patchHeight = CardTextStyle.patchHeight
+        patchX = CardTextStyle.patchX; patchY = CardTextStyle.patchY
+        patchTopLeading = CardTextStyle.patchTopLeading
+        patchTopTrailing = CardTextStyle.patchTopTrailing
+        patchBottomLeading = CardTextStyle.patchBottomLeading
+        patchBottomTrailing = CardTextStyle.patchBottomTrailing
         nameTop = CardTextStyle.nameTop; nameBottom = CardTextStyle.nameBottom
         ringWidth = CardTextStyle.ringWidth
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
@@ -581,6 +663,21 @@ final class CardTextTuning {
         static let iconDrop: CGFloat = \(n(iconDrop))
         static let iconTop: CGFloat = \(n(iconTop))
         static let darkBodies = \(darkBodies)
+        static let patch = \(patch)
+        static let patchWidth: CGFloat = \(n(patchWidth))
+        static let patchHeight: CGFloat = \(n(patchHeight))
+        static let patchX: CGFloat = \(n(patchX))
+        static let patchY: CGFloat = \(n(patchY))
+        static let patchTopLeading: CGFloat = \(n(patchTopLeading))
+        static let patchTopTrailing: CGFloat = \(n(patchTopTrailing))
+        static let patchBottomLeading: CGFloat = \(n(patchBottomLeading))
+        static let patchBottomTrailing: CGFloat = \(n(patchBottomTrailing))
+        static let overlayWash: CGFloat = \(n(overlayWash))
+        static let overlayWidth: CGFloat = \(n(overlayWidth))
+        static let iconPlate: [CardFace: CardTextInk] = [\(table(iconPlate))]
+        static let iconLine: [CardFace: CardTextInk] = [\(table(iconLine))]
+        static let iconLineShade: [CardFace: CardTextInk] = [\(table(iconLineShade))]
+        static let overlay: [CardFace: CardTextInk] = [\(table(overlay))]
         static let panel = \(panel)
         static let panelCorner: CGFloat = \(n(panelCorner))
         static let panelDark: CGFloat = \(n(panelDark))
@@ -755,6 +852,36 @@ struct CardTextBench: View {
                             }
                         }
                         dial("depth", $tune.shadowDrop, 0...0.05)
+                        heading("the words' own wash")
+                        dial("loud", $tune.overlayWash, 0...1)
+                        dial("wide", $tune.overlayWidth, 0.4...1)
+                        heading("\(face.shortLabel): what it is laid on")
+                        inks(tune.overlay[face] ?? .blue) { tune.overlay[face] = $0 }
+
+                        heading("\(face.shortLabel): the plate, circle then lines")
+                        inks(tune.iconPlate[face] ?? .tan) { tune.iconPlate[face] = $0 }
+                        inks(tune.iconLine[face] ?? .cloud) { tune.iconLine[face] = $0 }
+                        heading("\(face.shortLabel): and the lines' shadow")
+                        inks(tune.iconLineShade[face] ?? .lightBlue) {
+                            tune.iconLineShade[face] = $0
+                        }
+
+                        heading("the patch, over the ring")
+                        row("patch", tune.patch ? "on" : "off") {
+                            HStack(spacing: 3) {
+                                chip("on", on: tune.patch) { tune.patch = true }
+                                chip("off", on: !tune.patch) { tune.patch = false }
+                            }
+                        }
+                        dial("width", $tune.patchWidth, 0...1)
+                        dial("height", $tune.patchHeight, 0...0.6)
+                        dial("x", $tune.patchX, -0.5...0.5)
+                        dial("y", $tune.patchY, -0.5...0.5)
+                        dial("top lead", $tune.patchTopLeading, 0...0.3)
+                        dial("top trail", $tune.patchTopTrailing, 0...0.3)
+                        dial("bot lead", $tune.patchBottomLeading, 0...0.3)
+                        dial("bot trail", $tune.patchBottomTrailing, 0...0.3)
+
                         heading("the wash over the court")
                         row("wash", tune.panel ? "on" : "off") {
                             HStack(spacing: 3) {

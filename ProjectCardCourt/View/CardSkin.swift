@@ -137,9 +137,12 @@ struct CardSkin {
             }
     }
 
+    /// **On the main actor**, because theme A reads the bench's dials — which are an
+    /// `@Observable` the cards watch, and watching it is how a tweak repaints them.
     @MainActor
     static func of(_ face: CardFace) -> CardSkin { of(face, theme: CardTheme.current) }
 
+    @MainActor
     static func of(_ face: CardFace, theme: CardTheme) -> CardSkin {
         let standing = face.isStanding
         let type = face.colour.colour
@@ -167,19 +170,24 @@ struct CardSkin {
 
         switch theme {
         case .a:
+            // **A is the bench's.** Every colour in it comes off the dials so it can be
+            // tried on a live card and dumped back out as source — see `CardTextBench`.
+            // B and C are worked out from the type rather than dialled, so a change made
+            // here reaches them through `CardFace.colour`.
+            let tuned = CardTextTuning.shared
             return CardSkin(
-                body: intent, panel: nil,
-                plate: badge, plateShade: badgeShade, ring: ringInk,
-                iconPlate: plainCircle,
-                iconLine: CardPalette.cloud,
-                iconLineShade: CardPalette.lightBlue,
-                iconShade: face == .variaball ? CardPalette.brown : nil,
-                text: standing ? CardPalette.cloud : CardPalette.navy,
-                nameTop: special ? CardPalette.gold
-                                 : (face.lettersDark ? CardPalette.navy : CardPalette.cloud),
-                nameBottom: special ? CardPalette.orange
-                                    : (face.lettersDark ? CardPalette.darkBlue : .white),
-                overlay: type)
+                body: tuned.bodyInk(for: face), panel: nil,
+                plate: tuned.plateFillInk(for: face),
+                plateShade: tuned.plateDropInk(for: face),
+                ring: tuned.ringInk(for: face),
+                iconPlate: tuned.iconPlateInk(for: face),
+                iconLine: tuned.iconLineInk(for: face),
+                iconLineShade: tuned.iconLineShadeInk(for: face),
+                iconShade: tuned.iconShadeInk(for: face),
+                text: tuned.ink(for: face),
+                nameTop: tuned.nameTopInk(for: face),
+                nameBottom: tuned.nameBottomInk(for: face),
+                overlay: tuned.overlayInk(for: face))
         case .b:
             // Cloud for tan, and tan for steel on the icon plates. A standing card takes
             // brown for the black, and its plate takes the tan back.
