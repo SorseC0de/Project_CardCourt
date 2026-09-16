@@ -315,13 +315,14 @@ struct CardFrontView: View {
                                 side: side * (descriptor.artwork?.scale ?? 1),
                                 slash: set.iconShadeInk(for: face)))
         .rotationEffect(.degrees(descriptor.iconRotation))
-        // **The circle the subject stands in, recoloured.** Every type icon is drawn with
-        // the same tan plate under it, so the theme swaps that one entry rather than
-        // keeping a recoloured copy of every drawing — the court lines printed on it are
-        // cloud and are left exactly as they are. See `CardSkin.printedIconPlate`.
-        .paletteSwap(skin.iconPlate == CardSkin.printedIconPlate
-                     ? [] : [PaletteSwap(CardSkin.printedIconPlate, skin.iconPlate)])
-        .shadow(color: set.iconShadeInk(for: face), radius: 0, x: drop, y: drop)
+        // **The plate the subject stands in, recoloured by role** — the circle, the court
+        // lines across it and the shadow those lines throw. Swapped on the GPU rather than
+        // kept as a set of recoloured drawings, so no art is re-cut for a theme. A plate
+        // that is nobody else's shape — a Clamp's purple and azure — is left alone.
+        // See `CardSkin.plateSwaps(for:)`.
+        .paletteSwap(CardSkin.plateSwaps(for: face))
+        .shadow(color: skin.iconShade ?? set.iconShadeInk(for: face),
+                radius: 0, x: drop, y: drop)
         // **Placed by the top of its circle, not by its centre or its frame**, because
         // what the number has to hold is how far the icon disappears behind the name
         // plate. Anchored at the centre, every change of `iconScale` moved the top and

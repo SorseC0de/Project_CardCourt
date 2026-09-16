@@ -55,8 +55,15 @@ struct CardSkin {
     var plateShade: Color
     /// The line round the card.
     var ring: Color
-    /// The circle the subject stands in, which the artwork carries as tan.
-    var iconPlate: Color
+    /// **The plate the subject stands in**, by role. The circle it sits on, the court
+    /// lines printed across it, and the shadow those lines throw. Nil leaves that role
+    /// exactly as it was drawn.
+    var iconPlate: Color?
+    var iconLine: Color?
+    var iconLineShade: Color?
+    /// **The drop under the whole icon.** Nil keeps the one the face was tuned to — only
+    /// a theme that says otherwise moves it, and only the tan bodies do.
+    var iconShade: Color?
     /// The card's own words.
     var text: Color
     /// The name on the badge, top and bottom.
@@ -65,10 +72,45 @@ struct CardSkin {
     /// What the words are laid on, and how much of it.
     var overlay: Color
 
-    /// **The plate colour the artwork is drawn with**, which every type icon shares. The
-    /// circle is recoloured by swapping this one entry rather than by keeping a set of
-    /// recoloured drawings — see `View.paletteSwap`.
-    static let printedIconPlate = CardPalette.tan
+    /// **What each type's plate is actually drawn in**, by role.
+    ///
+    /// Three types share the court-line plate — a circle, the lines across it and the
+    /// shadow those lines throw — and each was drawn in its own colours. Everything else
+    /// is its own thing and is left alone: a Clamp keeps its purple plate and azure drop,
+    /// and the two-colour plates have no lines to recolour.
+    struct PlateInks {
+        var circle: Color?
+        var line: Color?
+        var lineShade: Color?
+    }
+
+    static func printed(_ face: CardFace) -> PlateInks {
+        switch face {
+        case .pass:    return PlateInks(circle: CardPalette.tan, line: CardPalette.cloud,
+                                        lineShade: CardPalette.lightBlue)
+        // Its line shadow was drawn gray where every other court-line plate throws
+        // light blue; the swap is what puts it back in step.
+        case .move:    return PlateInks(circle: CardPalette.tan, line: CardPalette.cloud,
+                                        lineShade: CardPalette.gray)
+        case .whistle: return PlateInks(circle: CardPalette.plum, line: CardPalette.cloud,
+                                        lineShade: CardPalette.lightBlue)
+        default:       return PlateInks()
+        }
+    }
+
+    /// The swaps that take this face's plate from how it was drawn to how the theme wants
+    /// it. Empty when nothing about it moves.
+    @MainActor
+    static func plateSwaps(for face: CardFace) -> [PaletteSwap] {
+        let drawn = printed(face)
+        let skin = of(face)
+        return zip([drawn.circle, drawn.line, drawn.lineShade],
+                   [skin.iconPlate, skin.iconLine, skin.iconLineShade])
+            .compactMap { from, to in
+                guard let from, let to, from != to else { return nil }
+                return PaletteSwap(from, to)
+            }
+    }
 
     @MainActor
     static func of(_ face: CardFace) -> CardSkin { of(face, theme: CardTheme.current) }
@@ -80,12 +122,19 @@ struct CardSkin {
         // The half of the deck this card is in, said in one colour.
         let intent: Color = standing ? CardPalette.black : CardPalette.cloud
 
+        // **The circle a court-line plate stands on**, per theme. A Whistle's is gray
+        // rather than the tan the other two wear.
+        let plainCircle: Color = face == .whistle ? CardPalette.gray : CardPalette.tan
+
         switch theme {
         case .a:
             return CardSkin(
                 body: intent, panel: nil,
                 plate: type, plateShade: shade, ring: type,
-                iconPlate: CardPalette.tan,
+                iconPlate: plainCircle,
+                iconLine: CardPalette.cloud,
+                iconLineShade: CardPalette.lightBlue,
+                iconShade: nil,
                 text: standing ? CardPalette.cloud : CardPalette.navy,
                 nameTop: face.lettersDark ? CardPalette.navy : CardPalette.cloud,
                 nameBottom: face.lettersDark ? CardPalette.darkBlue : .white,
@@ -96,7 +145,14 @@ struct CardSkin {
             return CardSkin(
                 body: standing ? CardPalette.brown : CardPalette.tan, panel: nil,
                 plate: type, plateShade: shade, ring: type,
-                iconPlate: standing ? CardPalette.tan : CardPalette.steel,
+                // A standing card takes the tan plate back, and everything that comes
+                // with it.
+                iconPlate: standing ? plainCircle : CardPalette.steel,
+                iconLine: CardPalette.cloud,
+                iconLineShade: CardPalette.lightBlue,
+                // Gray under a tan body; a standing card takes back what accompanies
+                // the tan plate, which is the drop the face was tuned to.
+                iconShade: standing ? nil : CardPalette.gray,
                 text: standing ? CardPalette.cloud : CardPalette.navy,
                 nameTop: face.lettersDark ? CardPalette.navy : CardPalette.cloud,
                 nameBottom: face.lettersDark ? CardPalette.darkBlue : .white,
@@ -106,11 +162,17 @@ struct CardSkin {
             // frame it sits in, the badge it is named on and the ring round it.
             return CardSkin(
                 body: intent, panel: type,
-                plate: intent, plateShade: standing ? CardPalette.navy : CardPalette.steel,
+                // **The banner's drop follows the banner**: dark blue under a black one,
+                // light blue under a cloud one.
+                plate: intent,
+                plateShade: standing ? CardPalette.darkBlue : CardPalette.lightBlue,
                 ring: intent,
                 // Measured off card_colors.png: a standing card's circle is gray there,
                 // not steel — steel is what theme B's play cards use.
                 iconPlate: standing ? CardPalette.gray : CardPalette.cloud,
+                iconLine: CardPalette.cloud,
+                iconLineShade: CardPalette.lightBlue,
+                iconShade: nil,
                 text: .white,
                 nameTop: standing ? CardPalette.cloud : CardPalette.navy,
                 nameBottom: standing ? .white : CardPalette.darkBlue,
