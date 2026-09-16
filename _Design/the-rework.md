@@ -222,21 +222,21 @@ id, so nothing about bringing them back is destructive.
 
 | | cards |
 |---|---|
-| Pass | 105 |
+| Pass | 107 |
 | Move | 70 |
 | Clamp | 60 |
 | Intangible | 29 |
 | Variaball | 18 (one of each) |
 | Special Move | 16 (one of each) |
-| **Total** | **298** |
+| **Total** | **300** |
 
-**Two slots are held for two more balls**, which takes it to 300. Injuries are parked with
-the Varenas.
+Injuries are parked with the Varenas.
 
 ### The spine's ratio
 
-**The two swings are the same number, and the pass across is half of one.** Twenty, twenty
-and ten. Hex Hex holds the same ratio between its Turn Asides and its Deflect Across, and
+**The two swings are the same number, and the pass across is half of one.** Twenty-one,
+twenty-one and ten — an odd swing has no exact half, and ten is the one that rounds down
+and keeps the deck at three hundred. Hex Hex holds the same ratio between its Turn Asides and its Deflect Across, and
 it is what keeps a four-handed table from playing as though the man opposite were as near
 as the men beside you.
 

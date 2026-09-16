@@ -16,13 +16,18 @@ enum CardLibrary {
     /// swings, which is almost certainly how Smirk & Dagger arrived at a number as odd as
     /// twenty-six — and every time the swings move, Skip Pass follows them down to half.
     /// `Tools/tests.swift` holds that ratio so it cannot drift.
+    ///
+    /// **An odd swing cannot be halved.** At twenty-one the across is ten or eleven and
+    /// neither is exactly half, so the test allows the rounding rather than forbidding an
+    /// odd count. Ten is the one that is written here: it is the half that rounds down,
+    /// and it is what keeps the deck at three hundred.
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "~[Pass] Left.", numberInDeck: 20, passTarget: .left)
+        effect: "~[Pass] Left.", numberInDeck: 21, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "~[Pass] Right.", numberInDeck: 20, passTarget: .right)
+        effect: "~[Pass] Right.", numberInDeck: 21, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,

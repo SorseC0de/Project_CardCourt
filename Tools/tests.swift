@@ -1840,7 +1840,9 @@ func runTests() {
         let right = CardLibrary.swingRight.numberInDeck
         let across = CardLibrary.skipPass.numberInDeck
         Check.that(left == right, "the two swings are the same number (\(left) and \(right))")
-        Check.that(across * 2 == left,
+        // An odd swing has no exact half, so either side of it counts — see
+        // `CardLibrary.swingLeft`.
+        Check.that(across * 2 == left || across * 2 == left - 1 || across * 2 == left + 1,
                    "and the pass across is half of one (\(across) against \(left))")
 
         Check.that(CardLibrary.varenas.allSatisfy { CardLibrary.byID[$0.id] != nil },

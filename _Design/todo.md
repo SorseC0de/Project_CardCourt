@@ -339,12 +339,12 @@ worth taking the call for. Med Ball is the first of them: it lifts the limit ent
 
 ## The deck's last slots (the user's, when there is time)
 
-At 298, with two held for two more balls. Two things the user has flagged to look at:
+At 300 — the last two went to the swings, one left and one right. Two things the user has
+flagged to look at after playing a full game under the new rules:
 
-- **Intangibles to a round 30.** One more card. It has to come from somewhere: either one
-  of the two held ball slots, or off the swings — and taking it off the swings moves Skip
-  Pass too, since the across is half of one (20/20/10 today). Coming off the swings is the
-  cheaper of the two: 19/19/10 would be lopsided, so it is really 18/18/9, which frees four.
+- **Intangibles to a round 30.** One more card, and nothing is spare now. It comes off the
+  swings, which is 21/21/10 today — 20/20/10 frees two and keeps the ratio exactly, which
+  is one for the Intangible and one over.
 
 - **Special Moves outnumber Moves, and they are the sub-class.** Sixteen unique Special
   Moves against twelve unique Moves. By *cards* it is not close — 70 Moves to 16 — but a
