@@ -222,14 +222,27 @@ id, so nothing about bringing them back is destructive.
 
 | | cards |
 |---|---|
-| Pass | 90 |
+| Pass | 105 |
 | Move | 70 |
 | Clamp | 60 |
 | Intangible | 29 |
 | Variaball | 18 (one of each) |
 | Special Move | 16 (one of each) |
-| Injury | 16 |
-| **Total** | **299** |
+| **Total** | **298** |
+
+**Two slots are held for two more balls**, which takes it to 300. Injuries are parked with
+the Varenas.
+
+### The spine's ratio
+
+**The two swings are the same number, and the pass across is half of one.** Twenty, twenty
+and ten. Hex Hex holds the same ratio between its Turn Asides and its Deflect Across, and
+it is what keeps a four-handed table from playing as though the man opposite were as near
+as the men beside you.
+
+**Slots for new cards come out of the swings**, which is almost certainly how Smirk &
+Dagger ended up with a number as odd as twenty-six — and every time the swings move, Skip
+Pass follows them down to half. A test holds the ratio so it cannot drift.
 
 The officials deck is 19 more, outside that count, as its own pile.
 

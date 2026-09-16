@@ -1833,6 +1833,16 @@ func runTests() {
                    "and every one of them can be found by id")
         Check.that(CardLibrary.injuries.allSatisfy { CardLibrary.byID[$0.id] != nil },
                    "injuries included")
+        // **The spine's own ratio.** The two swings match each other, and the pass across
+        // is half of one — see `CardLibrary.swingLeft`. Slots come out of the swings when
+        // something new needs room, and Skip Pass has to follow them down.
+        let left = CardLibrary.swingLeft.numberInDeck
+        let right = CardLibrary.swingRight.numberInDeck
+        let across = CardLibrary.skipPass.numberInDeck
+        Check.that(left == right, "the two swings are the same number (\(left) and \(right))")
+        Check.that(across * 2 == left,
+                   "and the pass across is half of one (\(across) against \(left))")
+
         Check.that(CardLibrary.varenas.allSatisfy { CardLibrary.byID[$0.id] != nil },
                    "and the shelved floors can still be decoded")
         Check.that(CardLibrary.injuries.allSatisfy { CardLibrary.byID[$0.id] != nil },

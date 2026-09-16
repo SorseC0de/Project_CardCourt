@@ -5,17 +5,28 @@ import Foundation
 /// passes move SHOT less than Move cards do.
 enum CardLibrary {
 
+    /// **The spine, and the rule it carries.**
+    ///
+    /// The two swings are the same number as each other, and **the pass across is half of
+    /// one of them** — Hex Hex holds the same ratio between its Turn Asides and its
+    /// Deflect Across, and it is what keeps a four-handed table from playing as if the man
+    /// opposite were as near as the men beside you.
+    ///
+    /// **Move one and move the other.** Taking slots back for new cards comes out of the
+    /// swings, which is almost certainly how Smirk & Dagger arrived at a number as odd as
+    /// twenty-six — and every time the swings move, Skip Pass follows them down to half.
+    /// `Tools/tests.swift` holds that ratio so it cannot drift.
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "~[Pass] Left.", numberInDeck: 15, passTarget: .left)
+        effect: "~[Pass] Left.", numberInDeck: 20, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "~[Pass] Right.", numberInDeck: 15, passTarget: .right)
+        effect: "~[Pass] Right.", numberInDeck: 20, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,
-        effect: "~[Pass] Across.", numberInDeck: 5, passTarget: .across)
+        effect: "~[Pass] Across.", numberInDeck: 10, passTarget: .across)
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
