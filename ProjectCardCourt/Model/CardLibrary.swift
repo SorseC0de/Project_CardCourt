@@ -968,8 +968,8 @@ enum CardLibrary {
         variaball: VariaballEffect(benchesReceiver: true))
     static let dishtractingBall = CardDescriptor(
         id: "dishtracting-ball", name: "Dishtracting Ball", type: .variaball,
-        effect: "Receiving it: #[Discard] 1, after the draw for turn", numberInDeck: 1,
-        variaball: VariaballEffect(receiverDiscards: 1))
+        effect: "Shooting: #[Discard] 1 card", numberInDeck: 1,
+        variaball: VariaballEffect(shooterDiscards: 1))
     static let handBall = CardDescriptor(
         id: "hand-ball", name: "Hand Ball", type: .variaball,
         effect: "A ~[Pass] swaps hands: yours goes with the ball, theirs comes back",

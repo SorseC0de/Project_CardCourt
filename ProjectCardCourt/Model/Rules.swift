@@ -1358,6 +1358,19 @@ enum Rules {
             }
             state.pendingShotBonus += carried + emptyHanded + state.payoffShotBonus
             state.payoffShotBonus = 0
+            // **Dishtracting Ball: it costs a card to go up with.** Asked before the ball
+            // leaves his hands, and the attempt is owed until he has answered — paying a
+            // step is what puts it up, so nothing here re-enters this branch and asks
+            // twice. See `Step.shootAtOnce`.
+            if state.ballEffect.shooterDiscards > 0, !state[seat].bag.isEmpty,
+               let ball = state.currentBall {
+                state.pendingBonusPoint += finish == .three ? 1 : 0
+                state.owe(.shootAtOnce(seat))
+                state.phase = .awaitingGiveUp(seat: seat, card: ball,
+                                              count: min(state.ballEffect.shooterDiscards,
+                                                         state[seat].bag.count))
+                return events
+            }
             resolveShot(by: seat, bonusPoints: finish == .three ? 1 : 0,
                         state: &state, events: &events)
 
@@ -3012,11 +3025,8 @@ enum Rules {
         // Bone Bruise takes its card at the top of the turn, after the draw — so the turn
         // opens with a choice rather than with a hand already one short.
         // Dishtracting Ball asks the same question, after the same draw.
-        let ballToll = state.ballEffect.receiverDiscards
         let toll = state[seat].injuries.reduce(0) { $0 + ($1.injury?.discardsEachTurn ?? 0) }
-            + ballToll
         let asking = state[seat].injuries.first(where: { ($0.injury?.discardsEachTurn ?? 0) > 0 })
-            ?? (ballToll > 0 ? state.currentBall : nil)
         if toll > 0, let asking, !state[seat].bag.isEmpty {
             state.phase = .awaitingGiveUp(seat: seat, card: asking,
                                           count: min(toll, state[seat].bag.count))

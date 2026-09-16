@@ -108,7 +108,9 @@ struct CardSkin {
                 body: intent, panel: type,
                 plate: intent, plateShade: standing ? CardPalette.navy : CardPalette.steel,
                 ring: intent,
-                iconPlate: standing ? CardPalette.steel : CardPalette.cloud,
+                // Measured off card_colors.png: a standing card's circle is gray there,
+                // not steel — steel is what theme B's play cards use.
+                iconPlate: standing ? CardPalette.gray : CardPalette.cloud,
                 text: .white,
                 nameTop: standing ? CardPalette.cloud : CardPalette.navy,
                 nameBottom: standing ? .white : CardPalette.darkBlue,

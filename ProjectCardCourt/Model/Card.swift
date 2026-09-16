@@ -457,8 +457,11 @@ struct VariaballEffect: Hashable, Codable {
     var injuriesTravel = false
     /// Bench Ball: caught off a pass, you go straight to the inbound.
     var benchesReceiver = false
-    /// Dishtracting Ball: taking the ball costs a card, after the draw.
-    var receiverDiscards = 0
+    /// Dishtracting Ball: putting it up costs a card. **On the shot, not on the catch** —
+    /// a toll every player paid the moment the ball reached them taxed the whole table on
+    /// every change of possession, which is a lot of hand for a ball nobody chose to hold.
+    /// Paid by the man who decided to shoot, which is a price against a decision.
+    var shooterDiscards = 0
     /// Hand Ball: a pass swaps hands.
     var swapsHandsOnPass = false
     /// Foot Ball: Moves and Passes lock instead of being spent.

@@ -1106,29 +1106,27 @@ func runTests() {
         Check.that(state.shotClock == 3, "and costs two ticks of five, not all of them")
     }
     do {
-        // The same trip, with a toll at the far end: Dishtracting Ball takes a card the
-        // moment he catches it. The clock must not care.
-        var (state, seat, cards) = openPossession(seed: 56, cards: [CardLibrary.rightBack])
-        state.shotClock = 5
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        guard case .awaitingTarget(_, _, let choices) = state.phase else { return }
-        let victim = choices[0]
+        // **Dishtracting Ball takes its card on the shot**, not on the catch: the man who
+        // decided to put it up pays for it. The attempt is owed while he is being asked,
+        // so answering is what makes it go up — and nothing about the shot is lost in
+        // between.
+        var (state, seat, _) = openPossession(seed: 56, cards: [])
         state.ballCard = Card(CardLibrary.dishtractingBall)
-        Rules.resolveTarget(victim, state: &state)
-        declineCounter(&state)
-        Check.that(state.ball == victim, "a toll at the far end holds the ball there")
-        // Answering it lets the trip finish. The return is owed, not thrown away.
-        guard case .awaitingGiveUp = state.phase else {
-            Check.that(false, "the toll is asked")
-            return
+        state.shot = 50
+        let held = state[seat].bag.count
+        let events = Rules.apply(.shootAs(.layup), by: seat, to: &state)
+        Check.that(!events.contains { if case .shotAttempted = $0 { return true }; return false },
+                   "it asks before the ball leaves his hands")
+        guard case .awaitingGiveUp(let asked, let card, _) = state.phase else {
+            Check.that(false, "the toll is asked"); return
         }
-        let give = state[victim].bag.first.map { [$0.id] } ?? []
-        Rules.resolveGiveUp(give, state: &state)
-        declineCounter(&state)
-        print("   → clock \(state.shotClock.map(String.init) ?? "nil")"
-              + "  phase \(state.phase.label)  ball \(state.ball?.name ?? "-")")
-        Check.that(state.ball == seat, "and then it comes home")
-        Check.that((state.shotClock ?? 0) > 0, "with time still on the clock")
+        Check.that(asked == seat && card.id == CardLibrary.dishtractingBall.id,
+                   "the ball is what is asking")
+        let give = state[seat].bag.first.map { [$0.id] } ?? []
+        let paid = Rules.resolveGiveUp(give, state: &state)
+        Check.that(state[seat].bag.count == held - 1, "and it costs him the card")
+        Check.that(paid.contains { if case .shotAttempted = $0 { return true }; return false },
+                   "and then the shot goes up")
     }
 
     print("Viewer-relative seating")

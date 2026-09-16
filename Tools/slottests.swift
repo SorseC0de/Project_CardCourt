@@ -152,12 +152,19 @@ func slotTests() {
                    "Bench Ball: caught off a pass, no draw, straight to the inbound")
     }
     do {
+        // **On the shot, not on the catch.** Taking the ball is free; putting it up is
+        // what costs a card, and it is the shooter who pays.
         var (state, seat, cards) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
         state.ballCard = Card(CardLibrary.dishtractingBall)
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that({ if case .awaitingGiveUp(let who, _, 1) = state.phase { return who == seat.left }
+        Check.that({ if case .awaitingGiveUp = state.phase { return false }
+                     return true }(),
+                   "Dishtracting Ball: catching it costs nothing")
+        let shooter = state.ball ?? seat.left
+        Rules.apply(.shootAs(.layup), by: shooter, to: &state)
+        Check.that({ if case .awaitingGiveUp(let who, _, 1) = state.phase { return who == shooter }
                      return false }(),
-                   "Dishtracting Ball: receiving it costs a card")
+                   "Dishtracting Ball: shooting it costs a card")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 213, cards: [CardLibrary.swingLeft])
