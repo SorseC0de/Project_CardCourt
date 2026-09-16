@@ -533,7 +533,10 @@ func runTests() {
         Rules.testDrawAll(Seat.allCases, count: 1, state: &state, events: &events)
         Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
                    "it is called on the draw itself")
-        Check.that(state.armedWhistles.isEmpty, "and the referee leaves the floor")
+        // **He stays.** Three officials work the whole round whatever they call — see
+        // `Rules.spendWhistle`.
+        Check.that(state.armedWhistles.first?.stayed == true,
+                   "and the referee stays on the floor, having called it")
         if case .inbound(let who) = state.phase {
             Check.that(who == Seat.allCases[0], "the man who drew it puts it back in")
         } else {
@@ -1153,7 +1156,7 @@ func runTests() {
                    "an armed Whistle fires on its trigger")
         Check.that(state.ball == ballBefore, "the cancelled pass never moves the ball")
         Check.that(state.shot == shotBefore, "and never pays its SHOT")
-        Check.that(state.armedWhistles.isEmpty, "the Whistle is spent")
+        Check.that(state.armedWhistles.first?.stayed == true, "the referee is marked as having called")
         Check.that(state.discard.contains { $0.name == "Swing Left" },
                    "the cancelled card is still discarded")
     }
@@ -1243,7 +1246,7 @@ func runTests() {
         let ref = seat.across
         state.armedWhistles = [ArmedWhistle(owner: ref, card: matchCard(CardLibrary.coachsChallenge, state.rules))]
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(state.armedWhistles.isEmpty, "the challenged Whistle never arms")
+        Check.that(state.armedWhistles.first?.stayed == true, "the challenged Whistle never arms")
         Check.that(state[ref].bag.contains { $0.descriptor.id == "timeout" },
                    "and the challenger recovers the Timeout")
     }
@@ -1293,16 +1296,20 @@ func runTests() {
 
     do {
         // Oldest first: the trap that was set earliest is the one lying in wait.
-        var (state, seat, cards) = openPossession(
-            seed: 52, cards: [CardLibrary.charge, CardLibrary.technicalFoul])
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Rules.apply(.play(cards[1].id), by: seat, to: &state)
-        let events = Rules.apply(.shoot, by: seat, to: &state)
+        // **Both are on the floor**, and a dunk is what Charge is watching for.
+        var (state, seat, _) = openPossession(seed: 52, cards: [])
+        state.armedWhistles = [
+            ArmedWhistle(owner: nil, card: matchCard(CardLibrary.charge, state.rules)),
+            ArmedWhistle(owner: nil, card: matchCard(CardLibrary.technicalFoul, state.rules)),
+        ]
+        state.shot = 60
+        let events = Rules.apply(.shootAs(.dunk), by: seat, to: &state)
         var called: String?
         for case .whistleBlew(_, let card, _, _, _) in events { called = card.id }
         Check.that(called == "charge",
                    "the one set first is the one that fires (got \(called ?? "none"))")
-        Check.that(state.armedWhistles.count == 1,
+        Check.that(state.armedWhistles.count == 2
+                   && state.armedWhistles.last?.stayed == false,
                    "and the other stays on the floor, still waiting")
     }
 
@@ -1813,10 +1820,11 @@ func runTests() {
         // gallery showed two of seven types, a collection could never hold a Whistle you
         // had met, and `Rules` looked cards up by id in it and got nil for every Special
         // Move, Clamp and Intangible.
-        // No Varena: the floor is shelved while the venue is redesigned, so nothing
-        // deals one. The descriptors are still reachable by id — see `CardLibrary.byID`.
-        for kind in [CardType.pass, .move, .specialMove, .clamp, .whistle,
-                     .intangible, .injury] {
+        // **Five types in the deck**, plus the Special Moves that have not been dissolved
+        // into them yet, plus the crew. No Varena and no Injury: both are parked while the
+        // venue and the knocks are redesigned, and nothing deals either. The descriptors
+        // are still reachable by id — see `CardLibrary.byID`.
+        for kind in [CardType.pass, .move, .specialMove, .clamp, .whistle, .intangible] {
             Check.that(CardLibrary.all.contains { $0.type == kind },
                        "the library has \(kind) cards in it")
         }
@@ -1829,6 +1837,8 @@ func runTests() {
                    "injuries included")
         Check.that(CardLibrary.varenas.allSatisfy { CardLibrary.byID[$0.id] != nil },
                    "and the shelved floors can still be decoded")
+        Check.that(CardLibrary.injuries.allSatisfy { CardLibrary.byID[$0.id] != nil },
+                   "and so can the parked knocks")
 
         // **The size of the thing.** This is what was actually wrong for a week: a board
         // written out in full is a quarter of a megabyte, GameKit refuses a reliable send

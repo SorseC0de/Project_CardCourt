@@ -2448,6 +2448,23 @@ final class GameController {
                 await present(Rules.resolveMode(mode, state: &state), playedCard: true)
                 continue
             }
+            // **Beating your man is a question, and an opponent has to answer it.**
+            // Without this the loop reached a payoff nobody could take and sat there:
+            // the man who had just blown by his defender held the ball for ever.
+            //
+            // TODO: no wire case yet, so a remote seat's payoff is decided by the host.
+            if case .awaitingPayoff(let seat, _) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                let payoff = AIPolicy.payoff(state, for: seat)
+                if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.takePayoff(payoff, by: seat, state: &state),
+                              playedCard: true)
+                continue
+            }
             if case .awaitingGiveUp(let seat, _, let count) = state.phase {
                 if seat.isLocal {
                     gate = localGate

@@ -2418,7 +2418,9 @@ enum Rules {
         // No owner exemption. A Whistle catches whoever trips it, its own player included
         // — that is what stops a table being flooded with traps by someone immune to them.
         return state.armedWhistles.first { whistle in
-            guard whistle.trigger?.matches(action) == true else { return false }
+            guard whistle.trigger?.matches(action) == true, hasACallLeft(whistle) else {
+                return false
+            }
             // Clear Path Foul is a call on a defender, so there has to be one holding the
             // man down. Without the condition it fired on every clean look.
             if whistle.card.descriptor.whistle?.requiresShotDebuffClamp == true {
@@ -2433,13 +2435,27 @@ enum Rules {
         }
     }
 
+    /// **Whether this official still has his call to make.**
+    ///
+    /// The crew never leaves the floor — three of them work the whole round, and only the
+    /// round turning over changes them. What is spent is the *call*: a referee who has
+    /// made his stands there for the rest of it, read by everybody, and says nothing more.
+    ///
+    /// Without this a standing referee called the same violation on every play that tripped
+    /// it, and a violation that hands the ball back in is a play that trips it again — a
+    /// game came out at three and a half thousand calls. The few meant to be called more
+    /// than once say so on their own card.
+    private static func hasACallLeft(_ whistle: ArmedWhistle) -> Bool {
+        !whistle.stayed || whistle.card.descriptor.whistle?.staysArmed == true
+    }
+
     /// A Whistle waiting on the draw itself, if one is set.
     ///
     /// Its own reader rather than `interceptor`, which only ever sees a `PendingAction` —
     /// and a card reaching a hand is not something anybody did.
     private static func drawInterceptor(in state: GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
-        return state.armedWhistles.first { $0.trigger == .cardDrawn }
+        return state.armedWhistles.first { $0.trigger == .cardDrawn && hasACallLeft($0) }
     }
 
     /// Blows one called on a draw. **It ends the possession where it stands** and throws
@@ -2469,7 +2485,7 @@ enum Rules {
         // nothing.
         if whistle.trigger != .whistleFired,
            let over = state.armedWhistles.first(where: {
-               $0.id != whistle.id && $0.trigger == .whistleFired
+               $0.id != whistle.id && $0.trigger == .whistleFired && hasACallLeft($0)
            }) {
             spendWhistle(over.id, state: &state)
             spendWhistle(whistle.id, state: &state)
@@ -3254,17 +3270,14 @@ enum Rules {
         // must not go up inside halftime's deal, and a return leg has nowhere to land.
         state.forget(.shootAtOnce, .returnBall)
 
-        // The referees leave when the round does — a trap does not lie in wait across the
-        // inbound that follows it — and the cards they were holding are spent.
-        // Policeum: a referee who has called one stays, round or no round.
-        let staying = state.floorEffect.refereesStay ? state.armedWhistles.filter(\.stayed) : []
-        let leaving = state.armedWhistles.filter { whistle in
-            !staying.contains { $0.id == whistle.id }
-        }
-        // Into the officials' own pile, never the main discard — the crew deck is a
+        // **The crew changes at the end of the round, and only there.** Three officials
+        // work the whole of it whatever they call; the round turning over is what sends
+        // them off and brings three more out — see `assignCrew`.
+        //
+        // Into the officials' own pile, never the main discard: the crew deck is a
         // separate pile all game and comes back off this when it runs dry.
-        state.officialsDiscard.append(contentsOf: leaving.map(\.card))
-        state.armedWhistles = staying
+        state.officialsDiscard.append(contentsOf: state.armedWhistles.map(\.card))
+        state.armedWhistles = []
         state.clockTicksOwed = 0
         state.sellingOut = false
         state.courtShotRoll = nil
@@ -3653,11 +3666,13 @@ enum Rules {
         // this Break does not land, and the draw is taken again. One place, so a
         // third of them is a line rather than another branch through the reveal.
         if state.breaksWaived > 0 || (!wavingBreaks
-            && state.armedWhistles.contains { $0.trigger == .gameBreakDrawn }) {
+            && state.armedWhistles.contains {
+                $0.trigger == .gameBreakDrawn && hasACallLeft($0)
+            }) {
             if state.breaksWaived > 0 {
                 state.breaksWaived -= 1
             } else if let waved = state.armedWhistles.first(where: {
-                $0.trigger == .gameBreakDrawn
+                $0.trigger == .gameBreakDrawn && hasACallLeft($0)
             }) {
                 // Play-On is spent on the first one and the run carries on without
                 // it: "until a non-Game Break card is drawn" is the card's own text.
@@ -3697,7 +3712,9 @@ enum Rules {
         // Recoverena turns a new one into a card the same way.
         let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
             || state.floorEffect.injuriesBecomeDraws
-        let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
+        let waved = state.armedWhistles.first {
+            $0.trigger == .injuryDrawn && hasACallLeft($0)
+        }
         if let waved, !shrugged {
             spendWhistle(waved.id, state: &state)
             state.discard.append(card)
@@ -3866,7 +3883,11 @@ enum Rules {
             // has the ball before they have done anything, and calling a dribble on it is
             // calling one before the ball has been put down. What it is for is a card
             // pulled *mid-possession* — off a Move, off a pass, off a passive.
-            if !opening, let whistle = drawInterceptor(in: state) {
+            // **And never on a card being dealt.** A hand arriving at the top of a round
+            // is not somebody dribbling: a call there ends a possession nobody has begun
+            // and cuts the deal short, which left three players holding nothing. Game
+            // Breaks are held out of a deal for the same reason, just above.
+            if !opening, !duringDeal, let whistle = drawInterceptor(in: state) {
                 blowOnDraw(whistle, against: seat, state: &state, events: &events)
             }
         }
@@ -4107,20 +4128,24 @@ enum Rules {
 
     /// **A referee who has made his call.** He leaves the floor and his card goes to the pile
     /// — unless the floor is Policeum, where he stays standing there.
+    /// **A referee who makes a call does not leave the floor.**
+    ///
+    /// He is not a trap that has been sprung: there are always three officials working,
+    /// and the only thing that ever changes them is the round turning over. Marking him
+    /// as having called is all this does now — the scene reads it to know who blew the
+    /// whistle, and a card that asks whether a call has been made reads it too.
     private static func spendWhistle(_ id: UUID, state: inout GameState) {
         guard let at = state.armedWhistles.firstIndex(where: { $0.id == id }) else { return }
-        if state.floorEffect.refereesStay {
-            state.armedWhistles[at].stayed = true
-        } else {
-            state.discard.append(state.armedWhistles.remove(at: at).card)
-        }
+        state.armedWhistles[at].stayed = true
     }
 
     /// A Whistle waiting on a passive landing, if one is set. Its own reader for the same
     /// reason `drawInterceptor` is: a card arriving is not something anybody did.
     private static func intangibleInterceptor(in state: GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
-        return state.armedWhistles.first { $0.trigger == .intangibleRevealed }
+        return state.armedWhistles.first {
+            $0.trigger == .intangibleRevealed && hasACallLeft($0)
+        }
     }
 
     /// Everything off a board.

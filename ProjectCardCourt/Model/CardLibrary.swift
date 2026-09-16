@@ -1363,12 +1363,16 @@ enum CardLibrary {
         baselineDenial, paintPacker, rimRunner,
     ]
 
-    /// The main deck. **No Whistles** — the crew is its own pile, dealt face-up at the top
-    /// of every round; see `officialsPool`. **No Varenas** — the floor is out of the game
-    /// while the venue is redesigned, so every match is played on plain Cardwood.
+    /// The main deck, and it is five types: Pass, Move, Ball, Clamp and Intangible.
+    ///
+    /// **No Whistles** — the crew is its own pile, dealt face-up at the top of every
+    /// round; see `officialsPool`. **No Varenas and no Injuries** — both are parked while
+    /// the venue and the knocks are redesigned, so every match is played on plain Cardwood
+    /// with nobody hurt. The descriptors stay reachable by id so a saved match still
+    /// decodes; see `byID`.
     static let standardPool: [CardDescriptor] = passesAndMoves
         + [flop] + clamps
-        + intangibles + injuries + specialMoves
+        + intangibles + specialMoves
         + variaballs
 
     /// **Every card in the game.**
@@ -1395,7 +1399,9 @@ enum CardLibrary {
         var found: [String: CardDescriptor] = [:]
         // The retired ones and the shelved Varenas are in here but in no pool: a saved
         // match still has to be able to decode a card the deck no longer builds.
-        for card in all + varenas + retiredWhistles + [faceDown] { found[card.id] = card }
+        for card in all + varenas + injuries + retiredWhistles + [faceDown] {
+            found[card.id] = card
+        }
         return found
     }()
 
