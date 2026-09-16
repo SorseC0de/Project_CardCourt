@@ -13,7 +13,8 @@ func dumpCardTexts() {
         let marks: [String]
     }
     let encoder = JSONEncoder()
-    for card in CardLibrary.standardPool {
+    // The officials deck is dealt from too, so the dump covers both piles.
+    for card in CardLibrary.standardPool + CardLibrary.officialsPool {
         let row = Row(name: card.name, type: card.type.rawValue, count: card.numberInDeck,
                       effect: card.effect, combo: card.combo, bonus: card.bonus,
                       shotEffect: card.shotEffect,

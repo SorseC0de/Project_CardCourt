@@ -1,7 +1,10 @@
 # The Rework
 
 The redesign the game is being rebuilt around. Everything here was decided in conversation;
-where a thing is still open it says so rather than guessing. Nothing in here is built yet.
+where a thing is still open it says so rather than guessing.
+
+**Built on the `rework` branch, 2026-09-16.** What landed is marked through the document.
+What is still open is collected at the end.
 
 The measurements that motivated it are in `what-makes-it-fun.md` — the short version is that
 the ball moves 0.24 times a possession and dies on its holder 57% of the time, 29% of
@@ -30,9 +33,11 @@ Why:
 One exchange rate runs through the whole game as a result: **one card = one pass = 10% SHOT.**
 Passing, drawing and getting open all speak the same unit.
 
-**Open:** when a card sets a different limit — Tri-Hard Tiling's `handLimit: 3` is the
-existing precedent — does the conversion key off the match's five, or off whatever limit is
-in force? The second makes Tri-Hard Tiling a SHOT engine rather than a drought.
+**Built.** `MatchRules.handLimit` and `MatchRules.overflowShot`; the conversion is in
+`Rules.draw`, which pays `adjustShot` and raises `.drawConverted`.
+
+**Settled:** it keys off whatever limit is in force, so a floor that sets a stricter one
+converts sooner. `GameState.handLimit` is the match's, or the floor's if that is lower.
 
 ---
 
@@ -48,6 +53,10 @@ all of them a draw:
 
 **Countered by a ref who calls a travel past three Move cards played.** The engine has a
 speed limit, and the limit is public.
+
+**Built.** Every `.move` descriptor carries a `drawCount` of at least one, and Travel is
+the speed limit: `WhistleEffect.requiresMovesThisPossession = 3`, so the fourth Move of a
+possession is the one that travels.
 
 ---
 
@@ -74,6 +83,15 @@ they are holding. Closer to Pokémon's prize cards.
 
 **Tabletop:** the three players who are not inbounding are the ones who shuffle the officials
 deck and pluck the new ref, for the extra interaction.
+
+**Built**, in the first shape: both decks shuffled once at the start of the game, the whole
+crew replaced each round. `GameState.officials` and `officialsDiscard` are the pile,
+`Rules.assignCrew` deals it, and `ArmedWhistle.owner` is optional — nil is the crew's.
+Nobody can play a Whistle from hand: the crew fills every slot, so `legalMoves` never
+offers one. The referee on the floor wears his call over his head, and the inspect sheet
+shows all three face up.
+
+**Not built:** the one-a-round swap with the scorer choosing, and the tabletop shuffle.
 
 Why it works:
 
@@ -165,9 +183,18 @@ Sketches, not decisions:
 - dunks above a SHOT threshold
 - threes at a full hand of five
 
-Unsettled on purpose. What is settled is that shot selection has to be a read rather than a
-default — without the refs it is flavour, and without the triangle the refs have nothing to
-punish. They are one mechanic.
+**Built**, with one change to the sketch: **the layup is never gated.** Gating all three
+meant a player at three cards and a poor look could not shoot at all, which is a soft lock
+rather than a decision. So the layup is always there and pays `emptyHandedLayupBonus`
+(+25%) at an empty hand — the one place in the game where being broke is worth something —
+while the dunk wants SHOT 50% and the three wants a full hand and is worth the extra point.
+
+Each has an official watching it: Charge on the dunk, Foot On The Line on the three (which
+downgrades rather than cancelling), Offensive Foul on the layup.
+
+**Not built:** the make effects off each finish — a layup drawing, a dunk costing the
+target a card, a three taking something off the floor. The triangle scores differently but
+does not yet *do* three different things.
 
 ---
 
@@ -187,19 +214,34 @@ What the rework displaces, at today's counts:
 | Varena | 29 | 5 |
 | Special Move | 16 | dissolved into Move and Intangible; their shot identities become the triangle |
 
-**Open:** which is the fifth colour in the main deck. Varenas can live on as it, or Clamps
-can. Clamps are the larger pillar as written above; Varenas as five unique one-ofs read more
-like field spells or stadium cards. Both were on the table and neither was closed.
+**Settled: Clamps are the fifth colour, and the Varenas are shelved.** Every match is played
+on plain Cardwood. The descriptors are still in `CardLibrary.varenas` and still decodable by
+id, so nothing about bringing them back is destructive.
 
-**Open:** how a Varena enters play. A one-of in 300 arrives at a random moment, and something
-that drastically changes how players interact landing mid-game is an earthquake nobody
-planned for. Setting it at tip-off alongside the refs would make the whole pre-game one unit —
-one arena and three officials, face-up before the jump — which is also the version that works
-on a table.
+**Built, at 299 cards:**
 
-**Open:** the 24 displaced Varenas. Most are good and would survive as ref conditions or
-Intangibles rather than being cut. The rehoming rule wants deciding before picking which five
-survive as arenas.
+| | cards |
+|---|---|
+| Pass | 90 |
+| Move | 70 |
+| Clamp | 60 |
+| Intangible | 29 |
+| Variaball | 18 (one of each) |
+| Special Move | 16 (one of each) |
+| Injury | 16 |
+| **Total** | **299** |
+
+The officials deck is 19 more, outside that count, as its own pile.
+
+Special Moves were not dissolved into Move and Intangible — they became one-of each, which
+takes them from a staple to a signature finish and is the same effect on the deck's shape.
+The rewrite into other colours is still to do.
+
+**Open:** how a Varena enters play, when they come back. A one-of in 300 arrives at a random
+moment, and something that drastically changes how players interact landing mid-game is an
+earthquake nobody planned for. Setting it at tip-off alongside the refs would make the whole
+pre-game one unit — one arena and three officials, face-up before the jump — which is also
+the version that works on a table.
 
 ---
 
@@ -212,17 +254,69 @@ and the inner ring only.
 - No keyword-colour or font-colour consistency problems against a coloured body.
 - It simplifies what-is-what: the body is neutral, the badge tells you the type.
 
+**Built.** `CardFace.colour` and `CardFace.shade` are the type's pair, and every colour
+table in `CardTextStyle` is built off them: cloud bodies throughout, the name badge in the
+type's colour with its own shade as the drop, the inner ring in the type's colour, the text
+overlay the same at 25%, and the wash over the words gone. **Moves are teal.** The outer
+ring is the cloud body showing outside the inset stroke.
+
+The officials deck has its own back — `RefereeCardBack`, the stripes off the face carried
+down the length of the card with a gold whistle in the middle.
+
+**Not built:** the black body as a switchable option. Everything is keyed off one table, so
+it is a second set of values rather than a second code path.
+
 ---
+
+## What the numbers say
+
+200 Standard games, against the figures the rework was argued from:
+
+| | before | after |
+|---|---|---|
+| longest run of boards with no basket | 16 | **10**, and only one run of 10+ in 200 games |
+| hands as a possession opens | 2.4 | **2.77** |
+| hands at one or none | 22% | **19%** |
+| possessions where SHOT never moved | 48% | **39%** |
+| shots made | 22–25% | **44%** |
+| points a game | ~12.4 | **18.7** |
+| bidding's share of card loss | 74% | 80% |
+
+The one surviving brick run is a Foot Ball lock: the ball holds the Moves and Passes played
+this possession, which can leave the shoot button as the only legal move at SHOT 0. That is
+one card's problem rather than the system's.
+
+Bidding's share of card loss went *up*, because everything else that took cards now takes
+fewer. It is still the largest single drain in the game.
+
+**And two numbers went the wrong way, which the rework does not fix:**
+
+| | before | after |
+|---|---|---|
+| passes a possession | 0.24 | **0.23** |
+| dead possessions (nobody played anything) | 29% | **37%** |
+
+The ball still does not move. Nothing in the rework was aimed at that directly — the hand
+limit, the Move draws and the officials all work on what a player *has* and what they may
+do with it, not on where the ball goes. And dead possessions went up because a crew is
+always out: ten calls a game is ten possessions where somebody's card was waved off.
+
+Some of this is the opponent rather than the rules. `AIPolicy` has not been rewritten for
+any of it — it does not chain Moves to run the draw engine, does not read a defender's
+printed counter to decide whether to work on beating him, and picks a finish by a flat
+preference rather than by what it is worth. Every number above is measured against an
+opponent playing the old game with the new cards.
 
 ## Open questions, collected
 
-1. Does the overflow conversion key off the match's limit of five, or off whatever limit is
-   currently in force?
-2. Refs: whole crew replaced each round, or one swapped with the scorer choosing?
-3. Fifth colour: Varenas or Clamps?
-4. How does a Varena enter play — drawn, or set at tip-off with the refs?
-5. Where do the 24 displaced Varenas go?
-6. What are the three shot types' actual conditions and trade-offs?
-7. Do Injuries and Game Breaks survive the consolidation, and where?
-8. Does the app need a browsable discard pile? The information game around bidding only exists
+1. Refs: whole crew replaced each round, or one swapped with the scorer choosing?
+2. How does a Varena enter play, when the venue comes back — drawn, or set at tip-off with
+   the refs?
+3. Do the three finishes get their own make effects (layup draws, dunk discards, three
+   destroys), or is the extra point enough?
+4. Do Injuries and Game Breaks survive the consolidation, and where?
+5. Does the app need a browsable discard pile? The information game around bidding only exists
    if the pile can be read, which is free on a table and is not currently built.
+6. Do the Special Moves get rewritten into Move and Intangible, or stay as one-of finishes?
+7. Whistles blow ten times a game now that a crew is always out. Technical Foul alone is one
+   a game, and it cancels the first non-Whistle anybody plays.

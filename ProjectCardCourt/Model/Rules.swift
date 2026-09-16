@@ -2608,6 +2608,12 @@ enum Rules {
             // does not advance — only a made shot or a real clock expiry does that.
             // Charge takes the ball the same way without charging the turnover.
             reinbound(by: offender, state: &state, events: &events)
+        } else {
+            // **A call the man plays on from.** His card was waved off and he still has
+            // the ball — but the card that was going to free him may have been the one
+            // cancelled, and a man with nothing left to do is a man the clock runs out
+            // on. Checked here because a call is not a play and never reaches the drain.
+            strandOut(state: &state, events: &events)
         }
     }
 
@@ -3353,6 +3359,10 @@ enum Rules {
     static func settleHands(state: inout GameState, events: inout [GameEvent]) {
         drain(state: &state, events: &events)
         settleClamps(state: &state, events: &events)
+        // **Last of all.** The drain has its own check, but the defenders settle after it
+        // — and a man left with a forced finish he cannot take and no card he may play is
+        // a man the clock runs out on. See `strandOut`.
+        strandOut(state: &state, events: &events)
     }
 
     // MARK: - Assignments
@@ -3383,12 +3393,20 @@ enum Rules {
         guard case .possession(let holder) = state.phase, state.beatenClamp == nil,
               state.pending.isEmpty
         else { return }
-        guard let index = state[holder].clamps.firstIndex(where: { clamp in
+        let index = state[holder].clamps.firstIndex { clamp in
             guard clamp.bitten, clamp.card.clamp?.isStanding == true,
                   let counter = clamp.card.clamp?.clearedBy, counter != .givingUpTheBall
             else { return false }
             return counter.met(by: holder, in: state)
-        }) else { return }
+        }
+        guard let index else {
+            // **Checked again here.** A defender forcing a finish the man cannot take can
+            // leave him with nothing legal at all, and this runs *after* the drain — so
+            // the drain's own check has already been and gone. A man with nothing to do
+            // is a man the clock runs out on.
+            strandOut(state: &state, events: &events)
+            return
+        }
         let beaten = state[holder].clamps.remove(at: index)
         state.beatenClamp = beaten
         events.append(.clampBeaten(seat: holder, card: beaten.card))
