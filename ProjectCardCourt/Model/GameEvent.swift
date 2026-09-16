@@ -27,11 +27,24 @@ enum GameEvent: Hashable, Codable {
     /// `against` is the seat the call was made on — whose card, whose shot, whose Clamp.
     /// Without it the log says a Travel cancelled an Ankle Breaker and leaves you to guess
     /// whose Ankle Breaker it was.
-    case whistleBlew(owner: Seat, card: CardDescriptor, cancelled: String,
+    case whistleBlew(owner: Seat?, card: CardDescriptor, cancelled: String,
                      cancelledCard: CardDescriptor?, against: Seat?)
     /// Clear Out: he was not there, and the ball went on to the next man.
     case clearedOut(seat: Seat, to: Seat?)
     case whistleArmed(seat: Seat)
+    /// **A defender beaten.** His printed counter was met, so he is off his man — and the
+    /// man he was on picks what blowing by him was worth.
+    case clampBeaten(seat: Seat, card: CardDescriptor)
+    /// And the payoff taken for it.
+    case payoffTaken(seat: Seat, card: CardDescriptor, payoff: ClampPayoff)
+    /// A defender who simply ran out of somebody to guard.
+    case clampExpired(seat: Seat, cards: [CardDescriptor])
+    /// **The crew for the round, turned face-up.** Nobody played these and nobody owns
+    /// them: they are the rules everyone is about to play under, so they are announced
+    /// rather than hidden the way an armed Whistle was.
+    case crewAssigned(cards: [CardDescriptor])
+    /// A card that would have gone into a full hand, paid as SHOT instead.
+    case drawConverted(seat: Seat, card: CardDescriptor, shot: Int)
     /// A Whistle with no trigger — Timeout — which resolves the moment it is played
     /// rather than lying in wait. It appended nothing at all before, so playing one was
     /// silent: four players drew, nothing said why, and the only lines that reached the
@@ -189,7 +202,21 @@ enum GameEvent: Hashable, Codable {
         case .clampBit(let seat, let card, let discarded):
             return "\(card.name) on \(seat.playerName): \(discarded) card\(discarded == 1 ? "" : "s") gone."
         case .whistleBlew(let owner, let card, let cancelled, _, _):
+            // The crew's calls have no name in front of them — nobody set them down.
+            guard let owner else { return "WHISTLE! \(card.name) cancels \(cancelled)." }
             return "WHISTLE! \(owner.playerName)'s \(card.name) cancels \(cancelled)."
+        case .crewAssigned(let cards):
+            let names = cards.map(\.name).joined(separator: ", ")
+            return "Working tonight: \(names)."
+        case .drawConverted(let seat, _, let shot):
+            return "\(seat.playerName) \(seat.verb("is", "are")) full — gets open instead. SHOT +\(shot)%."
+        case .clampBeaten(let seat, let card):
+            return "\(seat.playerName) \(seat.verb("beats", "beat")) \(card.name)!"
+        case .payoffTaken(let seat, _, let payoff):
+            return "\(seat.playerName): \(payoff.label)."
+        case .clampExpired(let seat, let cards):
+            let names = cards.map(\.name).joined(separator: ", ")
+            return "\(names) \(cards.count == 1 ? "has" : "have") nobody to guard on \(seat.playerName)."
         case .failedReturn(let seat):
             return "\(seat.playerName) \(seat.verb("has", "have")) nobody to give it back to!"
         case .shotAttempted(let seat, let chance, let breakdown):

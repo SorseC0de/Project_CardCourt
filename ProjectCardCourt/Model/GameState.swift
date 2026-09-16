@@ -96,6 +96,9 @@ enum Phase: Hashable, Codable {
     case awaitingTarget(seat: Seat, card: CardDescriptor, choices: [Seat])
     /// Triple Threat: one of the card's own branches.
     case awaitingMode(seat: Seat, card: CardDescriptor)
+    /// **You beat your man.** The defender whose printed counter has just been met, and
+    /// the three things blowing by him is worth.
+    case awaitingPayoff(seat: Seat, clamp: CardDescriptor)
     /// A card taken out of somebody else's hand, chosen rather than rolled for. The hand
     /// is face down — picking one is a guess, which is the point.
     case awaitingCardFrom(seat: Seat, card: CardDescriptor, victim: Seat)
@@ -137,7 +140,7 @@ enum Phase: Hashable, Codable {
     var isMidPlay: Bool {
         switch self {
         case .awaitingTarget, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
-             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop:
+             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop, .awaitingPayoff:
             return true
         default:
             return false
@@ -162,6 +165,7 @@ enum Phase: Hashable, Codable {
         case .awaitingGiveUp(let seat, _, _): return seat
         case .awaitingTarget(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
+        case .awaitingPayoff(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat
         case .awaitingInjuryPick(let seat, _): return seat
         case .awaitingIntangibleDrop(let seat, _): return seat
@@ -227,6 +231,13 @@ struct GameState: Codable {
     var players: [PlayerState]
     var deck: [Card] = []
     var discard: [Card] = []
+    /// **The officials deck.** Shuffled once at the start of the game, like the main deck,
+    /// and dealt from at the top of every round. Nobody is ever dealt one into a hand and
+    /// nothing shuffles it back into the main pile — the crew is its own pile all game.
+    var officials: [Card] = []
+    /// The officials who have already worked a round. The crew deck comes back off this
+    /// when it runs dry, the same way the main deck does.
+    var officialsDiscard: [Card] = []
     var phase: Phase = .inbound(inbounder: .south)
     var round = 1
     /// What a shooting Special Move is paying for the attempt it is about to take.
@@ -314,6 +325,13 @@ struct GameState: Codable {
     var playedVariaballThisPossession = false
     /// Alley-Oop: whether this possession has been asked "Dunk It?" yet.
     var dunkOffered = false
+    /// **How the attempt in the air was taken.** Set the moment a shoot button is pressed
+    /// and read by the crew, by scoring, and by the cutscene.
+    var shotType: ShotType = .layup
+    /// The defender just beaten, held while his man picks what it was worth.
+    var beatenClamp: ActiveClamp?
+    /// Paid to the one attempt taken off a payoff.
+    var payoffShotBonus = 0
     /// What the passer said yes to, carried into the pass — see `CardOption`.
     var passTakesBall = false
     var passFlipsCoin = false
@@ -430,6 +448,8 @@ struct GameState: Codable {
     var floorEffect: VarenaEffect { currentCourt.varena ?? VarenaEffect() }
     /// What the ball does. A Regulation Ball does nothing.
     var ballEffect: VariaballEffect { currentBall?.variaball ?? VariaballEffect() }
+    /// **The most cards a hand may hold.** The match's, unless the floor is stricter.
+    var handLimit: Int { min(rules.handLimit, floorEffect.handLimit ?? rules.handLimit) }
     /// Intangible slots on this floor.
     var intangibleSlotLimit: Int { floorEffect.intangibleSlots ?? rules.intangibleSlots }
     /// The shot clock on this floor.

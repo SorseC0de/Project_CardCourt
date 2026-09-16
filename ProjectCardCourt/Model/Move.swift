@@ -18,6 +18,10 @@ enum Move: Hashable, Codable {
     /// player — and that is a *target*, so Floor General names him instead.
     case borrow(from: Seat)
     case shoot
+    /// **The shoot button, which is three buttons.** A plain `shoot` is a layup.
+    case shootAs(ShotType)
+    /// Which payoff a player takes for beating the defender in front of them.
+    case beatClamp(payoff: ClampPayoff)
     /// Sixth Man: the second Shoot button, at the SHOT the Intangible offers.
     case shootAtOffer
     /// Traderous Tarmac: one of the Clamps on you, onto another player.

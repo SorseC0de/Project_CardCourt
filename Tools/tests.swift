@@ -21,7 +21,17 @@ func openPossession(seed: UInt64, cards: [CardDescriptor]) -> (GameState, Seat, 
     let receiver = inbounder.clockwise
     Rules.apply(.inbound(to: receiver), by: inbounder, to: &state)
     let dealt = cards.map { matchCard($0, state.rules) }
-    state[receiver].bag.append(contentsOf: dealt)
+    // **Room made for them.** A hand is capped now, and a test that stacks cards on top of
+    // a full one was testing the overflow rather than the card it meant to — every draw
+    // after it paid SHOT instead of arriving. The dealt hand is trimmed back so the cards
+    // the test asked for fit, and a draw still has somewhere to land.
+    let room = max(0, state.handLimit - dealt.count - 3)
+    state[receiver].bag = Array(state[receiver].bag.prefix(room)) + dealt
+    // And room in everybody else's, for the same reason: a card that draws for the table
+    // should be seen drawing, not converting.
+    for other in Seat.allCases where other != receiver {
+        state[other].bag = Array(state[other].bag.prefix(max(0, state.handLimit - 3)))
+    }
     return (state, receiver, dealt)
 }
 
@@ -408,6 +418,7 @@ func runTests() {
         }
         Check.that(each == 25, "at 25 a card")
 
+        for _ in 0..<3 { state[seat].bag.append(matchCard(CardLibrary.swingLeft, state.rules)) }
         let feed = Array(state[seat].bag.prefix(3).map(\.id))
         let events = Rules.resolveDiscardForShot(feed, state: &state)
         for case .shotAttempted(_, let chance, _) in events {
@@ -736,7 +747,9 @@ func runTests() {
                 state.deck.append(matchCard(descriptor, state.rules))
                 var events: [GameEvent] = []
                 Rules.testDraw(seat, state: &state, events: &events)
-                let expected = max(hand, target)
+                // Capped: nothing fills a hand past the limit, and the cards it cannot
+                // hand over are paid as SHOT instead — see `MatchRules.overflowShot`.
+                let expected = max(hand, min(target, state.handLimit))
                 if state[seat].bag.count != expected {
                     Check.that(false, "\(label) from \(hand) should reach \(expected), got \(state[seat].bag.count)")
                     break
@@ -924,15 +937,26 @@ func runTests() {
         Check.that(state[receiver].clamps.count == 1, "clamped on arrival")
         // A pass that knows where it is going. The ones that ask set a phase instead of
         // ending the possession, which is the thing being measured here.
+        // **Given to him rather than found in his hand.** Hands are trimmed to make room
+        // for the cards a test asks for, and a Clamp that takes two more can leave a hand
+        // with no pass in it at all.
         let onward = state[receiver].bag.first {
             [.left, .right, .across].contains($0.descriptor.passTarget)
-        }!
+        } ?? {
+            let card = matchCard(CardLibrary.swingLeft, state.rules)
+            state[receiver].bag.append(card)
+            return card
+        }()
         Rules.apply(.play(onward.id), by: receiver, to: &state)
         // The next man may be offered something as it arrives, and a possession held on
         // that question has not cleared the last one's Clamps yet — it does that on the
         // answer. See `Rules.beginPossession`.
         declineCounter(&state)
-        Check.that(state[receiver].clamps.isEmpty, "and clear once the possession ends")
+        // **And he is still there.** A defender is an assignment now: handing the ball on
+        // does not shake him. Only meeting what is printed on his card does — Contest
+        // prints SHOT 60% or more.
+        Check.that(state[receiver].clamps.count == 1,
+                   "and stands through the possession ending")
     }
 
     do {
@@ -967,7 +991,9 @@ func runTests() {
         let fromGravity = state[gravity].bag.last { $0.descriptor.id == CardLibrary.swingLeft.id }!
         Rules.apply(.play(fromGravity.id), by: gravity, to: &state)
         declineCounter(&state)
-        Check.that(state[gravity].clamps.isEmpty, "and goes when he hands on")
+        // He stays: Contest prints SHOT 60% or more as what beats it, and nothing here
+        // has beaten it.
+        Check.that(state[gravity].clamps.count == 1, "and stays until he is beaten")
     }
 
     print("Breaking a Clamp before it lands")
@@ -1167,7 +1193,9 @@ func runTests() {
         // Travel watches Move cards; the offender loses the ball and hands it back in
         // without the round advancing.
         var (state, seat, cards) = openPossession(seed: 42, cards: [CardLibrary.dribble])
-        state.armedWhistles = [ArmedWhistle(owner: seat.across, card: matchCard(CardLibrary.travel, state.rules))]
+        state.armedWhistles = [ArmedWhistle(owner: nil, card: matchCard(CardLibrary.travel, state.rules))]
+        // Three Moves are free; the fourth travels — see `CardLibrary.travel`.
+        state.movesThisPossession = 3
         let round = state.round
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state[seat].turnovers == 1, "Travel charges the turnover")
@@ -1241,21 +1269,26 @@ func runTests() {
     }
 
     do {
-        // Three referees is the floor's limit, and a fourth is simply unplayable.
-        var (state, seat, cards) = openPossession(
-            seed: 51, cards: [CardLibrary.travel, CardLibrary.shotClockViolation,
-                              CardLibrary.doubleDribble, CardLibrary.backCourtViolation])
-        for index in 0..<3 { Rules.apply(.play(cards[index].id), by: seat, to: &state) }
+        // **Nobody sets a referee down.** The crew is dealt face-up off the officials deck
+        // at the top of every round, three of them, belonging to nobody.
+        var (state, _) = Rules.newGame(seed: 51, rules: .standard)
+        let seat = state.inbounder
         Check.that(state.armedWhistles.count == state.rules.refereeSlots,
-                   "three fill the floor")
-        let legal = Rules.legalMoves(state, for: seat)
-        Check.that(!legal.contains(.play(cards[3].id)),
-                   "and a fourth is refused while they are all standing")
+                   "a crew of three works every round")
+        Check.that(state.armedWhistles.allSatisfy { $0.owner == nil },
+                   "and belongs to nobody")
+        let held = matchCard(CardLibrary.travel, state.rules)
+        state[seat].bag.append(held)
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(held.id)),
+                   "and a Whistle in a hand is unplayable")
 
-        // They go home at the end of a round rather than lying in wait across it.
+        // The crew that worked the round goes home and a fresh one comes out.
+        let worked = Set(state.armedWhistles.map(\.card.descriptor.id))
         var rounds: [GameEvent] = []
         Rules.testEndRound(state: &state, events: &rounds)
-        Check.that(state.armedWhistles.isEmpty, "the referees leave when the round does")
+        Check.that(state.armedWhistles.count == state.rules.refereeSlots
+                   && Set(state.armedWhistles.map(\.card.descriptor.id)) != worked,
+                   "the referees leave when the round does")
     }
 
     do {
@@ -1526,12 +1559,11 @@ func runTests() {
         }
     }
     do {
-        // A Move that draws nothing, clears nothing and asks nothing, so no Pass can arrive.
-        let quiet = CardLibrary.standardPool.first {
-            $0.type == .move && $0.drawCount == 0 && $0.comboDraw == 0 && $0.drawIfFirstAction == 0
-                && !$0.clearsClamps && !$0.clearsOut && $0.selfDiscard == 0
-                && $0.optionalDiscardForShot == 0 && $0.modes.isEmpty && $0.clamp == nil
-        }!
+        // A Move that draws nothing, clears nothing and asks nothing, so no Pass can
+        // arrive. **Built rather than found**: every printed Move draws at least one card
+        // now, which is the point of the colour — so the quiet one has to be made up.
+        let quiet = CardDescriptor(id: "quiet-move", name: "Quiet Move", type: .move,
+                                   effect: "", numberInDeck: 0, shotDelta: 0)
         var (state, seat, cards) = openPossession(seed: 96, cards: [quiet, quiet])
         state[seat].bag = cards
         state[seat].clamps = [ActiveClamp(card: CardLibrary.zone, from: seat.left)]
@@ -1781,8 +1813,10 @@ func runTests() {
         // gallery showed two of seven types, a collection could never hold a Whistle you
         // had met, and `Rules` looked cards up by id in it and got nil for every Special
         // Move, Clamp and Intangible.
+        // No Varena: the floor is shelved while the venue is redesigned, so nothing
+        // deals one. The descriptors are still reachable by id — see `CardLibrary.byID`.
         for kind in [CardType.pass, .move, .specialMove, .clamp, .whistle,
-                     .intangible, .injury, .varena] {
+                     .intangible, .injury] {
             Check.that(CardLibrary.all.contains { $0.type == kind },
                        "the library has \(kind) cards in it")
         }
@@ -1793,6 +1827,8 @@ func runTests() {
                    "and every one of them can be found by id")
         Check.that(CardLibrary.injuries.allSatisfy { CardLibrary.byID[$0.id] != nil },
                    "injuries included")
+        Check.that(CardLibrary.varenas.allSatisfy { CardLibrary.byID[$0.id] != nil },
+                   "and the shelved floors can still be decoded")
 
         // **The size of the thing.** This is what was actually wrong for a week: a board
         // written out in full is a quarter of a megabyte, GameKit refuses a reliable send

@@ -167,7 +167,7 @@ enum CardTextStyle {
     ///
     /// **The same box the court overlay is drawn in**, corner aside — see
     /// `CardLayout.textOverlay*`, which both of them are laid out by.
-    static let panel = true
+    static let panel = false
     /// Its corner, against the card's width.
     static let panelCorner: CGFloat = 0.05
     /// How black it is.
@@ -258,13 +258,20 @@ enum CardTextStyle {
     /// colour is free. See `CardText`.
     static let highlight = true
 
-    /// **What the body text is printed in, per type.** The one thing that has to differ:
-    /// navy on a near-black Intangible is lettering nobody can find.
+    /// **Navy on paper, everywhere.** With one body there is one lettering colour, which
+    /// is the point of the change: nothing about reading a card depends on its type.
     static let text: [CardFace: CardTextInk] = [
-        .pass: .white, .move: .white, .specialMove: .white, .clamp: .white,
-        .whistle: .black, .gameBreak: .white, .intangible: .white,
-        .injury: .white, .devastatingInjury: .white,
-        .varena: .white, .variaball: .white,
+        .pass: .navy,
+        .move: .navy,
+        .specialMove: .navy,
+        .clamp: .navy,
+        .whistle: .navy,
+        .gameBreak: .navy,
+        .intangible: .navy,
+        .injury: .navy,
+        .devastatingInjury: .navy,
+        .varena: .navy,
+        .variaball: .navy,
     ]
 
     /// **And what a named mechanic inside it is printed in.** One colour on every body:
@@ -290,13 +297,24 @@ enum CardTextStyle {
         .varena: 1, .variaball: 1,
     ]
 
-    /// **What the card is printed on**, per type. The frozen bodies to begin with — this
-    /// is here so a body can be tried against a ring and a keyword without a rebuild.
+    /// **One paper for every card.** The bodies used to be the type — a blue Pass, a red
+    /// Clamp — which left no room for words and made every keyword colour a fight with
+    /// the ground under it. Colour now lives on the name badge and the inner ring only,
+    /// and the type is read off those. See `CardFace.colour`.
+    ///
+    /// Black is the other option and the whole switch is `darkBodies`.
     static let body: [CardFace: CardTextInk] = [
-        .pass: .blue, .move: .green, .specialMove: .gold, .clamp: .red,
-        .whistle: .cloud, .gameBreak: .purple, .intangible: .black,
-        .injury: .blood, .devastatingInjury: .maroon,
-        .varena: .plum, .variaball: .azure,
+        .pass: .cloud,
+        .move: .cloud,
+        .specialMove: .cloud,
+        .clamp: .cloud,
+        .whistle: .cloud,
+        .gameBreak: .cloud,
+        .intangible: .cloud,
+        .injury: .cloud,
+        .devastatingInjury: .cloud,
+        .varena: .cloud,
+        .variaball: .cloud,
     ]
 
     /// **The card's name, per face, in two inks.**
@@ -308,16 +326,30 @@ enum CardTextStyle {
     /// **There is no one-colour switch.** A name in one ink is the same ink top and
     /// bottom, which is a gradient of a colour against itself — one rule instead of two.
     static let nameTop: [CardFace: CardTextInk] = [
-        .pass: .darkBlue, .move: .darkBlue, .specialMove: .blue, .clamp: .cloud,
-        .whistle: .maroon, .gameBreak: .azure, .intangible: .cobalt,
-        .injury: .tan, .devastatingInjury: .magenta,
-        .varena: .azure, .variaball: .azure,
+        .pass: .cloud,
+        .move: .cloud,
+        .specialMove: .navy,
+        .clamp: .cloud,
+        .whistle: .cloud,
+        .gameBreak: .cloud,
+        .intangible: .cloud,
+        .injury: .cloud,
+        .devastatingInjury: .cloud,
+        .varena: .cloud,
+        .variaball: .cloud,
     ]
     static let nameBottom: [CardFace: CardTextInk] = [
-        .pass: .navy, .move: .navy, .specialMove: .darkBlue, .clamp: .lightBlue,
-        .whistle: .black, .gameBreak: .navy, .intangible: .black,
-        .injury: .blood, .devastatingInjury: .red,
-        .varena: .navy, .variaball: .navy,
+        .pass: .white,
+        .move: .white,
+        .specialMove: .darkBlue,
+        .clamp: .white,
+        .whistle: .white,
+        .gameBreak: .white,
+        .intangible: .white,
+        .injury: .white,
+        .devastatingInjury: .white,
+        .varena: .white,
+        .variaball: .white,
     ]
 
     /// **What another card's name is printed in**, where a card's words name one. One
@@ -343,32 +375,52 @@ enum CardTextStyle {
         .varena: .purple, .variaball: .azure,
     ]
 
-    /// **The inner ring**, per type. It is drawn in the same navy most bodies are printed
-    /// in, so the one body that *is* that navy has to turn it over.
+    /// **The inner ring is the type.** One of the two places colour is left on a card.
     static let ring: [CardFace: CardTextInk] = [
-        .pass: .gold, .move: .tangerine, .specialMove: .darkBlue, .clamp: .azure,
-        .whistle: .black, .gameBreak: .navy, .intangible: .green,
-        .injury: .plum, .devastatingInjury: .red,
-        .varena: .purple, .variaball: .blue,
+        .pass: .blue,
+        .move: .teal,
+        .specialMove: .gold,
+        .clamp: .red,
+        .whistle: .black,
+        .gameBreak: .purple,
+        .intangible: .green,
+        .injury: .blood,
+        .devastatingInjury: .maroon,
+        .varena: .plum,
+        .variaball: .azure,
     ]
 
-    /// **The name banner itself**, per face. White on all of them to begin with, which is
-    /// what the drawing was filled with before it could be asked.
+    /// **The name badge is the type too** — the other place colour is left, and the one a
+    /// reader looks at first.
     static let plateFill: [CardFace: CardTextInk] = [
-        .pass: .white, .move: .white, .specialMove: .lightBlue, .clamp: .darkRed,
-        .whistle: .tan, .gameBreak: .gold, .intangible: .gold,
-        .injury: .black, .devastatingInjury: .black,
-        .varena: .gold, .variaball: .gold,
+        .pass: .blue,
+        .move: .teal,
+        .specialMove: .gold,
+        .clamp: .red,
+        .whistle: .black,
+        .gameBreak: .purple,
+        .intangible: .green,
+        .injury: .blood,
+        .devastatingInjury: .maroon,
+        .varena: .plum,
+        .variaball: .azure,
     ]
 
     /// **The drop under the name banner**, per type. The plate itself is white whatever the
     /// body is; what falls behind it is the question, and blue behind it on a dark body
     /// reads as nothing at all.
     static let plateDrop: [CardFace: CardTextInk] = [
-        .pass: .lightBlue, .move: .lightBlue, .specialMove: .blue, .clamp: .maroon,
-        .whistle: .blood, .gameBreak: .orange, .intangible: .orange,
-        .injury: .cobalt, .devastatingInjury: .cobalt,
-        .varena: .orange, .variaball: .orange,
+        .pass: .darkBlue,
+        .move: .cobalt,
+        .specialMove: .orange,
+        .clamp: .darkRed,
+        .whistle: .navy,
+        .gameBreak: .plum,
+        .intangible: .cobalt,
+        .injury: .maroon,
+        .devastatingInjury: .plum,
+        .varena: .cobalt,
+        .variaball: .plum,
     ]
 }
 

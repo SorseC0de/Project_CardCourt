@@ -124,7 +124,7 @@ enum DevLog {
             case .whistleBlew(let owner, let card, let cancelled, _, let against):
                 // Whose card, not just which card. The name on its own left you working
                 // out which of the four an Ankle Breaker had belonged to.
-                say(.whistle, "\(owner.dev)'s \(card.name) cancels "
+                say(.whistle, (owner.map { "\($0.dev)'s " } ?? "") + "\(card.name) cancels "
                     + (against.map { "\($0.dev)'s " } ?? "") + cancelled)
             case .whistlesDismissed:
                 say(.whistle, "silenced for the round")

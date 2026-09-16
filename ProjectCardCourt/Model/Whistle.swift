@@ -141,6 +141,16 @@ struct WhistleEffect: Hashable, Codable {
     /// Only fires when the man shooting is actually being held down. A Whistle with a
     /// condition rather than only a trigger — see `Rules.interceptor`.
     var requiresShotDebuffClamp = false
+    /// **The speed limit.** Traveling is called on the man who has already made this many
+    /// Moves this possession, so a run of them is free until it is not. Every Move draws a
+    /// card, and this is what stops the engine running for ever.
+    var requiresMovesThisPossession: Int?
+    /// **Which finish the crew is watching.** A call on dunks says nothing about a layup.
+    /// This is the half of the matrix a Clamp forces a player into.
+    var requiresShotType: ShotType?
+    /// The shot still counts, for one point fewer. Foot On The Line does not wave a three
+    /// off; it says it was never a three.
+    var downgradesThree = false
     /// Delay-of-Game: the first call is a warning, the second is a foul.
     var freeThrowsOnRepeatCall = 0
     /// The cancelled card still spends the Shot Clock it was going to spend. Delay-of-Game
@@ -177,12 +187,15 @@ enum PendingAction: Hashable {
 /// log — arming must emit nothing public.
 struct ArmedWhistle: Hashable, Codable, Identifiable {
     let id: UUID
-    let owner: Seat
+    /// **Nil for a member of the crew**, which is every official on the floor now that
+    /// Whistles are dealt face-up from their own deck rather than set down by a player.
+    /// Anything a Whistle pays *its owner* is simply not paid when nobody set it.
+    let owner: Seat?
     let card: Card
     /// Policeum: called, and still standing on the floor.
     var stayed = false
 
-    init(owner: Seat, card: Card, id: UUID = UUID()) {
+    init(owner: Seat?, card: Card, id: UUID = UUID()) {
         self.id = id
         self.owner = owner
         self.card = card

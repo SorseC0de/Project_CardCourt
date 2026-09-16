@@ -1002,15 +1002,15 @@ struct CourtView: View {
                           mirrored: post.isLeft, phase: post.phase,
                           tone: look.refereeTone(for: called.id),
                           frozen: frozen)
-                // Whose call he is, over his head. Small and bracketed: it is an aside
-                // about a man standing there, not a name plate like the players wear.
+                // **What he is watching for**, over his head. Nobody owns a referee any
+                // more — the crew is dealt face-up and everyone plays under it — so the
+                // label says the call rather than whose trap it was.
                 .overlay(alignment: .top) {
-                    SmallCapsText(text: "(\(called.owner.playerName))",
+                    SmallCapsText(text: called.card.name.uppercased(),
                                   font: "AvenirNextCondensed-Heavy",
                                   size: Referee.name, scalesWithTextSize: false)
                         .foregroundStyle(.white)
-                        .shadow(color: PixelPalette.shade(for: called.owner),
-                                radius: 0, x: 1, y: 1)
+                        .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
                         .fixedSize()
                         .scaleEffect(nameScale, anchor: .bottom)
                         .offset(y: -Referee.name * nameScale)

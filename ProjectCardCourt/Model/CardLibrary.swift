@@ -7,15 +7,15 @@ enum CardLibrary {
 
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "~[Pass] Left.", numberInDeck: 20, passTarget: .left)
+        effect: "~[Pass] Left.", numberInDeck: 15, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "~[Pass] Right.", numberInDeck: 20, passTarget: .right)
+        effect: "~[Pass] Right.", numberInDeck: 15, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,
-        effect: "~[Pass] Across.", numberInDeck: 10, passTarget: .across)
+        effect: "~[Pass] Across.", numberInDeck: 5, passTarget: .across)
 
     static let behindTheBack = CardDescriptor(
         id: "behind-the-back", name: "Behind-the-Back", type: .pass,
@@ -96,13 +96,13 @@ enum CardLibrary {
 
     static let dribble = CardDescriptor(
         id: "dribble", name: "Dribble", type: .move,
-        effect: "#[Draw] 2. SHOT -10%", numberInDeck: 15,
+        effect: "#[Draw] 2 cards. SHOT -10%", numberInDeck: 10,
         shotDelta: -10, drawCount: 2, isDribble: true)
 
     static let drive = CardDescriptor(
         id: "drive", name: "Drive", type: .move,
-        effect: "SHOT +10%", numberInDeck: 16,
-        shotDelta: 10, comboAfterDribble: true, comboBonus: 10,
+        effect: "#[Draw] 1 card. SHOT +10%", numberInDeck: 10,
+        shotDelta: 10, drawCount: 1, comboAfterDribble: true, comboBonus: 10,
         combo: "SHOT +10% extra")
 
     static let poundDribble = CardDescriptor(
@@ -112,17 +112,17 @@ enum CardLibrary {
 
     static let spinMove = CardDescriptor(
         id: "spin-move", name: "Spin Move", type: .move,
-        effect: "SHOT +10%. #[Clear] all your ~[Clamps]", numberInDeck: 5,
-        shotDelta: 10, isDribble: true, shotPerClamp: 10, clearsClamps: true,
+        effect: "#[Draw] 1 card. SHOT +10%. #[Clear] all your ~[Clamps]", numberInDeck: 5,
+        shotDelta: 10, drawCount: 1, isDribble: true, shotPerClamp: 10, clearsClamps: true,
         bonus: "SHOT +10% for each ~[Clamp] #[Cleared]")
 
     /// **Finishes the Ankle Breaker combo** off a Dribble — see `Combo.name`.
     static let crossover = CardDescriptor(
         id: "crossover", name: "Crossover", type: .move,
-        effect: "SHOT +10%. #[Clear] all your ~[Clamps]",
+        effect: "#[Draw] 1 card. SHOT +10%. #[Clear] all your ~[Clamps]",
         numberInDeck: 5,
-        shotDelta: 10, comboAfterDribble: true, comboBonus: 10, isDribble: true,
-        drawPerClamp: 1, clearsClamps: true,
+        shotDelta: 10, drawCount: 1, comboAfterDribble: true, comboBonus: 10,
+        isDribble: true, drawPerClamp: 1, clearsClamps: true,
         combo: "SHOT +10% extra. You may #[Discard] 1 card from target player's hand",
         bonus: "#[Draw] 1 card for each ~[Clamp] #[Cleared]")
 
@@ -146,23 +146,28 @@ enum CardLibrary {
 
     static let pumpFake = CardDescriptor(
         id: "pump-fake", name: "Pump Fake", type: .move,
-        effect: "SHOT +10%. #[Clear] all ~[Clamps] on you. #[Draw] 2 cards and "
-            + "#[Shot Clock] -01 for each.",
-        numberInDeck: 10,
-        shotDelta: 10, drawPerClamp: 2, clockPerClamp: -1, clearsClamps: true)
+        effect: "#[Draw] 1 card. SHOT +10%. #[Clear] all ~[Clamps] on you. "
+            + "#[Draw] 2 extra cards and #[Shot Clock] -01 for each.",
+        numberInDeck: 5,
+        shotDelta: 10, drawCount: 1, drawPerClamp: 2, clockPerClamp: -1,
+        clearsClamps: true)
 
     static let stepback = CardDescriptor(
         id: "stepback", name: "Stepback", type: .move,
-        effect: "SHOT +10%", numberInDeck: 10,
-        shotDelta: 10, optionalDiscardForShot: 10,
+        effect: "#[Draw] 1 card. SHOT +10%", numberInDeck: 5,
+        shotDelta: 10, drawCount: 1, optionalDiscardForShot: 10,
         bonus: "You may #[Discard] 1 card for SHOT +10% extra.")
 
     /// Closes Moves for the whole possession: none after it, and none before it either.
     static let tripleThreat = CardDescriptor(
         id: "triple-threat", name: "Triple Threat", type: .move,
-        effect: "Pick 1: #[Draw] 3 cards / ~[Pass] (+0%) / SHOT +30%.\n"
+        effect: "#[Draw] 1 card, then pick 1:\n"
+            + "\u{2022} #[Draw] 3 extra cards\n"
+            + "\u{2022} ~[Pass] (+0%)\n"
+            + "\u{2022} SHOT +30%\n"
             + "(Cannot play other ~[Move] cards this possession.)",
-        numberInDeck: 10,
+        numberInDeck: 5,
+        drawCount: 1,
         modes: [CardMode(label: "Draw 3", draws: 3),
                 CardMode(label: "Pass (+0%)", shotDelta: 0, passes: .choice),
                 CardMode(label: "SHOT +30%", shotDelta: 30)],
@@ -170,56 +175,139 @@ enum CardLibrary {
 
     static let clearOut = CardDescriptor(
         id: "clear-out", name: "Clear Out", type: .move,
-        effect: "First action only: Step aside, dodging the ball and all ~[Clamps].",
+        effect: "First action only: Step aside, dodging the ball and all ~[Clamps]. "
+            + "#[Draw] 1 card.",
         numberInDeck: 5,
-        clearsOut: true, firstActionOnly: true)
+        drawCount: 1, clearsOut: true, firstActionOnly: true)
 
     static let flop = CardDescriptor(
         id: "flop", name: "Flop", type: .move,
-        effect: "#[Clear] all ~[Clamps]. Take 1 #[FT] for each. If no ~[Clamps], #[TOV] +1",
+        effect: "#[Draw] 1 card. #[Clear] all ~[Clamps]. Take 1 #[FT] for each. "
+            + "If no ~[Clamps], #[TOV] +1",
         numberInDeck: 5,
-        freeThrowsPerClamp: 1, clearsClamps: true, turnoverIfNoClamps: true)
+        drawCount: 1, freeThrowsPerClamp: 1, clearsClamps: true,
+        turnoverIfNoClamps: true)
+
+    // ── Clamps ────────────────────────────────────────────────────────
+    //
+    // **A defender is an assignment, not a swipe.** Every standing Clamp prints two
+    // things: the band it bites in, if it has one, and what it takes to beat it. Both are
+    // read across the table — hand sizes are public, the Shot Clock is on the wall, SHOT
+    // is on the HUD — so being squeezed is something a player can see coming and play out
+    // of rather than something that simply happens to them.
+    //
+    // Beating one pays: see `ClampPayoff`. Giving up the ball always sends one off, which
+    // is the floor under the whole system — nobody is ever stuck with a defender they
+    // have no answer to.
 
     static let contest = CardDescriptor(
         id: "contest", name: "Contest", type: .clamp,
-        effect: "Next player: SHOT -25%", numberInDeck: 10,
-        clamp: ClampEffect(shotDebuff: -25))
+        effect: "Target player: SHOT -25%\n#[Clear]: SHOT 60% or more", numberInDeck: 8,
+        clamp: ClampEffect(clearedBy: .shotAtLeast(60), shotDebuff: -25))
 
     static let manToMan = CardDescriptor(
         id: "man-to-man", name: "Man-To-Man", type: .clamp,
-        effect: "Next player: SHOT -10% each time a card is played", numberInDeck: 5,
-        clamp: ClampEffect(shotPerCardPlayed: -10))
+        effect: "Target player: SHOT -10% each time a card is played\n"
+            + "#[Clear]: 3 ~[Move] cards this possession", numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .movesAtLeast(3), shotPerCardPlayed: -10))
 
     static let closeOut = CardDescriptor(
         id: "close-out", name: "Close-Out", type: .clamp,
-        effect: "Next player cannot attempt a three-pointer", numberInDeck: 5,
-        clamp: ClampEffect(blocksThrees: true))
+        effect: "Target player cannot attempt a @[Three]\n"
+            + "#[Clear]: #[Shot Clock] 03 or less", numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .clockAtMost(3), blocksThrees: true))
 
     static let zone = CardDescriptor(
         id: "zone", name: "Zone", type: .clamp,
-        effect: "Next player cannot #[Shoot]. With no playable ~[Pass] cards, "
-            + "#[TOV] +1 and the round ends", numberInDeck: 1,
+        effect: "Target player cannot #[Shoot]. With no playable ~[Pass] cards, "
+            + "#[TOV] +1 and the round ends\n#[Clear]: Give up the ball", numberInDeck: 1,
         clamp: ClampEffect(blocksShooting: true, turnoverWithoutAPass: true))
 
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
-        effect: "Next player #[Lock|2]", numberInDeck: 5,
-        clamp: ClampEffect(defenders: 2, locksRandomCards: 2))
+        effect: "Target player #[Lock|2]\n#[Clear]: 2 cards or fewer in hand",
+        numberInDeck: 3,
+        clamp: ClampEffect(clearedBy: .handAtMost(2), defenders: 2, locksRandomCards: 2))
 
     static let tripleTeam = CardDescriptor(
         id: "triple-team", name: "Triple-Team", type: .clamp,
-        effect: "Next player #[Lock|3]", numberInDeck: 5,
-        clamp: ClampEffect(defenders: 3, locksRandomCards: 3))
+        effect: "Target player #[Lock|3]\n#[Clear]: 1 card or fewer in hand",
+        numberInDeck: 3,
+        clamp: ClampEffect(clearedBy: .handAtMost(1), defenders: 3, locksRandomCards: 3))
 
     static let trap = CardDescriptor(
         id: "trap", name: "Trap", type: .clamp,
-        effect: "Next player can only ~[Pass] or #[Shoot]", numberInDeck: 5,
+        effect: "Target player can only ~[Pass] or #[Shoot]\n#[Clear]: Give up the ball",
+        numberInDeck: 3,
         clamp: ClampEffect(defenders: 3, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
-        effect: "Next player #[Discard|2]", numberInDeck: 5,
+        effect: "Target player #[Discard|2]", numberInDeck: 2,
         clamp: ClampEffect(discardAtStart: 2))
+
+    // ── The pace defenders ────────────────────────────────────────────
+    //
+    // Hand size is how fast a player is moving, and it is public. A big man punishes a
+    // slow one and is beaten by speeding up; a pest punishes a hoarder and is beaten by
+    // spending down. Neither hand size is right — which one is right depends on who is
+    // standing in front of you, and it changes the moment he does.
+    //
+    // Outside his band a defender is simply not a problem: a seven-footer does not see
+    // the five-two guard, and the shot goes straight over him. He stays out there, and
+    // he becomes a problem again the moment the hand moves back.
+
+    static let crushingCenter = CardDescriptor(
+        id: "crushing-center", name: "Crushing Center", type: .clamp,
+        effect: "Target player with 2 cards or fewer in hand: SHOT -30%\n"
+            + "#[Clear]: 4 cards or more in hand", numberInDeck: 6,
+        clamp: ClampEffect(clearedBy: .handAtLeast(4), appliesWhen: .handAtMost(2),
+                           shotDebuff: -30))
+
+    static let pressingPoint = CardDescriptor(
+        id: "pressing-point", name: "Pressing Point", type: .clamp,
+        effect: "Target player with 4 cards or more in hand: SHOT -30%\n"
+            + "#[Clear]: 2 cards or fewer in hand", numberInDeck: 6,
+        clamp: ClampEffect(clearedBy: .handAtMost(2), appliesWhen: .handAtLeast(4),
+                           shotDebuff: -30))
+
+    static let lurkingWing = CardDescriptor(
+        id: "lurking-wing", name: "Lurking Wing", type: .clamp,
+        effect: "Target player at #[Shot Clock] 05 or less: SHOT -25%\n"
+            + "#[Clear]: #[Shot Clock] 06 or more", numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .clockAtLeast(6), appliesWhen: .clockAtMost(5),
+                           shotDebuff: -25))
+
+    static let helpSideForward = CardDescriptor(
+        id: "help-side-forward", name: "Help-Side Forward", type: .clamp,
+        effect: "Target player: SHOT -15%\n#[Clear]: 2 ~[Move] cards this possession",
+        numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .movesAtLeast(2), shotDebuff: -15))
+
+    // ── The forcers ───────────────────────────────────────────────────
+    //
+    // The other half of the matrix. A forcer takes away two of the three finishes, and
+    // the crew working the game is watching one of them — so a defender and an official
+    // between them can walk a player into a call everybody at the table can see coming.
+    // That is the whole point of it being face-up: it is a checkmate rather than a trap.
+
+    static let baselineDenial = CardDescriptor(
+        id: "baseline-denial", name: "Baseline Denial", type: .clamp,
+        effect: "Target player can only shoot a @[Layup]\n#[Clear]: 5 cards in hand",
+        numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .handAtLeast(5), forcesShotType: .layup))
+
+    static let paintPacker = CardDescriptor(
+        id: "paint-packer", name: "Paint Packer", type: .clamp,
+        effect: "Target player can only shoot a @[Three]\n#[Clear]: 2 cards or fewer in hand",
+        numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .handAtMost(2), forcesShotType: .three))
+
+    static let rimRunner = CardDescriptor(
+        id: "rim-runner", name: "Rim Runner", type: .clamp,
+        effect: "Target player can only shoot a @[Dunk]\n#[Clear]: SHOT 40% or less",
+        numberInDeck: 4,
+        clamp: ClampEffect(clearedBy: .shotAtMost(40), forcesShotType: .dunk))
 
     // ── Whistles ──────────────────────────────────────────────────────
     // A nil trigger resolves on play; everything else lies in wait. A turnover always
@@ -241,10 +329,14 @@ enum CardLibrary {
         whistle: WhistleEffect(trigger: .cardDrawn, cancelsCard: false,
                                offenderInbounds: true, endsPossession: true))
 
+    /// **The speed limit.** Every Move draws a card, so a run of them is a run of cards —
+    /// this is what stops the engine running for ever. Three are free; the fourth travels.
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
-        effect: "Cancel Next ~[Move]. #[TOV] +1. Side-out.", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true))
+        effect: "4th ~[Move] this possession: #[Cancel] it. #[TOV] +1. Side-out.",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true,
+                               requiresMovesThisPossession: 3))
 
     /// **Out of the deck.** It answers a Game Break, and there are none — see `whistles`.
     static let playOn = CardDescriptor(
@@ -255,8 +347,7 @@ enum CardLibrary {
 
     static let extravagantMechanics = CardDescriptor(
         id: "extravagant-mechanics", name: "Extravagant Mechanics", type: .whistle,
-        effect: "On ~[Intangible], ~[Varena], ~[Variaball] or ~[Special Move] play: "
-            + "#[Cancel] it",
+        effect: "On ~[Intangible], ~[Variaball] or ~[Special Move] play: #[Cancel] it",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .slotOrSpecialPlayed))
 
@@ -297,7 +388,7 @@ enum CardLibrary {
 
     static let goaltending = CardDescriptor(
         id: "goaltending", name: "Goaltending", type: .whistle,
-        effect: "Cancel Next ~[Clamp]. +2 PTS. End round",
+        effect: "Next ~[Clamp]: #[Cancel] it. Target player +2 PTS. End round",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, endsRound: true, pointsToVictim: 2))
 
@@ -328,13 +419,28 @@ enum CardLibrary {
 
     static let charge = CardDescriptor(
         id: "charge", name: "Charge", type: .whistle,
-        effect: "Cancel Next Shot. Shooter inbounds", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotAttempt, offenderInbounds: true))
+        effect: "Next @[Dunk]: #[Cancel] it. Shooter inbounds", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotAttempt, offenderInbounds: true,
+                               requiresShotType: .dunk))
+
+    /// The three that was not one. It does not wave the shot off — it says where his foot
+    /// was, and the ball still goes in for two.
+    static let footOnTheLine = CardDescriptor(
+        id: "foot-on-the-line", name: "Foot On The Line", type: .whistle,
+        effect: "Next @[Three] scores 2 PTS instead", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotAttempt, cancelsCard: false,
+                               requiresShotType: .three, downgradesThree: true))
+
+    static let offensiveFoul = CardDescriptor(
+        id: "offensive-foul", name: "Offensive Foul", type: .whistle,
+        effect: "Next @[Layup]: #[Cancel] it. #[TOV] +1", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true,
+                               requiresShotType: .layup))
 
     static let technicalFoul = CardDescriptor(
         id: "technical-foul", name: "Technical Foul", type: .whistle,
-        effect: "Cancel Next Non-~[Whistle]. Take 1 #[FT]", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed, freeThrowsToVictim: 1))
+        effect: "Next Non-~[Whistle]: #[Cancel] it. #[TOV] +1", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed, turnoverOnOffender: true))
 
     static let delayOfGameWarning = CardDescriptor(
         id: "delay-of-game-warning", name: "Delay-of-Game Warning", type: .whistle,
@@ -845,16 +951,16 @@ enum CardLibrary {
 
     static let medBall = CardDescriptor(
         id: "med-ball", name: "Med Ball", type: .variaball,
-        effect: "SHOT cannot exceed 50%", numberInDeck: 2,
+        effect: "SHOT cannot exceed 50%", numberInDeck: 1,
         variaball: VariaballEffect(shotCeiling: 50))
     static let dishcountBall = CardDescriptor(
         id: "dishcount-ball", name: "Dishcount Ball", type: .variaball,
-        effect: "#[Discard] one fewer for card costs and ~[Clamps]", numberInDeck: 2,
+        effect: "#[Discard] one fewer for card costs and ~[Clamps]", numberInDeck: 1,
         variaball: VariaballEffect(discountsDiscards: true))
     static let blightBall = CardDescriptor(
         id: "blight-ball", name: "Blight Ball", type: .variaball,
         effect: "~[Injuries] travel with the ball, and new ones join the pile. Discarding the ball takes the pile with it",
-        numberInDeck: 3,
+        numberInDeck: 1,
         variaball: VariaballEffect(injuriesTravel: true))
     static let benchBall = CardDescriptor(
         id: "bench-ball", name: "Bench Ball", type: .variaball,
@@ -862,7 +968,7 @@ enum CardLibrary {
         variaball: VariaballEffect(benchesReceiver: true))
     static let dishtractingBall = CardDescriptor(
         id: "dishtracting-ball", name: "Dishtracting Ball", type: .variaball,
-        effect: "Receiving it: #[Discard] 1, after the draw for turn", numberInDeck: 2,
+        effect: "Receiving it: #[Discard] 1, after the draw for turn", numberInDeck: 1,
         variaball: VariaballEffect(receiverDiscards: 1))
     static let handBall = CardDescriptor(
         id: "hand-ball", name: "Hand Ball", type: .variaball,
@@ -876,12 +982,12 @@ enum CardLibrary {
         variaball: VariaballEffect(locksInsteadOfSpending: true))
     static let rechargeRock = CardDescriptor(
         id: "recharge-rock", name: "Recharge Rock", type: .variaball,
-        effect: "Double your draw for turn", numberInDeck: 5,
+        effect: "Double your draw for turn", numberInDeck: 1,
         variaball: VariaballEffect(turnDrawMultiplier: 2))
     static let variaball = CardDescriptor(
         id: "variaball", name: "Variaball", type: .variaball,
         effect: "A random Variaball from the discards goes into play. Then discard this",
-        numberInDeck: 2,
+        numberInDeck: 1,
         variaball: VariaballEffect(rollsFromDiscard: true))
     static let shufflebagBall = CardDescriptor(
         id: "shufflebag-ball", name: "Shufflebag Ball", type: .variaball,
@@ -895,16 +1001,16 @@ enum CardLibrary {
         variaball: VariaballEffect(shotPerCardInHand: 10, drawsOnArrival: 1))
     static let blazeBall = CardDescriptor(
         id: "blaze-ball", name: "Blaze Ball", type: .variaball,
-        effect: "SHOT +10% as this Ball is ~[Passed]", numberInDeck: 5,
+        effect: "SHOT +10% as this Ball is ~[Passed]", numberInDeck: 1,
         variaball: VariaballEffect(shotPerPass: 10))
     /// Blaze Ball's opposite, worded to match.
     static let snowBall = CardDescriptor(
         id: "snow-ball", name: "Snow Ball", type: .variaball,
-        effect: "SHOT -10% as this Ball is ~[Passed]", numberInDeck: 5,
+        effect: "SHOT -10% as this Ball is ~[Passed]", numberInDeck: 1,
         variaball: VariaballEffect(shotPerPass: -10, overridesPassShot: true))
     static let brickBall = CardDescriptor(
         id: "brick-ball", name: "Brick Ball", type: .variaball,
-        effect: "SHOT = 25%", numberInDeck: 2,
+        effect: "SHOT = 25%", numberInDeck: 1,
         variaball: VariaballEffect(shotOverride: 25))
     static let monsterBall = CardDescriptor(
         id: "monster-ball", name: "Monster Ball", type: .variaball,
@@ -913,11 +1019,11 @@ enum CardLibrary {
         variaball: VariaballEffect(absorbsIntangibles: true))
     static let brandNewBall = CardDescriptor(
         id: "brand-new-ball", name: "Brand New Ball", type: .variaball,
-        effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 3,
+        effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 1,
         variaball: VariaballEffect(turnoverChance: 25))
     static let makeOrTakeBall = CardDescriptor(
         id: "make-or-take-ball", name: "Make-or-Take Ball", type: .variaball,
-        effect: "Take 1 #[FT] after missing a shot attempt.", numberInDeck: 3,
+        effect: "Take 1 #[FT] after missing a shot attempt.", numberInDeck: 1,
         variaball: VariaballEffect(freeThrowsOnMiss: 1))
     static let heroBall = CardDescriptor(
         id: "hero-ball", name: "Hero Ball", type: .variaball,
@@ -1001,41 +1107,41 @@ enum CardLibrary {
 
     static let fadeaway = CardDescriptor(
         id: "fadeaway", name: "Fadeaway", type: .specialMove,
-        effect: "SHOT -10%. #[Draw] 1", numberInDeck: 10,
+        effect: "SHOT -10%. #[Draw] 1", numberInDeck: 1,
         shotDelta: -10, drawCount: 1,
         special: SpecialMoveEffect(shootsImmediately: true))
 
     static let fromTheHash = CardDescriptor(
         id: "from-the-hash", name: "From the Hash", type: .specialMove,
-        effect: "SHOT -20%", numberInDeck: 3,
+        effect: "SHOT -20%", numberInDeck: 1,
         shotDelta: -20,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fromTheLogo = CardDescriptor(
         id: "from-the-logo", name: "From the Logo", type: .specialMove,
-        effect: "SHOT -30%", numberInDeck: 3,
+        effect: "SHOT -30%", numberInDeck: 1,
         shotDelta: -30,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let threeBall = CardDescriptor(
         id: "three-ball", name: "Three-Ball", type: .specialMove,
-        effect: "SHOT -10%", numberInDeck: 5,
+        effect: "SHOT -10%", numberInDeck: 1,
         shotDelta: -10,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1))
 
     static let fullCourtHeave = CardDescriptor(
         id: "full-court-heave", name: "Full-Court Heave", type: .specialMove,
-        effect: "SHOT = 25%", numberInDeck: 3,
+        effect: "SHOT = 25%", numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1, shotOverride: 25))
 
     static let buzzerBeater = CardDescriptor(
         id: "buzzer-beater", name: "Buzzer Beater", type: .specialMove,
-        effect: "SHOT = 100%. (Can only be played if the #[Shot Clock] is at 01)", numberInDeck: 5,
+        effect: "SHOT = 100%. (Can only be played if the #[Shot Clock] is at 01)", numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100, onlyAtShotClock: 1))
 
     static let putbackTip = CardDescriptor(
         id: "putback-tip", name: "Putback Tip", type: .specialMove,
-        effect: "SHOT +10%", numberInDeck: 5,
+        effect: "SHOT +10%", numberInDeck: 1,
         shotDelta: 10,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverrideAfterRebound: 100),
         bonus: "If played as your first action after a #[Rebound]: SHOT = 100%")
@@ -1043,20 +1149,20 @@ enum CardLibrary {
     static let bankshot = CardDescriptor(
         id: "bankshot", name: "Bankshot", type: .specialMove,
         effect: "Flip a coin:\n• Heads: SHOT +25%\n• Tails: SHOT -25%",
-        numberInDeck: 5,
+        numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, coinFlipShot: 25))
 
     static let daggerThree = CardDescriptor(
         id: "dagger-three", name: "Dagger Three", type: .specialMove,
         effect: "SHOT +60%. SHOT -10% x #[Shot Clock]",
-        numberInDeck: 5,
+        numberInDeck: 1,
         shotDelta: 60,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
                                    shotPerClockTick: -10))
 
     static let skyhook = CardDescriptor(
         id: "skyhook", name: "Skyhook", type: .specialMove,
-        effect: "SHOT +25%", numberInDeck: 5,
+        effect: "SHOT +25%", numberInDeck: 1,
         shotDelta: 25,
         special: SpecialMoveEffect(shootsImmediately: true, ignoresClamps: true),
         bonus: "This shot is unaffected by ~[Clamps].")
@@ -1064,7 +1170,7 @@ enum CardLibrary {
     static let twoHandJam = CardDescriptor(
         id: "two-hand-jam", name: "2-Hand Jam", type: .specialMove,
         effect: "#[Discard] up to 2 cards. SHOT +25% for each",
-        numberInDeck: 10,
+        numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, dunkKind: .reverse, dunks: true,
                                    discardForShotBonus: 25, discardForShotLimit: 2,
                                    discardBeyondLimitBonus: 10),
@@ -1077,14 +1183,14 @@ enum CardLibrary {
         id: "give-and-go-dunk", name: "Give-and-Go Dunk", type: .specialMove,
         effect: "Clean look only — no ~[Clamps] on you and nothing has gone off this "
               + "possession. SHOT +30%",
-        numberInDeck: 5,
+        numberInDeck: 1,
         shotDelta: 30,
         special: SpecialMoveEffect(shootsImmediately: true, dunks: true))
 
     static let tomahawk = CardDescriptor(
         id: "tomahawk", name: "Tomahawk", type: .specialMove,
         effect: "SHOT 50% or more: SHOT +25%\nSHOT less than 50%: SHOT -25%",
-        numberInDeck: 5,
+        numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true,
                                    dunkKind: .oneHand,
                                    shotSwing: ShotSwing(at: 50, under: -25, over: 25),
@@ -1093,7 +1199,7 @@ enum CardLibrary {
 
     static let slamDunk = CardDescriptor(
         id: "slam-dunk", name: "Slam Dunk", type: .specialMove,
-        effect: "SHOT +25%", numberInDeck: 5,
+        effect: "SHOT +25%", numberInDeck: 1,
         shotDelta: 25,
         special: SpecialMoveEffect(shootsImmediately: true, shotOverride: 100,
                                    overrideRequiresAtLeast: 75, dunks: true),
@@ -1104,13 +1210,13 @@ enum CardLibrary {
         id: "euro-step", name: "Euro Step", type: .specialMove,
         effect: "Flip 4 coins.\n• 3 or fewer Heads: SHOT +15% and #[Draw] 1 card for each.\n"
             + "• 4 Heads: #[TOV] +1 (This is a Travel)",
-        numberInDeck: 5,
+        numberInDeck: 1,
         special: SpecialMoveEffect(coinRunShot: 15, coinRunDraw: 1, coinRunFlips: 4))
 
     static let wideOpenThree = CardDescriptor(
         id: "wide-open-three", name: "Wide-Open Three", type: .specialMove,
         effect: "If all other players have had possession of the Ball this round: SHOT = 100%",
-        numberInDeck: 5,
+        numberInDeck: 1,
         special: SpecialMoveEffect(shootsImmediately: true, bonusPointOnMake: 1,
                                    shotOverrideOnceAllHaveHadBall: 100))
 
@@ -1191,6 +1297,27 @@ enum CardLibrary {
         effect: "Variaball played: cancel it. #[TOV] +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .variaballPlayed, turnoverOnOffender: true))
 
+    /// **The officials deck.** Its own pile: shuffled at the start of the game like the
+    /// main deck, three turned face-up at the top of every round, and never dealt into
+    /// anybody's hand. Everyone reads what the crew is watching for and plays under it.
+    ///
+    /// Nobody owns one, so nothing here pays a setter. The calls that only made sense as
+    /// somebody's trap — a Timeout, a Coach's Challenge, a review that hands the caller
+    /// the ball — are out of the deck; see `retiredWhistles`.
+    static let officialsPool: [CardDescriptor] = [
+        travel, shotClockViolation, doubleDribble, backCourtViolation, discontinuedDribble,
+        charge, footOnTheLine, offensiveFoul,
+        goaltending, blockingFoul, flagrantFoul, flagrantFoulII,
+        technicalFoul, clearPathFoul, delayOfGameWarning, officialReview,
+        clearedToPlay, extravagantMechanics, overVaringEvidence,
+    ]
+
+    /// Whistles that needed an owner to mean anything. Kept so a saved match can still
+    /// decode them, out of every pool.
+    static let retiredWhistles: [CardDescriptor] = [
+        timeout, coachsChallenge, crewChiefReview, inadvertentWhistle, tileTampering, playOn,
+    ]
+
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,
         discontinuedDribble,
@@ -1228,10 +1355,21 @@ enum CardLibrary {
     static let classicPool: [CardDescriptor] = passesAndMoves
 
     /// Standard adds everything else, as each type gets built.
+    /// **The fifth colour.** Nine coverages and seven assignments: the half of the game
+    /// that stops the ball, which was a nine-card afterthought before.
+    static let clamps: [CardDescriptor] = [
+        contest, manToMan, closeOut, zone, fullCourtPress, doubleTeam, tripleTeam, trap,
+        crushingCenter, pressingPoint, lurkingWing, helpSideForward,
+        baselineDenial, paintPacker, rimRunner,
+    ]
+
+    /// The main deck. **No Whistles** — the crew is its own pile, dealt face-up at the top
+    /// of every round; see `officialsPool`. **No Varenas** — the floor is out of the game
+    /// while the venue is redesigned, so every match is played on plain Cardwood.
     static let standardPool: [CardDescriptor] = passesAndMoves
-        + [contest, manToMan, closeOut, zone, fullCourtPress, doubleTeam, tripleTeam, trap, flop]
-        + whistles + intangibles + injuries + specialMoves
-        + varenas + variaballs
+        + [flop] + clamps
+        + intangibles + injuries + specialMoves
+        + variaballs
 
     /// **Every card in the game.**
     ///
@@ -1241,8 +1379,9 @@ enum CardLibrary {
     /// record a Whistle you had met, and `Rules` looked cards up by id in it — so a
     /// Special Move, a Clamp or an Intangible simply came back nil. A name that says
     /// `all` has to mean all.
-    /// Every card still dealt is in `standardPool`, so this is `standardPool` alone.
-    static let all: [CardDescriptor] = standardPool
+    /// Every card still dealt is in `standardPool` or in the officials deck, and both are
+    /// dealt from — so `all` is the two of them together.
+    static let all: [CardDescriptor] = standardPool + officialsPool
 
     /// **Every descriptor there is, by its id.** The wire needs this: a card crosses as
     /// which library entry it is rather than as a copy of one, and the other device looks
@@ -1254,7 +1393,9 @@ enum CardLibrary {
     /// injuries are in neither pool, since nobody is dealt one.
     static let byID: [String: CardDescriptor] = {
         var found: [String: CardDescriptor] = [:]
-        for card in all + [faceDown] { found[card.id] = card }
+        // The retired ones and the shelved Varenas are in here but in no pool: a saved
+        // match still has to be able to decode a card the deck no longer builds.
+        for card in all + varenas + retiredWhistles + [faceDown] { found[card.id] = card }
         return found
     }()
 

@@ -93,6 +93,13 @@ func slotTests() {
     }
     do {
         var (state, seat, cards) = openPossession(seed: 208, cards: [CardLibrary.triHardTiling])
+        // Hands are trimmed to leave room for draws, so they have to be filled back up
+        // before a card that cuts them down to three has anything to cut.
+        for other in Seat.allCases {
+            while state[other].bag.count < state.rules.handLimit {
+                state[other].bag.append(matchCard(CardLibrary.swingLeft, state.rules))
+            }
+        }
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that({ if case .awaitingGiveUp(let who, _, let count) = state.phase {
                          return who == seat && count == state[seat].bag.count - 3 }
@@ -102,13 +109,16 @@ func slotTests() {
         Check.that(Seat.allCases.allSatisfy { state[$0].bag.count <= 3 }, "every hand")
         var events: [GameEvent] = []
         Rules.testDraw(seat, state: &state, events: &events)
-        Check.that(state[seat].bag.count == 3, "and a draw into a hand of 3 is discarded")
+        // A hand already at the floor's limit takes nothing more; the card pays SHOT.
+        Check.that(state[seat].bag.count == 3, "and a draw into a hand of 3 is converted")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 209, cards: [CardLibrary.drive])
         state.courtCard = Card(CardLibrary.policeum)
-        state.armedWhistles = [ArmedWhistle(owner: seat.left,
+        state.armedWhistles = [ArmedWhistle(owner: nil,
                                             card: matchCard(CardLibrary.travel, state.rules))]
+        // Travel is the speed limit now: three Moves are free, the fourth travels.
+        state.movesThisPossession = 3
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state.armedWhistles.first?.stayed == true,
                    "Policeum: a referee who calls one stays on the floor")

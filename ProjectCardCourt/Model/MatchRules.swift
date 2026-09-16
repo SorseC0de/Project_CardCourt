@@ -12,6 +12,12 @@ struct MatchRules: Hashable, Codable {
     var roundsPerGame: Int
     var roundsPerHalf: Int
     var startingBagSize: Int
+    /// **The most cards a hand may hold.** A draw that would take a player past it is
+    /// converted instead — see `overflowShot`.
+    var handLimit: Int
+    /// What a draw past the hand limit is worth instead of a card. Drawing is moving with
+    /// the ball; a draw you have no room for is getting open without it.
+    var overflowShot: Int
     var shotClockStart: Int
     var startingShot: Int
     var madeShotPoints: Int
@@ -30,9 +36,12 @@ struct MatchRules: Hashable, Codable {
     /// floor only holds so many bodies, and an uncapped stack meant a hand could be shut
     /// down entirely before its owner had touched the ball.
     var clampSlots: Int
-    /// How many Whistles can be armed across the whole table at once. Shared, not per
-    /// player — the referees on the floor are the count, and they belong to nobody.
+    /// **How many officials work the game.** The crew is dealt face-up from the officials
+    /// deck and belongs to nobody; this is how many of them stand out there at once.
     var refereeSlots: Int
+    /// The officials deck. Shuffled once at the start of the game like the main deck, and
+    /// dealt from at the top of every round.
+    var officialsPool: [CardDescriptor]
     /// The cards this match is played with, by value. Editing the library later cannot
     /// change a deck that has already been dealt.
     var cardPool: [CardDescriptor]
@@ -46,6 +55,8 @@ extension MatchRules {
             roundsPerGame: 8,
             roundsPerHalf: 4,
             startingBagSize: 5,
+            handLimit: 5,
+            overflowShot: 10,
             shotClockStart: 10,
             startingShot: 0,
             madeShotPoints: 2,
@@ -57,6 +68,7 @@ extension MatchRules {
             intangibleSlots: 3,
             clampSlots: 3,
             refereeSlots: 3,
+            officialsPool: [],
             cardPool: CardLibrary.classicPool)
     }
 
@@ -65,6 +77,7 @@ extension MatchRules {
         var rules = classic
         rules.name = "Standard"
         rules.cardPool = CardLibrary.standardPool
+        rules.officialsPool = CardLibrary.officialsPool
         return rules
     }
 }

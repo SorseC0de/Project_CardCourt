@@ -207,6 +207,48 @@ enum CardFace: String, CaseIterable, Hashable, Codable {
         }
     }
 
+    /// **The colour this type is, and the darker shade that drops under it.**
+    ///
+    /// One pair per face, and the whole of what colour says on a card now: the bodies are
+    /// all the same paper, so the type is read off the name badge, the inner ring and the
+    /// tint the words sit on. Moves are teal — green had them arguing with the court.
+    var colour: CardTextInk {
+        switch self {
+        case .pass:              return .blue
+        case .move:              return .teal
+        case .specialMove:       return .gold
+        case .clamp:             return .red
+        case .whistle:           return .black
+        case .gameBreak:         return .purple
+        case .intangible:        return .green
+        case .injury:            return .blood
+        case .devastatingInjury: return .maroon
+        case .varena:            return .plum
+        case .variaball:         return .azure
+        }
+    }
+
+    /// The same colour going down. Not a second colour: a shade of the first, so the
+    /// badge reads as one object with depth rather than as two shapes.
+    var shade: CardTextInk {
+        switch self {
+        case .pass:              return .darkBlue
+        case .move:              return .cobalt
+        case .specialMove:       return .orange
+        case .clamp:             return .darkRed
+        case .whistle:           return .navy
+        case .gameBreak:         return .plum
+        case .intangible:        return .cobalt
+        case .injury:            return .maroon
+        case .devastatingInjury: return .plum
+        case .varena:            return .cobalt
+        case .variaball:         return .plum
+        }
+    }
+
+    /// Whether the type's own colour is light enough that lettering on it has to be dark.
+    var lettersDark: Bool { self == .specialMove }
+
     /// The type it is by the rules, for anything that has to ask that instead.
     var type: CardType {
         switch self {
@@ -477,27 +519,25 @@ enum CardLayout {
     // Tinting with the body colour and multiplying gives a darker, more saturated
     // version of that colour.
     static func blend(for face: CardFace) -> BlendMode { .multiply }
-    static func tint(for face: CardFace) -> OverlayTint { .body }
+    static func tint(for face: CardFace) -> OverlayTint { .type }
 
-    static func opacity(for face: CardFace) -> Double {
-        switch face.type {
-        case .gameBreak, .injury, .intangible, .varena, .variaball: return 0.40
-        case .move, .specialMove:     return 0.30
-        case .pass:                   return 0.25
-        case .clamp:                  return 0.60
-        // Whistles keep theirs; the extra twenty was right on white.
-        case .whistle:                return 0.90
-        }
-    }
+    /// **A quarter, on every face.** The bodies are one paper now, so the overlay is the
+    /// type's own colour laid lightly on it rather than a different wash per card — and
+    /// the black panel that used to sit over the top of it is gone. See `CardTextStyle`.
+    static func opacity(for face: CardFace) -> Double { 0.25 }
 }
 
 /// The overlay art is solid black and templated, so its tint is the whole colour choice.
 enum OverlayTint: String, CaseIterable, Hashable {
     case body, black, white
+    /// The card type's own colour, which is what the tint says now that every body is
+    /// the same paper.
+    case type
 
     @MainActor
     func colour(on face: CardFace) -> Color {
         switch self {
+        case .type:  return face.colour.colour
         case .body:  return CardTextTuning.shared.bodyInk(for: face)
         case .black: return .black
         case .white: return .white

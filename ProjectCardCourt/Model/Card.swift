@@ -29,7 +29,27 @@ struct ClampEffect: Hashable, Codable {
     var isStanding: Bool {
         shotDebuff != 0 || locksRandomCards > 0 || passOnly || shotPerCardPlayed != 0
             || blocksThrees || blocksShooting || turnoverWithoutAPass
+            || forcesShotType != nil
     }
+
+    /// **What sends him off, printed on his own card.** Every defender has one, even if it
+    /// is only getting rid of the ball — a man with no assignment left has nobody to guard.
+    ///
+    /// Meeting it is *beating* him: the Clamp leaves and the player it was on takes the
+    /// payoff — see `Rules.settleClamps`.
+    var clearedBy: ClampCounter = .givingUpTheBall
+
+    /// **When the debuff actually bites.** Nil is a defender who is always a problem.
+    ///
+    /// A pace defender only applies at a hand size: the seven-footer does not see the
+    /// five-two guard, and a player outside the band shoots straight over him. He stays
+    /// standing either way — an irrelevant matchup is still a matchup, and it becomes a
+    /// problem again the moment the hand moves.
+    var appliesWhen: ClampCounter?
+
+    /// The only way this player is allowed to finish. The other half of the matrix: the
+    /// crew is watching one of the three, and this is what walks a man into it.
+    var forcesShotType: ShotType?
 
     /// Bodies this Clamp puts next to its victim. Double-Team is two, Triple-Team three.
     var defenders = 1
@@ -52,6 +72,55 @@ struct ClampEffect: Hashable, Codable {
     /// Zone: left without a playable Pass at any point, the player turns it over and the
     /// round ends.
     var turnoverWithoutAPass = false
+}
+
+/// **A condition a Clamp is read against**, printed on its face either as what clears it
+/// or as when it bites. Everything here is public: hand sizes are counted across the
+/// table, the Shot Clock is on the wall, and the board is face-up.
+enum ClampCounter: Hashable, Codable {
+    /// The defender has nobody to guard once the ball has gone. Every Clamp falls back to
+    /// this, so no player is ever stuck with one they cannot answer.
+    case givingUpTheBall
+    /// Going faster. Drawing your way out of a big man.
+    case handAtLeast(Int)
+    /// Slowing down. Spending your way out of a pest.
+    case handAtMost(Int)
+    case clockAtMost(Int)
+    case clockAtLeast(Int)
+    /// Beating him off the dribble: this many Moves in one possession.
+    case movesAtLeast(Int)
+    /// Shooting through him — the look is already good enough that he does not matter.
+    case shotAtLeast(Int)
+    /// Or the other way: a look this poor is one nobody needs to guard.
+    case shotAtMost(Int)
+
+    /// Whether a player meets it right now.
+    func met(by seat: Seat, in state: GameState) -> Bool {
+        switch self {
+        case .givingUpTheBall: return state.ball != seat
+        case .handAtLeast(let n): return state[seat].bag.count >= n
+        case .handAtMost(let n): return state[seat].bag.count <= n
+        case .clockAtMost(let n): return (state.shotClock ?? state.shotClockLength) <= n
+        case .clockAtLeast(let n): return (state.shotClock ?? state.shotClockLength) >= n
+        case .movesAtLeast(let n): return state.movesThisPossession >= n
+        case .shotAtLeast(let n): return state.shot >= n
+        case .shotAtMost(let n): return state.shot <= n
+        }
+    }
+
+    /// How it reads on the card.
+    var printed: String {
+        switch self {
+        case .givingUpTheBall: return "Give up the ball"
+        case .handAtLeast(let n): return "\(n) cards or more in hand"
+        case .handAtMost(let n): return "\(n) cards or fewer in hand"
+        case .clockAtMost(let n): return String(format: "Shot Clock %02d or less", n)
+        case .clockAtLeast(let n): return String(format: "Shot Clock %02d or more", n)
+        case .movesAtLeast(let n): return "\(n) Move cards this possession"
+        case .shotAtLeast(let n): return "SHOT \(n)% or more"
+        case .shotAtMost(let n): return "SHOT \(n)% or less"
+        }
+    }
 }
 
 /// A passive that sits in one of a player's slots for the rest of the match.

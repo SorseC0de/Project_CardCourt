@@ -377,7 +377,9 @@ struct ScoreCall: Identifiable, Equatable {
 
 struct WhistleReveal: Identifiable, Equatable {
     let id = UUID()
-    let owner: Seat
+    /// **Nil for the crew**, which is every referee now: they are dealt face-up off the
+    /// officials deck and belong to nobody.
+    let owner: Seat?
     let card: CardDescriptor
     let cancelled: String
     /// The card it was called on, so the referee can hold up the evidence.
@@ -446,6 +448,8 @@ final class GameController {
         /// A card that names a player, and the branches of one that names a mode.
         case awaitingTarget(card: CardDescriptor, choices: [Seat])
         case awaitingMode(card: CardDescriptor)
+        /// A defender beaten: which of the three things that is worth.
+        case awaitingPayoff(clamp: CardDescriptor)
         /// A card out of somebody else's hand, face down.
         case awaitingCardFrom(card: CardDescriptor, victim: Seat)
         /// Wet Spot: one Injury off the table, some of them face down.
@@ -1145,6 +1149,8 @@ final class GameController {
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
             return seat.isLocal ? .awaitingMode(card: card) : .thinking
+        case .awaitingPayoff(let seat, let clamp):
+            return seat.isLocal ? .awaitingPayoff(clamp: clamp) : .thinking
         case .awaitingCardFrom(let seat, let card, let victim):
             return seat.isLocal ? .awaitingCardFrom(card: card, victim: victim) : .thinking
         case .awaitingInjuryPick(let seat, let card):
@@ -1735,11 +1741,22 @@ final class GameController {
         }
     }
 
-    func shoot() {
+    func shoot() { shoot(as: .layup) }
+
+    /// **One of the three buttons.** The free action, and which finish it is.
+    func shoot(as finish: ShotType) {
         guard !isPaused else { return }
         guard case .awaitingMove = gate else { return }
-        DevLog.say(.input, "shoot (the free action, no card)")
-        choose(.shoot)
+        DevLog.say(.input, "shoot a \(finish.name) (the free action, no card)")
+        choose(.shootAs(finish))
+    }
+
+    /// What beating the defender in front of you was worth.
+    func take(payoff: ClampPayoff) {
+        guard !isPaused else { return }
+        guard case .awaitingPayoff = gate else { return }
+        DevLog.say(.input, "payoff: \(payoff.label)")
+        choose(.beatClamp(payoff: payoff))
     }
 
     /// Sixth Man's second Shoot button.

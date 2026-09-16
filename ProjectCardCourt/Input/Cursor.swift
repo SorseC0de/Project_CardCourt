@@ -10,6 +10,10 @@ enum PadSpot: Hashable {
     case card(Card.ID)
     case seat(Seat)
     case shoot
+    /// **One of the three buttons.** A shot is a choice of finish now — see `ShotType`.
+    case finish(ShotType)
+    /// One of the three things beating your man is worth.
+    case payoff(ClampPayoff)
     /// Free Agent's way into somebody else's hand.
     case borrow
     /// The bar's single confirm — a bid, a spend, a toll. There is only ever one of them
@@ -50,7 +54,9 @@ enum Row {
             let legal = Rules.legalMoves(controller.shown, for: seat)
             var row = hand
             // A lesson has no Shoot button to walk onto.
-            if legal.contains(.shoot), !controller.isLesson { row.append(.shoot) }
+            if !controller.isLesson {
+                for case .shootAs(let finish) in legal { row.append(.finish(finish)) }
+            }
             if legal.contains(where: { if case .borrow = $0 { return true }; return false }) {
                 row.append(.borrow)
             }
@@ -106,6 +112,9 @@ enum Row {
         case .awaitingMode(let card):
             return card.modes.indices.map(PadSpot.mode)
 
+        case .awaitingPayoff:
+            return ClampPayoff.allCases.map(PadSpot.payoff)
+
         // Nothing to walk. A free throw is a pull rather than a choice, and a finished
         // game is three buttons on three buttons — see `GameView.takeOnFinalCard(_:)`.
         case .awaitingFreeThrow, .gameOver:
@@ -124,6 +133,7 @@ enum Row {
     /// Everything else in the game is a row of cards or a line of men on a floor.
     static func runsDown(_ controller: GameController) -> Bool {
         if case .awaitingMode = controller.gate { return true }
+        if case .awaitingPayoff = controller.gate { return true }
         return false
     }
 

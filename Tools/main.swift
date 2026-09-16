@@ -1,5 +1,9 @@
 import Foundation
 
+// Unbuffered, so a run that traps still shows the line it was on rather than losing the
+// last page of output with the process.
+setvbuf(stdout, nil, _IONBF, 0)
+
 let human = GameRules.localSeat
 /// How many trailing log lines to show; --log N overrides.
 let logTail: Int = {

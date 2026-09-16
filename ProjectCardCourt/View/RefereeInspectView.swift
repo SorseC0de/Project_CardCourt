@@ -23,16 +23,13 @@ struct RefereeInspectView: View {
                     .shadow(color: CardPalette.blue, radius: 0, x: 3, y: 3)
 
                 if whistles.isEmpty {
-                    Text("Nobody has called for one.")
+                    Text("No crew is working.")
                         .font(.custom(Chrome.display, size: 17))
                         .foregroundStyle(CardPalette.gray)
                 } else {
                     HStack(alignment: .top, spacing: 10) {
                         ForEach(whistles) { whistle in
-                            VStack(spacing: 4) {
-                                held(whistle)
-                                PlayerNameText(seat: whistle.owner, size: 13)
-                            }
+                            held(whistle)
                         }
                     }
                 }
@@ -45,30 +42,15 @@ struct RefereeInspectView: View {
         static let stroke: CGFloat = 4
     }
 
-    /// Face up when it is yours, and a back with a question mark when it is not. Never the
-    /// card itself for somebody else's — the local state knows what an opponent set down,
-    /// and this is the sheet that would give it away.
+    /// **Face up, always.** A referee is not a trap somebody set: the crew is dealt out
+    /// of the officials deck at the top of the round and everybody plays under it, so the
+    /// whole point is being able to read what they are watching for.
     private func held(_ whistle: ArmedWhistle) -> some View {
-        ZStack {
-            if whistle.owner.isLocal {
-                CardFrontView(descriptor: whistle.card.descriptor, displayWidth: Held.width)
-            } else {
-                Image("CardBackFull")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: Held.width)
-                    .overlay {
-                        Text("?")
-                            .font(.custom(Chrome.display, size: Held.width * 0.62))
-                            .foregroundStyle(.white)
-                            .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
-                    }
+        CardFrontView(descriptor: whistle.card.descriptor, displayWidth: Held.width)
+            .overlay {
+                RoundedRectangle(cornerRadius: Held.width * CardLayout.cornerFraction,
+                                 style: .continuous)
+                    .strokeBorder(CardFace.whistle.colour.colour, lineWidth: Held.stroke)
             }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: Held.width * CardLayout.cornerFraction,
-                             style: .continuous)
-                .strokeBorder(Theme.color(for: whistle.owner), lineWidth: Held.stroke)
-        }
     }
 }

@@ -34,7 +34,16 @@ struct ActionBarView: View {
         Set(legal.compactMap { if case .play(let id) = $0 { return id } else { return nil } })
     }
 
-    private var canShoot: Bool { legal.contains(.shoot) }
+    /// **The finishes on offer**, in the order the buttons are laid out. A defender who
+    /// forces one has already taken the others out of `legalMoves`.
+    private var finishes: [ShotType] {
+        ShotType.allCases.filter { type in
+            legal.contains { if case .shootAs(let offered) = $0 { return offered == type }
+                              return false }
+        }
+    }
+
+    private var canShoot: Bool { !finishes.isEmpty }
 
     /// Whether anybody's hand is on offer — Free Agent, and nothing else so far.
     private var canBorrow: Bool {
@@ -226,6 +235,16 @@ struct ActionBarView: View {
         static let wordGap: CGFloat = 0.5
         /// The second button is three quarters of the first, at the same height.
         static let secondShare: CGFloat = 0.75
+
+        /// **The pill each finish wears.** Orange is the shot that is always there;
+        /// the two that have to be earned say so by not being it.
+        static func pill(for finish: ShotType) -> Color {
+            switch finish {
+            case .layup: return CardPalette.orange
+            case .dunk:  return CardPalette.red
+            case .three: return CardPalette.gold
+            }
+        }
     }
 
     /// Orange, dropped in red; everything standing on it dropped in blue.
@@ -271,26 +290,41 @@ struct ActionBarView: View {
         .animation(.spring(response: 0.32, dampingFraction: 0.7), value: armed)
     }
 
+    /// **Three buttons, not one.** A layup is always there; the other two are earned, and
+    /// a button that is not on offer is simply not drawn — what it wanted is printed on
+    /// the card of whatever is keeping it away.
     private var shootPill: some View {
-        Button { controller.shoot() } label: {
-            HStack(spacing: 6) {
+        HStack(spacing: 6) {
+            ForEach(finishes) { finish in
+                finishPill(finish)
+            }
+        }
+    }
+
+    private func finishPill(_ finish: ShotType) -> some View {
+        let alone = finishes.count == 1
+        return Button { controller.shoot(as: finish) } label: {
+            HStack(spacing: alone ? 6 : 4) {
                 Image("BallVector")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: Act.ball, height: Act.ball)
+                    .frame(width: alone ? Act.ball : Act.ball * 0.7)
                     .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
                 // Plain type, not `ActionText`. The word sits beside a reading set in
                 // ordinary letters and takes the same drop shadow as it — a display face
                 // between the ball and the percentage made three treatments in one pill.
-                Text("SHOOT")
-                    .font(.system(size: Act.word, weight: .heavy, design: .rounded))
+                Text(finish.name.uppercased())
+                    .font(.system(size: alone ? Act.word : Act.word * 0.74,
+                                  weight: .heavy, design: .rounded))
                     .tracking(Act.wordGap)
                     .foregroundStyle(.white)
                     .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
-                Text("(\(controller.shownShot)%)")
-                    .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
+                if alone {
+                    Text("(\(controller.shownShot)%)")
+                        .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
+                }
             }
             .frame(maxWidth: .infinity)
             .frame(height: Act.height)
@@ -301,13 +335,14 @@ struct ActionBarView: View {
                 // **No `fill`.** A filled shape ignores `foregroundStyle`, so the pill
                 // came out white at rest instead of orange — the resting colour had
                 // nothing to colour.
-                SpectrumFill(isLive: armed != nil && !floorIsHidden, resting: CardPalette.orange) {
+                SpectrumFill(isLive: armed != nil && !floorIsHidden,
+                             resting: Act.pill(for: finish)) {
                     Capsule()
                 }
                 .shadow(color: CardPalette.blue, radius: 0, x: Act.pillDrop, y: Act.pillDrop))
         }
-        .padRing(ringed == .shoot, corner: Act.height / 2)
-        .frame(width: Act.width)
+        .padRing(ringed == .finish(finish), corner: Act.height / 2)
+        .frame(width: alone ? Act.width : Act.width / CGFloat(finishes.count) + 18)
     }
 
     /// **Sixth Man's second Shoot button.** The card dimmed, beside the SHOT it offers.

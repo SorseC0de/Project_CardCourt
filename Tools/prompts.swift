@@ -46,6 +46,8 @@ enum Prompts {
                                                state: &state)
         case .awaitingMode(let seat, let card):
             return Rules.resolveMode(ai.mode(of: card, state, for: seat), state: &state)
+        case .awaitingPayoff(let seat, _):
+            return Rules.takePayoff(AIPolicy.payoff(state, for: seat), by: seat, state: &state)
         case .awaitingCardFrom(_, _, let victim):
             // Face down to everybody, so there is nothing to be clever about — and an
             // empty hand is answered too, by taking nothing.

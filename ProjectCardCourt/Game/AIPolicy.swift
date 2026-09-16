@@ -115,7 +115,7 @@ struct AIPolicy {
                offer.amount > Double(state.shot) {
                 return .shootAtOffer
             }
-            return .shoot
+            if let shot = finish(legal, state, for: seat) { return shot }
         }
 
         // Only one Whistle is ever live, so there is nothing to gain from overwriting
@@ -161,9 +161,42 @@ struct AIPolicy {
                                                    return false }) {
                 return anything
             }
-            return .shoot
+            // Nothing to pass and nothing to shoot with: play whatever is left rather
+            // than asking for a shot the rules will refuse.
+            return finish(legal, state, for: seat)
+                ?? legal.first(where: { if case .play = $0 { return true }; return false })
+                ?? legal.first
         }
         return .play(choosePass(state, for: seat, from: passes))
+    }
+
+    /// **Which of the three buttons.** A three pays a point more for the same roll, so it
+    /// is taken whenever it is on offer; a dunk costs an opponent a card and a layup gives
+    /// one back, which is the tie-break between them at a thin hand.
+    ///
+    ///
+    /// **Nil when there is no finish on offer at all** — a defender forcing one the man
+    /// cannot take, a floor that has barred it. Returning the plain button there had the
+    /// opponent ask for a shot the rules refuse, over and over, and the possession never
+    /// ended.
+    func finish(_ legal: [Move], _ state: GameState, for seat: Seat) -> Move? {
+        let offered = legal.compactMap { move -> ShotType? in
+            if case .shootAs(let type) = move { return type }
+            return nil
+        }
+        if offered.contains(.three) { return .shootAs(.three) }
+        // A hand worth protecting would rather take one off somebody else.
+        if offered.contains(.dunk), state[seat].bag.count >= 3 { return .shootAs(.dunk) }
+        if offered.contains(.layup) { return .shootAs(.layup) }
+        return offered.first.map { Move.shootAs($0) }
+    }
+
+    /// What to take for beating a defender. Cards first while the hand is thin, the free
+    /// look once it is not — and the rotation when there is somebody worth putting him on.
+    static func payoff(_ state: GameState, for seat: Seat) -> ClampPayoff {
+        if state[seat].bag.count <= 2 { return .draw }
+        if state.shot >= 50 { return .shoot }
+        return .passAndRotate
     }
 
     /// **A floor or a ball worth putting down.** Most go down as the first thing; the balls

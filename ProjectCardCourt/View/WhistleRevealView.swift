@@ -119,10 +119,9 @@ struct WhistleRevealView: View {
                     // Counter-turned, or the front would come up mirrored.
                     .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
             } else {
-                Image("CardBackFull")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: width)
+                // **The officials deck's own back**, not the main deck's — a referee card
+                // comes off a different pile, and it says so. See `RefereeCardBack`.
+                RefereeCardBack(width: width)
                     .drawingGroup()
             }
         }

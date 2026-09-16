@@ -198,6 +198,8 @@ extension GameState {
         for clamp in (ignoringClamps || shrugs) ? [] : self[seat].clamps {
             var debuff = clamp.card.clamp?.shotDebuff ?? 0
             guard debuff != 0 else { continue }
+            // A defender outside his band is a defender being shot over.
+            guard clamp.card.clamp?.appliesWhen?.met(by: seat, in: self) ?? true else { continue }
             // Smacktop: every Clamp takes a step more.
             if floorEffect.enhancesClamps, debuff < 0 { debuff -= 10 }
             modifiers.debuffs.append(ShotModifier(label: clamp.card.name, amount: Double(debuff)))
