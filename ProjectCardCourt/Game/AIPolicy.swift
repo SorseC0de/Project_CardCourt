@@ -180,9 +180,19 @@ struct AIPolicy {
     /// opponent ask for a shot the rules refuse, over and over, and the possession never
     /// ended.
     func finish(_ legal: [Move], _ state: GameState, for seat: Seat) -> Move? {
-        let offered = legal.compactMap { move -> ShotType? in
+        var offered = legal.compactMap { move -> ShotType? in
             if case .shootAs(let type) = move { return type }
             return nil
+        }
+        // **Read the crew.** The officials are face up and each of the three shot calls
+        // names one finish, so going up with the one an official is watching is walking
+        // into it — and walking into it every time is a game that never ends. Only if all
+        // three are watched does it go up anyway, because at that point something has to.
+        let watched = Set(state.armedWhistles.compactMap {
+            $0.card.descriptor.whistle?.requiresShotType
+        })
+        if !watched.isEmpty, offered.contains(where: { !watched.contains($0) }) {
+            offered.removeAll { watched.contains($0) }
         }
         if offered.contains(.three) { return .shootAs(.three) }
         // A hand worth protecting would rather take one off somebody else.

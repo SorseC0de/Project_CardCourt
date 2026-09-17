@@ -953,9 +953,17 @@ enum Rules {
                    declared.descriptor.clamp != nil {
                     state.pendingClampVoid = whistle.id
                 } else {
+                    let stands = whistle.card.descriptor.whistle?.cancelsCard == false
                     blow(whistle, on: .playCard(seat: seat, card: declared),
                          state: &state, events: &events)
-                    return events
+                    // **A call that does not cancel lets the card carry on.** Technical
+                    // Foul, Blocking Foul and a Flagrant II all penalise the play rather
+                    // than stopping it, and returning here left the card in the hand with
+                    // nothing resolved — so the opponent played it again, and again. Only
+                    // carry on if the call left him with the ball and something to do.
+                    guard stands, case .possession(let still) = state.phase, still == seat,
+                          state[seat].bag.contains(where: { $0.id == declared.id })
+                    else { return events }
                 }
             }
 
