@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The discard pile, sitting beside the deck. Smaller, because it is reference rather
+/// **Retirement**, sitting beside the deck — where a spent card goes. Smaller, because it is reference rather
 /// than a thing you draw from.
 struct DiscardPileView: View {
     let count: Int
@@ -87,7 +87,7 @@ struct DiscardBrowserView: View {
 
             VStack(spacing: 10) {
                 HStack {
-                    Text("DISCARD · \(cards.count)")
+                    Text("RETIRED · \(cards.count)")
                         .font(.system(size: 12, weight: .black)).tracking(1.6)
                         .foregroundStyle(Theme.ink)
                     Spacer()
@@ -101,7 +101,7 @@ struct DiscardBrowserView: View {
 
                 if grouped.isEmpty {
                     Spacer()
-                    Text("Nothing discarded yet.")
+                    Text("Nobody has retired yet.")
                         .font(.system(size: 12)).foregroundStyle(Theme.inkDim)
                     Spacer()
                 } else {

@@ -232,11 +232,16 @@ struct CardSkin {
     }
 
     /// Whether lettering on this needs to be dark. The palette's light half, by name
-    /// rather than by measurement — there are four of them and they are not going to move.
-    private static func isLight(_ plate: Color) -> Bool {
-        [CardPalette.gold, CardPalette.cloud, CardPalette.tan, CardPalette.steel]
-            .contains(plate)
+    /// rather than by measurement — there are five of them and they are not going to move.
+    static func isLight(_ plate: Color) -> Bool {
+        [CardPalette.gold, CardPalette.cloud, CardPalette.tan, CardPalette.brown,
+         CardPalette.steel].contains(plate)
     }
+
+    /// **The words are black on light paper and white on dark**, and the paper is whatever
+    /// they are actually laid on — which in theme C is the panel inside the frame rather
+    /// than the frame itself.
+    static func ink(on surface: Color) -> Color { isLight(surface) ? .black : .white }
 
     /// The theme's own answer, before the bench has said anything.
     static func derived(_ face: CardFace, theme: CardTheme) -> CardSkin {
@@ -258,8 +263,11 @@ struct CardSkin {
         // is gold over orange — so it reads as the same colour, gone richer.
         let special = face == .specialMove
         let badge: Color = special ? PixelPalette.deepTeal : (gilded ? CardPalette.gold : type)
+        // **A black banner drops true black.** Navy under black read as a second colour
+        // rather than as depth.
         let badgeShade: Color = special ? CardPalette.teal
-                                        : (gilded ? CardPalette.orange : shade)
+                                        : (gilded ? CardPalette.orange
+                                                  : (badge == CardPalette.black ? .black : shade))
         // A Special Move is a Move and carries a Move's colour, so its ring is simply the
         // type's like everyone else's.
         let ringInk: Color = type
@@ -273,9 +281,9 @@ struct CardSkin {
                 iconLine: CardPalette.cloud,
                 iconLineShade: CardPalette.lightBlue,
                 iconShade: face == .variaball ? CardPalette.brown : nil,
-                text: standing ? CardPalette.cloud : CardPalette.navy,
+                text: ink(on: intent),
                 nameTop: special ? CardPalette.gold : nameTop(on: badge),
-                nameBottom: special ? CardPalette.orange : nameBottom(on: badge),
+                nameBottom: special ? CardPalette.tangerine : nameBottom(on: badge),
                 overlay: type)
         case .b:
             // Cloud for tan, and tan for steel on the icon plates. A standing card takes
@@ -292,9 +300,9 @@ struct CardSkin {
                 // the tan plate, which is the drop the face was tuned to.
                 iconShade: face == .variaball ? CardPalette.brown
                                               : (standing ? nil : CardPalette.gray),
-                text: standing ? CardPalette.cloud : CardPalette.navy,
+                text: ink(on: standing ? CardPalette.brown : CardPalette.tan),
                 nameTop: special ? CardPalette.gold : nameTop(on: badge),
-                nameBottom: special ? CardPalette.orange : nameBottom(on: badge),
+                nameBottom: special ? CardPalette.tangerine : nameBottom(on: badge),
                 overlay: type)
         case .c:
             // Turned inside out: the type is the paper, and the white or black is the
@@ -312,11 +320,15 @@ struct CardSkin {
                 iconPlate: standing ? CardPalette.gray : CardPalette.cloud,
                 iconLine: CardPalette.cloud,
                 iconLineShade: CardPalette.lightBlue,
-                iconShade: nil,
-                text: .white,
-                nameTop: nameTop(on: gilded ? CardPalette.gold : intent),
-                nameBottom: nameBottom(on: gilded ? CardPalette.gold : intent),
-                overlay: intent)
+                iconShade: face == .variaball ? CardPalette.brown : nil,
+                text: ink(on: special ? PixelPalette.deepTeal : type),
+                nameTop: gilded ? nameTop(on: CardPalette.gold)
+                                : (special ? CardPalette.gold : nameTop(on: intent)),
+                nameBottom: gilded ? nameBottom(on: CardPalette.gold)
+                                   : (special ? CardPalette.tangerine : nameBottom(on: intent)),
+                // **The banner's colour, laid under the words.** White or black, which is
+                // the same thing the frame and the ring are saying.
+                overlay: gilded ? CardPalette.gold : intent)
         }
     }
 }

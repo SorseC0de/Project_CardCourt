@@ -163,15 +163,15 @@ struct ActionBarView: View {
         switch controller.gate {
         case .awaitingDiscard(let card, let each):
             if state.fourPointOffer {
-                return "The Future: discard 1 to make \(card.name) worth 4, at SHOT \(each)%?"
+                return "The Future: retire 1 to make \(card.name) worth 4, at SHOT \(each)%?"
             }
             let most = Rules.legalDiscardForShot(state, for: GameRules.localSeat).upperBound
-            if most == 1 { return "\(card.name): discard 1 for +\(each)%?" }
+            if most == 1 { return "\(card.name): retire 1 for +\(each)%?" }
             if let limit = card.special?.discardForShotLimit {
                 let beyond = card.special?.discardBeyondLimitBonus ?? 0
                 return Rules.discardsPastLimit(card, in: state)
                     ? "\(card.name): +\(each)% each for \(limit), then +\(beyond)% each"
-                    : "\(card.name): discard up to \(limit), +\(each)% each"
+                    : "\(card.name): retire up to \(limit), +\(each)% each"
             }
             return "\(card.name): feed it as many as you like, +\(each)% each"
         case .awaitingGiveUp(let card, let count):

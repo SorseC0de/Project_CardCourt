@@ -93,7 +93,7 @@ struct HandPickerView: View {
     /// play makes somebody give up is discarded, and calling that "Take it" described the
     /// wrong half of it.
     private var taking: String {
-        card.targetDiscards > 0 ? "Discard" : "Take it"
+        card.targetDiscards > 0 ? "Retire" : "Take it"
     }
 
     var body: some View {

@@ -146,9 +146,9 @@ enum CardTextInk: String, CaseIterable, Hashable, Codable {
 /// See `CardTextBench`, where all of it is on a dial.
 enum CardTextStyle {
     /// Against the card's width, so a hand card and a gallery card are one drawing.
-    static let size: CGFloat = 0.075
+    static let size: CGFloat = 0.066
     /// How far in from each edge the column sits.
-    static let inset: CGFloat = 0.12
+    static let inset: CGFloat = 0.08
     /// Line to line, against the face's own line height. Under one is tighter than the
     /// font was drawn to be, which is what a card wants.
     static let lineHeight: CGFloat = 0.75
@@ -177,6 +177,13 @@ enum CardTextStyle {
     /// bottom-trailing corner. Every corner is its own radius, and the size and the nudge
     /// off the corner are dials too — all as shares of the card's width, so it holds
     /// together at any size like everything else on the face.
+    /// **Two shapes for it.** A is the flash of type colour the thinned ring gave back;
+    /// B runs it longer and puts the type's name in it, so the corner says what the card
+    /// is as well as what colour it is.
+    static let patchNamed = false
+    static let patchNamedWidth: CGFloat = 0.520
+    static let patchNamedSize: CGFloat = 0.060
+
     static let patch = true
     static let patchWidth: CGFloat = 0.200
     static let patchHeight: CGFloat = 0.100
@@ -324,7 +331,7 @@ enum CardTextStyle {
     /// line the other way round. The number is the same; the eye is not.
     static let ringWidth: [CardFace: CGFloat] = [
         .pass: 1, .move: 1, .specialMove: 1, .clamp: 1,
-        .whistle: 1, .gameBreak: 1, .intangible: 0.75,
+        .whistle: 1, .gameBreak: 1, .intangible: 1,
         .injury: 1, .devastatingInjury: 1,
         .varena: 1, .variaball: 1,
     ]
@@ -519,6 +526,9 @@ final class CardTextTuning {
     var patchBottomLeading = CardTextStyle.patchBottomLeading
     var patchBottomTrailing = CardTextStyle.patchBottomTrailing
     var skinInks = CardTextStyle.skinInks
+    var patchNamed = CardTextStyle.patchNamed
+    var patchNamedWidth = CardTextStyle.patchNamedWidth
+    var patchNamedSize = CardTextStyle.patchNamedSize
     var darkBodies = CardTextStyle.darkBodies
     var shadows = CardTextStyle.shadows
     var shadowDrop = CardTextStyle.shadowDrop
@@ -618,6 +628,9 @@ final class CardTextTuning {
         patchBottomLeading = CardTextStyle.patchBottomLeading
         patchBottomTrailing = CardTextStyle.patchBottomTrailing
         skinInks = CardTextStyle.skinInks
+        patchNamed = CardTextStyle.patchNamed
+        patchNamedWidth = CardTextStyle.patchNamedWidth
+        patchNamedSize = CardTextStyle.patchNamedSize
         nameTop = CardTextStyle.nameTop; nameBottom = CardTextStyle.nameBottom
         ringWidth = CardTextStyle.ringWidth
         footScale = CardTextStyle.footScale; iconScale = CardTextStyle.iconScale
@@ -686,6 +699,9 @@ final class CardTextTuning {
         static let iconTop: CGFloat = \(n(iconTop))
         static let darkBodies = \(darkBodies)
         static let skinInks: [CardTheme: [CardFace: [CardSkin.Role: CardTextInk]]] = [\(overrideSource)]
+        static let patchNamed = \(patchNamed)
+        static let patchNamedWidth: CGFloat = \(n(patchNamedWidth))
+        static let patchNamedSize: CGFloat = \(n(patchNamedSize))
         static let patch = \(patch)
         static let patchWidth: CGFloat = \(n(patchWidth))
         static let patchHeight: CGFloat = \(n(patchHeight))
@@ -900,6 +916,14 @@ struct CardTextBench: View {
                                 chip("off", on: !tune.patch) { tune.patch = false }
                             }
                         }
+                        row("shape", tune.patchNamed ? "named" : "plain") {
+                            HStack(spacing: 3) {
+                                chip("A", on: !tune.patchNamed) { tune.patchNamed = false }
+                                chip("B", on: tune.patchNamed) { tune.patchNamed = true }
+                            }
+                        }
+                        dial("B width", $tune.patchNamedWidth, 0.2...1)
+                        dial("B letters", $tune.patchNamedSize, 0.02...0.12)
                         dial("width", $tune.patchWidth, 0...1)
                         dial("height", $tune.patchHeight, 0...0.6)
                         dial("x", $tune.patchX, -0.5...0.5)

@@ -106,13 +106,31 @@ struct CardText: View {
         Marked.runs(of: text).reduce(Text(verbatim: "")) { $0 + piece($1) }
     }
 
+    /// **One line is centred; more than one is ranged left.**
+    ///
+    /// A single line set left in a column wider than it is reads as a line that has slipped
+    /// off the middle of the card. Two or more have a left edge to line up on, which is the
+    /// whole reason for ranging them left, and centring those would lose it.
+    private var alignment: TextAlignment {
+        let words = Marked.plain(text)
+        return words.contains("\n") || words.count > Self.oneLine ? .leading : .center
+    }
+
+    /// Roughly what fits on a line at the size the words are set. A reading rather than a
+    /// measurement: the exact answer needs the laid-out line, and this only decides which
+    /// of two alignments looks right.
+    private static let oneLine = 34
+
     var body: some View {
         written
             .tracking(tracking)
             // The gap this exists to close. `lineSpacing` cannot go under the font's own
             // leading, so the negative half of the dial is spent here.
             .lineSpacing(uiFont.lineHeight * (lineHeight - 1))
-            .multilineTextAlignment(.leading)
+            .multilineTextAlignment(alignment)
+            // **Ranged left inside a block that is centred on the card.** The words line
+            // up with each other; the block they line up in sits in the middle.
+            .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
             .lineLimit(maxLines)
             .minimumScaleFactor(minScale)
             // A link paints itself in the accent colour unless something says otherwise,

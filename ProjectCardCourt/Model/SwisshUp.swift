@@ -44,7 +44,7 @@ enum SwisshUp: String, CaseIterable, Codable, Hashable, Identifiable {
         case .empoweredPace: return "Draw 1 additional card for turn"
         case .unguardable:   return "Clamps have no effect on you"
         case .sixthSense:    return "Draw up to a hand of 6"
-        case .downloaded:    return "Replace your hand from the top of the discard pile"
+        case .downloaded:    return "Replace your hand from the top of Retirement"
         }
     }
 

@@ -438,7 +438,7 @@ enum CardLayout {
 
     static let keywordGlyphs: [String: String] = [
         "Draw": "DrawIcon", "Draws": "DrawIcon",
-        "Discard": "DiscardIcon", "Discards": "DiscardIcon",
+        "Retire": "DiscardIcon", "Retires": "DiscardIcon",
         "Lock": "LockIcon", "Locks": "LockIcon",
     ]
 

@@ -26,7 +26,7 @@ enum Glossary {
     private static func singular(_ word: String) -> String {
         switch word {
         case "Draws":       return "Draw"
-        case "Discards":    return "Discard"
+        case "Retires":     return "Retire"
         case "Locks":       return "Lock"
         case "Clamps":      return "Clamp"
         case "Whistles":    return "Whistle"
@@ -39,8 +39,12 @@ enum Glossary {
     private static let table: [String: String] = [
         "Draw": "Take that many cards off the deck. Anything you turn up that is not a "
               + "card for your hand goes off once the whole draw has finished.",
-        "Discard": "Put that many cards from your hand into the pile. At random unless "
-                 + "the card says you choose.",
+        "Retire": "Put that many cards from your hand into Retirement. At random unless "
+                + "the card says you choose.",
+        "Retirement": "Where a spent card goes. Face up, so everybody can read what has "
+                    + "already been played — and a card that says UnRetire takes one back "
+                    + "out of it.",
+        "UnRetire": "Take a card out of Retirement.",
         "Lock": "The card stays in your hand but cannot be played this possession. Which "
               + "one is picked when the Clamp lands, and it does not change.",
         "Clamp": "Defenders standing on whoever has the ball next. They lower SHOT while "

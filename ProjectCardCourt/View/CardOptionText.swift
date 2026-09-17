@@ -9,7 +9,7 @@ extension CardOption {
         case .flipForDraw:    return "Flip for a card?"
         case .assignClamps:   return "Assign your Clamps?"
         case .resetShotClock: return "Reset the Shot Clock?"
-        case .dumpHand:       return "Discard your hand?"
+        case .dumpHand:       return "Retire your hand?"
         case .ankleBreaker:   return "Ankle Breaker?"
         }
     }
@@ -21,7 +21,7 @@ extension CardOption {
         case .assignClamps:   return "Kick-Out: every Clamp on you goes to the new player"
         case .resetShotClock: return "Outlet Pass: the Shot Clock back to the top"
         case .dumpHand:       return "Turnaround Three: SHOT = 100%"
-        case .ankleBreaker:   return "Discard 1 card from a target player's hand"
+        case .ankleBreaker:   return "Retire 1 card from a target player's hand"
         }
     }
 
@@ -31,7 +31,7 @@ extension CardOption {
         case .flipForDraw:    return "Flip"
         case .assignClamps:   return "Assign"
         case .resetShotClock: return "Reset"
-        case .dumpHand:       return "Discard"
+        case .dumpHand:       return "Retire"
         case .ankleBreaker:   return "Break ankles"
         }
     }

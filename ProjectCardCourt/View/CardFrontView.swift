@@ -172,8 +172,8 @@ struct CardFrontView: View {
         // of this card rather than as two buttons the app put on top of it.
         return VStack(spacing: size * 0.4) {
             if !combos.isEmpty {
-                extrasCapsule("COMBO", size: size, fill: skin.body,
-                              drop: ringColour, ink: effectColour) { onCombo?() }
+                extrasCapsule("COMBO", size: size, fill: skin.plate,
+                              drop: namePlateShadow, ink: skin.nameBottom) { onCombo?() }
             }
             if !descriptor.bonusLines.isEmpty {
                 extrasCapsule("BONUS", size: size, fill: skin.plate,
@@ -359,7 +359,9 @@ struct CardFrontView: View {
             .resizable()
             .scaledToFit()
             .frame(width: side, height: side)
-            .shadow(color: set.iconShadeInk(for: face),
+            // The same drop the plate behind it takes — a ball spilling out of its circle
+            // with a different shadow under it reads as two drawings.
+            .shadow(color: skin.iconShade ?? set.iconShadeInk(for: face),
                     radius: 0, x: drop, y: drop)
             .position(x: width / 2,
                       y: height * (set.iconTop + descriptor.iconYAdjust)
@@ -626,7 +628,19 @@ struct CardFrontView: View {
                 topTrailingRadius: width * set.patchTopTrailing,
                 style: .continuous)
                 .fill(ringColour)
-                .frame(width: width * set.patchWidth, height: width * set.patchHeight)
+                .frame(width: width * (set.patchNamed ? set.patchNamedWidth : set.patchWidth),
+                       height: width * set.patchHeight)
+                // **B says what the card is.** The type's own name, set in the game's
+                // lettering and inked to read on the patch — which is the ring's colour,
+                // so the name is the same colour as the badge up top said it was.
+                .overlay {
+                    if set.patchNamed {
+                        ActionText(runs: [.init(face.type.rawValue.uppercased(),
+                                                ink: CardSkin.ink(on: ringColour),
+                                                drop: namePlateShadow)],
+                                   size: width * set.patchNamedSize)
+                    }
+                }
                 .offset(x: width * set.patchX, y: width * set.patchY)
         }
     }

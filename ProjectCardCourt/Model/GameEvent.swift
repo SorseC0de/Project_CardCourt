@@ -271,7 +271,7 @@ enum GameEvent: Hashable, Codable {
         case .clampedPossession(let seat, let clamps):
             return "\(seat.playerName) \(seat.verb("opens", "open")) up under \(clamps.count) Clamp\(clamps.count == 1 ? "" : "s")."
         case .halftime:
-            return "— HALFTIME — bags and discards reshuffled, fresh 5 each."
+            return "— HALFTIME — hands retired, fresh 5 each."
         case .gameEnded(let winners):
             return winners.count == 1
                 ? "FINAL. \(winners[0].playerName) \(winners[0].verb("wins", "win"))."
@@ -279,7 +279,7 @@ enum GameEvent: Hashable, Codable {
         case .ballChanged(let card):
             return card.map { "The ball is now \($0.name)." } ?? "Back to a Regulation Ball."
         case .graveyardEmpty:
-            return "Grayvstone reaches for a ball in the discards and finds none."
+            return "Grayvstone reaches for a ball in Retirement and finds none."
         case .benched(let seat):
             return "Bench Ball! \(seat.playerName) \(seat.verb("is", "are")) benched and \(seat.verb("inbounds", "inbound"))."
         case .handsRotated(let clockwise):
