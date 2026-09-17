@@ -710,8 +710,13 @@ struct CardFrontView: View {
 
         // **A colour each, and one drop under all four.** White arrows were drawn for
         // bodies that were the type's colour; on paper they need the colour themselves,
-        // and telling left from right from across at a glance is what these cards do
-        // instead of using words. Blue right, red left, purple across and behind.
+        // and telling them apart at a glance is what these cards do instead of using
+        // words.
+        //
+        // **Blue right, red left, and purple for both the others** — which is not a clash.
+        // The swings are the two basic passes; across and behind-the-back are the
+        // alternatives to them, and purple is those two colours mixed. Two marks sharing
+        // it says they are the same kind of thing.
         //
         // Theme A only. B and C still carry the white they were drawn with, until there is
         // a reading of what they should be on tan and on the type's own colour.
