@@ -133,6 +133,14 @@ one back at the clamper, so stripping his Intangible first becomes a real play.
 **Cards that force a referee to be swapped.** The other half of a churning crew: if the
 stage can be changed by a call, it should be changeable by a play as well.
 
+**Dishtracting Ball is the first of them**, and it finally earns its name — it distracts
+the officials rather than the players:
+
+> **While passing, you may #[Retire] target ~[Ref] and place a new one**
+
+*Target* is deliberate, so Floor General can pick which one for you. Its old shooting toll
+— *Shooting: Retire 1 card* — is **parked for one of the two new balls**, not lost.
+
 **Cards that force another player to do something.** Without them people simply play around
 a ref for the whole round, which makes a stage everybody can read into a stage everybody can
 dodge. Lob is the one that already does it — the man it finds owes a shot — and the Clamps
