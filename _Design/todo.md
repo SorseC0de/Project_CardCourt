@@ -354,3 +354,18 @@ flagged to look at after playing a full game under the new rules:
 
 The rework doc already says the Special Moves were never dissolved into Move and Intangible
 the way the plan called for; they were only cut to one copy each. This is the same job.
+
+## A bag HUD, drawn rather than exported
+
+The user has the specs; it is purely visual, so it waits. **Bag Tag** goes with it — the
+user will know what it means when we come back to this.
+
+## Challenges
+
+Every player gets **one challenge a game**: a shot taken to get out of a call — a free
+throw, or an attempt at the current SHOT, undecided — and the game says **"BALL DON'T
+LIE!"** whether it drops or not.
+
+Not the final mechanics. What is settled is that challenges are going in, whatever shape
+they end up: a call you can answer is the other half of officials you can read, and one a
+game is the right number for a thing that should feel like spending something.

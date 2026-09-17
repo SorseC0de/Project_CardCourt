@@ -108,7 +108,7 @@ struct StatusHUDView: View {
                 if owed > 0 { pending }
                 if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
                 if state.whistlesSilenced { silenced }
-                if !state.armedWhistles.isEmpty { watching }
+                if !state.armedWhistles.isEmpty { crew }
                 ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize,
                               hidden: !state.canReadShot(GameRules.localSeat))
                     .tutorialTarget(.shotHUD)
@@ -196,16 +196,31 @@ struct StatusHUDView: View {
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 
-    /// A Whistle is armed. Deliberately says nothing about whose or what it watches for.
-    private var watching: some View {
-        Image("RefereeIcon")
-            .resizable()
-            .scaledToFit()
-            .frame(width: refereeSide, height: refereeSide)
-            .drawingGroup()
-            .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onInspectReferees)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+    /// **The crew working this round**, as their three cards rather than as one whistle.
+    ///
+    /// The old icon said only that somebody was watching, which was right when a Whistle
+    /// was a trap nobody could see. They are dealt face up now and everyone plays under
+    /// them, so the HUD says *which three* — small, because it is a reminder of something
+    /// already read rather than the reading itself. Tapping opens them at a size that can
+    /// be read.
+    private var crew: some View {
+        HStack(spacing: refereeSide * 0.10) {
+            ForEach(state.armedWhistles) { whistle in
+                CardFrontView(descriptor: whistle.card.descriptor,
+                              displayWidth: refereeSide * Crew.share,
+                              isDormant: whistle.stayed)
+            }
+        }
+        .drawingGroup()
+        .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onInspectReferees)
+        .transition(.scale(scale: 0.5).combined(with: .opacity))
+    }
+
+    private enum Crew {
+        /// **Against the referee icon that stood here**, which is itself smaller than the
+        /// ball. Three cards in the space one icon had, so the row does not grow.
+        static let share: CGFloat = 0.62
     }
 }

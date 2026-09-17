@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// **The floor and the ball in play**: the Varena that is out — the table's own Cardwood
-/// until somebody plays over it — and the Variaball, when there is one. Tapping either
-/// raises it to be read, the way a slotted card is.
+/// **The ball in play**, when there is one. Tapping it raises it to be read, the way a
+/// slotted card is.
+///
+/// **No floor.** Varenas are benched, so every game is played on plain Cardwood and a slot
+/// showing the same card in every match of every game is a slot saying nothing. The floor
+/// half is still here, unused, for when the venue comes back.
 struct FloorAndBallView: View {
     let state: GameState
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
@@ -15,7 +18,7 @@ struct FloorAndBallView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Layout.gap) {
-            slot(state.currentCourt, note: floorNote)
+            if state.courtCard != nil { slot(state.currentCourt, note: floorNote) }
             if let ball = state.currentBall {
                 slot(ball, note: ballNote)
                     .transition(.scale.combined(with: .opacity))

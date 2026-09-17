@@ -151,7 +151,10 @@ func play(seed: UInt64, moves: [String]) {
 }
 
 let args = CommandLine.arguments
-if args.contains("--density") {
+if args.contains("--refs") {
+    runRefAudit()
+    runRefHoldOut()
+} else if args.contains("--density") {
     measureDensity()
 } else if args.contains("--variety") {
     measureVariety()
