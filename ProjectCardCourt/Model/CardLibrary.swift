@@ -1332,6 +1332,7 @@ enum CardLibrary {
         goaltending, blockingFoul, flagrantFoul, flagrantFoulII,
         technicalFoul, clearPathFoul, delayOfGameWarning, officialReview,
         extravagantMechanics, overVaringEvidence, crewChief, rookieOfficial,
+        retiringOfficial,
     ]
 
     /// Whistles that needed an owner to mean anything. Kept so a saved match can still
@@ -1358,6 +1359,18 @@ enum CardLibrary {
         effect: "On #[Retire]: you may swap it for any card in Retirement",
         numberInDeck: 1,
         whistle: WhistleEffect(swapsOnRetire: true))
+
+    /// **The one who is on his way out and does not much mind.** The other positive
+    /// official: the look is better while he works, a Clamp played in front of him is a
+    /// card instead of a defender, and when he finally goes he takes Retirement back into
+    /// the deck with him.
+    static let retiringOfficial = CardDescriptor(
+        id: "retiring-official", name: "Retiring Official", type: .whistle,
+        effect: "SHOT +10%\n~[Clamp] played: #[Draw] 1 card instead\n"
+            + "When he leaves: Retirement is shuffled into the deck",
+        numberInDeck: 1,
+        whistle: WhistleEffect(shotWhileWorking: 10, clampsDrawInstead: true,
+                               shufflesRetirementOnLeaving: true))
 
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,

@@ -155,6 +155,12 @@ extension GameState {
             modifiers.adds.append(ShotModifier(label: currentCourt.name,
                                                amount: Double(floor.dunkBonus)))
         }
+        // The Retiring Official: the look is better while he is working, for everybody.
+        for whistle in armedWhistles {
+            let paid = whistle.card.descriptor.whistle?.shotWhileWorking ?? 0
+            guard paid != 0 else { continue }
+            modifiers.adds.append(ShotModifier(label: whistle.card.name, amount: Double(paid)))
+        }
         // Hero Ball: it pays the man taking the shot, since nobody can pass it to him.
         if let ball = currentBall, let paid = ball.variaball?.shotWhenShooting, paid != 0 {
             modifiers.adds.append(ShotModifier(label: ball.name, amount: Double(paid)))

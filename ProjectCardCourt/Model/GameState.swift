@@ -340,6 +340,11 @@ struct GameState: Codable {
         let action: PendingAction
     }
     var challengedCall: PendingCall?
+    /// **A call already answered for the play in flight.** Turning a challenge down lets
+    /// the call land — and a call that does not cancel the card leaves the play still to
+    /// resolve, so the play is run again with this set and the official who already spoke
+    /// stays quiet. Cleared the moment the play finishes.
+    var callsAnswered: Set<UUID> = []
 
     /// **Whether a round is in the middle of ending.** Ending one pays what it owes and
     /// deals the next hand, and both settle hands — which is where a stranded man is

@@ -87,6 +87,30 @@ Retirement.** Non-ref, which does not need saying on the face. Retiring stops be
 and becomes a swap: you give up what you just spent and take back something already played.
 Another of the rare positive officials, and the deck wants more of them.
 
+**Retiring Official** — **built.** *SHOT +10%. ~[Clamp] played: #[Draw] 1 card instead.
+When he leaves: Retirement is shuffled into the deck.* The other positive one: the look is
+better while he works, a defender put out in front of him is a card instead, and he takes
+Retirement back into the deck with him on the way out. He is on his way out, so he is
+relaxed about it — and players are glad to see him.
+
+**Shady Official** — *"It's unclear what they're focused on."* **Recorded, not built**, and
+noted as **likely digital-only**: what makes him work is that nobody can see what he picked.
+
+On arriving he silently picks a player, and silently picks one of six things to watch for.
+When that player does it he is Retired — but not before the call lands:
+
+| watching | what happens |
+|---|---|
+| **A** attempts a shot | the attempt is cancelled and SHOT drops 25%. They carry on with their turn. |
+| **B** attempts a *specific* shot type (a third roll picks which) | the shot is allowed through at −25%, which overrides any other override. |
+| **C** scores | the basket is wiped. **The round does not increment.** The official who replaces him inbounds them a fresh possession. |
+| **D** plays a *specific* card type (a third roll picks which) | that card is cancelled and they draw 1. |
+| **E** makes a free throw | the free throw is wiped and retaken. He is fixed as the official watching the free-throw scene, and as the shot lands the scene does not end — he makes the call from it, warps out, a new referee warps in, and the shooter is seamlessly reloaded to take another. |
+| **F** wins a rebound | he triggers right after the rebound catch animation. The player passes him the ball, he inbounds it to a random other player, and then Retires. |
+
+**He always warps out** when Retired, rather than jogging off into the distance the way the
+rest of them do.
+
 ## The count
 
 **Twenty.** Nineteen today, less Cleared to Play parked, plus Crew Chief and Rookie

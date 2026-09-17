@@ -981,7 +981,21 @@ enum Rules {
                 return events
             }
             let card = state[seat].bag.remove(at: index)
+            // The play has landed; whatever was kept quiet for it is free again.
+            state.callsAnswered = []
             let descriptor = card.descriptor
+            // **The Retiring Official.** A defender put out in front of him is waved off
+            // before it lands and the man who played it draws instead — which is why
+            // players are glad to see him.
+            if descriptor.clamp != nil, state.armedWhistles.contains(where: {
+                $0.card.descriptor.whistle?.clampsDrawInstead == true
+            }) {
+                state.discard.append(card)
+                events.append(.discarded(seat: seat, cards: [descriptor]))
+                drawTogether([seat], count: 1, state: &state, events: &events)
+                settleHands(state: &state, events: &events)
+                return events
+            }
             // Rhythm Dribble: its extra belongs to the next action, and only if that is a shot.
             let carriedShotBonus = state.nextShotBonus
             state.nextShotBonus = 0
@@ -2475,7 +2489,7 @@ enum Rules {
         // — that is what stops a table being flooded with traps by someone immune to them.
         let reading = state
         guard let speaking = state.armedWhistles.first(where: {
-            passes($0, action, in: reading)
+            !reading.callsAnswered.contains($0.id) && passes($0, action, in: reading)
         }) else { return nil }
         return tossed(speaking, state: &state) ? speaking : nil
     }
@@ -2589,10 +2603,14 @@ enum Rules {
     private static func offerChallenge(_ whistle: ArmedWhistle, on action: PendingAction,
                                        state: inout GameState) -> Bool {
         let man = action.actor
-        guard !state[man].challenged, state.challengedCall == nil else { return false }
-        // **Only a call that costs something.** One that hands out a free throw and lets
-        // the play stand is not worth a once-a-game — and suspending one of those leaves
-        // the card it let through sitting unplayed in a hand, which is a game that stops.
+        guard !state[man].challenged, state.challengedCall == nil,
+              !state.callsAnswered.contains(whistle.id) else { return false }
+        // **TODO — consistency.** Every call that fires should be challengeable; this is
+        // the one that is not, and it is a limitation of the play path rather than a
+        // design choice. A call that leaves the card playable suspends a play that has to
+        // be resumed afterwards, and the play path cannot be re-entered cleanly: two
+        // attempts at resuming it measured worse than this restriction does. Making a play
+        // resumable across a question is the fix, and it is a refactor rather than a patch.
         let effect = whistle.card.descriptor.whistle ?? WhistleEffect()
         guard effect.cancelsCard || effect.turnoverOnOffender || effect.offenderInbounds
                 || effect.endsPossession || effect.endsRound else { return false }
@@ -2621,6 +2639,16 @@ enum Rules {
 
         guard challenging else {
             blow(whistle, on: pending.action, state: &state, events: &events)
+            // **The play still has to happen.** A call that does not cancel the card left
+            // it sitting in a hand with nothing resolved, so the play is run again — with
+            // the official who has already spoken kept quiet.
+            if whistle.card.descriptor.whistle?.cancelsCard == false,
+               case .playCard(let who, let card) = pending.action,
+               case .possession(let holder) = state.phase, holder == who,
+               state[who].bag.contains(where: { $0.id == card.id }) {
+                state.callsAnswered.insert(whistle.id)
+                events += apply(.play(card.id), by: who, to: &state)
+            }
             return events
         }
         // **Spent, and the official with it.** One a game whether it helps or not.
@@ -2950,6 +2978,7 @@ enum Rules {
                                         offering: Bool = true, alreadyDrew: Bool = false,
                                         state: inout GameState, events: inout [GameEvent]) {
         state.ball = seat
+        state.callsAnswered = []
         state.lastPlayThisPossession = nil
         state.lastPlayWasCombo = false
         state.movesThisPossession = 0
@@ -3443,6 +3472,15 @@ enum Rules {
         // work the whole of it whatever they call; the round turning over is what sends
         // them off and brings three more out — see `assignCrew`.
         //
+        // **What a leaving official takes with him.** The Retiring Official puts
+        // Retirement back into the deck on his way out.
+        if state.armedWhistles.contains(where: {
+            $0.card.descriptor.whistle?.shufflesRetirementOnLeaving == true
+        }), !state.discard.isEmpty {
+            state.deck = state.shuffled(state.deck + state.discard)
+            state.discard.removeAll()
+            events.append(.deckReshuffled)
+        }
         // Into the officials' own pile, never the main discard: the crew deck is a
         // separate pile all game and comes back off this when it runs dry.
         state.officialsDiscard.append(contentsOf: state.armedWhistles.map(\.card))

@@ -178,6 +178,12 @@ struct WhistleEffect: Hashable, Codable {
     var intangibleSlots: Int?
     /// Rookie Official: a card put into Retirement may be swapped for one already there.
     var swapsOnRetire = false
+    /// Retiring Official: SHOT, for as long as he is working.
+    var shotWhileWorking = 0
+    /// And what a Clamp does while he is: nothing, and its player draws instead.
+    var clampsDrawInstead = false
+    /// And what happens when he goes: Retirement goes back into the deck with him.
+    var shufflesRetirementOnLeaving = false
     /// **Which finish the crew is watching.** A call on dunks says nothing about a layup.
     /// This is the half of the matrix a Clamp forces a player into.
     var requiresShotType: ShotType?
