@@ -100,8 +100,8 @@ struct AIPolicy {
                 return card
             }
             if let best = shooters.max(by: { lhs, rhs in
-                (lhs.descriptor.baseShotDelta, lhs.descriptor.special?.bonusPointOnMake ?? 0)
-                    < (rhs.descriptor.baseShotDelta, rhs.descriptor.special?.bonusPointOnMake ?? 0)
+                (lhs.descriptor.baseShotDelta, lhs.descriptor.isThree ? 1 : 0)
+                    < (rhs.descriptor.baseShotDelta, rhs.descriptor.isThree ? 1 : 0)
             }), best.descriptor.baseShotDelta >= 0 || best.descriptor.special?.shotOverride != nil {
                 // S.O.S: a two at double the look, when that is worth more than the three.
                 if legal.contains(.playAsTwo(best.id)) {
@@ -226,6 +226,22 @@ struct AIPolicy {
             $0.card.descriptor.whistle?.requiresShotType != nil
         }) { return watching.id }
         return crew.first { $0.card.descriptor.whistle?.endsRound == true }?.id
+    }
+
+    /// **What to take off the table**, out of what this card can reach, or nil to leave it
+    /// alone. An official who is standing between this hand and a basket goes first —
+    /// that is the same read the shot takes. Failing that, somebody else's passive, then
+    /// a ball that is hurting whoever holds it. Nothing worth taking is left alone.
+    static func retires(_ choices: [RetirementTarget], _ state: GameState,
+                        for seat: Seat) -> RetirementTarget? {
+        if let waving = distracts(state, for: seat),
+           choices.contains(.official(waving)) { return .official(waving) }
+        if let passive = choices.first(where: {
+            if case .intangible = $0 { return true }; return false
+        }) { return passive }
+        if choices.contains(.ball), (state.ballEffect.shooterDiscards > 0
+                                     || state.ballEffect.turnoverChance > 0) { return .ball }
+        return choices.first { if case .clamp = $0 { return true }; return false }
     }
 
     /// What to take for beating a defender. Cards first while the hand is thin, the free

@@ -419,3 +419,21 @@ are imported and are what it builds against.
 
 The art is imported and finished; the card does not exist. It waits on a **batch of 5 or 10
 balls designed at once** rather than being written on its own.
+
+## Left from the Move / Intangible audit
+
+Everything else in `_Design/move-intangible-audit.md` is built. These four need a surface
+that does not exist yet:
+
+- **The Equalizer's fourth button.** `WhistleEffect.equalizerShot` is on the card and read
+  by nothing: the shot triangle needs a fourth control, reading **EQUALIZER**, offered to
+  every player while he is working, costing the whole hand.
+- **Open Three's in-hand rename.** `wideOpenName` is printed on the card. When every player
+  has touched the ball the card should change its own face in hand to **Wide-Open Three**
+  at SHOT = 100%, plus the glowy aura once that is fixed. A card that rewrites itself in
+  hand is new; nothing else does it.
+- **Varsitile's exchange.** `exchangesWithRetirement` is declared. Once a possession, swap
+  the Ball or one of your Intangibles for one in Retirement.
+- **Prompt art for the two new questions.** `.awaitingRetirement` (name something in play
+  to take off the table) and `.awaitingClampsNamed` (Pump Fake, one more defender or stop)
+  both work on the pad and in the headless harness; neither has a drawn prompt yet.

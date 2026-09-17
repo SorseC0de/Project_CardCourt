@@ -102,6 +102,19 @@ enum Rules {
                    state.moveCardsThisPossession >= most { return false }
                 if card.descriptor.type == .specialMove,
                    has(seat, in: state, { $0.blocksSpecialMoves }) { return false }
+                // Touch: no side to continue, no card. Greyed rather than refused.
+                if card.descriptor.passTarget == .continuing,
+                   continuation(from: seat, in: state) == nil { return false }
+                // Rhythm Dribble has to follow one.
+                if card.descriptor.requiresDribbleFirst,
+                   state.lastPlayThisPossession.flatMap({ CardLibrary.byID[$0]?.isDribble }) != true {
+                    return false
+                }
+                // **Flop is compulsory.** While it is in hand it is the only thing the
+                // possession may open with — a flopper flops.
+                if isFirstAction(state),
+                   state[seat].bag.contains(where: { $0.descriptor.compulsoryFirstAction }),
+                   !card.descriptor.compulsoryFirstAction { return false }
                 if has(seat, in: state, { $0.oneOfEachMovePerTurn }),
                    card.descriptor.isMove,
                    state.movesPlayedThisPossession.contains(card.descriptor.id) { return false }
@@ -399,7 +412,10 @@ enum Rules {
             offered += state[seat].bag.filter { $0.descriptor.clearsOut }
         }
         if !clampsArriving(on: seat, in: state).isEmpty {
-            offered += state[seat].bag.filter { $0.descriptor.clearsClamps }
+            // Clear Out takes the floor; Crossover and Outlet take the man in the way.
+            offered += state[seat].bag.filter {
+                $0.descriptor.clearsClamps || $0.descriptor.clearsTargetClamp
+            }
         }
         // A card that does both is still one card.
         var seen: Set<Card.ID> = []
@@ -431,30 +447,213 @@ enum Rules {
         }
     }
 
-    /// **An official waved off, answered** — nil for none — and the pass it paused
-    /// thrown from there. It hands straight on to `passOption` so a Lob carried by a
-    /// Dishtracting Ball still gets to ask its own question.
+    /// **Everything a card can reach out and take off the table**, for whoever is being
+    /// asked. Officials, the ball and passives are all face-up; a Clamp is here for the
+    /// cards that move one instead. Empty means there is nothing to name, and a question
+    /// with nothing to answer is never asked.
+    static func retirementChoices(_ descriptor: CardDescriptor, by seat: Seat,
+                                  in state: GameState) -> [RetirementTarget] {
+        var choices: [RetirementTarget] = []
+        // The ball asks through its own effect; everything else through the descriptor.
+        if descriptor.retiresARef || descriptor.variaball?.retiresARef == true
+            || descriptor.intangible?.retiresInPlayOnPass == true {
+            choices += state.armedWhistles.map { .official($0.id) }
+        }
+        if descriptor.mayRetireTheBall || descriptor.intangible?.retiresInPlayOnPass == true,
+           state.ballCard != nil {
+            choices.append(.ball)
+        }
+        if descriptor.retiresAnIntangible || descriptor.intangible?.retiresInPlayOnPass == true {
+            for other in Seat.allCases where other != seat {
+                choices += state[other].intangibles.map { .intangible(seat: other, id: $0.id) }
+            }
+        }
+        if descriptor.reassignsAClamp {
+            choices += Seat.allCases.flatMap { who in state[who].clamps.map { RetirementTarget.clamp(id: $0.id) } }
+        }
+        return choices
+    }
+
+    /// **Takes it off the table.** One door for every card that names something in play,
+    /// so an official leaving this way is the same leaving as a Challenge's.
+    private static func retire(_ target: RetirementTarget, by seat: Seat,
+                               card: CardDescriptor,
+                               state: inout GameState, events: inout [GameEvent]) {
+        switch target {
+        case .official(let id):
+            guard let at = state.armedWhistles.firstIndex(where: { $0.id == id }) else { return }
+            let gone = sendOff(at, state: &state, events: &events)
+            events.append(.officialDistracted(seat: seat, card: gone.descriptor))
+            assignCrew(state: &state, events: &events)
+        case .ball:
+            setBall(nil, by: seat, state: &state, events: &events)
+            events.append(.ballChanged(card: nil))
+        case .intangible(let owner, let id):
+            guard let at = state[owner].intangibles.firstIndex(where: { $0.id == id }) else { return }
+            let gone = state[owner].intangibles.remove(at: at)
+            events.append(.intangibleDisplaced(seat: owner, card: gone))
+        case .clamp(let id):
+            // **Reassigned, not Retired.** Spin Move puts the man on somebody else; the
+            // defender who has just been moved has to bite again where he lands.
+            guard let from = Seat.allCases.first(where: {
+                state[$0].clamps.contains { $0.id == id }
+            }), let at = state[from].clamps.firstIndex(where: { $0.id == id }) else { return }
+            var moved = state[from].clamps.remove(at: at)
+            moved.bitten = false
+            moved.locked = []
+            let to = clampVictim(in: state) ?? from
+            state[to].clamps = Array((state[to].clamps + [moved]).suffix(state.rules.clampSlots))
+            events.append(.clampSet(seat: to, card: card))
+        }
+    }
+
+    /// **The official who made the last call, sent off for it.** Behind-the-Back goes
+    /// behind his back; Officially Infamous does it to anybody who blows on him.
+    private static func retireLastCaller(by seat: Seat, source: CardDescriptor,
+                                         state: inout GameState, events: inout [GameEvent]) {
+        guard let at = state.armedWhistles.lastIndex(where: { $0.stayed }) else { return }
+        let gone = sendOff(at, state: &state, events: &events)
+        events.append(.officialDistracted(seat: seat, card: gone.descriptor))
+        assignCrew(state: &state, events: &events)
+        _ = source
+    }
+
+    /// **Stops to ask what this card is taking off the table**, if it takes anything and
+    /// there is anything to take. True when the play is now waiting on the answer.
+    ///
+    /// The forced half is paid here rather than asked about: Full-Court Heave and
+    /// Fundamentalist say *Retire the Ball* flatly, so the ball is gone before the
+    /// optional question is even put.
     @discardableResult
-    static func resolveOfficialTarget(_ id: UUID?, state: inout GameState) -> [GameEvent] {
-        guard case .awaitingOfficialTarget = state.phase,
-              let descriptor = state.pendingPlay, let actor = state.pendingActor,
-              let target = descriptor.passTarget else { return [] }
+    private static func askForRetirement(_ descriptor: CardDescriptor, by seat: Seat,
+                                         state: inout GameState) -> Bool {
+        // **The forced half is simply paid.** "Retire the Ball" is not a question.
+        if descriptor.retiresTheBall, state.ballCard != nil {
+            var events: [GameEvent] = []
+            setBall(nil, by: seat, state: &state, events: &events)
+        }
+        if descriptor.retiresLastCaller {
+            var events: [GameEvent] = []
+            retireLastCaller(by: seat, source: descriptor, state: &state, events: &events)
+        }
+        let choices = retirementChoices(descriptor, by: seat, in: state)
+        guard !choices.isEmpty else { return false }
+        state.pendingPlay = descriptor
+        state.pendingActor = seat
+        state.phase = .awaitingRetirement(seat: asker(instead: seat, in: state),
+                                          card: descriptor, choices: choices)
+        return true
+    }
+
+    /// **Rookie Official: the first card you spend in a possession buys one back.**
+    ///
+    /// Non-standing only — a Clamp, a passive or a ball stays on the table and was never
+    /// Retired, so there is nothing to trade. And only the *first* card, or two Moves
+    /// played back and forth would fish the same pair out of Retirement all night.
+    private static func rookieSwap(_ spent: CardDescriptor, by seat: Seat,
+                                   state: inout GameState, events: inout [GameEvent]) {
+        guard state.armedWhistles.contains(where: {
+            $0.card.descriptor.whistle?.swapsOnRetire == true
+        }), state.rookieSwapped != seat, spent.isNonStanding else { return }
+        state.rookieSwapped = seat
+        guard state[seat].bag.count < state.handLimit(for: seat),
+              let at = state.discard.lastIndex(where: { $0.name != spent.name })
+        else { return }
+        let taken = state.discard.remove(at: at)
+        state[seat].bag.append(taken)
+        events.append(.drewFromRetirement(seat: seat, card: taken.descriptor))
+    }
+
+    /// **Splash Ball, if the man going up for three is carrying the cousin.** The passive
+    /// is spent putting it there, and the ball is what everybody has to deal with next.
+    static func splashIn(by seat: Seat, state: inout GameState, events: inout [GameEvent]) {
+        guard let at = state[seat].intangibles.firstIndex(where: {
+            $0.intangible?.swapsBallForSplash == true
+        }) else { return }
+        let spent = state[seat].intangibles.remove(at: at)
+        state.discard.append(Card(spent))
+        events.append(.intangibleDisplaced(seat: seat, card: spent))
+        setBall(Card(CardLibrary.splashBall), by: seat, state: &state, events: &events)
+        events.append(.ballChanged(card: CardLibrary.splashBall))
+    }
+
+    /// **One more defender sold on the fake, or nil to stop.** Each one is paid as it is
+    /// named, so a player can watch the clock come down and stop where they like.
+    @discardableResult
+    static func resolveClampNamed(_ id: UUID?, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingClampsNamed(let asked, let card, let named) = state.phase,
+              let actor = state.pendingActor else { return [] }
+        var events: [GameEvent] = []
+        if let id, !named.contains(id), state[actor].clamps.contains(where: { $0.id == id }) {
+            adjustShot(by: card.shotPerClampNamed, state: &state)
+            if card.clockPerClampNamed != 0 {
+                _ = tickClock(by: card.clockPerClampNamed, holder: actor,
+                              state: &state, events: &events)
+            }
+            let more = named + [id]
+            // Nothing left to name is the same as stopping.
+            if state[actor].clamps.contains(where: { !more.contains($0.id) }),
+               case .possession = state.phase {
+                state.phase = .awaitingClampsNamed(seat: asked, card: card, named: more)
+                return events
+            }
+        }
         state.pendingPlay = nil
         state.pendingActor = nil
-        state.phase = .possession(holder: actor)
+        if case .awaitingClampsNamed = state.phase { state.phase = .possession(holder: actor) }
+        return events
+    }
+
+    /// **A named thing taken off the table, answered** — nil for none — and whatever the
+    /// card was doing carried on from there.
+    @discardableResult
+    static func resolveRetirement(_ target: RetirementTarget?, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingRetirement(_, let card, _) = state.phase,
+              let actor = state.pendingActor else { return [] }
         var events: [GameEvent] = []
-        if let id, let at = state.armedWhistles.firstIndex(where: { $0.id == id }) {
-            let gone = sendOff(at, state: &state, events: &events)
-            events.append(.officialDistracted(seat: actor, card: gone.descriptor))
-            assignCrew(state: &state, events: &events)
+        state.phase = .possession(holder: actor)
+        if let target { retire(target, by: actor, card: card, state: &state, events: &events) }
+        let descriptor = state.pendingPlay
+        state.pendingPlay = nil
+        state.pendingActor = nil
+        // **"And/or" means it may reach twice.** From the Logo can take an official and
+        // the ball, so once one is gone the rest of the table is offered again — and only
+        // ever once more, because two kinds is all any card names.
+        if let descriptor, target != nil, card.id == descriptor.id,
+           descriptor.retiresARef, descriptor.mayRetireTheBall {
+            let again = retirementChoices(descriptor, by: actor, in: state)
+                .filter { $0 != target }
+            if !again.isEmpty, !state.reachedTwice {
+                state.reachedTwice = true
+                state.pendingPlay = descriptor
+                state.pendingActor = actor
+                state.phase = .awaitingRetirement(seat: asker(instead: actor, in: state),
+                                                  card: descriptor, choices: again)
+                return events
+            }
         }
+        state.reachedTwice = false
+        guard let descriptor else { return events }
+        // A shot was held back so the card could reach first; now it goes up.
+        if descriptor.special?.shootsImmediately == true {
+            if let least = descriptor.special?.offersHandDumpAt, state[actor].bag.count >= least {
+                state.pendingPlay = descriptor
+                state.pendingActor = actor
+                state.phase = .awaitingOption(seat: actor, option: .dumpHand)
+                return events
+            }
+            _ = shootTheCard(descriptor, by: actor, state: &state, events: &events)
+            return events
+        }
+        // A pass was paused mid-flight; a plain Move had already finished its business.
+        guard let to = descriptor.passTarget else { return events }
         if let option = passOption(descriptor, from: actor, in: state) {
             state.pendingPlay = descriptor
             state.pendingActor = actor
             state.phase = .awaitingOption(seat: actor, option: option)
             return events
         }
-        _ = throwPass(descriptor, target: target, from: actor, state: &state, events: &events)
+        _ = throwPass(descriptor, target: to, from: actor, state: &state, events: &events)
         return events
     }
 
@@ -492,7 +691,20 @@ enum Rules {
                 state[actor].bag.removeAll()
                 state.discard.append(contentsOf: hand)
                 events.append(.discardedForShot(seat: actor, card: descriptor, count: hand.count))
-                state.pendingShotOverride = ShotOverride(label: descriptor.name, amount: 100)
+                // **The hand buys an official, and a full hand buys the shot.** Three
+                // cards is enough to send somebody off; only five is enough to make it.
+                if descriptor.special?.handDumpRetiresARef == true {
+                    retireLastCaller(by: actor, source: descriptor, state: &state, events: &events)
+                    if state.armedWhistles.contains(where: { !$0.stayed }),
+                       let at = state.armedWhistles.indices.last {
+                        let gone = sendOff(at, state: &state, events: &events)
+                        events.append(.officialDistracted(seat: actor, card: gone.descriptor))
+                        assignCrew(state: &state, events: &events)
+                    }
+                }
+                if let least = descriptor.special?.handDumpOverrideAt, hand.count >= least {
+                    state.pendingShotOverride = ShotOverride(label: descriptor.name, amount: 100)
+                }
             }
             if shootTheCard(descriptor, by: actor, state: &state, events: &events) {
                 return events
@@ -534,7 +746,7 @@ enum Rules {
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
             return true
         }
-        resolveShot(by: seat, bonusPoints: special.bonusPointOnMake,
+        resolveShot(by: seat, bonusPoints: extraPoint(for: special.shotType),
                     overClamps: special.ignoresClamps, card: descriptor,
                     state: &state, events: &events)
         return false
@@ -746,11 +958,22 @@ enum Rules {
                                 events: inout [GameEvent]) {
         let leaving = state.ballEffect
         // Read before the ball changes: a Monster Ball arriving swallows them.
-        let brawls = seat.map { has($0, in: state, { $0.clearsClampsOnBallChange }) } ?? false
-        let ballerDraws = seat.map { chosen in
-            state[chosen].intangibles.reduce(0) { $0 + ($1.intangible?.drawsOnBallChange ?? 0) }
-        } ?? 0
-        if let replaced = state.ballCard { state.discard.append(replaced) }
+        let brawls = seat.map { has($0, in: state, { $0.clearsTargetClampOnBallChange }) } ?? false
+        // **Any change of ball, by anybody.** The rock is a shared object: somebody else
+        // swapping it is still a ball changing hands in front of him.
+        let ballerSeats = Seat.allCases.filter { holder in
+            state[holder].intangibles.contains {
+                ($0.intangible?.drawsOnBallChange ?? 0) > 0
+                    && ($0.intangible?.drawsOnAnyBallChange == true || holder == seat)
+            }
+        }
+        // **Splash Ball leaves the game rather than Retiring.** Nothing shuffles it back
+        // and nothing digs it out; Splash Cousin is the only thing that ever puts it in
+        // play, so a table gets exactly as many of them as it has cousins.
+        if let replaced = state.ballCard,
+           replaced.descriptor.variaball?.removedFromPlayWhenRetired != true {
+            state.discard.append(replaced)
+        }
         if leaving.injuriesTravel, let carrier = state.pileCarrier {
             healInjuries(of: carrier, state: &state)
         }
@@ -773,17 +996,28 @@ enum Rules {
                 clockCatchesUp(other, state: &state, events: &events)
             }
         }
+        if !ballerSeats.isEmpty {
+            drawTogether(ballerSeats, count: 1, state: &state, events: &events)
+        }
         guard let seat else { return }
         if arriving.drawsOnArrival > 0 {
             drawTogether([seat], count: arriving.drawsOnArrival, state: &state, events: &events)
         }
-        if brawls, !state[seat].clamps.isEmpty {
-            let count = state[seat].clamps.count
-            state[seat].clamps.removeAll()
-            events.append(.clampsShaken(seat: seat, card: CardLibrary.brawlHandler, count: count))
+        // **Brawl Handler names one.** Clamps are assignments now, so shrugging the whole
+        // floor off belongs to Clear Out — this takes the man who is actually in the way.
+        if brawls, let worst = worstClamp(on: seat, in: state) {
+            state[seat].clamps.removeAll { $0.id == worst.id }
+            events.append(.clampsShaken(seat: seat, card: CardLibrary.brawlHandler, count: 1))
         }
-        if ballerDraws > 0 {
-            drawTogether([seat], count: ballerDraws, state: &state, events: &events)
+    }
+
+    /// **The defender worth taking off**, for the cards that name one rather than clearing
+    /// the floor: the biggest SHOT cost first, then whoever has actually bitten, then
+    /// simply the first man standing there.
+    static func worstClamp(on seat: Seat, in state: GameState) -> ActiveClamp? {
+        state[seat].clamps.max {
+            (($0.card.clamp?.shotDebuff ?? 0) * -1, $0.bitten ? 1 : 0)
+                < (($1.card.clamp?.shotDebuff ?? 0) * -1, $1.bitten ? 1 : 0)
         }
     }
 
@@ -1034,6 +1268,7 @@ enum Rules {
                 guard downgraded, case .possession(let still) = state.phase, still == seat
                 else { return events }
             }
+            if finish == .three { splashIn(by: seat, state: &state, events: &events) }
             state.pendingShotBonus += carried + emptyHanded + state.payoffShotBonus
             state.payoffShotBonus = 0
             // **Dishtracting Ball: it costs a card to go up with.** Asked before the ball
@@ -1042,14 +1277,14 @@ enum Rules {
             // twice. See `Step.shootAtOnce`.
             if state.ballEffect.shooterDiscards > 0, !state[seat].bag.isEmpty,
                let ball = state.currentBall {
-                state.pendingBonusPoint += (finish == .three && !downgraded) ? 1 : 0
+                state.pendingBonusPoint += extraPoint(for: finish, downgraded: downgraded)
                 state.owe(.shootAtOnce(seat))
                 state.phase = .awaitingGiveUp(seat: seat, card: ball,
                                               count: min(state.ballEffect.shooterDiscards,
                                                          state[seat].bag.count))
                 return events
             }
-            resolveShot(by: seat, bonusPoints: (finish == .three && !downgraded) ? 1 : 0,
+            resolveShot(by: seat, bonusPoints: extraPoint(for: finish, downgraded: downgraded),
                         state: &state, events: &events)
 
         case .beatClamp(let payoff):
@@ -1380,6 +1615,7 @@ enum Rules {
                       stillHolding == seat else { return }
             }
         }
+        state.passesThisRound += 1
         events.append(.passed(card: descriptor, from: seat, to: receiver,
                               shot: loggedShot(state), returning: returning))
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
@@ -1450,6 +1686,16 @@ enum Rules {
         beginPossession(receiver, tickClock: !descriptor.replacesClockTick,
                         state: &state, events: &events)
 
+        // **A question standing does not cancel what the pass still owes.** A Clamp
+        // landing on the catch puts a counter up, and Bullet's card was simply never
+        // taken — so the toll is owed and drained once the question is answered.
+        if descriptor.receiverDiscards > 0 || descriptor.stealsAlongPass > 0 {
+            let settled = { if case .possession(let who) = state.phase { return who == receiver }
+                            return false }()
+            if !settled, !state[receiver].bag.isEmpty {
+                state.owe(.takeFromReceiver(passer: seat, receiver: receiver, card: descriptor))
+            }
+        }
         // Everything below is about the possession the pass opened. If the draw at the top
         // of it handed the ball on — or the clock ran out on a hand he cannot play — there
         // is no such possession to charge.
@@ -1666,7 +1912,7 @@ enum Rules {
             state.namedForAssist = []
             return events
         }
-        resolveShot(by: shooter, bonusPoints: special?.bonusPointOnMake ?? 0,
+        resolveShot(by: shooter, bonusPoints: extraPoint(for: special?.shotType),
                     overClamps: special?.ignoresClamps ?? false, card: descriptor,
                     state: &state, events: &events)
         state.namedForAssist = []
@@ -1833,7 +2079,7 @@ enum Rules {
         let bought = fourPoints
             ? bonusEach * spent.count
             : shotBought(discarding: spent.count, card: card, bonusEach: bonusEach, in: state)
-        let extraPoint = fourPoints && !spent.isEmpty ? 1 : 0
+        let extraPointOwed = fourPoints && !spent.isEmpty ? 1 : 0
         adjustShot(by: bought, state: &state)
         events.append(.discardedForShot(seat: seat, card: card, count: spent.count))
 
@@ -1849,7 +2095,7 @@ enum Rules {
             return events
         }
         let roundBefore = state.round
-        resolveShot(by: seat, bonusPoints: (card.special?.bonusPointOnMake ?? 0) + extraPoint,
+        resolveShot(by: seat, bonusPoints: extraPoint(for: card.special?.shotType) + extraPointOwed,
                     overClamps: card.special?.ignoresClamps ?? false,
                     card: card, state: &state, events: &events)
         // Only when the round is still running. A round that turned over has already had
@@ -1964,10 +2210,35 @@ enum Rules {
     ///   nothing: Slam Dunk, 2-Hand Jam, Give-and-Go and Tomahawk never once played a
     ///   dunk. Worse than nothing, in fact — where an earlier card *had* written that
     ///   field, the finish was chosen off the wrong card.
+    /// **Ball Pounder's trade, or nil when there is nothing to trade with.** Three ticks
+    /// of the clock for a card and ten per cent, offered on every Dribble — and simply not
+    /// there when the clock cannot pay, which is what makes pounding it late a bad idea.
+    static func poundingTrade(for seat: Seat, in state: GameState)
+        -> (cost: Int, draw: Int, shot: Int)? {
+        let cost = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.dribbleClockTradeCost ?? 0) }
+        guard cost > 0, let clock = state.shotClock, clock > cost else { return nil }
+        return (cost,
+                state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.dribbleClockTradeDraw ?? 0) },
+                state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.dribbleClockTradeShot ?? 0) })
+    }
+
+    /// **The Regulation ball's identity for a scoring run.** It is the absence of a card
+    /// rather than a card, so it needs a stand-in for Hot Hand to key off.
+    static let regulationBallRun = UUID()
+
+    /// **What a three is worth over a two**, for whichever way it was taken. A Special
+    /// Move that names `.three` is a three, so Foot On The Line takes its extra point the
+    /// same way it takes the button's — the card and the button are one thing now.
+    static func extraPoint(for type: ShotType?, downgraded: Bool = false) -> Int {
+        type == .three && !downgraded ? 1 : 0
+    }
+
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
                                     overClamps: Bool = false,
                                     card: CardDescriptor? = nil,
                                     state: inout GameState, events: inout [GameEvent]) {
+        // Spent by the attempt it bought, however that attempt turns out.
+        state.threeDiscount = 0
         // Brand New Ball: slick out of the box. The shot never goes up, and the round is over.
         if state.ballEffect.turnoverChance > 0,
            state.roll(1...100) <= state.ballEffect.turnoverChance {
@@ -2005,7 +2276,7 @@ enum Rules {
         // Gravity: a man who draws every defender is doing something on every attempt,
         // whoever takes it.
         for other in Seat.allCases where other != seat {
-            if has(other, in: state, { $0.assistOnOthersShot }) {
+            if has(other, in: state, { $0.assistOnOthersScore }) {
                 state[other].assists += 1
                 events.append(.assisted(other))
             }
@@ -2051,6 +2322,9 @@ enum Rules {
                 }
             }
             state[seat].scoredThisRound = true
+            // Hot Hand: the run belongs to this ball. nil is the Regulation ball, which
+            // is a ball like any other as far as a streak is concerned.
+            state[seat].scoredWithBall = state.ballCard?.id ?? Self.regulationBallRun
             state[seat].lastMake = Make(round: state.round, chance: chance)
             events.append(.shotMade(seat: seat, points: points, roll: roll, chance: chance))
             if state[seat].drawsOwedOnMake > 0 {
@@ -2116,6 +2390,12 @@ enum Rules {
     private static func interceptor(of action: PendingAction,
                                     in state: inout GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
+        // **Fadeaway Three and Full-Court Heave are taken from too far out to argue with.**
+        // Nobody is close enough to have a view, so nothing the crew is watching for
+        // applies to the attempt.
+        if case .playCard(_, let card) = action, card.descriptor.special?.ignoresRefs == true {
+            return nil
+        }
         // Oldest first: a trap set earlier is the one lying in wait.
         //
         // No owner exemption. A Whistle catches whoever trips it, its own player included
@@ -2150,6 +2430,15 @@ enum Rules {
         }
         guard whistle.trigger?.matches(action) == true else { return false }
 
+        // **Each of the three watches one finish.** Declared on the cards since the
+        // triangle went in and never once read, so Charge was waving off layups, Palming
+        // was waving off dunks, and a crew holding all three cancelled every shot in the
+        // game — which is most of what the call rate was. A shot is named by the time the
+        // crew is consulted; a card being *played* is not a shot and never matches.
+        if let watched = effect.requiresShotType {
+            guard case .shoot = action else { return false }
+            guard state.shotType == watched else { return false }
+        }
         if effect.requiresShotDebuffClamp {
             return state[action.actor].clamps.contains { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
         }
@@ -2238,6 +2527,11 @@ enum Rules {
     /// survived it, resolves that too. See `Rules.resolveChallenge`.
     private static func resolvePlay(_ cardID: Card.ID, by seat: Seat,
                                     state: inout GameState, events: inout [GameEvent]) {
+        // **"Immediately after" means the very next thing.** Stepback's discount is spent
+        // by whatever happens next, whether that is the Three it bought or an unrelated
+        // card — so it is cleared here and set again only if this play is another
+        // Stepback. Left standing it made every Three in the round cheap.
+        state.threeDiscount = 0
         // **Found again, after the call.** A call that lets the play stand can still
         // take cards off the same hand — a Flagrant II takes two — so the position the
         // card was at before the whistle is not the position it is at now.
@@ -2314,16 +2608,18 @@ enum Rules {
         }
         if descriptor.blocksFurtherMoves { state.movesClosed = true }
         if descriptor.nextShotBonus != 0 { state.nextShotBonus = descriptor.nextShotBonus }
+        if descriptor.threeWithFewerCards > 0 { state.threeDiscount = descriptor.threeWithFewerCards }
+        rookieSwap(descriptor, by: seat, state: &state, events: &events)
 
         // Read before the card is played, because playing it may spend the tick it
         // is being priced against.
         var delta = printedWorth(of: descriptor, in: state)
             + clockBonus(descriptor.special, in: state)
-        // Ball Pounder: every Dribble costs a little more and pays a card.
-        if descriptor.isDribble {
-            delta += state[seat].intangibles.reduce(0) {
-                $0 + ($1.intangible?.dribbleShotPenalty ?? 0)
-            }
+        // **Ball Pounder: a Dribble may buy a card and ten per cent** for three ticks of
+        // the clock. Taken whenever there is clock to spend — the AI and the table both
+        // want the cards, and a Dribble played at 03 or less simply does not offer it.
+        if descriptor.isDribble, let trade = poundingTrade(for: seat, in: state) {
+            delta += trade.shot
         }
         // Con-crete: hard on the joints.
         if descriptor.isMove { delta += state.floorEffect.shotPerMovePlayed }
@@ -2378,17 +2674,20 @@ enum Rules {
         var drawing = descriptor.drawCount + (comboArmed ? descriptor.comboDraw : 0)
         // The Future: every Move played draws.
         if descriptor.isMove { drawing += state.floorEffect.drawsPerMovePlayed }
+        // Fundamentalist: fundamentals pay. Every Move is a card extra.
+        if descriptor.isMove {
+            drawing += state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.extraDrawPerMove ?? 0) }
+        }
+        // Ball Pounder: the card half of the trade priced above.
+        if descriptor.isDribble, let trade = poundingTrade(for: seat, in: state) {
+            drawing += trade.draw
+        }
         if descriptor.drawIfFirstAction > 0, isFirstAction(state) {
             drawing += descriptor.drawIfFirstAction
         }
         if afterCombo, descriptor.comboAssist > 0 {
             state[seat].assists += descriptor.comboAssist
             events.append(.assisted(seat))
-        }
-        if descriptor.isDribble {
-            drawing += state[seat].intangibles.reduce(0) {
-                $0 + ($1.intangible?.dribbleBonusDraw ?? 0)
-            }
         }
         drawTogether([seat], count: drawing, state: &state, events: &events)
 
@@ -2400,6 +2699,31 @@ enum Rules {
             awardFreeThrows(descriptor.freeThrowsPerClamp * standing.count,
                             to: seat, offender: first.from, source: descriptor.name,
                             state: &state, events: &events)
+        }
+        // **Pump Fake: named one at a time, until you stop.** Each one is SHOT and clock,
+        // and they all stay standing — you did not lose them, you got them in the air.
+        if descriptor.shotPerClampNamed != 0 || descriptor.clockPerClampNamed != 0,
+           !state[seat].clamps.isEmpty {
+            state.pendingPlay = descriptor
+            state.pendingActor = seat
+            state.phase = .awaitingClampsNamed(seat: asker(instead: seat, in: state),
+                                               card: descriptor, named: [])
+            return
+        }
+        // **Crossover and Outlet take one man off**, and not necessarily one of yours:
+        // a defender is an assignment now, so taking the right one off the right player
+        // is a play rather than a shrug.
+        if descriptor.clearsTargetClamp {
+            let hunting = Seat.allCases
+                .flatMap { who in state[who].clamps.map { (who, $0) } }
+                .max { lhs, rhs in
+                    (lhs.0 == seat ? 1 : 0, -(lhs.1.card.clamp?.shotDebuff ?? 0))
+                        < (rhs.0 == seat ? 1 : 0, -(rhs.1.card.clamp?.shotDebuff ?? 0))
+                }
+            if let (owner, taken) = hunting {
+                state[owner].clamps.removeAll { $0.id == taken.id }
+                events.append(.clampsShaken(seat: owner, card: descriptor, count: 1))
+            }
         }
         // Pump Fake: the clock it costs per Clamp, paid with the card's own tick below.
         var clampTicks = 0
@@ -2442,6 +2766,12 @@ enum Rules {
             let wideOpen = Seat.allCases.allSatisfy {
                 $0 == seat || state.possessedThisRound.contains($0)
             }
+            // **Open Three pays for the ball having moved.** Two passes in the round is
+            // a floor that has been swung, which is what a wide-open look is made of.
+            if special.shotPerPassesThisRound != 0,
+               state.passesThisRound >= special.passesRequired {
+                adjustShot(by: special.shotPerPassesThisRound, state: &state)
+            }
             let override = special.shotOverride
                 ?? (tipIn ? special.shotOverrideAfterRebound : nil)
                 ?? (wideOpen ? special.shotOverrideOnceAllHaveHadBall : nil)
@@ -2449,6 +2779,27 @@ enum Rules {
                 state.pendingShotOverride = ShotOverride(
                     label: descriptor.name, amount: Double(override),
                     requiresAtLeast: special.overrideRequiresAtLeast)
+            }
+            // **Skyhook reaches into Retirement**, which is the homage: the shot nobody
+            // could block, and a card nobody could get back.
+            // **Splash Cousin cashes itself in on a Three.** The ball it brings cannot
+            // miss one — and it stays in play until somebody gets rid of it, which is the
+            // scramble the card is really for.
+            if special.shotType == .three { splashIn(by: seat, state: &state, events: &events) }
+            // Floater: one defender simply does not matter, and it picks the worst one.
+            if special.ignoresATargetClamp, let man = worstClamp(on: seat, in: state) {
+                state.ignoredClamps.insert(man.id)
+            }
+            if descriptor.takesFromRetirement > 0, !state.discard.isEmpty {
+                for _ in 0..<descriptor.takesFromRetirement where !state.discard.isEmpty {
+                    let taken = state.discard.removeLast()
+                    if state[seat].bag.count < state.handLimit(for: seat) {
+                        state[seat].bag.append(taken)
+                        events.append(.drewFromRetirement(seat: seat, card: taken.descriptor))
+                    } else {
+                        state.discard.append(taken)
+                    }
+                }
             }
             if special.coinFlipShot != 0 {
                 // One flip, and it pays the same either way — the risk is the whole
@@ -2458,6 +2809,11 @@ enum Rules {
                            state: &state)
                 events.append(.coinRun(seat: seat, card: descriptor,
                                        heads: heads ? 1 : 0))
+                if heads, special.headsIgnoresAClamp, let man = worstClamp(on: seat, in: state) {
+                    state.ignoredClamps.insert(man.id)
+                } else if !heads, special.tailsDraw > 0 {
+                    drawTogether([seat], count: special.tailsDraw, state: &state, events: &events)
+                }
             }
             if special.coinRunFlips > 0 {
                 // A fixed number of coins, paying out per head. Every one of them Heads
@@ -2473,6 +2829,10 @@ enum Rules {
                     for _ in 0..<(special.coinRunDraw * heads) {
                         drawOnce(seat, state: &state, events: &events)
                     }
+                    // **Every Heads is a step.** The meter is the Travel line and the
+                    // dunk's gate in one number, so a good Euro Step both risks the call
+                    // and walks you to the rim.
+                    state.movesThisPossession += special.coinRunMoves * heads
                 } else if !has(seat, in: state, { $0.ignoresViolations }) {
                     state[seat].turnovers += 1
                     events.append(.turnover(seat, cause: "Travel"))
@@ -2480,7 +2840,11 @@ enum Rules {
                     return
                 }
             }
-            if special.discardForShotBonus > 0 {
+            // **2-Hand Jam only asks off a board.** The Retire-any-number half is its
+            // bonus now, not its body, so on an ordinary possession it is simply a dunk
+            // with a draw and twenty-five per cent.
+            if special.discardForShotBonus > 0,
+               !special.discardsOnlyAfterRebound || discardsPastLimit(descriptor, in: state) {
                 // Hand the choice back before the shot goes up.
                 state.phase = .awaitingDiscard(seat: seat, card: descriptor,
                                                bonusEach: special.discardForShotBonus)
@@ -2502,6 +2866,10 @@ enum Rules {
                                            bonus: CardLibrary.alleyOopBonus))
             }
             if special.shootsImmediately {
+                // **Asked before the ball goes up.** The shot ends the possession, so a
+                // card that reaches for the table has to reach first — see
+                // `resolveRetirement`, which puts the attempt up once it is answered.
+                if askForRetirement(descriptor, by: seat, state: &state) { return }
                 // Turnaround Three: a hand big enough may all go in, for a sure thing.
                 if let least = special.offersHandDumpAt, state[seat].bag.count >= least {
                     state.pendingPlay = descriptor
@@ -2516,6 +2884,7 @@ enum Rules {
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: loggedShot(state)))
                 state.lastPlayThisPossession = descriptor.id
                 state.movesThisPossession += 1
+                _ = askForRetirement(descriptor, by: seat, state: &state)
             }
         } else if let effect = descriptor.whistle {
             if effect.trigger == nil {
@@ -2554,14 +2923,20 @@ enum Rules {
             // **Dishtracting Ball: the crew is what it distracts.** Asked before the
             // ball leaves like every other "you may" on a pass, and named by whoever
             // names targets — which is what the word is printed on the card for.
-            if state.ballEffect.retiresARef, !state.armedWhistles.isEmpty {
-                state.pendingPlay = descriptor
-                state.pendingActor = seat
-                state.phase = .awaitingOfficialTarget(
-                    seat: asker(instead: seat, in: state),
-                    card: CardLibrary.dishtractingBall,
-                    choices: state.armedWhistles.map(\.id))
-                return
+            // **Dishtracting Ball and Franchise Player both reach out while passing.**
+            // One question, whichever of them is asking — see `retirementChoices`.
+            let asking = state.ballEffect.retiresARef ? CardLibrary.dishtractingBall
+                : has(seat, in: state, { $0.retiresInPlayOnPass }) ? CardLibrary.franchisePlayer
+                : nil
+            if let asking {
+                let choices = retirementChoices(asking, by: seat, in: state)
+                if !choices.isEmpty {
+                    state.pendingPlay = descriptor
+                    state.pendingActor = seat
+                    state.phase = .awaitingRetirement(seat: asker(instead: seat, in: state),
+                                                      card: asking, choices: choices)
+                    return
+                }
             }
             // A card's "You may" is asked before the ball leaves — see `passOption`.
             if let option = passOption(descriptor, from: seat, in: state) {
@@ -2611,7 +2986,7 @@ enum Rules {
             // Ball Pounder: every Dribble also runs the clock down. One tick, so a clock the
             // card already ran out is not run out twice.
             let pounded = descriptor.isDribble
-                ? state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.dribbleClockDelta ?? 0) }
+                ? -(poundingTrade(for: seat, in: state)?.cost ?? 0)
                 : 0
             if descriptor.clockDelta + pounded + clampTicks != 0 {
                 _ = tickClock(by: descriptor.clockDelta + pounded + clampTicks, holder: seat,
@@ -2796,13 +3171,10 @@ enum Rules {
                                    cancelled: cancelled, cancelledCard: cancelledCard,
                                    against: action.actor, caller: whistle.id))
 
-        // Dirty Player: the referees have their eye on him, whoever the call was against.
-        for other in Seat.allCases {
-            let toll = state[other].intangibles.reduce(0) {
-                $0 + ($1.intangible?.discardOnAnyWhistle ?? 0)
-            }
-            for _ in 0..<toll { discardAtRandom(from: other, state: &state) }
-        }
+        // **Officially Infamous: the call stands and the official does not.** He blows it,
+        // it lands, and then he is gone — which is why the card is worth carrying against
+        // a crew you cannot play around.
+        defer { infamy(against: action.actor, state: &state, events: &events) }
 
         if effect.recoversTimeout, let owner = whistle.owner,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
@@ -2900,7 +3272,7 @@ enum Rules {
     private static func pendingShotBonus(for seat: Seat, in state: GameState) -> Int {
         guard let id = state.lastPlayThisPossession,
               let card = state.rules.cardPool.first(where: { $0.id == id }) else { return 0 }
-        return card.special?.bonusPointOnMake ?? 0
+        return extraPoint(for: card.special?.shotType)
     }
 
     /// Whistles that fire on being played rather than lying in wait.
@@ -3213,21 +3585,23 @@ enum Rules {
         // Contact Court: being clamped is a trip to the line, and the Clamp still lands.
         if state.floorEffect.freeThrowsWhenClamped > 0,
            let first = state[seat].clamps.first(where: \.bitten),
-           !has(seat, in: state, { $0.freeThrowPerClamp > 0 }) {
+           !has(seat, in: state, { $0.freeThrowWhenClamped > 0 }) {
             awardFreeThrows(state.floorEffect.freeThrowsWhenClamped, to: seat,
                             offender: first.from, source: state.currentCourt.name,
                             state: &state, events: &events)
         }
 
-        // Freethrow Merchant: being Clamped is itself the foul, so the defenders never
-        // arrive — the trip to the line is what happens instead of them.
-        let perClamp = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.freeThrowPerClamp ?? 0) }
-        if perClamp > 0, let first = state[seat].clamps.first {
-            let waved = state[seat].clamps.count
-            state[seat].clamps.removeAll()
-            events.append(.clampVoided(seat: seat, card: CardLibrary.freethrowMerchant, count: waved))
-            awardFreeThrows(perClamp * waved, to: seat, offender: first.from,
-                            source: "Freethrow Merchant", state: &state, events: &events)
+        // **Freethrow Merchant: a trip every time a man picks him up.** It no longer
+        // blanks the Clamp — the defender arrives and does his job, and the merchant is
+        // paid for the contact on the way. Only for the ones that have just bitten, so
+        // standing there is not a free throw a possession.
+        let perClamp = state[seat].intangibles.reduce(0) { $0 + ($1.intangible?.freeThrowWhenClamped ?? 0) }
+        if perClamp > 0 {
+            let arriving = state[seat].clamps.filter(\.bitten)
+            if let first = arriving.first {
+                awardFreeThrows(perClamp * arriving.count, to: seat, offender: first.from,
+                                source: "Freethrow Merchant", state: &state, events: &events)
+            }
         }
 
         // **Last of all, and only what survived.** Everything above can cancel a Clamp
@@ -3481,8 +3855,24 @@ enum Rules {
         // Somebody has to say. `apply` asks before it gets here — see
         // `Phase.awaitingPassTarget` — so reaching this means nobody did.
         case .choice, .leftOrRight: return nil
+        // **Touch keeps it going the way it came.** Left or right only, which is what the
+        // legality check below already guarantees — an Across arrival has no side to
+        // continue and the card cannot be played at all.
+        case .continuing: return continuation(from: seat, in: state)
         default: return state.lastPasser
         }
+    }
+
+    /// **Where a Touch sends it**, or nil when the ball did not arrive from a neighbour.
+    ///
+    /// The direction of travel is the side the last passer is on: a ball that came from
+    /// your left carries on to your right, and one that came from across came from no
+    /// side at all.
+    static func continuation(from seat: Seat, in state: GameState) -> Seat? {
+        guard let came = state.lastPasser else { return nil }
+        if came == seat.left { return seat.right }
+        if came == seat.right { return seat.left }
+        return nil
     }
 
     /// Who may be picked, when a card lets the passer choose.
@@ -3581,6 +3971,10 @@ enum Rules {
         state.officialsDiscard.append(contentsOf: state.armedWhistles.map(\.card))
         state.armedWhistles = []
         state.clockTicksOwed = 0
+        state.threeDiscount = 0
+        state.rookieSwapped = nil
+        state.passesThisRound = 0
+        state.ignoredClamps = []
         state.sellingOut = false
         state.courtShotRoll = nil
         for seat in Seat.allCases {
@@ -3854,7 +4248,7 @@ enum Rules {
         // **Both need a possession to happen from.** A chain that ended on a question —
         // a toll, a give-up, a card asked for, a full board — has none yet, and finding
         // that and throwing the step away is exactly the bug this exists to stop.
-        case .returnBall, .shootAtOnce, .tax, .intangibleBoards:
+        case .returnBall, .shootAtOnce, .tax, .intangibleBoards, .takeFromReceiver:
             if case .possession = state.phase { return true }
             return false
         // **Not the settle's to pay.** A Break waits for the draw that turned it up to
@@ -3930,6 +4324,15 @@ enum Rules {
             let owed = min(count, state[seat].bag.count)
             guard owed > 0 else { return }
             state.phase = .awaitingGiveUp(seat: seat, card: card, count: owed)
+
+        // **Bullet's card, taken late.** The catch asked its own question first; this is
+        // the pass finishing what it started once that was answered.
+        case .takeFromReceiver(let passer, let receiver, let card):
+            guard !state[receiver].bag.isEmpty,
+                  case .possession(let holding) = state.phase, holding == receiver else { return }
+            state.pendingActor = passer
+            state.phase = .awaitingCardFrom(seat: asker(instead: passer, in: state),
+                                            card: card, victim: receiver)
 
         // Monster Ball's Intangibles go up, one board at a time, from the man with the ball.
         case .intangibleBoards:
@@ -4160,7 +4563,7 @@ enum Rules {
             // the last card is in a hand.
             state.owe(.revealBreak(PendingBreak(seat: seat, card: card, depth: depth,
                                                 waving: wavingBreaks)))
-        } else if state[seat].bag.count >= state.handLimit {
+        } else if state[seat].bag.count >= state.handLimit(for: seat) {
             // **A full hand takes nothing more, and the card is not wasted.** Drawing is
             // moving with the ball; a card there is no room for is the same movement
             // without it, so it pays SHOT instead — see `MatchRules.overflowShot`. The
@@ -4401,7 +4804,7 @@ enum Rules {
             state[seat].injuryUnlocked = []
         }
         // Fundamentalist: the ball goes back to Regulation.
-        if card.descriptor.intangible?.discardsBallOnActivation == true, let ball = state.ballCard {
+        if card.descriptor.intangible?.retiresBallOnActivation == true, let ball = state.ballCard {
             state.discard.append(ball)
             state.ballCard = nil
         }
@@ -4443,6 +4846,15 @@ enum Rules {
             $0.card.descriptor.whistle?.retiresCaller == true
         }) else { return }
         sendOff(at, state: &state, events: &events)
+    }
+
+    /// **Officially Infamous: a call against him sends the official off with it.** Read
+    /// after the call has landed, so the whistle still does what it came to do — he just
+    /// does not get to do it twice.
+    private static func infamy(against seat: Seat?, state: inout GameState,
+                               events: inout [GameEvent]) {
+        guard let seat, has(seat, in: state, { $0.retiresCallerAgainstYou }) else { return }
+        retireLastCaller(by: seat, source: CardLibrary.dirtyPlayer, state: &state, events: &events)
     }
 
     /// A Whistle waiting on a passive landing, if one is set. Its own reader for the same

@@ -124,9 +124,12 @@ func runTests() {
         Check.that(state.ball == seat, "Move cards keep the ball")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 4, cards: [CardLibrary.rhythmDribble, CardLibrary.drive])
+        var (state, seat, cards) = openPossession(
+            seed: 4, cards: [CardLibrary.dribble, CardLibrary.rhythmDribble, CardLibrary.drive])
+        // Rhythm Dribble only comes out after one, which is the whole of its restriction.
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        let events = Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        let events = Rules.apply(.play(cards[2].id), by: seat, to: &state)
         Check.that(events.contains { if case .comboLanded = $0 { return true }; return false },
                    "Rhythm Dribble is a Dribble too, and arms Drive")
     }
@@ -178,7 +181,7 @@ func runTests() {
         solo.cardPool = [CardLibrary.skipPass]
         let (state, _) = Rules.newGame(seed: 13, rules: solo)
         let names = Set((state.deck + state.players.flatMap(\.bag)).map(\.name))
-        Check.that(names == ["Skip Pass"], "a match contains only its own pool")
+        Check.that(names == ["Skip"], "a match contains only its own pool")
     }
     do {
         var short = MatchRules.classic
@@ -325,10 +328,11 @@ func runTests() {
         Check.that(allowed, "and playable at exactly one")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 74, cards: [CardLibrary.buzzerBeater])
-        state.shotClock = 1
+        // **The crew watches the finish, not how it was called for.** Floater is a layup,
+        // so the official watching layups catches it exactly as he would catch the button.
+        var (state, seat, cards) = openPossession(seed: 74, cards: [CardLibrary.floater])
         state.armedWhistles = [ArmedWhistle(owner: seat.across,
-                                            card: matchCard(CardLibrary.charge, state.rules))]
+                                            card: matchCard(CardLibrary.offensiveFoul, state.rules))]
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
                    "a Whistle watching for a shot still catches one a card takes")
@@ -343,12 +347,16 @@ func runTests() {
         Check.that(state.ball == seat, "and does not shoot")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 83, cards: [CardLibrary.rhythmDribble])
+        var (state, seat, cards) = openPossession(
+            seed: 83, cards: [CardLibrary.dribble, CardLibrary.rhythmDribble])
         state[seat].intangibles = []
         state[seat].clamps = []
         state.armedWhistles = []
-        state.shot = 20
+        // The Dribble it has to follow, then the SHOT set so only the card's own is read.
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        answerArrival(&state)
+        state.shot = 20
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
         answerArrival(&state)
         let events = Rules.apply(.shoot, by: seat, to: &state)
         for case .shotAttempted(_, let chance, _) in events {
@@ -365,7 +373,8 @@ func runTests() {
             Check.that({ if case .awaitingCardFrom(let asked, _, let victim) = state.phase {
                             return asked == seat && victim == receiver }
                          return state[receiver].bag.isEmpty }(),
-                       "Bullet Pass has the passer pick the discard, face down")
+                       "Bullet has the passer pick the discard, face down"
+                       )
         }
     }
     do {
@@ -412,24 +421,19 @@ func runTests() {
     }
 
     do {
+        // **Off an ordinary possession 2-Hand Jam just goes up**: a draw, twenty-five per
+        // cent and a dunk. The Retire-any-number half is its bonus and waits for a board.
         var (state, seat, cards) = openPossession(seed: 76, cards: [CardLibrary.twoHandJam])
         state.shot = 20
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.armedWhistles = []
         let handed = Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(!handed.contains { if case .shotAttempted = $0 { return true }; return false },
-                   "2-Hand Jam asks before it shoots")
-        guard case .awaitingDiscard(_, _, let each) = state.phase else {
-            Check.that(false, "it hands back an awaitingDiscard phase"); return
-        }
-        Check.that(each == 25, "at 25 a card")
-
-        for _ in 0..<3 { state[seat].bag.append(matchCard(CardLibrary.swingLeft, state.rules)) }
-        let feed = Array(state[seat].bag.prefix(3).map(\.id))
-        let events = Rules.resolveDiscardForShot(feed, state: &state)
-        for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 70, "only two of three fed cards count, carrying 20 to 70")
-        }
-        Check.that(events.contains { if case .shotAttempted = $0 { return true }; return false },
-                   "and then the shot goes up")
+        Check.that({ if case .awaitingDiscard = state.phase { return false }
+                     return true }(),
+                   "2-Hand Jam asks nothing without a board behind it")
+        Check.that(handed.contains { if case .shotAttempted = $0 { return true }; return false },
+                   "it simply goes up")
     }
     do {
         // Off your own board, as the first thing done, 2-Hand Jam takes the whole hand — and
@@ -439,12 +443,12 @@ func runTests() {
         state.possessionFromOwnRebound = true
         state[seat].bag = (0..<3).map { _ in matchCard(CardLibrary.dribble, state.rules) }
         state.phase = .awaitingDiscard(seat: seat, card: CardLibrary.twoHandJam,
-                                       bonusEach: 25)
+                                       bonusEach: 10)
         let before = state.round
         let ids = state[seat].bag.map(\.id)
         let events = Rules.resolveDiscardForShot(ids, state: &state)
         for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 80, "two at 25 and one at 10 carry the attempt from 20 to 80")
+            Check.that(chance == 50, "three at 10 carry the attempt from 20 to 50")
         }
         if state.round == before {
             Check.that(state.shot == 20,
@@ -951,13 +955,13 @@ func runTests() {
     do {
         var (state, seat, _) = openPossession(seed: 53, cards: [])
         state[seat].intangibles = [CardLibrary.hotHand]
-        state[seat].scoredLastRound = false
+        state[seat].scoredWithBall = nil
         Check.that(state.shotModifiers(for: seat).adds.isEmpty,
-                   "Hot Hand pays nothing without a make last round")
-        state[seat].scoredLastRound = true
+                   "Hot Hand pays nothing until it has scored with this ball")
+        state[seat].scoredWithBall = state.ballCard?.id ?? Rules.regulationBallRun
         Check.that(state.shotModifiers(for: seat).adds.first?.amount
                    == Double(CardLibrary.hotHand.intangible?.shotBonus ?? 0),
-                   "and it pays what the card says once there was one")
+                   "and it pays what the card says once the run is on")
     }
     do {
         var (state, seat, _) = openPossession(seed: 54, cards: [])
@@ -1086,9 +1090,14 @@ func runTests() {
             seed: 77, cards: [CardLibrary.doubleTeam, CardLibrary.swingLeft])
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         let receiver = seat.left
-        // A Spin Move in the receiver's hand, and nothing else that could be offered.
-        state[receiver].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
-        let spin = matchCard(CardLibrary.spinMove, state.rules)
+        // A Crossover in the receiver's hand, and nothing else that could be offered.
+        // Spin Move stopped answering Clamps in the audit; taking one man off is
+        // Crossover's job now, and clearing the floor is Clear Out's.
+        state[receiver].bag.removeAll {
+            $0.descriptor.clearsOut || $0.descriptor.clearsClamps
+                || $0.descriptor.clearsTargetClamp
+        }
+        let spin = matchCard(CardLibrary.crossover, state.rules)
         state[receiver].bag.append(spin)
 
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
@@ -1096,7 +1105,7 @@ func runTests() {
             Check.that(false, "the ball's arrival asks about the Clamp-breaker")
             return
         }
-        Check.that(asked == receiver && offered.contains { $0.descriptor.id == "spin-move" },
+        Check.that(asked == receiver && offered.contains { $0.descriptor.id == "crossover" },
                    "the ball's arrival asks about the Clamp-breaker")
 
         // **Every answer in the hand, not the first one found.** A man with a Clear Out
@@ -1107,7 +1116,7 @@ func runTests() {
         // Somebody other than him threw it, or stepping out of the pass is not on offer.
         both.lastPasser = Seat.allCases.first { $0 != receiver }
         let offers = Set(Rules.countersOnOffer(to: receiver, in: both).map(\.descriptor.id))
-        Check.that(offers.isSuperset(of: ["spin-move", "clear-out"]),
+        Check.that(offers.isSuperset(of: ["crossover", "clear-out"]),
                    "every answer in the hand is offered, not the first one found")
         Check.that(offers.count == Set(offers).count, "and none of them twice")
 
@@ -1312,13 +1321,13 @@ func runTests() {
         // **Double Dribble is literal now**: the same Move card twice running. One
         // Rhythm Dribble is not two, so it takes a second to trip him.
         var (state2, seat2, cards2) = openPossession(
-            seed: 44, cards: [CardLibrary.rhythmDribble, CardLibrary.rhythmDribble])
+            seed: 44, cards: [CardLibrary.drive, CardLibrary.drive])
         state2.armedWhistles = [ArmedWhistle(owner: nil,
                                              card: matchCard(CardLibrary.doubleDribble,
                                                              state2.rules))]
         let once = Rules.apply(.play(cards2[0].id), by: seat2, to: &state2)
         Check.that(!once.contains { if case .whistleBlew = $0 { return true }; return false },
-                   "one Rhythm Dribble is fine")
+                   "one Drive is fine")
         let twice = Rules.apply(.play(cards2[1].id), by: seat2, to: &state2)
         Check.that(twice.contains { if case .whistleBlew = $0 { return true }; return false },
                    "a second one running trips it")
@@ -1395,6 +1404,8 @@ func runTests() {
             ArmedWhistle(owner: nil, card: matchCard(CardLibrary.technicalFoul, state.rules)),
         ]
         state.shot = 60
+        // A dunk is the end of a drive now: the bar has to be full before it is offered.
+        state.movesThisPossession = state.moveLimit(for: seat)
         let events = Rules.apply(.shootAs(.dunk), by: seat, to: &state)
         var called: String?
         for case .whistleBlew(_, let card, _, _, _, _) in events { called = card.id }
@@ -1705,8 +1716,10 @@ func runTests() {
             guard case .play(let id) = move else { return nil }
             return state[seat].bag.first { $0.id == id }?.descriptor
         }
-        Check.that(!playable.contains { $0.type == .move || $0.type == .specialMove },
-                   "Park Shark sits every Move and Special Move down")
+        Check.that(!playable.contains { $0.type == .specialMove },
+                   "Park Shark sits every Special Move down")
+        Check.that(playable.contains { $0.type == .move },
+                   "and leaves ordinary Moves alone, so the bar can still fill")
         Check.that(state.shotModifiers(for: seat).adds.first?.amount == 25,
                    "and pays 25 on every shot")
     }
@@ -1726,36 +1739,35 @@ func runTests() {
         Check.that(state.ballCard == nil, "Fundamentalist discards the ball on activation")
     }
     do {
-        var (state, seat, _) = openPossession(seed: 100, cards: [])
-        state[seat].intangibles = [CardLibrary.equalizer]
-        state.armedWhistles = []
-        state[seat.left].points = 7
-        Check.that(state.shotOffer(for: seat)?.amount == 100, "Equalizer offers a 100% shot")
-        Rules.apply(.shootAtOffer, by: seat, to: &state)
-        Check.that(!state[seat].intangibles.contains { $0.id == CardLibrary.equalizer.id },
-                   "and is discarded taking it")
-        Check.that(state[seat.left].points == state[seat].points,
-                   "and the make levels every player's points to the shooter's")
+        // **The Equalizer works the game rather than sitting on a board.** He is dealt
+        // with the crew, belongs to nobody, and any player may cash him in.
+        let (state, _, _) = openPossession(seed: 100, cards: [])
+        Check.that(CardLibrary.equalizer.type == .whistle,
+                   "The Equalizer is an official")
+        Check.that(CardLibrary.officialsPool.contains { $0.id == CardLibrary.equalizer.id },
+                   "dealt out of the officials deck")
+        Check.that(!state.rules.cardPool.contains { $0.id == CardLibrary.equalizer.id },
+                   "and out of the main deck entirely")
+        Check.that(CardLibrary.equalizer.whistle?.neverReturns == true,
+                   "and once he is spent he never comes back")
     }
     do {
+        // **Sixth Man is a bigger bag now**, not a second button: a sixth card fits, and
+        // the draw that would have been converted to SHOT lands instead.
         var (state, seat, _) = openPossession(seed: 101, cards: [])
         state[seat].intangibles = [CardLibrary.sixthMan]
         state.armedWhistles = []
-        state[seat].bag = (0..<5).map { _ in matchCard(CardLibrary.drive, state.rules) }
-        state.shotClock = 20
-        state.shotsThisRound = 0
-        state.shot = 10
-        Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAtOffer),
-                   "no six, no second Shoot button")
-        state[seat].bag.append(matchCard(CardLibrary.drive, state.rules))
-        Check.that(Rules.legalMoves(state, for: seat).contains(.shootAtOffer),
-                   "a six puts Sixth Man's button up")
-        let events = Rules.apply(.shootAtOffer, by: seat, to: &state)
-        Check.that(events.contains {
-            if case .shotAttempted(_, let chance, _) = $0 { return chance == 60 }; return false
-        }, "and it shoots at 60")
+        Check.that(state.handLimit(for: seat) == 6, "Sixth Man carries a sixth card")
+        Check.that(state.handLimit(for: seat.left) == state.handLimit,
+                   "and nobody else's bag moves")
+        // The three is a flat five whatever the bag holds, so a wider bag is not a
+        // longer walk to one.
+        Check.that(ShotType.three.requiredHand == 5,
+                   "and a Three still wants exactly five")
     }
     do {
+        // **Ball Pounder trades three ticks for a card and ten per cent.** Taken whenever
+        // there is clock to pay with, which is what makes pounding it late a bad idea.
         let (base, seat, cards) = openPossession(seed: 102, cards: [CardLibrary.dribble])
         var plain = base
         plain.shotClock = 20
@@ -1763,9 +1775,12 @@ func runTests() {
         var pounded = base
         pounded.shotClock = 20
         pounded[seat].intangibles = [CardLibrary.ballPounder]
+        let held = pounded[seat].bag.count
         Rules.apply(.play(cards[0].id), by: seat, to: &pounded)
-        Check.that(pounded.shotClock == plain.shotClock.map { $0 - 1 },
-                   "Ball Pounder runs the Shot Clock down one more")
+        Check.that(pounded.shotClock == plain.shotClock.map { $0 - 3 },
+                   "Ball Pounder pays three ticks for the trade")
+        Check.that(pounded[seat].bag.count > held,
+                   "and the card it bought arrives")
     }
 
     slotTests()
@@ -1803,13 +1818,19 @@ func runTests() {
     do {
         for opener in [CardLibrary.dribble, CardLibrary.rhythmDribble] {
             var (state, seat, _) = openPossession(seed: 88, cards: [])
+            // Rhythm Dribble only comes out after one, so it gets its Dribble first and
+            // the SHOT is set afterwards — what is measured is Drive's combo either way.
+            var bag: [Card] = []
+            if opener.requiresDribbleFirst { bag.append(matchCard(CardLibrary.dribble, state.rules)) }
+            bag += [matchCard(opener, state.rules), matchCard(CardLibrary.drive, state.rules)]
+            state[seat].bag = bag
+            let ids = bag.map(\.id)
+            if opener.requiresDribbleFirst {
+                _ = Rules.apply(.play(ids[0]), by: seat, to: &state)
+            }
             state.shot = 20
-            state[seat].bag = [matchCard(opener, state.rules),
-                               matchCard(CardLibrary.drive, state.rules)]
-            let first = state[seat].bag[0].id
-            let second = state[seat].bag[1].id
-            _ = Rules.apply(.play(first), by: seat, to: &state)
-            _ = Rules.apply(.play(second), by: seat, to: &state)
+            _ = Rules.apply(.play(ids[ids.count - 2]), by: seat, to: &state)
+            _ = Rules.apply(.play(ids[ids.count - 1]), by: seat, to: &state)
             // Drive's own, plus what it pays for following a dribble.
             let expected = 20 + opener.baseShotDelta
                 + CardLibrary.drive.baseShotDelta + CardLibrary.drive.comboBonus

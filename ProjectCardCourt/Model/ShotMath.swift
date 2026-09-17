@@ -196,12 +196,24 @@ extension GameState {
 
         // Skyhook goes up over everybody: the debuff layer is skipped for this one shot.
         // Nothing is cancelled, though that makes no odds — Clamps come off at the end of
-        // the possession anyway, and a shot ends one. Competitive does the same thing for
-        // a whole game, and Like That refuses every reduction there is.
+        // the possession anyway, and a shot ends one. Like That refuses every reduction
+        // there is.
         let shrugs = self[seat].intangibles.contains {
-            $0.intangible?.ignoresClampDebuffs == true || $0.intangible?.shotCannotBeReduced == true
+            $0.intangible?.shotCannotBeReduced == true
         }
-        for clamp in (ignoringClamps || shrugs) ? [] : self[seat].clamps {
+        // **Competitive is paid for the man being there**, not for ignoring him: rising
+        // over a defender is the whole point of the card, so it reads the Clamps rather
+        // than cancelling them — and walks straight into Goaltending's window doing it.
+        if !self[seat].clamps.isEmpty {
+            let over = self[seat].intangibles.reduce(0) { $0 + ($1.intangible?.shotOverClamp ?? 0) }
+            if over != 0 {
+                modifiers.adds.append(ShotModifier(label: "Competitive", amount: Double(over)))
+            }
+        }
+        // **A man stepped around is a man who is not there for this shot.** Floater picks
+        // one; Bankshot's Heads picks one; both are per-attempt rather than a clear.
+        let present = self[seat].clamps.filter { !ignoredClamps.contains($0.id) }
+        for clamp in (ignoringClamps || shrugs) ? [] : present {
             var debuff = clamp.card.clamp?.shotDebuff ?? 0
             guard debuff != 0 else { continue }
             // A defender outside his band is a defender being shot over.
@@ -218,6 +230,10 @@ extension GameState {
         if self[seat].intangibles.contains(where: { $0.intangible?.shotCannotBeReduced == true }) {
             modifiers.adds.removeAll { $0.amount < 0 }
         }
+        // **Splash Ball: a Three cannot miss.** The reason the table wants it gone.
+        if fromThree, let sure = ballEffect.shotOverrideOnThrees {
+            modifiers.override = ShotOverride(label: "Splash Ball", amount: Double(sure))
+        }
         modifiers.override = modifiers.override.map { equalized($0, for: seat) }
         return modifiers
     }
@@ -229,6 +245,13 @@ extension GameState {
     /// chain of guards spread through the stack.
     private func pays(_ effect: IntangibleEffect, for seat: Seat, fromThree: Bool) -> Bool {
         if effect.requiresScoredLastRound && !self[seat].scoredLastRound { return false }
+        // **Hot Hand belongs to the ball.** A run is a run with *this* rock; swap it and
+        // the streak starts again, which makes changing somebody else's ball a way of
+        // cooling them off.
+        if effect.requiresScoredWithBall,
+           self[seat].scoredWithBall != (ballCard?.id ?? Rules.regulationBallRun) {
+            return false
+        }
         if effect.requiresThree && !fromThree { return false }
         // **His own board, not just a board.** Both of these say "your own" on the card;
         // they were reading `possessionFromRebound`, which is true off anybody's miss —
@@ -236,6 +259,8 @@ extension GameState {
         // somebody else.
         if effect.requiresOwnRebound && !possessionFromOwnRebound { return false }
         if effect.requiresAfterOwnRebound && !possessionFromOwnRebound { return false }
+        // Board-Crasher takes any board. Lethal Shooter is the one that still wants yours.
+        if effect.requiresAfterAnyRebound && !possessionFromRebound { return false }
         if effect.requiresReceivedPass && lastPasser == nil { return false }
         if effect.requiresFirstAction && !isShootingFirst { return false }
         if let nth = effect.requiresNthShotOfRound, shotsThisRound + 1 != nth { return false }

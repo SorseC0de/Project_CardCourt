@@ -182,7 +182,9 @@ struct CourtView: View {
     /// **Which of the crew can be named**, when a card is asking. Empty every other time,
     /// which is what leaves a tap on a referee meaning "read the crew".
     private var namedOfficials: Set<UUID> {
-        if case .awaitingOfficialTarget(_, let choices) = gate { return Set(choices) }
+        if case .awaitingRetirement(_, let choices) = gate {
+            return Set(choices.compactMap { if case .official(let id) = $0 { return id } else { return nil } })
+        }
         return []
     }
 

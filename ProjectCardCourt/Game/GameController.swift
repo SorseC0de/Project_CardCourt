@@ -467,7 +467,9 @@ final class GameController {
         /// A call, and the one challenge a game that can throw it out.
         case awaitingChallenge(card: CardDescriptor)
         /// Dishtracting Ball: which of the crew gets waved off, if any.
-        case awaitingOfficialTarget(card: CardDescriptor, choices: [UUID])
+        case awaitingRetirement(card: CardDescriptor, choices: [RetirementTarget])
+        /// Pump Fake: one more defender to sell it to, or stop.
+        case awaitingClampsNamed(card: CardDescriptor, named: [UUID])
         /// A card out of somebody else's hand, face down.
         case awaitingCardFrom(card: CardDescriptor, victim: Seat)
         /// Wet Spot: one Injury off the table, some of them face down.
@@ -1167,9 +1169,11 @@ final class GameController {
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
             return seat.isLocal ? .awaitingMode(card: card) : .thinking
-        case .awaitingOfficialTarget(let seat, let card, let choices):
-            return seat.isLocal ? .awaitingOfficialTarget(card: card, choices: choices)
+        case .awaitingRetirement(let seat, let card, let choices):
+            return seat.isLocal ? .awaitingRetirement(card: card, choices: choices)
                                 : .thinking
+        case .awaitingClampsNamed(let seat, let card, let named):
+            return seat.isLocal ? .awaitingClampsNamed(card: card, named: named) : .thinking
         case .awaitingPayoff(let seat, let clamp):
             return seat.isLocal ? .awaitingPayoff(clamp: clamp) : .thinking
         case .awaitingChallenge(let seat, let card):
@@ -1862,14 +1866,26 @@ final class GameController {
         }
     }
 
-    /// An official waved off by the ball, or nil to leave the crew as it is.
-    func choose(official id: UUID?) {
+    /// Something in play named to be taken out of it, or nil to leave the table alone.
+    func choose(retiring target: RetirementTarget?) {
         guard !isPaused else { return }
-        guard case .awaitingOfficialTarget = gate else { return }
-        if sendUp(.official(id)) { return }
+        guard case .awaitingRetirement = gate else { return }
+        if sendUp(.retiring(target)) { return }
         loop?.cancel()
         drive {
-            await present(Rules.resolveOfficialTarget(id, state: &state))
+            await present(Rules.resolveRetirement(target, state: &state))
+            await run()
+        }
+    }
+
+    /// One more defender sold on a Pump Fake, or nil to stop there.
+    func choose(selling id: UUID?) {
+        guard !isPaused else { return }
+        guard case .awaitingClampsNamed = gate else { return }
+        if sendUp(.selling(id)) { return }
+        loop?.cancel()
+        drive {
+            await present(Rules.resolveClampNamed(id, state: &state))
             await run()
         }
     }
@@ -2441,17 +2457,32 @@ final class GameController {
                 await present(Rules.resolveToll(pick, state: &state))
                 continue
             }
-            if case .awaitingOfficialTarget(let seat, _, let choices) = state.phase {
+            if case .awaitingClampsNamed(let seat, let card, let named) = state.phase {
                 if seat.isLocal { gate = localGate; return }
-                var waving = AIPolicy.distracts(state, for: seat)
-                if case .official(let said)? = await decision(from: seat) {
-                    waving = said.flatMap { choices.contains($0) ? $0 : nil }
+                let clock = state.shotClock ?? 99
+                let room = clock + card.clockPerClampNamed * (named.count + 1) > 1
+                var selling = room ? state[seat].clamps.first { !named.contains($0.id) }?.id : nil
+                if case .selling(let said)? = await decision(from: seat) {
+                    selling = said
                 } else if !Table.shared.isRemote(seat) {
                     gate = .thinking
                     await think()
                 }
                 if Task.isCancelled { return }
-                await present(Rules.resolveOfficialTarget(waving, state: &state))
+                await present(Rules.resolveClampNamed(selling, state: &state))
+                continue
+            }
+            if case .awaitingRetirement(let seat, _, let choices) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                var taking = AIPolicy.retires(choices, state, for: seat)
+                if case .retiring(let said)? = await decision(from: seat) {
+                    taking = said.flatMap { choices.contains($0) ? $0 : nil }
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveRetirement(taking, state: &state))
                 continue
             }
             if case .awaitingIntangibleDrop(let seat, let offered) = state.phase {

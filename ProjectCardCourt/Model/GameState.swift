@@ -78,6 +78,10 @@ struct PlayerState: Hashable, Identifiable, Codable {
     var dunks = 0
     /// Outlet Pass: owed the chance to Reset the Shot Clock as his next possession opens.
     var mayResetShotClock = false
+    /// **Hot Hand: which ball he last scored with.** The run is the ball's, so this is
+    /// checked against whatever is in play rather than against a round number — and a
+    /// player who has never scored has nil, which matches no ball.
+    var scoredWithBall: UUID?
 
     /// Where he plays. The local seat's is what he built; the rest are rolled with the
     /// deal, so every device agrees on who finishes at the rim.
@@ -98,10 +102,11 @@ enum Phase: Hashable, Codable {
     /// One phase for every kind of it — a pass of choice, a Nutmeg's two, an Ankle
     /// Breaker's victim. What the choice *does* is on the card; this only collects it.
     case awaitingTarget(seat: Seat, card: CardDescriptor, choices: [Seat])
-    /// **Dishtracting Ball: which official gets sent off.** The crew is face-up, so
-    /// this is a real read rather than a guess — choices are their armed ids, and
-    /// declining is an answer.
-    case awaitingOfficialTarget(seat: Seat, card: CardDescriptor, choices: [UUID])
+    /// **Something in play, named to be taken out of it.** One question for every card
+    /// that says *you may Retire target …*: an official, the ball, somebody's passive.
+    /// The crew and the board are face-up, so this is a real read rather than a guess —
+    /// and declining is always an answer.
+    case awaitingRetirement(seat: Seat, card: CardDescriptor, choices: [RetirementTarget])
     /// Triple Threat: one of the card's own branches.
     case awaitingMode(seat: Seat, card: CardDescriptor)
     /// **A call, and the man it is against.** Once a game he may throw it out and send the
@@ -119,6 +124,10 @@ enum Phase: Hashable, Codable {
     case awaitingIntangibleDrop(seat: Seat, offered: [CardDescriptor])
     /// Wide-Open Three: naming the others, one at a time, until you stop.
     case awaitingNaming(seat: Seat, card: CardDescriptor, named: [Seat])
+    /// **Pump Fake: how many of them you sell it to.** Named one at a time until you
+    /// stop, because each one is more SHOT and less clock — the decision is where to
+    /// stop, and stopping early is how you stay off a Shot Clock Violation.
+    case awaitingClampsNamed(seat: Seat, card: CardDescriptor, named: [UUID])
     /// Franchise Player: something off the man who just took the pass. His passives are
     /// face up and his hand is not, so this is one question over two kinds of card.
     case awaitingToll(seat: Seat, victim: Seat)
@@ -152,7 +161,7 @@ enum Phase: Hashable, Codable {
         switch self {
         case .awaitingTarget, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
              .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop, .awaitingPayoff,
-             .awaitingOfficialTarget:
+             .awaitingRetirement:
             return true
         default:
             return false
@@ -176,7 +185,7 @@ enum Phase: Hashable, Codable {
         case .awaitingDiscard(let seat, _, _): return seat
         case .awaitingGiveUp(let seat, _, _): return seat
         case .awaitingTarget(let seat, _, _): return seat
-        case .awaitingOfficialTarget(let seat, _, _): return seat
+        case .awaitingRetirement(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
         case .awaitingPayoff(let seat, _): return seat
         case .awaitingChallenge(let seat, _): return seat
@@ -187,6 +196,7 @@ enum Phase: Hashable, Codable {
         case .awaitingCounter(let seat, _): return seat
         case .awaitingOption(let seat, _): return seat
         case .awaitingNaming(let seat, _, _): return seat
+        case .awaitingClampsNamed(let seat, _, _): return seat
         case .freeThrows(let trip): return trip.shooter
         default:                    return nil
         }
@@ -199,6 +209,24 @@ enum Phase: Hashable, Codable {
 }
 
 /// **A card's "You may"** — the optional halves the SHOT audit wrote in.
+/// **A thing on the table that a card can take off it.**
+///
+/// Officials, the ball and passives are all face-up and all replaceable, so the cards that
+/// reach for them are asking one question with three kinds of answer rather than three
+/// questions. Clamps are here too: Spin Move moves one rather than retiring it, and the
+/// pick is the same pick.
+enum RetirementTarget: Hashable, Codable {
+    /// One of the crew, by his armed id.
+    case official(UUID)
+    /// Whatever Variaball is in play. Regulation is the absence of one, so there is
+    /// nothing to name when the slot is empty.
+    case ball
+    /// A passive on somebody's board, by whose it is and which one.
+    case intangible(seat: Seat, id: String)
+    /// A defender, for the cards that move or clear one rather than Retiring it.
+    case clamp(id: UUID)
+}
+
 enum CardOption: String, Hashable, Codable {
     /// Lob: the current Ball comes out of play and into your hand as you pass.
     case takeBall
@@ -252,6 +280,21 @@ struct GameState: Codable {
     /// The officials who have already worked a round. The crew deck comes back off this
     /// when it runs dry, the same way the main deck does.
     var officialsDiscard: [Card] = []
+    /// **Passes thrown this round**, by anybody. Open Three is paid for the floor having
+    /// been swung, and swinging it is something the whole table does.
+    var passesThisRound = 0
+    /// Bankshot: defenders this shot steps around, named as the coin lands.
+    var ignoredClamps: Set<UUID> = []
+    /// **Stepback: cards the next Three may be short by.** A stepback is separation, and
+    /// separation is what people take threes off — so the card that makes it lets you
+    /// rise from a thinner hand, for that shot and no other.
+    var threeDiscount = 0
+    /// Rookie Official has already traded for this player this possession — the first
+    /// card only, or a pair of Moves would fish the same two out all night.
+    var rookieSwapped: Seat?
+    /// From the Logo has reached for the table once already this play — see
+    /// `Rules.resolveRetirement`. "And/or" is two reaches, never three.
+    var reachedTwice = false
     var phase: Phase = .inbound(inbounder: .south)
     var round = 1
     /// What a shooting Special Move is paying for the attempt it is about to take.
@@ -378,6 +421,23 @@ struct GameState: Codable {
     var fourPointOffer = false
     /// Move cards played this possession, counted rather than named — Torn Achilles allows one.
     var moveCardsThisPossession = 0
+
+    /// **How many Moves this player's possession holds** — the Move bar, which is both the
+    /// Travel line and the dunk's gate. One owner, because those two must never disagree:
+    /// a bar that says three while the dunk wants four is a button nobody can explain.
+    func moveLimit(for seat: Seat) -> Int {
+        var limit = rules.movesPerPossession
+        limit -= armedWhistles.reduce(0) { $0 + ($1.card.descriptor.whistle?.lowersMoveLimit ?? 0) }
+        if let guarded = self[seat].clamps
+            .compactMap({ $0.card.clamp?.movesPerPossession }).min() {
+            limit = min(limit, guarded)
+        }
+        if let hurt = self[seat].injuries
+            .compactMap({ $0.injury?.movesPerPossession }).min() {
+            limit = min(limit, hurt)
+        }
+        return max(1, limit)
+    }
     /// One Intangible a possession, played by hand like a Varena.
     var playedIntangibleThisPossession = false
     /// Everyone who has had the ball this round — Wide-Open Three asks.
@@ -484,6 +544,14 @@ struct GameState: Codable {
     var ballEffect: VariaballEffect { currentBall?.variaball ?? VariaballEffect() }
     /// **The most cards a hand may hold.** The match's, unless the floor is stricter.
     var handLimit: Int { min(rules.handLimit, floorEffect.handLimit ?? rules.handLimit) }
+
+    /// **One player's bag limit**, which Sixth Man widens. The floor and the match can
+    /// only ever tighten it; a passive is the one thing that opens it back up, and the
+    /// three still wants five however big the bag gets — see `ShotType.requiredHand`.
+    func handLimit(for seat: Seat) -> Int {
+        max(handLimit,
+            self[seat].intangibles.compactMap { $0.intangible?.handLimit }.max() ?? handLimit)
+    }
     /// **How many passives a board may hold.** The floor's, the match's — and tighter
     /// still if an official is checking bags. Official Review caps it at one.
     var intangibleSlotLimit: Int {

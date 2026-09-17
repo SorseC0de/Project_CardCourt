@@ -178,6 +178,14 @@ struct WhistleEffect: Hashable, Codable {
     var intangibleSlots: Int?
     /// Rookie Official: a card put into Retirement may be swapped for one already there.
     var swapsOnRetire = false
+    /// **The Equalizer: a fourth button on the shot triangle.** Any player may spend him —
+    /// he belongs to nobody, like the rest of the crew — and it costs the whole hand.
+    var equalizerShot: Int?
+    /// And what it is for: everybody's points become the shooter's new total.
+    var levelsPointsOnMake = false
+    /// **Once he is gone he is gone.** Exempt from the officials' reshuffle and from
+    /// Retirement's, so the game gets exactly one of him.
+    var neverReturns = false
     /// Retiring Official: SHOT, for as long as he is working.
     var shotWhileWorking = 0
     /// And what a Clamp does while he is: nothing, and its player draws instead.

@@ -22,7 +22,7 @@ enum Seat: Int, CaseIterable, Hashable, Identifiable, Codable {
         case .left:         return left
         case .right:        return right
         case .across:       return across
-        case .backToPasser, .choice, .random, .leftOrRight: return nil
+        case .backToPasser, .choice, .random, .leftOrRight, .continuing: return nil
         }
     }
 

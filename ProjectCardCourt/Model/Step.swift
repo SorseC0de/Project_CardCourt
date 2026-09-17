@@ -52,6 +52,11 @@ enum Step: Hashable, Codable {
     case tax(seat: Seat, count: Int, card: CardDescriptor)
     /// Monster Ball, gone: the Intangibles it swallowed are rebounded for, one at a time.
     case intangibleBoards
+    /// **Bullet's toll, owed because the catch asked something first.** A Clamp arriving
+    /// on the receiver puts a counter question up before the pass has finished its own
+    /// business, and the pass's business does not stop being owed because somebody was
+    /// asked whether to answer a defender.
+    case takeFromReceiver(passer: Seat, receiver: Seat, card: CardDescriptor)
 
     /// **Where this sits in a drain, which is not the order it was pushed in.**
     ///
@@ -72,6 +77,8 @@ enum Step: Hashable, Codable {
         case .takeTheLine:  return 4
         case .tax:          return 0
         case .intangibleBoards: return 5
+        // After the hand has settled and before the board is asked about.
+        case .takeFromReceiver: return 4
         }
     }
 
@@ -87,11 +94,12 @@ enum Step: Hashable, Codable {
         case .revealBreak:  return .revealBreak
         case .tax:          return .tax
         case .intangibleBoards: return .intangibleBoards
+        case .takeFromReceiver: return .takeFromReceiver
         }
     }
 
     enum Kind: String, Hashable, Codable {
         case spendHand, returnBall, shootAtOnce, handOverBall, takeTheLine, revealBreak
-        case tax, intangibleBoards
+        case tax, intangibleBoards, takeFromReceiver
     }
 }

@@ -24,8 +24,10 @@ enum Decision: Codable {
     /// can hold more than one card that answers the same arrival.
     case counter(UUID?)
     case option(Bool)
-    /// Which official is being sent off, or nil for none.
-    case official(UUID?)
+    /// What is being taken off the table, or nil for none.
+    case retiring(RetirementTarget?)
+    /// One more defender sold on a Pump Fake, or nil to stop.
+    case selling(UUID?)
     case cardFrom(UUID)
     case mode(Int)
 }

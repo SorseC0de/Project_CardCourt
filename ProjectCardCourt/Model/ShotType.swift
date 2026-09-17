@@ -14,7 +14,9 @@ enum ShotType: String, Hashable, Codable, CaseIterable, Identifiable {
     /// The shot that is always there. Nothing gates it — a player with nothing left can
     /// still put the ball on the floor and go.
     case layup
-    /// Earned with SHOT. The finish at the rim.
+    /// **Earned with the Move bar.** The finish at the rim is the end of a drive, so it
+    /// is the possession's movement that pays for it rather than the look: fill the bar
+    /// and you are at the rim. It also makes every Move card a step toward one.
     case dunk
     /// Earned with a full hand. Worth one more point.
     case three
@@ -34,9 +36,11 @@ enum ShotType: String, Hashable, Codable, CaseIterable, Identifiable {
         self == .three ? rules.madeShotPoints + 1 : rules.madeShotPoints
     }
 
-    /// SHOT a player must already have to go up with it.
-    var requiredShot: Int? { self == .dunk ? 50 : nil }
-    /// Cards a player must be holding to go up with it.
+    /// **Moves a player must already have spent to go up with it.** Nil for everything
+    /// but the dunk, and the dunk wants all of them — see `GameState.moveLimit(for:)`.
+    var needsAFullMoveBar: Bool { self == .dunk }
+    /// **Cards a player must be holding to go up with it — always five.** Not the bag
+    /// limit: a card that widens the bag must not also move the three out of reach.
     var requiredHand: Int? { self == .three ? 5 : nil }
 
     /// **The layup's reward for having nothing left.** An empty hand is a man already at
@@ -47,17 +51,22 @@ enum ShotType: String, Hashable, Codable, CaseIterable, Identifiable {
     func requirement(in state: GameState) -> String? {
         switch self {
         case .layup: return nil
-        case .dunk: return "SHOT \(requiredShot ?? 0)%"
-        case .three: return "\(state.handLimit) cards"
+        case .dunk:
+            let bar = state.phase.actingSeat.map { state.moveLimit(for: $0) }
+                ?? state.rules.movesPerPossession
+            return "\(bar) Moves"
+        case .three: return "\(max(1, (requiredHand ?? 5) - state.threeDiscount)) cards"
         }
     }
 
     /// Whether a player may put this one up right now, before any Clamp has its say.
     func available(to seat: Seat, in state: GameState) -> Bool {
-        if let shot = requiredShot, state.shot < shot { return false }
-        if let hand = requiredHand, state[seat].bag.count < min(hand, state.handLimit) {
+        if needsAFullMoveBar, state.movesThisPossession < state.moveLimit(for: seat) {
             return false
         }
+        // Stepback pays for the space: the Three straight after it wants fewer cards.
+        if let hand = requiredHand,
+           state[seat].bag.count < hand - state.threeDiscount { return false }
         return true
     }
 }

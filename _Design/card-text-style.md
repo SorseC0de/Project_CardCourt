@@ -53,3 +53,14 @@ Reset, Turn, Score. A Special Move **is** a Move card wherever a card says "Move
 - Printed on **every** card in the combo.
 - A partner that is any card of a type (any dunk) is that type's icon.
 - Until the combo has been pulled off, a circle with a question mark stands in for the partner.
+
+## Vocabulary settled in the Move / Intangible audit
+
+- **"Draw 1 extra card"**, never "Draw 1 card extra".
+- **Clamps are assignments**, so the verbs are:
+  - **Assign** — putting one on somebody. A defensive assignment.
+  - **Reassign** — moving one that is already out.
+  - **Clear** — taking one off.
+- **"while passing"** means *after the pass is committed, before the ball changes hands*.
+- **Retire** is for cards and officials. A Clamp is Cleared, not Retired.
+- **~[Ref]** is the keyword in effect text, even on cards whose *name* says Official.

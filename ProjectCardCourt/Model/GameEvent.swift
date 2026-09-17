@@ -48,6 +48,9 @@ enum GameEvent: Hashable, Codable {
     /// them: they are the rules everyone is about to play under, so they are announced
     /// rather than hidden the way an armed Whistle was.
     case crewAssigned(cards: [CardDescriptor])
+    /// **Skyhook: a card pulled back out of Retirement.** Nothing else in the game
+    /// reaches in there, which is what makes it the homage it is.
+    case drewFromRetirement(seat: Seat, card: CardDescriptor)
     /// A card that would have gone into a full hand, paid as SHOT instead.
     case drawConverted(seat: Seat, card: CardDescriptor, shot: Int)
     /// A Whistle with no trigger — Timeout — which resolves the moment it is played
@@ -218,6 +221,8 @@ enum GameEvent: Hashable, Codable {
         case .crewAssigned(let cards):
             let names = cards.map(\.name).joined(separator: ", ")
             return "Working tonight: \(names)."
+        case .drewFromRetirement(let seat, let card):
+            return "\(seat.playerName) \(seat.verb("takes", "take")) \(card.name) back out of Retirement."
         case .drawConverted(let seat, _, let shot):
             return "\(seat.playerName) \(seat.verb("is", "are")) full — gets open instead. SHOT +\(shot)%."
         case .clampBeaten(let seat, let card):

@@ -1400,7 +1400,8 @@ struct GameView: View {
         case .confirm: confirm()
         case .decline: declineTheOffer()
         case .seat(let seat): select(seat)
-        case .official(let id): controller.choose(official: id)
+        case .retiring(let target): controller.choose(retiring: target)
+        case .selling(let id): controller.choose(selling: id)
         // **Exactly what a finger does.** A tap on a sheet takes the card off the table;
         // the button underneath is still what confirms it, and up is that button.
         case .offer(let pick): picked = pick
@@ -1492,8 +1493,8 @@ struct GameView: View {
     /// **A tap on one of the crew.** While a card is naming an official he is the answer;
     /// every other time the crew is something you read, so it opens their sheet.
     private func tapReferee(_ id: UUID) {
-        if case .awaitingOfficialTarget = controller.gate {
-            controller.choose(official: id)
+        if case .awaitingRetirement = controller.gate {
+            controller.choose(retiring: .official(id))
             return
         }
         open(.referees)
@@ -1507,7 +1508,8 @@ struct GameView: View {
         case .awaitingOption:  controller.choose(option: false)
         case .awaitingToll:    controller.choose(toll: nil)
         case .awaitingNaming:  controller.choose(naming: nil)
-        case .awaitingOfficialTarget: controller.choose(official: nil)
+        case .awaitingRetirement: controller.choose(retiring: nil)
+        case .awaitingClampsNamed: controller.choose(selling: nil)
         default: break
         }
     }

@@ -39,11 +39,11 @@ func slotTests() {
         Check.that(ShotMath.resolve(base: 90, modifiers: state.shotModifiers(for: seat),
                                     rules: state.rules).chance == 50,
                    "Med Ball: no shot goes past 50%")
-        state[seat].intangibles = [CardLibrary.splashCousin]
+        state[seat].intangibles = [CardLibrary.sniper]
         Check.that(ShotMath.resolve(base: 30,
                                     modifiers: state.shotModifiers(for: seat, fromThree: true),
-                                    rules: state.rules).chance == 100,
-                   "but an Intangible's SHOT = outranks the ball")
+                                    rules: state.rules).chance == 50,
+                   "and holds an Intangible's Three bonus to it as well")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 204, cards: [CardLibrary.swingLeft])
@@ -113,13 +113,13 @@ func slotTests() {
         Check.that(state[seat].bag.count == 3, "and a draw into a hand of 3 is converted")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 209, cards: [CardLibrary.drive])
+        // **A call that always lands**, so the thing under test is Policeum rather than a
+        // coin: Charge fires on a shot every time. Traffic Cop flips for his now.
+        var (state, seat, _) = openPossession(seed: 209, cards: [])
         state.courtCard = Card(CardLibrary.policeum)
         state.armedWhistles = [ArmedWhistle(owner: nil,
-                                            card: matchCard(CardLibrary.travel, state.rules))]
-        // Travel is the speed limit now: three Moves are free, the fourth travels.
-        state.movesThisPossession = 3
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+                                            card: matchCard(CardLibrary.offensiveFoul, state.rules))]
+        Rules.apply(.shootAs(.layup), by: seat, to: &state)
         Check.that(state.armedWhistles.first?.stayed == true,
                    "Policeum: a referee who calls one stays on the floor")
         var events: [GameEvent] = []
@@ -225,12 +225,12 @@ func slotTests() {
             .map { ArmedWhistle(owner: nil, card: matchCard($0, state.rules)) }
         let crew = state.armedWhistles.count
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that({ if case .awaitingOfficialTarget(let who, _, let choices) = state.phase {
+        Check.that({ if case .awaitingRetirement(let who, _, let choices) = state.phase {
                        return who == seat && choices.count == crew }
                      return false }(),
                    "Dishtracting Ball: the pass stops to name an official (\(crew) working)")
         let waved = state.armedWhistles[0].id
-        let thrown = Rules.resolveOfficialTarget(waved, state: &state)
+        let thrown = Rules.resolveRetirement(.official(waved), state: &state)
         Check.that(!state.armedWhistles.contains { $0.id == waved },
                    "the named official goes off")
         Check.that(state.armedWhistles.count == crew, "and a replacement comes out")
@@ -244,7 +244,7 @@ func slotTests() {
             .map { ArmedWhistle(owner: nil, card: matchCard($0, stands.rules)) }
         let standing = stands.armedWhistles.map(\.id)
         Rules.apply(.play(held[0].id), by: passer, to: &stands)
-        let kept = Rules.resolveOfficialTarget(nil, state: &stands)
+        let kept = Rules.resolveRetirement(nil, state: &stands)
         Check.that(stands.armedWhistles.map(\.id) == standing, "declined: the crew stands")
         Check.that(kept.contains { if case .passed = $0 { return true }; return false },
                    "and the pass is thrown all the same")

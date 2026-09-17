@@ -18,6 +18,10 @@ enum PassTarget: String, Hashable, Codable {
     case random
     /// One of two, and still a choice.
     case leftOrRight
+    /// **Touch: the ball keeps going the way it was already going.** Left or right only —
+    /// an across pass has no side to continue, so the card is dead in hand until the ball
+    /// arrives from a neighbour. Lifted from Hex Hex's Maddening Compulsion.
+    case continuing
 }
 
 /// What a Clamp does to whoever it lands on. Most Clamps attach to the next ball-holder,
@@ -69,6 +73,9 @@ struct ClampEffect: Hashable, Codable {
     var blocksThrees = false
     /// Zone: no shots at all.
     var blocksShooting = false
+    /// **A defender who shortens the drive.** Fewer Moves in the possession, which is also
+    /// fewer steps toward a dunk — see `GameState.moveLimit(for:)`.
+    var movesPerPossession: Int?
     /// Zone: left without a playable Pass at any point, the player turns it over and the
     /// round ends.
     var turnoverWithoutAPass = false
@@ -239,6 +246,44 @@ struct IntangibleEffect: Hashable, Codable {
     var spentOnOffer = false
     /// Equalizer: if that shot goes in, every player's points become the shooter's.
     var levelsPointsOnMake = false
+
+    // MARK: - Rewritten in the Move / Intangible audit
+
+    /// **Ball Pounder: a trade rather than a tax.** Playing a Dribble may buy a card and
+    /// ten per cent for three ticks of the clock, and it is the holder's call each time.
+    var dribbleClockTradeCost = 0
+    var dribbleClockTradeDraw = 0
+    var dribbleClockTradeShot = 0
+    /// **Baller: any change, not only his own.** The ball is a shared object, so somebody
+    /// else swapping it is still a ball changing hands in front of him.
+    var drawsOnAnyBallChange = false
+    /// Brawl Handler: one defender of your choosing, when the ball changes.
+    var clearsTargetClampOnBallChange = false
+    /// Competitive: going up over a man who is still there pays, which walks straight into
+    /// Goaltending's window — by design.
+    var shotOverClamp = 0
+    /// Officially Infamous: an official who calls a violation on you leaves with it.
+    var retiresCallerAgainstYou = false
+    /// Franchise Player: while passing, something in play goes.
+    var retiresInPlayOnPass = false
+    /// Freethrow Merchant: a trip every time a defender picks you up.
+    var freeThrowWhenClamped = 0
+    /// Fundamentalist: the ball goes when he lands, and every Move pays a card extra.
+    var retiresBallOnActivation = false
+    var extraDrawPerMove = 0
+    /// Gravity: the assist is on a make, never on an attempt.
+    var assistOnOthersScore = false
+    /// Hot Hand: the run belongs to the ball. Change it and the chain restarts.
+    var requiresScoredWithBall = false
+    /// Sixth Man: a bigger bag. The three still wants five — see `ShotType.requiredHand`.
+    var handLimit: Int?
+    /// **Board-Crasher: any board, not only your own miss.** Lethal Shooter is the one
+    /// that still wants your own, which is what earns it a SHOT = 100% over this +25%.
+    var requiresAfterAnyRebound = false
+    /// Splash Cousin: spent on a Three to put Splash Ball in play.
+    var swapsBallForSplash = false
+    /// Varsitile: once a possession, something in play traded for something Retired.
+    var exchangesWithRetirement = false
 }
 
 /// A one-off that fires the moment it is drawn.
@@ -464,6 +509,12 @@ struct VariaballEffect: Hashable, Codable {
     var ignoresTravel = false
     /// **Liar Ball: a missed free throw is taken once more.** Once, not until it drops.
     var retakesMissedFreeThrow = false
+    /// **Splash Ball: a three cannot miss.** The reason to want it, and the reason the
+    /// table wants it gone.
+    var shotOverrideOnThrees: Int?
+    /// **It leaves the game rather than Retiring.** Nothing shuffles it back and nothing
+    /// digs it out; only Splash Cousin ever puts it in play.
+    var removedFromPlayWhenRetired = false
     /// **Dishtracting Ball: it distracts the officials.** While passing, its carrier may
     /// send a referee off and turn a fresh one over in his place.
     var retiresARef = false
@@ -521,8 +572,10 @@ struct ShotSwing: Hashable, Codable {
 
 struct SpecialMoveEffect: Hashable, Codable {
     var shootsImmediately = false
-    /// Three-pointers pay one extra on a make.
-    var bonusPointOnMake = 0
+    /// **Which of the three this card puts up.** Every shooting Special Move names one, so
+    /// the triangle and the officials read a card exactly the way they read a button —
+    /// and what a make is worth comes from the type rather than from a printed extra point.
+    var shotType: ShotType?
     /// `SHOT = x%`. Sits in the override layer, so it beats the debuffs.
     var shotOverride: Int?
     /// Slam Dunk only. Read after the debuffs, against what survived.
@@ -569,6 +622,29 @@ struct SpecialMoveEffect: Hashable, Codable {
     var shotPerClockTick = 0
     /// Turnaround Three: a hand at least this big may all be discarded, for SHOT = 100%.
     var offersHandDumpAt: Int?
+
+    /// **Nothing the crew is watching for applies to this attempt.** Fadeaway Three and
+    /// Full-Court Heave are taken from too far out for anybody to have a say.
+    var ignoresRefs = false
+    /// Floater: one defender does not matter, and you pick which.
+    var ignoresATargetClamp = false
+    /// Bankshot: Heads also steps around a named defender; Tails pays in cards instead.
+    var headsIgnoresAClamp = false
+    var tailsDraw = 0
+    /// Euro Step: every Heads is a step, and steps fill the Move meter — which is the
+    /// Travel risk and the dunk's gate in the same number.
+    var coinRunMoves = 0
+    /// 2-Hand Jam: the Retire-for-SHOT half only opens off a board.
+    var discardsOnlyAfterRebound = false
+    /// Turnaround Three: the hand it dumps takes an official with it, and a full one
+    /// buys the shot outright.
+    var handDumpRetiresARef = false
+    var handDumpOverrideAt: Int?
+    /// Open Three: SHOT for the ball having moved, and the name it wears once the floor
+    /// has been swung all the way round.
+    var shotPerPassesThisRound = 0
+    var passesRequired = 0
+    var wideOpenName: String?
 }
 
 enum CardType: String, Hashable, Codable, CaseIterable {
@@ -709,8 +785,39 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let special: SpecialMoveEffect?
     /// Flop: a trip to the line for every Clamp standing on you.
     let freeThrowsPerClamp: Int
-    /// Clears every Clamp on the player — Flop sells it, Pump Fake shrugs it.
+    /// Clears every Clamp on the player — Flop sells it, Clear Out steps away from it.
+    /// **Clear Out is the only multi-clear left**; everything else names one.
     let clearsClamps: Bool
+    /// **One defender, named.** Crossover takes a man off — and not necessarily one of
+    /// yours, which is what makes it a play rather than a shrug.
+    let clearsTargetClamp: Bool
+    /// **Flop is not a choice.** A flopper flops: while it is in hand it has to be the
+    /// first thing the possession does, which is what stops it being held for the perfect
+    /// moment and makes its own "no Clamps, TOV +1" a live risk.
+    let compulsoryFirstAction: Bool
+    /// Rhythm Dribble: unplayable unless the last thing played was a Dribble.
+    let requiresDribbleFirst: Bool
+    /// **Pump Fake: how much each defender you sell it to is worth.** They stay on you —
+    /// you did not lose them, you got them in the air — so this is SHOT and clock per
+    /// Clamp *named*, and naming fewer is how you stay off the shot clock.
+    let shotPerClampNamed: Int
+    let clockPerClampNamed: Int
+    /// Spin Move: the bonus takes an official off, or moves a defender.
+    let retiresARef: Bool
+    let reassignsAClamp: Bool
+    /// Behind-the-Back: the official who made the last call goes off with it.
+    let retiresLastCaller: Bool
+    /// Stepback: a three off a shorter hand, for the shot straight after it.
+    let threeWithFewerCards: Int
+    /// **Full-Court Heave: the Variaball in play goes, and it is not a choice.** Paid as
+    /// the card lands rather than asked about.
+    let retiresTheBall: Bool
+    /// From the Logo: the ball *may* go, alongside or instead of an official.
+    let mayRetireTheBall: Bool
+    /// Full-Court Heave: a passive off somebody else's board.
+    let retiresAnIntangible: Bool
+    /// Skyhook: a card out of Retirement rather than off the deck.
+    let takesFromRetirement: Int
     /// Flop with nobody guarding you: the referee has watched you throw yourself down
     /// on an empty floor.
     let turnoverIfNoClamps: Bool
@@ -735,6 +842,14 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
          clockPerClamp: Int = 0, clamperDiscardsPerClamp: Int = 0,
          freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
+         clearsTargetClamp: Bool = false, compulsoryFirstAction: Bool = false,
+         requiresDribbleFirst: Bool = false,
+         shotPerClampNamed: Int = 0, clockPerClampNamed: Int = 0,
+         retiresARef: Bool = false, reassignsAClamp: Bool = false,
+         retiresLastCaller: Bool = false, threeWithFewerCards: Int = 0,
+         retiresTheBall: Bool = false, mayRetireTheBall: Bool = false,
+         retiresAnIntangible: Bool = false,
+         takesFromRetirement: Int = 0,
          turnoverIfNoClamps: Bool = false,
          receiverDiscards: Int = 0, bonusAssistOnScore: Bool = false,
          forcesReceiverShot: Bool = false, forcesImmediateShot: Bool = false,
@@ -748,6 +863,19 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
          modes: [CardMode] = [], blocksFurtherMoves: Bool = false,
          combo: String? = nil, bonus: String? = nil) {
+        self.clearsTargetClamp = clearsTargetClamp
+        self.compulsoryFirstAction = compulsoryFirstAction
+        self.requiresDribbleFirst = requiresDribbleFirst
+        self.shotPerClampNamed = shotPerClampNamed
+        self.clockPerClampNamed = clockPerClampNamed
+        self.retiresARef = retiresARef
+        self.reassignsAClamp = reassignsAClamp
+        self.retiresLastCaller = retiresLastCaller
+        self.threeWithFewerCards = threeWithFewerCards
+        self.retiresTheBall = retiresTheBall
+        self.mayRetireTheBall = mayRetireTheBall
+        self.retiresAnIntangible = retiresAnIntangible
+        self.takesFromRetirement = takesFromRetirement
         self.receiverDiscards = receiverDiscards
         self.bonusAssistOnScore = bonusAssistOnScore
         self.forcesReceiverShot = forcesReceiverShot
@@ -944,8 +1072,18 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         return printedEffect + " " + note
     }
 
+    /// **Whether playing it sends it to Retirement.** Passes, Moves and Special Moves are
+    /// spent; Clamps, passives, balls and floors stay on the table, so they were never
+    /// Retired and there is nothing to trade for — see Rookie Official.
+    var isNonStanding: Bool {
+        switch type {
+        case .pass, .move, .specialMove: return true
+        default: return false
+        }
+    }
+
     /// Threes say so with the hand rather than the words.
-    var isThree: Bool { (special?.bonusPointOnMake ?? 0) > 0 }
+    var isThree: Bool { special?.shotType == .three }
 
     /// **What the BONUS bubble says**: the card's conditional half. That it shoots is the
     /// shoot mark's to say, not a line of text.
