@@ -859,6 +859,7 @@ struct GameView: View {
                   onSelect: select,
                   faces: padGlyphs,
                   ringed: pad.isAttached && padFaces == nil ? cursor.seat : nil,
+                  ringedOfficial: pad.isAttached ? cursor.official : nil,
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
                   spend: controller.spend,
@@ -874,7 +875,7 @@ struct GameView: View {
                   showingClamps: beingRead?.clamp != nil,
                   // A lesson is about the cards; nobody on the floor opens.
                   onInspectPlayer: { seat in if tutorial == nil { open(.player(seat)) } },
-                  onInspectReferees: { open(.referees) },
+                  onTapReferee: { tapReferee($0) },
                   camera: controller.camera,
                   passThrow: controller.passThrow)
             // No inset: the floor and the streaks run to the screen edges, and
@@ -1399,6 +1400,7 @@ struct GameView: View {
         case .confirm: confirm()
         case .decline: declineTheOffer()
         case .seat(let seat): select(seat)
+        case .official(let id): controller.choose(official: id)
         // **Exactly what a finger does.** A tap on a sheet takes the card off the table;
         // the button underneath is still what confirms it, and up is that button.
         case .offer(let pick): picked = pick
@@ -1487,6 +1489,16 @@ struct GameView: View {
         }
     }
 
+    /// **A tap on one of the crew.** While a card is naming an official he is the answer;
+    /// every other time the crew is something you read, so it opens their sheet.
+    private func tapReferee(_ id: UUID) {
+        if case .awaitingOfficialTarget = controller.gate {
+            controller.choose(official: id)
+            return
+        }
+        open(.referees)
+    }
+
     /// Saying no, where no is an answer — the button on the sheet, and circle.
     private func declineTheOffer() {
         if case .awaitingChallenge = controller.gate { controller.challenge(false); return }
@@ -1495,6 +1507,7 @@ struct GameView: View {
         case .awaitingOption:  controller.choose(option: false)
         case .awaitingToll:    controller.choose(toll: nil)
         case .awaitingNaming:  controller.choose(naming: nil)
+        case .awaitingOfficialTarget: controller.choose(official: nil)
         default: break
         }
     }

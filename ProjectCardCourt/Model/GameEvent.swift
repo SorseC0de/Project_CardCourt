@@ -34,6 +34,9 @@ enum GameEvent: Hashable, Codable {
     case whistleArmed(seat: Seat)
     /// **A call thrown out.** Once a game, and the official goes off with it.
     case challenged(seat: Seat, card: CardDescriptor)
+    /// **An official sent off by a card** rather than by a call — the ball got his
+    /// attention, and somebody else comes out to take his place.
+    case officialDistracted(seat: Seat, card: CardDescriptor)
     /// **A defender beaten.** His printed counter was met, so he is off his man — and the
     /// man he was on picks what blowing by him was worth.
     case clampBeaten(seat: Seat, card: CardDescriptor)
@@ -210,6 +213,8 @@ enum GameEvent: Hashable, Codable {
         case .challenged(let seat, let card):
             return "\(seat.playerName) \(seat.verb("challenges", "challenge")) — "
                 + "\(card.name) is thrown out."
+        case .officialDistracted(let seat, let card):
+            return "\(seat.playerName) \(seat.verb("waves", "wave")) \(card.name) off."
         case .crewAssigned(let cards):
             let names = cards.map(\.name).joined(separator: ", ")
             return "Working tonight: \(names)."

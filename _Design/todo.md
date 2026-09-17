@@ -402,3 +402,20 @@ east, north-east of him one facing south on the 0 → 1 → 0 → 2 loop, and so
 one facing west.
 
 **To import:** `Referee_inbound`, `Referee_holdball`, `Referee_run_look_N`, `_NW`, `_NE`.
+
+## The hair system
+
+Hair as generated pixel art rather than drawn frames. `Hair_base.png` and `Hair_guide.png`
+are imported and are what it builds against.
+
+- **A pixel generator**, the shape of P-Stars' deprecated grass generator.
+- **A designer bench**, with 8-way mirroring.
+- **Few colours.** Not every 2-tone combination presents under a 32-colour palette, so the
+  options are a curated list rather than a wheel.
+
+**Low priority** — it is purely visual polish and nothing plays differently without it.
+
+## Splash Ball has no effect yet
+
+The art is imported and finished; the card does not exist. It waits on a **batch of 5 or 10
+balls designed at once** rather than being written on its own.

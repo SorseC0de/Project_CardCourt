@@ -26,6 +26,8 @@ enum PadSpot: Hashable {
     case offer(CardPick)
     /// One of the ways a card can be played, on the card that offers a choice.
     case mode(Int)
+    /// One of the crew, when a card is naming which official goes.
+    case official(UUID)
 }
 
 /// Everything the pad may point at, in the order it is walked.
@@ -67,6 +69,11 @@ enum Row {
         // so the ring starts on the question and the cards are still there to be read.
         case .awaitingInbound, .awaitingTarget:
             return floor(controller) + hand
+
+        // The crew stands where it stands, so they walk in the order they were dealt.
+        // Leaving them alone is an answer, so decline is on the row with them.
+        case .awaitingOfficialTarget(_, let choices):
+            return choices.map(PadSpot.official) + [.decline] + hand
 
         // Wide-Open Three names as many as it likes and stops when it stops. Stopping is
         // circle rather than a spot — see `GameView.take(_:)`.
@@ -185,6 +192,7 @@ final class Cursor {
 
     var card: Card.ID? { if case .card(let id) = at { return id } else { return nil } }
     var seat: Seat? { if case .seat(let seat) = at { return seat } else { return nil } }
+    var official: UUID? { if case .official(let id) = at { return id } else { return nil } }
 }
 
 

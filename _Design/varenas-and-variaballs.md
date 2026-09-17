@@ -304,3 +304,19 @@ earns it: the beaten grey one with the texture worn off that somebody always bri
 outdoor run. No grip, so putting it up costs you.
 
 Both take the balls to **20**, matching the crew. Every ball is one copy.
+
+## Varenas are a game mode, not a card type
+
+Cut as a fifth type — Clamps took the slot — but the idea survives as **where you choose to
+play**. A Varena becomes a *wacky rules* mode: you pick one before the tip, the game runs
+under its conditions for the whole match, and the background changes to match the building.
+
+- **Ever-present, not played.** No slot, no draw, no replacement. The condition is simply
+  true all game, so everything above about the Varena slot being non-empty stops being a
+  rule and becomes the mode itself: the floor you picked *is* the floor.
+- **It already fits the code.** `MatchRules` is copied into the state when a match starts and
+  a game mode is a preset of it — a Varena is that preset plus a background.
+- **The cards written for them are the modes.** Cardwood is the plain game. The rest of the
+  list stays exactly as it reads; only how you get one changes.
+
+Variaballs are untouched by this: they stay cards, and stay the type the game is named for.

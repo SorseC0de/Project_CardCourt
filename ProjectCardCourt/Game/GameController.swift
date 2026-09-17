@@ -466,6 +466,8 @@ final class GameController {
         case awaitingPayoff(clamp: CardDescriptor)
         /// A call, and the one challenge a game that can throw it out.
         case awaitingChallenge(card: CardDescriptor)
+        /// Dishtracting Ball: which of the crew gets waved off, if any.
+        case awaitingOfficialTarget(card: CardDescriptor, choices: [UUID])
         /// A card out of somebody else's hand, face down.
         case awaitingCardFrom(card: CardDescriptor, victim: Seat)
         /// Wet Spot: one Injury off the table, some of them face down.
@@ -1165,6 +1167,9 @@ final class GameController {
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
             return seat.isLocal ? .awaitingMode(card: card) : .thinking
+        case .awaitingOfficialTarget(let seat, let card, let choices):
+            return seat.isLocal ? .awaitingOfficialTarget(card: card, choices: choices)
+                                : .thinking
         case .awaitingPayoff(let seat, let clamp):
             return seat.isLocal ? .awaitingPayoff(clamp: clamp) : .thinking
         case .awaitingChallenge(let seat, let card):
@@ -1857,6 +1862,18 @@ final class GameController {
         }
     }
 
+    /// An official waved off by the ball, or nil to leave the crew as it is.
+    func choose(official id: UUID?) {
+        guard !isPaused else { return }
+        guard case .awaitingOfficialTarget = gate else { return }
+        if sendUp(.official(id)) { return }
+        loop?.cancel()
+        drive {
+            await present(Rules.resolveOfficialTarget(id, state: &state))
+            await run()
+        }
+    }
+
     /// The passive given up when a fourth arrives.
     func choose(dropping id: String) {
         guard !isPaused else { return }
@@ -2422,6 +2439,19 @@ final class GameController {
                 }
                 if Task.isCancelled { return }
                 await present(Rules.resolveToll(pick, state: &state))
+                continue
+            }
+            if case .awaitingOfficialTarget(let seat, _, let choices) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                var waving = AIPolicy.distracts(state, for: seat)
+                if case .official(let said)? = await decision(from: seat) {
+                    waving = said.flatMap { choices.contains($0) ? $0 : nil }
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveOfficialTarget(waving, state: &state))
                 continue
             }
             if case .awaitingIntangibleDrop(let seat, let offered) = state.phase {

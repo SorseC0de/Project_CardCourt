@@ -52,6 +52,10 @@ enum Prompts {
             // it is worth something on its own.
             return Rules.resolveChallenge(AIPolicy.challenges(state, for: seat),
                                           state: &state)
+        case .awaitingOfficialTarget(let seat, _, _):
+            // Dishtracting Ball. The same read the shot takes, spent a step earlier.
+            return Rules.resolveOfficialTarget(AIPolicy.distracts(state, for: seat),
+                                               state: &state)
         case .awaitingPayoff(let seat, _):
             return Rules.takePayoff(AIPolicy.payoff(state, for: seat), by: seat, state: &state)
         case .awaitingCardFrom(_, _, let victim):

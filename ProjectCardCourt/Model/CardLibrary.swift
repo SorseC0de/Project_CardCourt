@@ -23,11 +23,11 @@ enum CardLibrary {
     /// and it is what keeps the deck at three hundred.
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "~[Pass] Left.", numberInDeck: 21, passTarget: .left)
+        effect: "~[Pass] Left.", numberInDeck: 20, passTarget: .left)
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "~[Pass] Right.", numberInDeck: 21, passTarget: .right)
+        effect: "~[Pass] Right.", numberInDeck: 20, passTarget: .right)
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip Pass", type: .pass,
@@ -988,10 +988,28 @@ enum CardLibrary {
         id: "bench-ball", name: "Bench Ball", type: .variaball,
         effect: "Receiving it by ~[Pass]: no draw, no turn. You inbound", numberInDeck: 1,
         variaball: VariaballEffect(benchesReceiver: true))
+    /// **The ball that gets the officials looking at it** instead of at the floor. The
+    /// word *target* is printed so a Floor General can name the one who goes.
     static let dishtractingBall = CardDescriptor(
         id: "dishtracting-ball", name: "Dishtracting Ball", type: .variaball,
+        effect: "While passing, you may #[Retire] target ~[Ref] and place a new one",
+        numberInDeck: 1,
+        variaball: VariaballEffect(retiresARef: true))
+    /// **The ball that will not tell you the truth about a miss.** Once more is literal:
+    /// one extra attempt, and a missed retake is just a miss.
+    static let liarBall = CardDescriptor(
+        id: "liar-ball", name: "Liar Ball", type: .variaball,
+        effect: "On #[FT] miss: take once more", numberInDeck: 1,
+        variaball: VariaballEffect(retakesMissedFreeThrow: true))
+
+    /// **The beaten grey one with the texture worn off** that somebody always brings to an
+    /// outdoor run. No grip, so putting it up costs you — which is the toll Dishtracting
+    /// Ball used to carry before it went off to distract the officials instead.
+    static let baldBall = CardDescriptor(
+        id: "bald-ball", name: "Bald Ball", type: .variaball,
         effect: "Shooting: #[Retire] 1 card", numberInDeck: 1,
         variaball: VariaballEffect(shooterDiscards: 1))
+
     static let handBall = CardDescriptor(
         id: "hand-ball", name: "Hand Ball", type: .variaball,
         effect: "A ~[Pass] swaps hands: yours goes with the ball, theirs comes back",
@@ -1061,6 +1079,7 @@ enum CardLibrary {
 
     static let variaballs: [CardDescriptor] = [
         medBall, dishcountBall, blightBall, benchBall, dishtractingBall, handBall, footBall,
+        liarBall, baldBall,
         rechargeRock, variaball, shufflebagBall, bagnBall, blazeBall, snowBall, brickBall,
         monsterBall, brandNewBall, makeOrTakeBall, heroBall,
     ]

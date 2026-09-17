@@ -24,6 +24,8 @@ enum Decision: Codable {
     /// can hold more than one card that answers the same arrival.
     case counter(UUID?)
     case option(Bool)
+    /// Which official is being sent off, or nil for none.
+    case official(UUID?)
     case cardFrom(UUID)
     case mode(Int)
 }

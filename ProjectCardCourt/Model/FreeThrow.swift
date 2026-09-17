@@ -25,6 +25,9 @@ struct FreeThrowTrip: Hashable, Codable {
     var attempted = 0
     var made = 0
     var remaining: Int
+    /// **Liar Ball: a miss has already been taken once more.** One extra attempt, not a
+    /// trip that never ends — the ball lies about the first miss and only the first.
+    var retaken = false
     /// Make-or-Take Ball: a trip taken before a rebound, which goes up once it is over.
     var thenRebound: Seat?
 

@@ -462,7 +462,12 @@ struct VariaballEffect: Hashable, Codable {
     /// makes picking it up a decision — you cannot get a good look with it, but you can run
     /// all day. The speed limit itself is a Clamp's now, so what this lifts is the call.
     var ignoresTravel = false
-    /// Dishtracting Ball: putting it up costs a card. **On the shot, not on the catch** —
+    /// **Liar Ball: a missed free throw is taken once more.** Once, not until it drops.
+    var retakesMissedFreeThrow = false
+    /// **Dishtracting Ball: it distracts the officials.** While passing, its carrier may
+    /// send a referee off and turn a fresh one over in his place.
+    var retiresARef = false
+    /// Bald Ball: putting it up costs a card. **On the shot, not on the catch** —
     /// a toll every player paid the moment the ball reached them taxed the whole table on
     /// every change of possession, which is a lot of hand for a ball nobody chose to hold.
     /// Paid by the man who decided to shoot, which is a price against a decision.

@@ -212,6 +212,22 @@ struct AIPolicy {
         return effect.turnoverOnOffender || effect.offenderInbounds
     }
 
+    /// **Which official the ball waves off**, or nil to leave the crew alone.
+    ///
+    /// The same read the shot takes, spent a step earlier: the man watching a finish is
+    /// the one standing between this hand and a basket, so he goes first. Failing that,
+    /// whoever can take the round away. An official who is *paying* the floor stays —
+    /// sending him off is sending off your own ten per cent.
+    static func distracts(_ state: GameState, for seat: Seat) -> UUID? {
+        let crew = state.armedWhistles.filter {
+            ($0.card.descriptor.whistle?.shotWhileWorking ?? 0) <= 0
+        }
+        if let watching = crew.first(where: {
+            $0.card.descriptor.whistle?.requiresShotType != nil
+        }) { return watching.id }
+        return crew.first { $0.card.descriptor.whistle?.endsRound == true }?.id
+    }
+
     /// What to take for beating a defender. Cards first while the hand is thin, the free
     /// look once it is not — and the rotation when there is somebody worth putting him on.
     static func payoff(_ state: GameState, for seat: Seat) -> ClampPayoff {

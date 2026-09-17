@@ -175,24 +175,27 @@ func slotTests() {
     }
 
     do {
-        // **Med Ball lifts the speed limit.** Travel is called on the fourth Move of a
-        // possession; the man carrying this one can run all day, which is the half of the
+        // **Med Ball lifts the speed limit.** Travel is a coin on every Move card now, so
+        // the loose case is counted over a spread of seeds rather than pinned to one —
+        // the man carrying this ball can run all day either way, which is the half of the
         // card that makes picking it up a decision rather than a punishment.
-        var (state, seat, cards) = openPossession(seed: 213, cards: [CardLibrary.drive])
-        state.armedWhistles = [ArmedWhistle(owner: nil,
-                                            card: matchCard(CardLibrary.travel, state.rules))]
-        state.movesThisPossession = 3
-        let called = Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(called.contains { if case .whistleBlew = $0 { return true }; return false },
-                   "the fourth Move travels")
-
-        var (loose, runner, running) = openPossession(seed: 213, cards: [CardLibrary.drive])
-        loose.ballCard = Card(CardLibrary.medBall)
-        loose.armedWhistles = [ArmedWhistle(owner: nil,
-                                            card: matchCard(CardLibrary.travel, loose.rules))]
-        loose.movesThisPossession = 3
-        let waved = Rules.apply(.play(running[0].id), by: runner, to: &loose)
-        Check.that(!waved.contains { if case .whistleBlew = $0 { return true }; return false },
+        func travelCalls(carryingMedBall: Bool) -> Int {
+            var called = 0
+            for seed in UInt64(200)..<240 {
+                var (state, seat, cards) = openPossession(seed: seed, cards: [CardLibrary.drive])
+                if carryingMedBall { state.ballCard = Card(CardLibrary.medBall) }
+                state.armedWhistles = [ArmedWhistle(
+                    owner: nil, card: matchCard(CardLibrary.travel, state.rules))]
+                let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+                if events.contains(where: {
+                    if case .whistleBlew = $0 { return true }; return false
+                }) { called += 1 }
+            }
+            return called
+        }
+        let loose = travelCalls(carryingMedBall: false)
+        Check.that(loose > 0, "a Move travels on tails (\(loose) of 40)")
+        Check.that(travelCalls(carryingMedBall: true) == 0,
                    "Med Ball: Move cards never Travel")
     }
 
@@ -200,16 +203,67 @@ func slotTests() {
         // **On the shot, not on the catch.** Taking the ball is free; putting it up is
         // what costs a card, and it is the shooter who pays.
         var (state, seat, cards) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
-        state.ballCard = Card(CardLibrary.dishtractingBall)
+        state.ballCard = Card(CardLibrary.baldBall)
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
         Check.that({ if case .awaitingGiveUp = state.phase { return false }
                      return true }(),
-                   "Dishtracting Ball: catching it costs nothing")
+                   "Bald Ball: catching it costs nothing")
         let shooter = state.ball ?? seat.left
         Rules.apply(.shootAs(.layup), by: shooter, to: &state)
         Check.that({ if case .awaitingGiveUp(let who, _, 1) = state.phase { return who == shooter }
                      return false }(),
-                   "Dishtracting Ball: shooting it costs a card")
+                   "Bald Ball: shooting it costs a card")
+    }
+
+    do {
+        // **Dishtracting Ball gets the officials' attention, not the defence's.** The
+        // pass stops to name one of the crew, he goes off with it, and somebody comes out
+        // to take his place — then the ball carries on to where it was thrown.
+        var (state, seat, cards) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.dishtractingBall)
+        state.armedWhistles = [CardLibrary.travel, CardLibrary.charge, CardLibrary.blockingFoul]
+            .map { ArmedWhistle(owner: nil, card: matchCard($0, state.rules)) }
+        let crew = state.armedWhistles.count
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that({ if case .awaitingOfficialTarget(let who, _, let choices) = state.phase {
+                       return who == seat && choices.count == crew }
+                     return false }(),
+                   "Dishtracting Ball: the pass stops to name an official (\(crew) working)")
+        let waved = state.armedWhistles[0].id
+        let thrown = Rules.resolveOfficialTarget(waved, state: &state)
+        Check.that(!state.armedWhistles.contains { $0.id == waved },
+                   "the named official goes off")
+        Check.that(state.armedWhistles.count == crew, "and a replacement comes out")
+        Check.that(thrown.contains { if case .passed = $0 { return true }; return false },
+                   "and the pass is thrown anyway")
+
+        // Declining is an answer: the crew stands and the ball still goes.
+        var (stands, passer, held) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
+        stands.ballCard = Card(CardLibrary.dishtractingBall)
+        stands.armedWhistles = [CardLibrary.travel, CardLibrary.charge, CardLibrary.blockingFoul]
+            .map { ArmedWhistle(owner: nil, card: matchCard($0, stands.rules)) }
+        let standing = stands.armedWhistles.map(\.id)
+        Rules.apply(.play(held[0].id), by: passer, to: &stands)
+        let kept = Rules.resolveOfficialTarget(nil, state: &stands)
+        Check.that(stands.armedWhistles.map(\.id) == standing, "declined: the crew stands")
+        Check.that(kept.contains { if case .passed = $0 { return true }; return false },
+                   "and the pass is thrown all the same")
+    }
+
+    do {
+        // **Liar Ball says the first miss did not count.** One more attempt, and the
+        // retake is taken at its word however it lands.
+        var (state, seat, _) = openPossession(seed: 212, cards: [CardLibrary.swingLeft])
+        state.ballCard = Card(CardLibrary.liarBall)
+        state.phase = .freeThrows(trip: FreeThrowTrip(shooter: seat, offender: nil,
+                                                      source: "Foul", remaining: 1))
+        Rules.resolveFreeThrow(made: false, state: &state)
+        Check.that({ if case .freeThrows(let trip) = state.phase { return trip.remaining == 1 }
+                     return false }(),
+                   "Liar Ball: a missed free throw is taken once more")
+        Rules.resolveFreeThrow(made: false, state: &state)
+        Check.that({ if case .freeThrows = state.phase { return false }; return true }(),
+                   "and the retake is the end of it")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 213, cards: [CardLibrary.swingLeft])

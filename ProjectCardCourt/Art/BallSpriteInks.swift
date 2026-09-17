@@ -9,6 +9,7 @@ import SwiftUI
 enum BallSpriteInks {
     static let byBall: [String: (body: Color, light: Color)] = [
         "bagn-ball": (body: PixelPalette.orange, light: PixelPalette.gold),
+        "bald-ball": (body: PixelPalette.stone, light: PixelPalette.slate),
         "blaze-ball": (body: PixelPalette.vermilion, light: PixelPalette.orange),
         "blight-ball": (body: PixelPalette.midnight, light: PixelPalette.indigo),
         "brick-ball": (body: PixelPalette.darkRed, light: PixelPalette.vermilion),
@@ -17,12 +18,11 @@ enum BallSpriteInks {
         "foot-ball": (body: PixelPalette.vermilion, light: PixelPalette.midnight),
         "hand-ball": (body: PixelPalette.midnight, light: PixelPalette.vermilion),
         "hero-ball": (body: PixelPalette.blue, light: PixelPalette.vermilion),
-        // **Wine over midnight.** The drawing reads deep teal because of how it is
-        // lit, and a sprite has no lighting to explain that away. Maroon rather
-        // than the darker red: that one is brick, and Brick Ball is already it.
+        "liar-ball": (body: PixelPalette.vermilion, light: PixelPalette.orange),
         "med-ball": (body: PixelPalette.midnight, light: PixelPalette.maroon),
         "monster-ball": (body: PixelPalette.darkRed, light: PixelPalette.darkMagenta),
         "recharge-rock": (body: PixelPalette.gold, light: PixelPalette.aqua),
         "snow-ball": (body: PixelPalette.aqua, light: PixelPalette.ice),
+        "splash-ball": (body: PixelPalette.aqua, light: PixelPalette.ice),
     ]
 }

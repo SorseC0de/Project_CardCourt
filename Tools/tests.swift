@@ -1187,12 +1187,12 @@ func runTests() {
         Check.that(state.shotClock == 3, "and costs two ticks of five, not all of them")
     }
     do {
-        // **Dishtracting Ball takes its card on the shot**, not on the catch: the man who
+        // **Bald Ball takes its card on the shot**, not on the catch: the man who
         // decided to put it up pays for it. The attempt is owed while he is being asked,
         // so answering is what makes it go up — and nothing about the shot is lost in
         // between.
         var (state, seat, _) = openPossession(seed: 56, cards: [])
-        state.ballCard = Card(CardLibrary.dishtractingBall)
+        state.ballCard = Card(CardLibrary.baldBall)
         state.shot = 50
         let held = state[seat].bag.count
         let events = Rules.apply(.shootAs(.layup), by: seat, to: &state)
@@ -1201,7 +1201,7 @@ func runTests() {
         guard case .awaitingGiveUp(let asked, let card, _) = state.phase else {
             Check.that(false, "the toll is asked"); return
         }
-        Check.that(asked == seat && card.id == CardLibrary.dishtractingBall.id,
+        Check.that(asked == seat && card.id == CardLibrary.baldBall.id,
                    "the ball is what is asking")
         let give = state[seat].bag.first.map { [$0.id] } ?? []
         let paid = Rules.resolveGiveUp(give, state: &state)

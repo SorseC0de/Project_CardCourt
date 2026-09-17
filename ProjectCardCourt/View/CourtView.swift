@@ -42,6 +42,8 @@ struct CourtView: View {
     /// **The wedge already over his head, in the cursor's colour** — a ring round a
     /// figure would be the one box on a floor with no boxes on it.
     var ringed: Seat?
+    /// The official the pad's ring is on, while a card is naming one.
+    var ringedOfficial: UUID?
     /// Cards dealt but not yet landed — see `GameController.undelivered`. A bag count
     /// that ticks up before the card arrives is the same instant draw in miniature.
     var undelivered: Set<UUID> = []
@@ -65,8 +67,10 @@ struct CourtView: View {
     var showingClamps = false
     /// A tap on somebody who is not a legal target: read them instead of passing to them.
     var onInspectPlayer: (Seat) -> Void = { _ in }
-    /// A tap on any referee. There is one sheet for the whole crew.
-    var onInspectReferees: () -> Void = {}
+    /// A tap on a referee, carrying the man who was tapped. There is one sheet for the
+    /// whole crew, so most of the time which one he was does not matter — but a card that
+    /// names an official does, and it is the same gesture either way.
+    var onTapReferee: (UUID) -> Void = { _ in }
     /// What the camera is framing — see `CourtCamera`. Nil is the whole floor.
     var camera: CourtCamera?
     /// The last pass thrown — see `GameController.passThrow`.
@@ -174,6 +178,13 @@ struct CourtView: View {
     @State private var clockShift: [Seat: TimeInterval] = [:]
 
     private var selectableSeats: Set<Seat> { Self.choosable(at: gate, in: state) }
+
+    /// **Which of the crew can be named**, when a card is asking. Empty every other time,
+    /// which is what leaves a tap on a referee meaning "read the crew".
+    private var namedOfficials: Set<UUID> {
+        if case .awaitingOfficialTarget(_, let choices) = gate { return Set(choices) }
+        return []
+    }
 
     /// Who can be picked off the floor, for whatever the table is asking.
     ///
@@ -1030,14 +1041,18 @@ struct CourtView: View {
                     SmallCapsText(text: called.card.name.uppercased(),
                                   font: "AvenirNextCondensed-Heavy",
                                   size: Referee.name, scalesWithTextSize: false)
-                        .foregroundStyle(.white)
+                        // Lit the same colour a player wears when he is the one being
+                        // named, so "pick one of these" reads the same wherever it is asked.
+                        .foregroundStyle(called.id == ringedOfficial ? CardPalette.gold
+                                         : namedOfficials.contains(called.id) ? Theme.live
+                                         : .white)
                         .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
                         .fixedSize()
                         .scaleEffect(nameScale, anchor: .bottom)
                         .offset(y: -Referee.name * nameScale)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture(perform: onInspectReferees)
+                .onTapGesture { onTapReferee(called.id) }
                 .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .top)
                 .position(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,

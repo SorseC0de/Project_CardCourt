@@ -98,6 +98,10 @@ enum Phase: Hashable, Codable {
     /// One phase for every kind of it — a pass of choice, a Nutmeg's two, an Ankle
     /// Breaker's victim. What the choice *does* is on the card; this only collects it.
     case awaitingTarget(seat: Seat, card: CardDescriptor, choices: [Seat])
+    /// **Dishtracting Ball: which official gets sent off.** The crew is face-up, so
+    /// this is a real read rather than a guess — choices are their armed ids, and
+    /// declining is an answer.
+    case awaitingOfficialTarget(seat: Seat, card: CardDescriptor, choices: [UUID])
     /// Triple Threat: one of the card's own branches.
     case awaitingMode(seat: Seat, card: CardDescriptor)
     /// **A call, and the man it is against.** Once a game he may throw it out and send the
@@ -147,7 +151,8 @@ enum Phase: Hashable, Codable {
     var isMidPlay: Bool {
         switch self {
         case .awaitingTarget, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
-             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop, .awaitingPayoff:
+             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop, .awaitingPayoff,
+             .awaitingOfficialTarget:
             return true
         default:
             return false
@@ -171,6 +176,7 @@ enum Phase: Hashable, Codable {
         case .awaitingDiscard(let seat, _, _): return seat
         case .awaitingGiveUp(let seat, _, _): return seat
         case .awaitingTarget(let seat, _, _): return seat
+        case .awaitingOfficialTarget(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
         case .awaitingPayoff(let seat, _): return seat
         case .awaitingChallenge(let seat, _): return seat
