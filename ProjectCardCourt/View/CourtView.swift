@@ -426,6 +426,11 @@ struct CourtView: View {
                 }
             }
             .animation(.spring(response: 0.42, dampingFraction: 0.72), value: state.ball)
+            // **Boxed before the camera and the tasks.** This body was 208 generics deep
+            // and building it is a walk down all of them — which is a crash on a device,
+            // arriving as EXC_BAD_ACCESS in whatever leaf the walk was in. See
+            // `GameView.floorDepths`, which reads this number on every DEBUG launch.
+            .erased()
             // **The camera.** The floor and everyone on it; the HUD over the court is hung
             // on outside this view and stays put. Clipped only while it is zoomed, so the
             // floor's usual overhang is left alone.
@@ -600,40 +605,42 @@ struct CourtView: View {
 
     /// Just the floor: a gradient that fades to nothing at the horizon, with a band of
     /// light travelling down it. No outline — the converging edges carry the perspective.
-    private func room(_ court: CourtGeometry) -> some View {
-        GeometryReader { geo in
-            let band = geo.size.height * Perspective.sweepHeight
-            ZStack {
-                Rectangle().fill(
-                    LinearGradient(
-                        stops: [
-                            // The floor's own colour at zero, not `.clear`: a ramp out of
-                            // transparent black takes the brown towards grey on the way.
-                            .init(color: Theme.courtFloor.opacity(0),
-                                  location: Perspective.horizon),
-                            .init(color: Theme.courtFloor, location: Perspective.floorFadeEnd),
-                        ],
-                        startPoint: .top, endPoint: .bottom))
+    private func room(_ court: CourtGeometry) -> AnyView {
+        AnyView(Group {
+            GeometryReader { geo in
+                let band = geo.size.height * Perspective.sweepHeight
+                ZStack {
+                    Rectangle().fill(
+                        LinearGradient(
+                            stops: [
+                                // The floor's own colour at zero, not `.clear`: a ramp out of
+                                // transparent black takes the brown towards grey on the way.
+                                .init(color: Theme.courtFloor.opacity(0),
+                                      location: Perspective.horizon),
+                                .init(color: Theme.courtFloor, location: Perspective.floorFadeEnd),
+                            ],
+                            startPoint: .top, endPoint: .bottom))
 
-                // On the boards, under the light that travels over them. Inside the
-                // mask, so the floor's own shape is what clips them and no streak can
-                // run off the edge onto the dark.
-                FloorStreaks(paused: sceneryAsleep)
-                    .opacity(courtIsRunning ? 1 : 0)
-                    .animation(.easeOut(duration: 0.4), value: courtIsRunning)
-
-                if !sceneryAsleep {
-                    FloorSweep(band: band, height: geo.size.height)
-                        // **The light only.** This sat on the whole stack, so an inbound took
-                        // the floor away with it rather than stopping the thing moving over
-                        // it — which is why everything standing on the floor looked far
-                        // darker than the scrim over it could account for.
+                    // On the boards, under the light that travels over them. Inside the
+                    // mask, so the floor's own shape is what clips them and no streak can
+                    // run off the edge onto the dark.
+                    FloorStreaks(paused: sceneryAsleep)
                         .opacity(courtIsRunning ? 1 : 0)
                         .animation(.easeOut(duration: 0.4), value: courtIsRunning)
+
+                    if !sceneryAsleep {
+                        FloorSweep(band: band, height: geo.size.height)
+                            // **The light only.** This sat on the whole stack, so an inbound took
+                            // the floor away with it rather than stopping the thing moving over
+                            // it — which is why everything standing on the floor looked far
+                            // darker than the scrim over it could account for.
+                            .opacity(courtIsRunning ? 1 : 0)
+                            .animation(.easeOut(duration: 0.4), value: courtIsRunning)
+                    }
                 }
+                .mask(CourtFloorShape())
             }
-            .mask(CourtFloorShape())
-        }
+        })
     }
 
     /// Where the deck and the discard stand, as court points.
@@ -837,21 +844,23 @@ struct CourtView: View {
         return ("Select a Player", "Inbound")
     }
 
-    private var inboundPrompt: some View {
-        // Each line placed on its own, because the two are different sizes and the gap
-        // that looks right between them is not a spacing — it is where each one sits.
-        ZStack {
-            ActionText(promptRuns.top, size: 46)
-                .offset(x: prompt.topX, y: prompt.topY)
-            ActionText(runs: [.init("to "),
-                              .init(promptRuns.verb, ink: CardPalette.gold,
-                                    drop: CardPalette.orange),
-                              .init(" to!")],
-                       size: 26)
-                .offset(x: prompt.bottomX, y: prompt.bottomY)
-        }
-        .fixedSize()
-        .allowsHitTesting(false)
+    private var inboundPrompt: AnyView {
+        AnyView(Group {
+            // Each line placed on its own, because the two are different sizes and the gap
+            // that looks right between them is not a spacing — it is where each one sits.
+            ZStack {
+                ActionText(promptRuns.top, size: 46)
+                    .offset(x: prompt.topX, y: prompt.topY)
+                ActionText(runs: [.init("to "),
+                                  .init(promptRuns.verb, ink: CardPalette.gold,
+                                        drop: CardPalette.orange),
+                                  .init(" to!")],
+                           size: 26)
+                    .offset(x: prompt.bottomX, y: prompt.bottomY)
+            }
+            .fixedSize()
+            .allowsHitTesting(false)
+        })
     }
 
     /// Set and waiting for the throw-in.
@@ -1111,122 +1120,124 @@ struct CourtView: View {
         court.scale(at: Perspective.inboundLine) / court.scale(of: seat, inbounding: thrower)
     }
 
-    private func node(_ seat: Seat, on court: CourtGeometry) -> some View {
-        let selectable = selectableSeats.contains(seat)
-        return VStack(spacing: 3) {
-            PlayerFigure(
-                seat: seat,
-                isHolding: holder == seat,
-                isActing: state.phase.actingSeat == seat,
-                // The seat being asked to choose is never dimmed, even though it is
-                // not a legal target for itself.
-                isDimmed: !selectableSeats.isEmpty && !selectable
-                    && state.phase.actingSeat != seat,
-                marker: marker(for: seat, selectable: selectable),
-                clampCount: showingClamps ? state[seat].clamps.count : nil,
-                handCount: state[seat].bag.count { !undelivered.contains($0.id) },
-                // Set and waiting for it, like everybody else during an inbound — and
-                // turned to watch whoever is throwing it, rather than facing whichever
-                // way the run of play had left them. One of four ways of standing, so a
-                // line of four is not one man printed four times.
-                //
-                // **Nothing else on the court moves while somebody is going up.** The
-                // three who are not on the board stand and watch it, turned away — they
-                // were jogging on the spot through the whole leap, which read as a play
-                // carrying on behind the one thing everybody is meant to be looking at.
-                // They pick their running back up the moment he comes down with it.
-                // A call stops the play: everybody stands, turned away, while the
-                // official makes it — the same pose they hold for a rebound.
-                sprite: waitingForThrow(seat) ? .inboundReceiverBack
-                    : ((watching(seat) || callingRef != nil) ? .back : nil),
-                spriteFrame: waitingForThrow(seat) ? look.waiting(for: seat).cell : nil,
-                facing: passer,
-                mirrored: waitingForThrow(seat) ? (look.waiting(for: seat).mirrored
-                                                   ? !facesThrower(seat) : facesThrower(seat))
-                    : nil,
-                // A throw-in is caught too. `holder` is not yet this seat during the
-                // throw — the rules moved the ball before the beat began — so the throw
-                // names its own receiver.
-                caughtAt: (holder == seat || throwing?.to == seat) ? landedAt : nil,
-                // Only the man who won it goes up, and only he comes down with it.
-                reboundID: rebound?.seat == seat ? rebound?.id : nil,
-                // Warping to a spot during a stoppage is arriving somewhere; a warp in
-                // the run of play is not, and landing out of one would stop him dead.
-                landsFromWarp: isStill,
-                // Nobody dribbles a ball that is still in the air. The thrower has let go
-                // and the receiver has not caught it yet, so both are simply running.
-                awaitingBall: ballInFlight && holder == seat,
-                throwing: throwing(seat),
-                clockShift: clockShift[seat] ?? 0,
-                // Whoever is inbounding is drawn on the sideline instead, further up this
-                // same stack. He warps off the floor rather than being cut from it — and
-                // the sprite alone comes apart, since a bag count in columns is a number
-                // falling to bits rather than a player leaving.
-                warp: isAway(seat) ? 1 : 0,
-                warpSeed: warpSeed)
-                .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
-            HStack(spacing: NamePlate.size * 0.18) {
-                PlayerNameText(seat: seat, size: NamePlate.size,
-                               tracking: NamePlate.tracking)
-                // Whoever has it, said twice: the sprite is dribbling one and this is the
-                // same fact at a glance, without having to find the pixel in his hands.
-                if holder == seat {
-                    BallView(diameter: NamePlate.size * 0.8)
-                        .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+    private func node(_ seat: Seat, on court: CourtGeometry) -> AnyView {
+        AnyView(Group {
+            let selectable = selectableSeats.contains(seat)
+            return VStack(spacing: 3) {
+                PlayerFigure(
+                    seat: seat,
+                    isHolding: holder == seat,
+                    isActing: state.phase.actingSeat == seat,
+                    // The seat being asked to choose is never dimmed, even though it is
+                    // not a legal target for itself.
+                    isDimmed: !selectableSeats.isEmpty && !selectable
+                        && state.phase.actingSeat != seat,
+                    marker: marker(for: seat, selectable: selectable),
+                    clampCount: showingClamps ? state[seat].clamps.count : nil,
+                    handCount: state[seat].bag.count { !undelivered.contains($0.id) },
+                    // Set and waiting for it, like everybody else during an inbound — and
+                    // turned to watch whoever is throwing it, rather than facing whichever
+                    // way the run of play had left them. One of four ways of standing, so a
+                    // line of four is not one man printed four times.
+                    //
+                    // **Nothing else on the court moves while somebody is going up.** The
+                    // three who are not on the board stand and watch it, turned away — they
+                    // were jogging on the spot through the whole leap, which read as a play
+                    // carrying on behind the one thing everybody is meant to be looking at.
+                    // They pick their running back up the moment he comes down with it.
+                    // A call stops the play: everybody stands, turned away, while the
+                    // official makes it — the same pose they hold for a rebound.
+                    sprite: waitingForThrow(seat) ? .inboundReceiverBack
+                        : ((watching(seat) || callingRef != nil) ? .back : nil),
+                    spriteFrame: waitingForThrow(seat) ? look.waiting(for: seat).cell : nil,
+                    facing: passer,
+                    mirrored: waitingForThrow(seat) ? (look.waiting(for: seat).mirrored
+                                                       ? !facesThrower(seat) : facesThrower(seat))
+                        : nil,
+                    // A throw-in is caught too. `holder` is not yet this seat during the
+                    // throw — the rules moved the ball before the beat began — so the throw
+                    // names its own receiver.
+                    caughtAt: (holder == seat || throwing?.to == seat) ? landedAt : nil,
+                    // Only the man who won it goes up, and only he comes down with it.
+                    reboundID: rebound?.seat == seat ? rebound?.id : nil,
+                    // Warping to a spot during a stoppage is arriving somewhere; a warp in
+                    // the run of play is not, and landing out of one would stop him dead.
+                    landsFromWarp: isStill,
+                    // Nobody dribbles a ball that is still in the air. The thrower has let go
+                    // and the receiver has not caught it yet, so both are simply running.
+                    awaitingBall: ballInFlight && holder == seat,
+                    throwing: throwing(seat),
+                    clockShift: clockShift[seat] ?? 0,
+                    // Whoever is inbounding is drawn on the sideline instead, further up this
+                    // same stack. He warps off the floor rather than being cut from it — and
+                    // the sprite alone comes apart, since a bag count in columns is a number
+                    // falling to bits rather than a player leaving.
+                    warp: isAway(seat) ? 1 : 0,
+                    warpSeed: warpSeed)
+                    .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
+                HStack(spacing: NamePlate.size * 0.18) {
+                    PlayerNameText(seat: seat, size: NamePlate.size,
+                                   tracking: NamePlate.tracking)
+                    // Whoever has it, said twice: the sprite is dribbling one and this is the
+                    // same fact at a glance, without having to find the pixel in his hands.
+                    if holder == seat {
+                        BallView(diameter: NamePlate.size * 0.8)
+                            .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                    .animation(.easeOut(duration: 0.2), value: holder == seat)
+                    // The name goes with him, whole — it is a label, not a body.
+                    .opacity(isAway(seat) ? 0 : 1)
+                    .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
+                    .fixedSize()
+                    // The node is scaled by its row, which sized Raheem's name to the horizon
+                    // and blew the human's up. A name is a label rather than a thing standing
+                    // on the floor, so it is scaled back out to the one size the flanks read
+                    // at — the middle of the three, and the only one nobody had to squint at.
+                    .scaleEffect(nameScale(seat, on: court), anchor: .bottom)
+                    // Pulled up through the sheet's empty rows, or it sits a long way under
+                    // the feet at this scale.
+                    .offset(x: isFarSeat(seat) ? Theme.Figure.height * NamePlate.farX : 0,
+                            y: -Theme.Figure.height
+                                * (Theme.Figure.spriteFootPadding
+                                   + (isFarSeat(seat) ? NamePlate.farLift
+                                      : wearsNameHigh(seat) ? NamePlate.highLift
+                                      : -NamePlate.drop)))
+            }
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) {
+                if let bid = revealedBids?[seat] {
+                    Text("\(bid)")
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 9).padding(.vertical, 2)
+                        .background(Capsule().fill(Theme.color(for: seat).opacity(0.9)))
+                        .offset(y: -14)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
-                .animation(.easeOut(duration: 0.2), value: holder == seat)
-                // The name goes with him, whole — it is a label, not a body.
-                .opacity(isAway(seat) ? 0 : 1)
-                .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
-                .fixedSize()
-                // The node is scaled by its row, which sized Raheem's name to the horizon
-                // and blew the human's up. A name is a label rather than a thing standing
-                // on the floor, so it is scaled back out to the one size the flanks read
-                // at — the middle of the three, and the only one nobody had to squint at.
-                .scaleEffect(nameScale(seat, on: court), anchor: .bottom)
-                // Pulled up through the sheet's empty rows, or it sits a long way under
-                // the feet at this scale.
-                .offset(x: isFarSeat(seat) ? Theme.Figure.height * NamePlate.farX : 0,
-                        y: -Theme.Figure.height
-                            * (Theme.Figure.spriteFootPadding
-                               + (isFarSeat(seat) ? NamePlate.farLift
-                                  : wearsNameHigh(seat) ? NamePlate.highLift
-                                  : -NamePlate.drop)))
-        }
-        .contentShape(Rectangle())
-        .overlay(alignment: .top) {
-            if let bid = revealedBids?[seat] {
-                Text("\(bid)")
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Theme.ink)
-                    .padding(.horizontal, 9).padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.color(for: seat).opacity(0.9)))
-                    .offset(y: -14)
-                    .transition(.scale.combined(with: .opacity))
+            // **A man who is not on the floor is not there to be tapped.** He warps out for
+            // his own inbound and his node stays in the hierarchy, invisible — and its content
+            // shape went on taking taps meant for whoever is standing behind it, answering
+            // them with an inspection of the man who had left.
+            .allowsHitTesting(!isAway(seat))
+            .onTapGesture { selectable ? onSelect(seat) : onInspectPlayer(seat) }
+            // The button that names him, over his head where the wedge is. Only ever while
+            // the question is up, and only ever for a pad.
+            .overlay(alignment: .top) {
+                if let glyph = faces[seat] {
+                    Image(systemName: glyph)
+                        .font(.system(size: Face.glyph, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
+                        .offset(y: Face.lift)
+                        .allowsHitTesting(false)
+                        .transition(.scale.combined(with: .opacity))
+                }
             }
-        }
-        // **A man who is not on the floor is not there to be tapped.** He warps out for
-        // his own inbound and his node stays in the hierarchy, invisible — and its content
-        // shape went on taking taps meant for whoever is standing behind it, answering
-        // them with an inspection of the man who had left.
-        .allowsHitTesting(!isAway(seat))
-        .onTapGesture { selectable ? onSelect(seat) : onInspectPlayer(seat) }
-        // The button that names him, over his head where the wedge is. Only ever while
-        // the question is up, and only ever for a pad.
-        .overlay(alignment: .top) {
-            if let glyph = faces[seat] {
-                Image(systemName: glyph)
-                    .font(.system(size: Face.glyph, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .shadow(color: CardPalette.navy, radius: 0, x: 3, y: 3)
-                    .offset(y: Face.lift)
-                    .allowsHitTesting(false)
-                    .transition(.scale.combined(with: .opacity))
-            }
-        }
-        .animation(.easeOut(duration: 0.2), value: revealedBids?[seat])
+            .animation(.easeOut(duration: 0.2), value: revealedBids?[seat])
+        })
     }
 }
 

@@ -153,9 +153,20 @@ struct GameView: View {
             // than anything on the screen. Building a view walks its generic type, and a
             // walk long enough runs off the end of the stack — on a device first, because
             // its main thread has less of one. Measured rather than guessed at.
+            // **Every screen on the floor, not just this one.** An `AnyView` hides a
+            // subview's type from *its parent*, which is what the erasures here buy — but
+            // the subview's own body still has to be built, and its own walk is its own
+            // stack. Measuring only the outer one is how this got missed twice.
+            for (what, deep) in Self.floorDepths {
+                DevLog.say(.input, "type depth: \(what) \(deep)")
+                if deep > Self.deepestSafeBody {
+                    DevLog.say(.input, "WARNING: \(what) is \(deep) deep, over "
+                               + "\(Self.deepestSafeBody) — add an .erased() before this "
+                               + "crashes on a device")
+                }
+            }
             let name = _typeName(Self.Body.self)
             let deep = name.filter { $0 == "<" }.count
-            DevLog.say(.input, "body type: \(name.count) chars, \(deep) deep")
             // **A tripwire, not a reading.** This is the crash that arrives as
             // EXC_BAD_ACCESS in some innocent leaf getter, so the only warning anybody
             // gets is the number climbing. Break the chain with `.erased()` — see `bands`.
@@ -176,6 +187,22 @@ struct GameView: View {
     /// is built on is the device's, not ours — so this is a line drawn from the one crash
     /// we have measured, and it moves if a bigger one turns up.
     static let deepestSafeBody = 70
+
+    /// **How deep each screen on the floor is.** One reading apiece: a view erased into
+    /// its parent still builds its own body on its own stack, so the parent's number says
+    /// nothing about it.
+    static var floorDepths: [(String, Int)] {
+        func deep<V: View>(_ type: V.Type) -> Int {
+            _typeName(V.Body.self).filter { $0 == "<" }.count
+        }
+        return [("GameView", deep(GameView.self)),
+                ("CourtView", deep(CourtView.self)),
+                ("ActionBarView", deep(ActionBarView.self)),
+                ("ScoreboardView", deep(ScoreboardView.self)),
+                ("FannedBagView", deep(FannedBagView.self)),
+                ("CardChoiceView", deep(CardChoiceView.self)),
+                ("CardFrontView", deep(CardFrontView.self))]
+    }
 
     /// **The five bands, stacked and erased before a single modifier goes on.**
     ///
