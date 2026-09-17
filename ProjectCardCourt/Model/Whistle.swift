@@ -202,7 +202,7 @@ struct WhistleEffect: Hashable, Codable {
 
 /// A move that has been declared but not yet resolved. This is the thing a Whistle
 /// inspects, and the reason `Rules.apply` proposes before it commits.
-enum PendingAction: Hashable {
+enum PendingAction: Hashable, Codable {
     case inbound(from: Seat, to: Seat)
     case playCard(seat: Seat, card: Card)
     case shoot(seat: Seat)

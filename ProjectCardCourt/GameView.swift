@@ -494,6 +494,22 @@ struct GameView: View {
                     }
                         .zIndex(12)
                 }
+                // The star, over the floor and under everything else — it belongs to the
+                // man, not to the scene above him.
+                if controller.challenging != nil {
+                    // Centred, because the camera has already gone to him — the star opens
+                    // out of whoever the screen is holding on.
+                    ChallengeStar()
+                        .transition(.opacity)
+                        .zIndex(11)
+                }
+                if case .awaitingChallenge(let card) = controller.gate {
+                    ChallengeView(card: card,
+                                  available: !controller.shown[GameRules.localSeat].challenged,
+                                  onChallenge: { controller.challenge(true) },
+                                  onDecline: { controller.challenge(false) })
+                        .zIndex(12)
+                }
                 if case .awaitingPayoff(let clamp) = controller.gate {
                     PayoffPickerView(clamp: clamp,
                                      ringed: { if case .payoff(let which) = ring { return which }
@@ -1473,6 +1489,7 @@ struct GameView: View {
 
     /// Saying no, where no is an answer — the button on the sheet, and circle.
     private func declineTheOffer() {
+        if case .awaitingChallenge = controller.gate { controller.challenge(false); return }
         switch controller.gate {
         case .awaitingCounter: controller.choose(counter: nil)
         case .awaitingOption:  controller.choose(option: false)
@@ -1484,6 +1501,7 @@ struct GameView: View {
 
     /// The bar's single confirm, whichever question is asking it.
     private func confirm() {
+        if case .awaitingChallenge = controller.gate { controller.challenge(true); return }
         switch controller.gate {
         case .awaitingBid:      controller.submitBid()
         case .awaitingDiscard:  controller.submitDiscard()

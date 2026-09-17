@@ -36,6 +36,11 @@ enum Pacing {
     static let whistleZoom: CGFloat = 1.8
     static let whistleFrame = 0.28
     static let whistleHold = 1.50
+    /// **A challenge starts on the man taking it.** How close, how long to get there, and
+    /// how long he is held while the star opens.
+    static let challengeZoom: CGFloat = 2.0
+    static let challengeFrame = 0.25
+    static let challengeHold = 1.00
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
     /// How long a card takes to come off the pile. It was a third of a second, which is
@@ -459,6 +464,8 @@ final class GameController {
         case awaitingMode(card: CardDescriptor)
         /// A defender beaten: which of the three things that is worth.
         case awaitingPayoff(clamp: CardDescriptor)
+        /// A call, and the one challenge a game that can throw it out.
+        case awaitingChallenge(card: CardDescriptor)
         /// A card out of somebody else's hand, face down.
         case awaitingCardFrom(card: CardDescriptor, victim: Seat)
         /// Wet Spot: one Injury off the table, some of them face down.
@@ -1160,6 +1167,8 @@ final class GameController {
             return seat.isLocal ? .awaitingMode(card: card) : .thinking
         case .awaitingPayoff(let seat, let clamp):
             return seat.isLocal ? .awaitingPayoff(clamp: clamp) : .thinking
+        case .awaitingChallenge(let seat, let card):
+            return seat.isLocal ? .awaitingChallenge(card: card) : .thinking
         case .awaitingCardFrom(let seat, let card, let victim):
             return seat.isLocal ? .awaitingCardFrom(card: card, victim: victim) : .thinking
         case .awaitingInjuryPick(let seat, let card):
@@ -1761,6 +1770,29 @@ final class GameController {
     }
 
     /// What beating the defender in front of you was worth.
+    /// **The one challenge a game**, taken or turned down.
+    ///
+    /// Taking one stops everything and goes to the man: the camera closes on him, the
+    /// floor holds, and the star opens out of him — and only then does the card come up.
+    func challenge(_ taking: Bool) {
+        guard !isPaused, case .awaitingChallenge(let seat, _) = state.phase else { return }
+        DevLog.say(.input, taking ? "challenge the call" : "let the call stand")
+        Task {
+            if taking {
+                challenging = seat
+                camera = CourtCamera(subjects: [.seat(seat)], zoom: Pacing.challengeZoom,
+                                     seconds: Pacing.challengeFrame)
+                try? await Task.sleep(for: .seconds(Pacing.challengeHold))
+            }
+            await present(Rules.resolveChallenge(taking, state: &state))
+            challenging = nil
+            camera = nil
+        }
+    }
+
+    /// **Who is challenging**, while the floor holds on them. Nil the rest of the time.
+    private(set) var challenging: Seat?
+
     func take(payoff: ClampPayoff) {
         guard !isPaused else { return }
         guard case .awaitingPayoff = gate else { return }
@@ -2462,6 +2494,17 @@ final class GameController {
             // the man who had just blown by his defender held the ball for ever.
             //
             // TODO: no wire case yet, so a remote seat's payoff is decided by the host.
+            if case .awaitingChallenge(let seat, _) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                let taking = AIPolicy.challenges(state, for: seat)
+                if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveChallenge(taking, state: &state))
+                continue
+            }
             if case .awaitingPayoff(let seat, _) = state.phase {
                 if seat.isLocal { gate = localGate; return }
                 let payoff = AIPolicy.payoff(state, for: seat)

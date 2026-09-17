@@ -46,6 +46,12 @@ enum Prompts {
                                                state: &state)
         case .awaitingMode(let seat, let card):
             return Rules.resolveMode(ai.mode(of: card, state, for: seat), state: &state)
+        case .awaitingChallenge(let seat, _):
+            // **Spend it where it is worth spending.** A call that costs the ball is worth
+            // a challenge; one that costs a card is not, and the official going off with
+            // it is worth something on its own.
+            return Rules.resolveChallenge(AIPolicy.challenges(state, for: seat),
+                                          state: &state)
         case .awaitingPayoff(let seat, _):
             return Rules.takePayoff(AIPolicy.payoff(state, for: seat), by: seat, state: &state)
         case .awaitingCardFrom(_, _, let victim):

@@ -32,6 +32,8 @@ enum GameEvent: Hashable, Codable {
     /// Clear Out: he was not there, and the ball went on to the next man.
     case clearedOut(seat: Seat, to: Seat?)
     case whistleArmed(seat: Seat)
+    /// **A call thrown out.** Once a game, and the official goes off with it.
+    case challenged(seat: Seat, card: CardDescriptor)
     /// **A defender beaten.** His printed counter was met, so he is off his man — and the
     /// man he was on picks what blowing by him was worth.
     case clampBeaten(seat: Seat, card: CardDescriptor)
@@ -205,6 +207,9 @@ enum GameEvent: Hashable, Codable {
             // The crew's calls have no name in front of them — nobody set them down.
             guard let owner else { return "WHISTLE! \(card.name) cancels \(cancelled)." }
             return "WHISTLE! \(owner.playerName)'s \(card.name) cancels \(cancelled)."
+        case .challenged(let seat, let card):
+            return "\(seat.playerName) \(seat.verb("challenges", "challenge")) — "
+                + "\(card.name) is thrown out."
         case .crewAssigned(let cards):
             let names = cards.map(\.name).joined(separator: ", ")
             return "Working tonight: \(names)."

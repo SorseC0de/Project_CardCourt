@@ -201,6 +201,17 @@ struct AIPolicy {
         return offered.first.map { Move.shootAs($0) }
     }
 
+    /// **Whether to spend the one challenge.** Late and losing, or a call that takes the
+    /// ball: those are the two moments worth it. Spending it on a card is spending a
+    /// once-a-game on nothing.
+    static func challenges(_ state: GameState, for seat: Seat) -> Bool {
+        guard let pending = state.challengedCall,
+              let whistle = state.armedWhistles.first(where: { $0.id == pending.whistle }),
+              let effect = whistle.card.descriptor.whistle else { return false }
+        if effect.endsRound { return true }
+        return effect.turnoverOnOffender || effect.offenderInbounds
+    }
+
     /// What to take for beating a defender. Cards first while the hand is thin, the free
     /// look once it is not — and the rotation when there is somebody worth putting him on.
     static func payoff(_ state: GameState, for seat: Seat) -> ClampPayoff {

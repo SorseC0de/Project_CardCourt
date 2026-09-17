@@ -115,6 +115,10 @@ enum Row {
         case .awaitingPayoff:
             return ClampPayoff.allCases.map(PadSpot.payoff)
 
+        // The emblem, and the button that lets the call stand.
+        case .awaitingChallenge:
+            return [.confirm, .decline]
+
         // Nothing to walk. A free throw is a pull rather than a choice, and a finished
         // game is three buttons on three buttons — see `GameView.takeOnFinalCard(_:)`.
         case .awaitingFreeThrow, .gameOver:

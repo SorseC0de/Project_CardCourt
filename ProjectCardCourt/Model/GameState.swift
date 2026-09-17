@@ -41,6 +41,10 @@ struct Make: Hashable, Codable {
 struct PlayerState: Hashable, Identifiable, Codable {
     let seat: Seat
     var bag: [Card] = []
+    /// **One a game.** Called for a violation, a player may throw the call out and send the
+    /// official who made it off with it — see `Rules.resolveChallenge`. Spent whether it
+    /// helps or not, which is what makes choosing the moment the whole of it.
+    var challenged = false
     /// Lasts exactly one possession — see Rules.beginPossession.
     var clamps: [ActiveClamp] = []
     /// Passives in play, oldest first. Capped by MatchRules.intangibleSlots.
@@ -96,6 +100,9 @@ enum Phase: Hashable, Codable {
     case awaitingTarget(seat: Seat, card: CardDescriptor, choices: [Seat])
     /// Triple Threat: one of the card's own branches.
     case awaitingMode(seat: Seat, card: CardDescriptor)
+    /// **A call, and the man it is against.** Once a game he may throw it out and send the
+    /// official who made it off with it.
+    case awaitingChallenge(seat: Seat, card: CardDescriptor)
     /// **You beat your man.** The defender whose printed counter has just been met, and
     /// the three things blowing by him is worth.
     case awaitingPayoff(seat: Seat, clamp: CardDescriptor)
@@ -166,6 +173,7 @@ enum Phase: Hashable, Codable {
         case .awaitingTarget(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
         case .awaitingPayoff(let seat, _): return seat
+        case .awaitingChallenge(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat
         case .awaitingInjuryPick(let seat, _): return seat
         case .awaitingIntangibleDrop(let seat, _): return seat
@@ -323,6 +331,16 @@ struct GameState: Codable {
     /// One of each a possession — see `Rules.legalMoves`.
     var playedVarenaThisPossession = false
     var playedVariaballThisPossession = false
+    /// **A call being challenged**, held while its man decides.
+    ///
+    /// The call has not been made yet: everything it does is waiting on the answer, so a
+    /// challenge that is taken means the call never happened rather than being undone.
+    struct PendingCall: Hashable, Codable {
+        let whistle: UUID
+        let action: PendingAction
+    }
+    var challengedCall: PendingCall?
+
     /// **Whether a round is in the middle of ending.** Ending one pays what it owes and
     /// deals the next hand, and both settle hands — which is where a stranded man is
     /// checked for, and a stranded man ends the round. Without this the check calls the

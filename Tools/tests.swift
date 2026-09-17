@@ -32,6 +32,10 @@ func openPossession(seed: UInt64, cards: [CardDescriptor]) -> (GameState, Seat, 
     for other in Seat.allCases where other != receiver {
         state[other].bag = Array(state[other].bag.prefix(max(0, state.handLimit - 3)))
     }
+    // **Everybody has already spent their challenge.** These tests are about what a call
+    // does; a call that stops to ask whether it is being thrown out never lands. The
+    // challenge has its own test.
+    for seat in Seat.allCases { state[seat].challenged = true }
     return (state, receiver, dealt)
 }
 
@@ -520,6 +524,49 @@ func runTests() {
                    "and it comes straight back to him")
         Check.that(state.freeRebound.isEmpty, "the card is spent taking it")
         Check.that(!state.phase.isAwaitingRebound, "nobody bids for a board he called")
+    }
+
+    print("The challenge")
+    do {
+        // **One a game.** Called for something that costs him, a player may throw the call
+        // out — and the official who made it goes off with it.
+        var (state, seat, cards) = openPossession(seed: 87, cards: [CardLibrary.dribble])
+        state[seat].challenged = false
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.discontinuedDribble,
+                                                            state.rules))]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        guard case .awaitingChallenge(let asked, let card) = state.phase else {
+            Check.that(false, "a call that costs is offered to its man"); return
+        }
+        Check.that(asked == seat && card.id == CardLibrary.discontinuedDribble.id,
+                   "a call that costs is offered to its man")
+
+        let sent = state.armedWhistles[0].id
+        let thrown = Rules.resolveChallenge(true, state: &state)
+        Check.that(state[seat].challenged, "and it is spent")
+        // **That** official, by his own id — Classic deals no crew, so what the pile hands
+        // back to fill his place is the same card again.
+        Check.that(!state.armedWhistles.contains { $0.id == sent },
+                   "the official goes off with it")
+        Check.that(state.officialsDiscard.contains { $0.descriptor.id == "discontinued-dribble" }
+                   || !state.armedWhistles.isEmpty,
+                   "and a replacement comes out")
+        Check.that(state[seat].turnovers == 0, "the call never happened")
+        Check.that(thrown.contains { if case .challenged = $0 { return true }; return false },
+                   "and the table is told")
+    }
+    do {
+        // Declining lets the call land, and leaves the challenge in his pocket.
+        var (state, seat, cards) = openPossession(seed: 88, cards: [CardLibrary.dribble])
+        state[seat].challenged = false
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.discontinuedDribble,
+                                                            state.rules))]
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Rules.resolveChallenge(false, state: &state)
+        Check.that(!state[seat].challenged, "turning it down keeps it")
+        Check.that(state[seat].turnovers == 1, "and the call lands")
     }
 
     print("Discontinued Dribble")

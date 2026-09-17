@@ -946,6 +946,14 @@ enum Rules {
             // Declared but not yet resolved — a Whistle gets to speak here.
             let declared = state[seat].bag[index]
             if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: &state) {
+                // **His one challenge, offered before the call lands.** Only here and on a
+                // shot: those are the two places a player is doing something and a call can
+                // take it away, and the two where stopping to ask costs nothing because
+                // the play already returns.
+                if offerChallenge(whistle, on: .playCard(seat: seat, card: declared),
+                                  state: &state) {
+                    return events
+                }
                 // Negating the effect, not the activation: the Clamp is allowed to be
                 // played and to resolve. The Whistle waits for those defenders to try to
                 // land, because until then there is no clamped player to name.
@@ -1378,6 +1386,9 @@ enum Rules {
             // it allows.
             var downgraded = false
             if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
+                if offerChallenge(whistle, on: .shoot(seat: seat), state: &state) {
+                    return events
+                }
                 downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
                 blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
                 guard downgraded, case .possession(let still) = state.phase, still == seat
@@ -2567,6 +2578,59 @@ enum Rules {
         let announced = Card(CardLibrary.travel)
         let called = ArmedWhistle(owner: nil, card: announced, id: caller?.id ?? UUID())
         blow(called, on: action, state: &state, events: &events)
+    }
+
+    /// **Offers the call to the man it is against before it is made.**
+    ///
+    /// Once a game he may throw it out, and the official who made it goes off with it. The
+    /// call has not happened yet when the question is asked, so taking the challenge means
+    /// it never happened rather than being undone — which is the only version of this that
+    /// does not have to unpick free throws and turnovers after the fact.
+    private static func offerChallenge(_ whistle: ArmedWhistle, on action: PendingAction,
+                                       state: inout GameState) -> Bool {
+        let man = action.actor
+        guard !state[man].challenged, state.challengedCall == nil else { return false }
+        // **Only a call that costs something.** One that hands out a free throw and lets
+        // the play stand is not worth a once-a-game — and suspending one of those leaves
+        // the card it let through sitting unplayed in a hand, which is a game that stops.
+        let effect = whistle.card.descriptor.whistle ?? WhistleEffect()
+        guard effect.cancelsCard || effect.turnoverOnOffender || effect.offenderInbounds
+                || effect.endsPossession || effect.endsRound else { return false }
+        state.challengedCall = GameState.PendingCall(whistle: whistle.id, action: action)
+        state.phase = .awaitingChallenge(seat: man, card: whistle.card.descriptor)
+        return true
+    }
+
+    /// **Thrown out, or taken.**
+    @discardableResult
+    static func resolveChallenge(_ challenging: Bool, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingChallenge(let seat, _) = state.phase else { return [] }
+        var events: [GameEvent] = []
+        let pending = state.challengedCall
+        state.challengedCall = nil
+        state.phase = .possession(holder: state.ball ?? seat)
+        // **Always answerable.** A question that can be asked and not answered is a game
+        // that stops: the official could have gone off between the asking and the answer —
+        // Crew Chief retires whoever calls — and there is then nothing to throw out.
+        guard let pending,
+              let whistle = state.armedWhistles.first(where: { $0.id == pending.whistle })
+        else {
+            settleHands(state: &state, events: &events)
+            return events
+        }
+
+        guard challenging else {
+            blow(whistle, on: pending.action, state: &state, events: &events)
+            return events
+        }
+        // **Spent, and the official with it.** One a game whether it helps or not.
+        state[seat].challenged = true
+        state.armedWhistles.removeAll { $0.id == whistle.id }
+        state.officialsDiscard.append(whistle.card)
+        events.append(.challenged(seat: seat, card: whistle.card.descriptor))
+        assignCrew(state: &state, events: &events)
+        settleHands(state: &state, events: &events)
+        return events
     }
 
     /// Spends the Whistle, cancels what tripped it, and applies its effects.
