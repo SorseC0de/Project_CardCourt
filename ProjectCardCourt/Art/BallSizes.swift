@@ -6,6 +6,8 @@ import CoreGraphics
 /// Written by `Tools/icons.py` on every run; measured off the drawings, so edit those.
 enum BallSizes {
     static let share: [String: CGFloat] = [
+        "foul-ball": 0.75,
         "hand-ball": 0.75,
+        "long-ball": 0.67,
     ]
 }

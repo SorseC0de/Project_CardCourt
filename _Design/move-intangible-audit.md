@@ -136,3 +136,24 @@ Retiring it **removes it from the game** rather than sending it to Retirement.
 | **Deck** | **300** | **300** |
 
 Officials: 21 → **22**, with The Equalizer. Splash Ball sits outside both.
+
+
+## After the audit
+
+Four more changes, taken in the same pass:
+
+- **Knock → Force** everywhere. Nutmeg and the new combo below.
+- **Misdirection** — a new combo: **Crossover → Swing Left/Right**. The swing goes the
+  *other* way and **Forces 1 card to the next player**, so a Crossover followed by Swing
+  Right actually passes left. Sell one direction, go the other.
+- **Bench Ball → Long Ball.** Bench Ball killed the pace; Long Ball says **Layups are shot
+  as Threes**. They are still layups — Palming still watches them, an empty hand still pays
+  its bonus — but they go up from range, are drawn from range, and score 3. The dunk and
+  the three are untouched.
+- **Make-or-Take Ball → Foul Ball.** Effect unchanged.
+
+Every Variaball now has art: Long Ball, Foul Ball and Shufflebag Ball were the last three
+without, and all are imported with in-play sprites.
+
+Both prompts the audit created — `.awaitingRetirement` and `.awaitingClampsNamed` — are now
+drawn on `CardChoiceView`, the same sheet every other question uses.

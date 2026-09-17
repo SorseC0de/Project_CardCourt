@@ -1714,7 +1714,10 @@ enum Rules {
         // Asked after the possession opens, so the card he was just dealt is in the hand
         // being picked from — a hand that changed size between the question and the
         // answer is a hand the picker was lied to about.
-        if descriptor.stealsAlongPass > 0, !state[receiver].bag.isEmpty {
+        // Misdirection knocks one loose as the ball goes past, the way Nutmeg does.
+        let forcing = descriptor.stealsAlongPass > 0 || state.misdirected
+        state.misdirected = false
+        if forcing, !state[receiver].bag.isEmpty {
             state.stealTravelsTo = seat.seat(inDirection: .left) == receiver
                 ? receiver.left : receiver.right
             state.pendingActor = seat
@@ -2233,12 +2236,23 @@ enum Rules {
         type == .three && !downgraded ? 1 : 0
     }
 
+    /// **Long Ball: a layup is taken from three and paid like one.** Still a layup for
+    /// every other purpose — the official watching layups still has it, and an empty hand
+    /// still pays its bonus. Only the distance and the points change.
+    static func longBallBonus(for type: ShotType?, in state: GameState) -> Int {
+        state.ballEffect.layupsShootAsThrees && type == .layup ? 1 : 0
+    }
+
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
                                     overClamps: Bool = false,
                                     card: CardDescriptor? = nil,
                                     state: inout GameState, events: inout [GameEvent]) {
         // Spent by the attempt it bought, however that attempt turns out.
         state.threeDiscount = 0
+        // **Long Ball, paid here rather than at each caller.** Six different places put a
+        // shot up; the ball is a property of the attempt, not of how it was called for.
+        let bonusPoints = bonusPoints
+            + longBallBonus(for: card?.special?.shotType ?? state.shotType, in: state)
         // Brand New Ball: slick out of the box. The shot never goes up, and the round is over.
         if state.ballEffect.turnoverChance > 0,
            state.roll(1...100) <= state.ballEffect.turnoverChance {
@@ -2912,7 +2926,13 @@ enum Rules {
             }
             _ = clamp
             events.append(.clampSet(seat: seat, card: descriptor))
-        } else if let target = descriptor.passTarget {
+        } else if var target = descriptor.passTarget {
+            // **Misdirection.** A Crossover sells one direction; the swing after it goes
+            // the other, and takes a card off whoever it passes on the way.
+            if comboArmed, descriptor.comboReversesPass {
+                target = target == .left ? .right : target == .right ? .left : target
+                state.misdirected = true
+            }
             // Hand-Off's combo is already paid above with the rest of the play's worth.
             // This only says so, for the log and the record of combos done.
             if comboArmed {

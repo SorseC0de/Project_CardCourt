@@ -509,6 +509,10 @@ struct VariaballEffect: Hashable, Codable {
     var ignoresTravel = false
     /// **Liar Ball: a missed free throw is taken once more.** Once, not until it drops.
     var retakesMissedFreeThrow = false
+    /// **Long Ball: a layup is shot as a three.** It is still a layup — Palming still
+    /// watches it, and it still wants nothing of you to take — but it goes up from out
+    /// there and it pays like one. The dunk is untouched.
+    var layupsShootAsThrees = false
     /// **Splash Ball: a three cannot miss.** The reason to want it, and the reason the
     /// table wants it gone.
     var shotOverrideOnThrees: Int?
@@ -809,6 +813,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let retiresLastCaller: Bool
     /// Stepback: a three off a shorter hand, for the shot straight after it.
     let threeWithFewerCards: Int
+    /// **Misdirection: the swing goes the other way.** A Crossover sells one direction and
+    /// the ball goes the other, taking a card off whoever it passes on the way.
+    let comboReversesPass: Bool
     /// **Full-Court Heave: the Variaball in play goes, and it is not a choice.** Paid as
     /// the card lands rather than asked about.
     let retiresTheBall: Bool
@@ -847,6 +854,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          shotPerClampNamed: Int = 0, clockPerClampNamed: Int = 0,
          retiresARef: Bool = false, reassignsAClamp: Bool = false,
          retiresLastCaller: Bool = false, threeWithFewerCards: Int = 0,
+         comboReversesPass: Bool = false,
          retiresTheBall: Bool = false, mayRetireTheBall: Bool = false,
          retiresAnIntangible: Bool = false,
          takesFromRetirement: Int = 0,
@@ -872,6 +880,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.reassignsAClamp = reassignsAClamp
         self.retiresLastCaller = retiresLastCaller
         self.threeWithFewerCards = threeWithFewerCards
+        self.comboReversesPass = comboReversesPass
         self.retiresTheBall = retiresTheBall
         self.mayRetireTheBall = mayRetireTheBall
         self.retiresAnIntangible = retiresAnIntangible

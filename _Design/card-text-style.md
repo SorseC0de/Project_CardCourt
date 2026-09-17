@@ -29,7 +29,7 @@ new card text is written to them first.
 
 ## Keywords
 
-Capitalised and styled: Pass, Draw, Discard, Clear, Shot Clock, Rebound, Three, Knock, Assign,
+Capitalised and styled: Pass, Draw, Discard, Clear, Shot Clock, Rebound, Three, Force, Assign,
 Reset, Turn, Score. A Special Move **is** a Move card wherever a card says "Move".
 
 ## Layout
@@ -64,3 +64,4 @@ Reset, Turn, Score. A Special Move **is** a Move card wherever a card says "Move
 - **"while passing"** means *after the pass is committed, before the ball changes hands*.
 - **Retire** is for cards and officials. A Clamp is Cleared, not Retired.
 - **~[Ref]** is the keyword in effect text, even on cards whose *name* says Official.
+- **Force**, not Knock — pushing a card out of somebody's hand into the next player's.

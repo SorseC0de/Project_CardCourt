@@ -32,6 +32,10 @@ struct CardChoiceView: View {
     /// Cards that can only be pointed at — a hand nobody may read. Drawn as backs after
     /// the named ones, and answered by position.
     var backs: Int = 0
+    /// **How each offered card answers**, when its name is not enough to tell them apart.
+    /// Two Contests on two different players are the same card and two different answers,
+    /// so the prompts that name things already in play hand their own picks in.
+    var picks: [CardPick]?
     var tint: Color = CardPalette.red
     /// What taking it is called, when "Take it" is not what is being done.
     var taking: String = "Take it"
@@ -66,12 +70,13 @@ struct CardChoiceView: View {
         VStack(spacing: 14) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(offered, id: \.id) { card in
-                        face(card, pick: .named(card.id))
-                            .padRing(ringed == .offer(.named(card.id)),
+                    ForEach(Array(offered.enumerated()), id: \.offset) { at, card in
+                        let pick = picks?[safe: at] ?? .named(card.id)
+                        face(card, pick: pick)
+                            .padRing(ringed == .offer(pick),
                                      corner: Table.card * CardLayout.cornerFraction)
-                            .offset(y: chosen == .named(card.id) ? -Table.lift : 0)
-                            .onTapGesture { chosen = .named(card.id) }
+                            .offset(y: chosen == pick ? -Table.lift : 0)
+                            .onTapGesture { chosen = pick }
                     }
                     // A hand is held, not laid out: what is face down fans.
                     if backs > 0 {

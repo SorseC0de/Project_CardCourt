@@ -3167,6 +3167,9 @@ final class GameController {
             if case .shotMade(_, let points, _, _) = $0 { return points > state.rules.madeShotPoints }
             return false
         } || (state.lastPlayThisPossession.flatMap { CardLibrary.byID[$0]?.isThree } ?? false)
+            // Long Ball: a layup goes up from out there whether it drops or not, so the
+            // miss is drawn from the same place the make is.
+            || (state.ballEffect.layupsShootAsThrees && state.shotType == .layup)
         holdTheScore(in: shot)
         cutscene = scene
         try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))

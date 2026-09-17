@@ -143,13 +143,19 @@ func slotTests() {
                    "and a make counts 2")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 211, cards: [CardLibrary.swingLeft])
+        // **Long Ball pays the finishes you have to work for.** A three is already three,
+        // so it lifts the layup and the dunk and leaves the three alone.
+        var (state, seat, _) = openPossession(seed: 211, cards: [])
         state.ballCard = Card(CardLibrary.benchBall)
-        let before = state[seat.left].bag.count
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(state.phase == .inbound(inbounder: seat.left)
-                   && state[seat.left].bag.count == before,
-                   "Bench Ball: caught off a pass, no draw, straight to the inbound")
+        state.shot = 100
+        var events: [GameEvent] = []
+        Rules.testShot(by: seat, state: &state, events: &events)
+        Check.that(events.contains { if case .shotMade(_, let points, _, _) = $0 { return points == 3 }
+                                     return false },
+                   "Long Ball: a layup counts 3")
+        Check.that(Rules.longBallBonus(for: .three, in: state) == 0
+                   && Rules.longBallBonus(for: .dunk, in: state) == 0,
+                   "and the Three and the dunk are left where they were")
     }
     do {
         // **Foot On The Line takes the point, not the shot.** Its face says the three

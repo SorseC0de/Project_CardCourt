@@ -23,11 +23,17 @@ enum CardLibrary {
     /// and it is what keeps the deck at three hundred.
     static let swingLeft = CardDescriptor(
         id: "swing-left", name: "Swing Left", type: .pass,
-        effect: "~[Pass] Left.", numberInDeck: 20, passTarget: .left)
+        effect: "~[Pass] Left.", numberInDeck: 20, passTarget: .left,
+        comboAfter: "crossover", comboReversesPass: true,
+        combo: "Misdirection: the ball goes the other way, and #[Force] 1 card "
+            + "to the next player")
 
     static let swingRight = CardDescriptor(
         id: "swing-right", name: "Swing Right", type: .pass,
-        effect: "~[Pass] Right.", numberInDeck: 20, passTarget: .right)
+        effect: "~[Pass] Right.", numberInDeck: 20, passTarget: .right,
+        comboAfter: "crossover", comboReversesPass: true,
+        combo: "Misdirection: the ball goes the other way, and #[Force] 1 card "
+            + "to the next player")
 
     static let skipPass = CardDescriptor(
         id: "skip-pass", name: "Skip", type: .pass,
@@ -56,7 +62,7 @@ enum CardLibrary {
 
     static let nutmeg = CardDescriptor(
         id: "nutmeg", name: "Nutmeg", type: .pass,
-        effect: "SHOT +10%. ~[Pass] Left or Right. #[Knock] 1 card to next player.",
+        effect: "SHOT +10%. ~[Pass] Left or Right. #[Force] 1 card to next player.",
         numberInDeck: 5,
         passTarget: .leftOrRight, shotDelta: 10, stealsAlongPass: 1)
 
@@ -1008,10 +1014,13 @@ enum CardLibrary {
         effect: "~[Injuries] travel with the ball, and new ones join the pile. Discarding the ball takes the pile with it",
         numberInDeck: 1,
         variaball: VariaballEffect(injuriesTravel: true))
+    /// **The one you take outside.** The easy shot stops being the easy shot: it goes up
+    /// from range and pays like it, though it is still a layup to everybody watching. The
+    /// opposite of the card that used to sit here — Bench Ball killed the pace.
     static let benchBall = CardDescriptor(
-        id: "bench-ball", name: "Bench Ball", type: .variaball,
-        effect: "Receiving it by ~[Pass]: no draw, no turn. You inbound", numberInDeck: 1,
-        variaball: VariaballEffect(benchesReceiver: true))
+        id: "bench-ball", name: "Long Ball", type: .variaball,
+        effect: "#[Layups] are shot as #[Threes]", numberInDeck: 1,
+        variaball: VariaballEffect(layupsShootAsThrees: true))
     /// **The ball that gets the officials looking at it** instead of at the floor. The
     /// word *target* is printed so a Floor General can name the one who goes.
     static let dishtractingBall = CardDescriptor(
@@ -1095,7 +1104,7 @@ enum CardLibrary {
         effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 1,
         variaball: VariaballEffect(turnoverChance: 25))
     static let makeOrTakeBall = CardDescriptor(
-        id: "make-or-take-ball", name: "Make-or-Take Ball", type: .variaball,
+        id: "make-or-take-ball", name: "Foul Ball", type: .variaball,
         effect: "Take 1 #[FT] after missing a shot attempt.", numberInDeck: 1,
         variaball: VariaballEffect(freeThrowsOnMiss: 1))
     static let heroBall = CardDescriptor(

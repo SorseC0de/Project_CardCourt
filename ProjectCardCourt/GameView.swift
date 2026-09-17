@@ -416,6 +416,40 @@ struct GameView: View {
                                    onPick: takeTheOffer)
                     .zIndex(12)
                 }
+                // **Something in play, named to come out of it.** The crew, the ball and
+                // every board are face up, so this is the same sheet every other question
+                // uses — a row held out, one taken, and a button underneath.
+                if case .awaitingRetirement(let card, let choices) = controller.gate {
+                    CardChoiceView(title: card.name, note: "Take one out of play",
+                                   offered: choices.map { retirable($0) },
+                                   picks: choices.indices.map { CardPick.position($0) },
+                                   tint: CardPalette.teal,
+                                   taking: "Retire it",
+                                   declining: "Leave them be",
+                                   chosen: $picked, ringed: ring,
+                                   onDecline: declineTheOffer,
+                                   onPick: takeTheOffer)
+                        .zIndex(12)
+                }
+                // **Pump Fake: one more to sell it to, or stop.** They stay standing; what
+                // is being bought is SHOT, and what it costs is clock.
+                if case .awaitingClampsNamed(let card, let named) = controller.gate {
+                    let left = controller.shown[GameRules.localSeat].clamps
+                        .filter { !named.contains($0.id) }
+                    CardChoiceView(title: card.name,
+                                   note: named.isEmpty
+                                       ? "Sell it to one of them"
+                                       : "\(named.count) sold — SHOT +\(named.count * card.shotPerClampNamed)%",
+                                   offered: left.map(\.card),
+                                   picks: left.indices.map { CardPick.position($0) },
+                                   tint: CardPalette.teal,
+                                   taking: "Sell it",
+                                   declining: named.isEmpty ? "Sell nobody" : "That'll do",
+                                   chosen: $picked, ringed: ring,
+                                   onDecline: declineTheOffer,
+                                   onPick: takeTheOffer)
+                        .zIndex(12)
+                }
                 if case .awaitingIntangibleDrop(let offered) = controller.gate {
                     // The one that just arrived is in the row, so "just discard it" is a
                     // pick rather than a second button.
@@ -1485,6 +1519,14 @@ struct GameView: View {
             let hand = controller.shown[victim].bag
             guard hand.indices.contains(at) else { return }
             controller.choose(card: hand[at].id)
+        case .awaitingRetirement(_, let choices):
+            guard case .position(let at) = pick, choices.indices.contains(at) else { return }
+            controller.choose(retiring: choices[at])
+        case .awaitingClampsNamed(_, let named):
+            guard case .position(let at) = pick else { return }
+            let left = controller.shown[GameRules.localSeat].clamps.filter { !named.contains($0.id) }
+            guard left.indices.contains(at) else { return }
+            controller.choose(selling: left[at].id)
         default:
             break
         }
@@ -1498,6 +1540,24 @@ struct GameView: View {
             return
         }
         open(.referees)
+    }
+
+    /// **The face of something in play**, for the sheet that names one to take out.
+    private func retirable(_ target: RetirementTarget) -> CardDescriptor {
+        let table = controller.shown
+        switch target {
+        case .official(let id):
+            return table.armedWhistles.first { $0.id == id }?.card.descriptor
+                ?? CardLibrary.travel
+        case .ball:
+            return table.ballCard?.descriptor ?? CardLibrary.variaball
+        case .intangible(let seat, let id):
+            return table[seat].intangibles.first { $0.id == id } ?? CardLibrary.floorGeneral
+        case .clamp(let id):
+            return Seat.allCases.compactMap { who in
+                table[who].clamps.first { $0.id == id }?.card
+            }.first ?? CardLibrary.contest
+        }
     }
 
     /// Saying no, where no is an answer — the button on the sheet, and circle.

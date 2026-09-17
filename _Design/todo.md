@@ -434,6 +434,3 @@ that does not exist yet:
   hand is new; nothing else does it.
 - **Varsitile's exchange.** `exchangesWithRetirement` is declared. Once a possession, swap
   the Ball or one of your Intangibles for one in Retirement.
-- **Prompt art for the two new questions.** `.awaitingRetirement` (name something in play
-  to take off the table) and `.awaitingClampsNamed` (Pump Fake, one more defender or stop)
-  both work on the pad and in the headless harness; neither has a drawn prompt yet.

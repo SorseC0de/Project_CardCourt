@@ -289,6 +289,9 @@ struct GameState: Codable {
     /// separation is what people take threes off — so the card that makes it lets you
     /// rise from a thinner hand, for that shot and no other.
     var threeDiscount = 0
+    /// Misdirection: this swing was turned round by the Crossover in front of it, so it
+    /// also knocks a card loose on the way past.
+    var misdirected = false
     /// Rookie Official has already traded for this player this possession — the first
     /// card only, or a pair of Moves would fish the same two out all night.
     var rookieSwapped: Seat?
