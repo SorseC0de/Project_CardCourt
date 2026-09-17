@@ -966,7 +966,12 @@ enum Rules {
                     else { return events }
                 }
             }
-
+            // **Found again, after the call.** A call that lets the play stand can still
+            // take cards off the same hand — a Flagrant II takes two — so the position the
+            // card was at before the whistle is not the position it is at now.
+            guard let index = state[seat].bag.firstIndex(where: { $0.id == cardID }) else {
+                return events
+            }
             let card = state[seat].bag.remove(at: index)
             let descriptor = card.descriptor
             // Rhythm Dribble: its extra belongs to the next action, and only if that is a shot.
@@ -2816,6 +2821,15 @@ enum Rules {
         // clearing them early handed a cancelled card its effect for free: a Whistle that
         // stops a Spin Move charges a turnover, the turnover re-inbounds, and the man
         // walked away from the defenders the Spin Move had just been forbidden to shake.
+        // **A violation costs time.** Nothing else in a call → turnover → throw-in cycle
+        // does: the clock is set once at the top of a round and a re-inbound never moved
+        // it, so a referee who calls every time his condition is met had nothing to run
+        // him out. Rounds end on shots, and the clock is what closes one nobody can score
+        // in — so it has to actually run.
+        if let clock = state.shotClock, clock > 0 {
+            state.shotClock = clock - 1
+            events.append(.shotClockTicked(clock - 1))
+        }
         state.phase = .inbound(inbounder: seat)
         events.append(.reinbound(seat: seat))
     }
