@@ -708,34 +708,46 @@ struct CardFrontView: View {
         let side = width * CardLayout.arrowSizeFraction
         let drop = width * CardLayout.arrowShadowOffsetFraction
 
-        Group {
+        // **Each mark takes the colour that used to be under it**, and one drop goes under
+        // all four. White arrows were drawn for bodies that were the type's colour; on
+        // paper they need the colour themselves, and the four of them being four different
+        // colours is what tells left from right from across at a glance.
+        //
+        // Theme A only. B and C still carry the white they were drawn with, until there is
+        // a reading of what they should be on tan and on the type's own colour.
+        let plain = CardTheme.current != .a
+        let lift = width * (art == .skip ? set.skipLift : set.backPassLift)
+
+        return Group {
             switch art {
             case .swingRight:
-                arrowImage(side)
-                    .shadow(color: CardPalette.navy, radius: 0, x: 0, y: drop)
+                arrowImage(side, ink: plain ? .white : CardPalette.navy)
+                    .shadow(color: CardPalette.darkBlue, radius: 0, x: 0, y: drop)
             case .swingLeft:
-                arrowImage(side)
+                arrowImage(side, ink: plain ? .white : CardPalette.red)
                     .scaleEffect(x: -1)
-                    .shadow(color: CardPalette.red, radius: 0, x: 0, y: drop)
+                    .shadow(color: CardPalette.darkBlue, radius: 0, x: 0, y: drop)
             case .skip:
                 Image(systemName: "chevron.right.dotted.chevron.right")
                     .resizable()
                     .scaledToFit()
                     .frame(width: width * CardLayout.skipIconFraction)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(plain ? .white : CardPalette.purple)
                     .rotationEffect(.degrees(-90))
-                    .shadow(color: CardPalette.purple, radius: 0, x: 0, y: drop)
+                    .shadow(color: CardPalette.darkBlue, radius: 0, x: 0, y: drop)
             case .backPass:
-                // Flipped upright, smaller, and shadowed twice — navy first, then blue
-                // over it. Both east, so they read as a doubled edge rather than a drop.
-                arrowImage(side * CardLayout.backPassArrowScale)
-                    // Both flips before the shadows, so the shadows stay east.
+                // Flipped upright and smaller. The doubled edge it used to wear was two
+                // shadows standing in for a colour it did not have; it has one now.
+                arrowImage(side * CardLayout.backPassArrowScale,
+                           ink: plain ? .white : CardPalette.blue)
+                    // Both flips before the shadow, so the shadow stays east.
                     .scaleEffect(x: -1, y: -1)
-                    .shadow(color: CardPalette.navy, radius: 0, x: drop, y: 0)
-                    .shadow(color: CardPalette.blue, radius: 0, x: drop, y: 0)
+                    .shadow(color: CardPalette.darkBlue, radius: 0, x: drop, y: 0)
             }
         }
-        .position(x: width / 2, y: height * CardLayout.arrowCentreYFraction)
+        .position(x: width / 2,
+                  y: height * CardLayout.arrowCentreYFraction
+                      - (art == .skip || art == .backPass ? lift : 0))
     }
 
     /// The second symbol on an icon, wherever it is worn.
@@ -748,12 +760,12 @@ struct CardFrontView: View {
             .offset(x: side * accent.x, y: side * accent.y)
     }
 
-    private func arrowImage(_ side: CGFloat) -> some View {
+    private func arrowImage(_ side: CGFloat, ink: Color = .white) -> some View {
         Image("SwingArrowRight")
             .resizable()
             .scaledToFit()
             .frame(width: side)
-            .foregroundStyle(.white)
+            .foregroundStyle(ink)
     }
 
     /// Only on cards that touch SHOT. Hard shadows — zero blur, offset south-east.

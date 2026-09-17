@@ -180,6 +180,12 @@ enum CardTextStyle {
     /// **Two shapes for it.** A is the flash of type colour the thinned ring gave back;
     /// B runs it longer and puts the type's name in it, so the corner says what the card
     /// is as well as what colour it is.
+    /// **How far up the two that sit low are lifted**, as shares of the card's width.
+    /// The swings are drawn where they belong; the dotted chevrons and the turned arrow
+    /// are not, and they are not the same amount out either.
+    static let skipLift: CGFloat = 0.020
+    static let backPassLift: CGFloat = 0.020
+
     static let patchNamed = false
     static let patchNamedWidth: CGFloat = 0.520
     static let patchNamedSize: CGFloat = 0.060
@@ -526,6 +532,8 @@ final class CardTextTuning {
     var patchBottomLeading = CardTextStyle.patchBottomLeading
     var patchBottomTrailing = CardTextStyle.patchBottomTrailing
     var skinInks = CardTextStyle.skinInks
+    var skipLift = CardTextStyle.skipLift
+    var backPassLift = CardTextStyle.backPassLift
     var patchNamed = CardTextStyle.patchNamed
     var patchNamedWidth = CardTextStyle.patchNamedWidth
     var patchNamedSize = CardTextStyle.patchNamedSize
@@ -628,6 +636,8 @@ final class CardTextTuning {
         patchBottomLeading = CardTextStyle.patchBottomLeading
         patchBottomTrailing = CardTextStyle.patchBottomTrailing
         skinInks = CardTextStyle.skinInks
+        skipLift = CardTextStyle.skipLift
+        backPassLift = CardTextStyle.backPassLift
         patchNamed = CardTextStyle.patchNamed
         patchNamedWidth = CardTextStyle.patchNamedWidth
         patchNamedSize = CardTextStyle.patchNamedSize
@@ -699,6 +709,8 @@ final class CardTextTuning {
         static let iconTop: CGFloat = \(n(iconTop))
         static let darkBodies = \(darkBodies)
         static let skinInks: [CardTheme: [CardFace: [CardSkin.Role: CardTextInk]]] = [\(overrideSource)]
+        static let skipLift: CGFloat = \(n(skipLift))
+        static let backPassLift: CGFloat = \(n(backPassLift))
         static let patchNamed = \(patchNamed)
         static let patchNamedWidth: CGFloat = \(n(patchNamedWidth))
         static let patchNamedSize: CGFloat = \(n(patchNamedSize))
@@ -922,6 +934,8 @@ struct CardTextBench: View {
                                 chip("B", on: tune.patchNamed) { tune.patchNamed = true }
                             }
                         }
+                        dial("skip up", $tune.skipLift, 0...0.2)
+                        dial("BTB up", $tune.backPassLift, 0...0.2)
                         dial("B width", $tune.patchNamedWidth, 0.2...1)
                         dial("B letters", $tune.patchNamedSize, 0.02...0.12)
                         dial("width", $tune.patchWidth, 0...1)
