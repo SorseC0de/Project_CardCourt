@@ -29,7 +29,7 @@ enum Glossary {
         case "Retires":     return "Retire"
         case "Locks":       return "Lock"
         case "Clamps":      return "Clamp"
-        case "Whistles":    return "Whistle"
+        case "Refs":        return "Ref"
         case "Injuries":    return "Injury"
         case "Game Breaks": return "Game Break"
         default:            return word
@@ -60,8 +60,10 @@ enum Glossary {
              + "over.",
         "AST": "An assist. Credited to whoever passed to the man who scored.",
         "FT": "A free throw. A trip to the line, shot on its own, worth a point each.",
-        "Whistle": "A card set down face up that waits for something to happen, then "
-                 + "fires. Nobody plays it when it goes off.",
+        "Ref": "One of the three officials working this round, dealt face up off their own "
+             + "deck. Everybody can read what they are watching for. Nobody plays them and "
+             + "nobody owns them; they retire at the end of the round and three more come "
+             + "out.",
         "Game Break": "Something that happens *to* the table, turned up in a draw rather "
                     + "than played. Nobody chooses one.",
         "Injury": "A Game Break that stays on you rather than firing and going. It costs "

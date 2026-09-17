@@ -453,21 +453,21 @@ struct GameState: Codable {
     var floorEffect: VarenaEffect { currentCourt.varena ?? VarenaEffect() }
     /// What the ball does. A Regulation Ball does nothing.
     var ballEffect: VariaballEffect { currentBall?.variaball ?? VariaballEffect() }
-    /// **How many Moves this possession holds**, and nil where nothing is counting — Med
-    /// Ball lifts the limit entirely. The officials tighten it: a referee watching for
-    /// Traveling takes one off for as long as he is working.
-    var moveLimit: Int? {
-        guard !ballEffect.ignoresMoveLimit else { return nil }
-        let tighter = armedWhistles.reduce(0) {
-            $0 + ($1.card.descriptor.whistle?.lowersMoveLimit ?? 0)
-        }
-        return max(1, rules.movesPerPossession - tighter)
-    }
-
     /// **The most cards a hand may hold.** The match's, unless the floor is stricter.
     var handLimit: Int { min(rules.handLimit, floorEffect.handLimit ?? rules.handLimit) }
-    /// Intangible slots on this floor.
-    var intangibleSlotLimit: Int { floorEffect.intangibleSlots ?? rules.intangibleSlots }
+    /// **How many passives a board may hold.** The floor's, the match's — and tighter
+    /// still if an official is checking bags. Official Review caps it at one.
+    var intangibleSlotLimit: Int {
+        let checked = armedWhistles.compactMap { $0.card.descriptor.whistle?.intangibleSlots }
+        return min(floorEffect.intangibleSlots ?? rules.intangibleSlots,
+                   checked.min() ?? Int.max)
+    }
+
+    /// **Whether anything pays a bonus right now.** Delay-of-Game Warning says nothing and
+    /// makes no call; he simply stops them being paid while he works.
+    var bonusesPaid: Bool {
+        !armedWhistles.contains { $0.card.descriptor.whistle?.barsBonuses == true }
+    }
     /// The shot clock on this floor.
     var shotClockLength: Int { floorEffect.shotClockStart ?? rules.shotClockStart }
     /// Dim Dome: whether this seat may read SHOT.

@@ -332,7 +332,7 @@ enum CardLibrary {
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
         effect: "#[Shot Clock] changes: #[TOV] +1. Side-out.", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotClockLowered, turnoverOnOffender: true,
+        whistle: WhistleEffect(trigger: .shotClockChanged, turnoverOnOffender: true,
                                cancelsCard: false, offenderInbounds: true))
 
     /// Called on the draw itself, which is the only Whistle that is — see
@@ -340,21 +340,19 @@ enum CardLibrary {
     /// whatever the draw still had queued.
     static let discontinuedDribble = CardDescriptor(
         id: "discontinued-dribble", name: "Discontinued Dribble", type: .whistle,
-        effect: "Player #[Draws] a card: Possession ends. Side-out.",
+        effect: "Cancel a @[Dribble]. #[Retire] 1. #[TOV] +1",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .cardDrawn, cancelsCard: false,
-                               offenderInbounds: true, endsPossession: true))
+        whistle: WhistleEffect(trigger: .dribblePlayed, turnoverOnOffender: true,
+                               offenderDiscards: 1))
 
     /// **Tighter officiating.** The speed limit is the match's — see
     /// `MatchRules.movesPerPossession` — and this referee does not bring it, he lowers it.
     static let travel = CardDescriptor(
         id: "travel", name: "Travel", type: .whistle,
-        effect: "1 fewer ~[Move] card a possession",
+        effect: "On ~[Move]: flip a coin.\nTails: #[TOV] +1",
         numberInDeck: 1,
-        // **No trigger: he never intercepts.** The call is the rules' and is made whether
-        // or not he is working — all he does is tighten the limit. His card is still what
-        // the call is announced with, so `Rules.travel` reaches for him when he is out.
-        whistle: WhistleEffect(turnoverOnOffender: true, lowersMoveLimit: 1))
+        whistle: WhistleEffect(trigger: .movePlayed, turnoverOnOffender: true,
+                               coinFlip: true))
 
     /// **Out of the deck.** It answers a Game Break, and there are none — see `whistles`.
     static let playOn = CardDescriptor(
@@ -376,69 +374,73 @@ enum CardLibrary {
 
     static let doubleDribble = CardDescriptor(
         id: "double-dribble", name: "Double Dribble", type: .whistle,
-        effect: "Cancel a @[Dribble]. #[Retire] 1. #[TOV] +1", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .dribblePlayed, turnoverOnOffender: true,
+        effect: "Same ~[Move] card twice running: #[Cancel] it. #[Retire] 1. #[TOV] +1",
+        numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .sameMoveTwice, turnoverOnOffender: true,
                                offenderDiscards: 1))
 
     static let backCourtViolation = CardDescriptor(
         id: "back-court-violation", name: "Back Court Violation", type: .whistle,
-        effect: "Cancel Next ~[Pass]. #[TOV] +1. Side-out.",
+        effect: "On ~[Pass]: flip a coin.\nTails: #[TOV] +1",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .passPlayed, turnoverOnOffender: true,
-                               setterChoosesInbound: true))
+                               coinFlip: true))
 
     static let inadvertentWhistle = CardDescriptor(
         id: "inadvertent-whistle", name: "Inadvertent Whistle", type: .whistle,
-        effect: "Any other ~[Whistle] fires: cancel it. Turn player #[Draws] 1",
+        effect: "Any other ~[Ref] fires: cancel it. Turn player #[Draws] 1",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .whistleFired, offenderDraws: 1))
 
     static let coachsChallenge = CardDescriptor(
         id: "coachs-challenge", name: "Coach's Challenge", type: .whistle,
-        effect: "Cancel Next ~[Whistle]. +1 @[Timeout]",
+        effect: "Cancel Next ~[Ref]. +1 @[Timeout]",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .whistlePlayed, recoversTimeout: true))
 
     static let officialReview = CardDescriptor(
         id: "official-review", name: "Official Review", type: .whistle,
-        effect: "Next ~[Intangible]: #[Retire] all theirs", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .intangibleRevealed, stripsIntangibles: true))
+        effect: "~[Intangible] slots: 1", numberInDeck: 1,
+        whistle: WhistleEffect(intangibleSlots: 1))
 
     static let goaltending = CardDescriptor(
         id: "goaltending", name: "Goaltending", type: .whistle,
-        effect: "Next ~[Clamp]: #[Cancel] it. Target player +2 PTS. End round",
+        effect: "Shooting over a ~[Clamp]: #[Cancel] it. Take the points. End round",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .clampPlayed, endsRound: true, pointsToVictim: 2))
+        whistle: WhistleEffect(trigger: .shotAttempt, endsRound: true,
+                               awardsShotValueToOffender: true,
+                               requiresShotOverClamp: true))
 
     // These three let the Clamp resolve and negate what it does, so that "the clamped
     // player" has somebody to refer to — see WhistleEffect.voidsClampOnLanding.
 
     static let blockingFoul = CardDescriptor(
         id: "blocking-foul", name: "Blocking Foul", type: .whistle,
-        effect: "Next ~[Clamp]: no effect. Clamped player +1 #[FT]", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .clampPlayed, voidsClampOnLanding: true,
-                               freeThrowsToClampVictim: 1))
+        effect: "Next ~[Clamp]: target player +1 #[FT]", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .clampPlayed, freeThrowsToClampVictim: 1,
+                               cancelsCard: false))
 
     static let flagrantFoul = CardDescriptor(
         id: "flagrant-foul", name: "Flagrant Foul", type: .whistle,
-        effect: "Next ~[Clamp]: no effect. Clamper #[Retires] 1. Clamped player +1 #[FT] and keeps the ball",
+        effect: "~[Clamp] that #[Retires] cards: no effect. Clamper #[Retires] 1. "
+            + "Target player +1 #[FT] and keeps the ball",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 1,
                                voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
-                               victimKeepsBall: true))
+                               victimKeepsBall: true, requiresClampRetires: true))
 
     static let flagrantFoulII = CardDescriptor(
         id: "flagrant-foul-ii", name: "Flagrant Foul II", type: .whistle,
-        effect: "Next ~[Clamp]: no effect. Clamper #[Retires] their bag. Clamped player +1 #[FT] and keeps the ball",
+        effect: "~[Clamp] on a clamped player: Clamper #[Retires] 2. Target player +1 #[FT]",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscardsBag: true,
-                               voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
-                               victimKeepsBall: true))
+        whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 2,
+                               freeThrowsToClampVictim: 1, cancelsCard: false,
+                               requiresClampOnClamped: true))
 
     static let charge = CardDescriptor(
         id: "charge", name: "Charge", type: .whistle,
-        effect: "Next @[Dunk]: #[Cancel] it. Shooter inbounds", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotAttempt, offenderInbounds: true,
+        effect: "Next @[Dunk]: #[Cancel] it. #[TOV] +1", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true,
                                requiresShotType: .dunk))
 
     /// The three that was not one. It does not wave the shot off — it says where his foot
@@ -449,23 +451,25 @@ enum CardLibrary {
         whistle: WhistleEffect(trigger: .shotAttempt, cancelsCard: false,
                                requiresShotType: .three, downgradesThree: true))
 
+    /// **Palming, not Offensive Foul.** A charge is an offensive foul, so the old name was
+    /// the general case of the card standing beside it.
     static let offensiveFoul = CardDescriptor(
-        id: "offensive-foul", name: "Offensive Foul", type: .whistle,
+        id: "offensive-foul", name: "Palming", type: .whistle,
         effect: "Next @[Layup]: #[Cancel] it. #[TOV] +1", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotAttempt, turnoverOnOffender: true,
                                requiresShotType: .layup))
 
     static let technicalFoul = CardDescriptor(
         id: "technical-foul", name: "Technical Foul", type: .whistle,
-        effect: "Next Non-~[Whistle]: #[Cancel] it. #[TOV] +1", numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .anyNonWhistlePlayed, turnoverOnOffender: true))
+        effect: "#[Target] another player: they take 1 #[FT]", numberInDeck: 1,
+        whistle: WhistleEffect(trigger: .targetedAnother,
+                               freeThrowsToClampVictim: 1, cancelsCard: false))
 
     static let delayOfGameWarning = CardDescriptor(
         id: "delay-of-game-warning", name: "Delay-of-Game Warning", type: .whistle,
-        effect: "Cancel Next Shot-Clock card. 2nd call this round: Take 1 #[FT]",
+        effect: "No bonuses are paid",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotClockLowered, freeThrowsOnRepeatCall: 1,
-                               keepsClockCost: true, staysArmed: true))
+        whistle: WhistleEffect(barsBonuses: true))
 
     static let timeout = CardDescriptor(
         id: "timeout", name: "Timeout", type: .whistle,
@@ -475,18 +479,18 @@ enum CardLibrary {
 
     static let clearedToPlay = CardDescriptor(
         id: "cleared-to-play", name: "Cleared to Play", type: .whistle,
-        effect: "An ~[Injury] turns up: it never lands", numberInDeck: 1,
+        // **Parked**: its trigger is an Injury turning up in a draw and Injuries are
+        // parked, so it made nought calls in 252 rounds worked. Back when the knocks are.
+        effect: "An ~[Injury] turns up: it never lands", numberInDeck: 0,
         whistle: WhistleEffect(trigger: .injuryDrawn))
 
     static let clearPathFoul = CardDescriptor(
         id: "clear-path-foul", name: "Clear Path Foul", type: .whistle,
-        effect: "Shooting under a SHOT ~[Clamp]: #[Clear] them, take the points and 1 #[FT]",
+        effect: "~[Clamp] on a player with no cards, or at SHOT 0%: #[Cancel] it. "
+            + "Target player +1 #[FT]",
         numberInDeck: 1,
-        whistle: WhistleEffect(trigger: .shotAttempt, cancelsCard: false,
-                               endsRound: true, freeThrowsToOffender: 1,
-                               clearsShotDebuffClamps: true,
-                               awardsShotValueToOffender: true,
-                               requiresShotDebuffClamp: true))
+        whistle: WhistleEffect(trigger: .clampPlayed, freeThrowsToClampVictim: 1,
+                               requiresDefencelessVictim: true))
 
     static let roswellReach = CardDescriptor(
         id: "roswell-reach", name: "Roswell Reach", type: .intangible,
@@ -596,7 +600,7 @@ enum CardLibrary {
     static let dirtyPlayer = CardDescriptor(
         id: "dirty-player", name: "Dirty Player", type: .intangible,
         effect: "Each of your ~[Clamps] costs an Injured player a card. "
-            + "#[Retire] 1 whenever a ~[Whistle] fires",
+            + "#[Retire] 1 whenever a ~[Ref] fires",
         numberInDeck: 1,
         intangible: IntangibleEffect(discardOnAnyWhistle: 1, clampCostsInjured: 1))
 
@@ -970,7 +974,7 @@ enum CardLibrary {
     static let medBall = CardDescriptor(
         id: "med-ball", name: "Med Ball", type: .variaball,
         effect: "SHOT cannot exceed 50%. ~[Move] cards never @[Travel]", numberInDeck: 1,
-        variaball: VariaballEffect(shotCeiling: 50, ignoresMoveLimit: true))
+        variaball: VariaballEffect(shotCeiling: 50, ignoresTravel: true))
     static let dishcountBall = CardDescriptor(
         id: "dishcount-ball", name: "Dishcount Ball", type: .variaball,
         effect: "#[Retire] one fewer for card costs and ~[Clamps]", numberInDeck: 1,
@@ -1327,14 +1331,33 @@ enum CardLibrary {
         charge, footOnTheLine, offensiveFoul,
         goaltending, blockingFoul, flagrantFoul, flagrantFoulII,
         technicalFoul, clearPathFoul, delayOfGameWarning, officialReview,
-        clearedToPlay, extravagantMechanics, overVaringEvidence,
+        extravagantMechanics, overVaringEvidence, crewChief, rookieOfficial,
     ]
 
     /// Whistles that needed an owner to mean anything. Kept so a saved match can still
     /// decode them, out of every pool.
     static let retiredWhistles: [CardDescriptor] = [
-        timeout, coachsChallenge, crewChiefReview, inadvertentWhistle, tileTampering, playOn,
+        timeout, coachsChallenge, crewChiefReview, inadvertentWhistle, tileTampering,
+        playOn, clearedToPlay,
     ]
+
+    /// **A call spends the man who made it.** Any official's call, his own included,
+    /// retires him and draws a replacement — so the stage churns as it is used, and a rule
+    /// somebody has just worked around is swapped for one they have not read yet.
+    ///
+    /// While he is out, every other referee is back to one call apiece.
+    static let crewChief = CardDescriptor(
+        id: "crew-chief", name: "Crew Chief", type: .whistle,
+        effect: "Any call: #[Retire] that ~[Ref] and place a new one", numberInDeck: 1,
+        whistle: WhistleEffect(retiresCaller: true))
+
+    /// **A positive one**, of which the crew wants more. Retiring stops being a loss and
+    /// becomes a swap: you give up what you spent and take back something already played.
+    static let rookieOfficial = CardDescriptor(
+        id: "rookie-official", name: "Rookie Official", type: .whistle,
+        effect: "On #[Retire]: you may swap it for any card in Retirement",
+        numberInDeck: 1,
+        whistle: WhistleEffect(swapsOnRetire: true))
 
     static let whistles: [CardDescriptor] = [
         shotClockViolation, travel, doubleDribble, backCourtViolation, inadvertentWhistle,

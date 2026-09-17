@@ -10,6 +10,10 @@ enum WhistleTrigger: String, Hashable, Codable {
     case passPlayed
     case movePlayed
     case dribblePlayed
+    /// **The same Move card twice running.** Double Dribble, read literally.
+    case sameMoveTwice
+    /// A card aimed at somebody: a pass that names a player, or a Clamp.
+    case targetedAnother
     case clampPlayed
     case whistlePlayed
     /// **A passive landing on somebody's board.** Named for what happens rather than for
@@ -25,7 +29,7 @@ enum WhistleTrigger: String, Hashable, Codable {
     case slotOrSpecialPlayed
     case shotAttempt
     /// Any card that spends Shot Clock — Rhythm Dribble, Hesi.
-    case shotClockLowered
+    case shotClockChanged
     case whistleFired
     /// An Injury turning up in somebody's draw. Like a Game Break it is an event rather than
     /// a play — Cleared to Play is the sheet's own answer to one — so it is raised where the
@@ -48,7 +52,10 @@ enum WhistleTrigger: String, Hashable, Codable {
     func matches(_ action: PendingAction) -> Bool {
         // Never intercepts a play. It waits for another Whistle instead.
         if self == .whistleFired || self == .injuryDrawn
-            || self == .gameBreakDrawn || self == .cardDrawn { return false }
+            || self == .gameBreakDrawn || self == .cardDrawn
+            // Read against the possession rather than against the card, so it is settled
+            // where the state can be seen — `Rules.interceptor`.
+            || self == .sameMoveTwice { return false }
         switch (self, action) {
         case (.shotAttempt, .shoot):
             return true
@@ -58,6 +65,11 @@ enum WhistleTrigger: String, Hashable, Codable {
             return card.descriptor.isMove
         case (.dribblePlayed, .playCard(_, let card)):
             return card.descriptor.isDribble
+        // **Aimed at somebody.** A pass that names a player, or a Clamp — which always
+        // names one. A swing goes where geometry sends it and is nobody's business.
+        case (.targetedAnother, .playCard(_, let card)):
+            return card.descriptor.clamp != nil || card.descriptor.targetDiscards > 0
+                || card.descriptor.passTarget == .choice
         case (.clampPlayed, .playCard(_, let card)):
             return card.descriptor.type == .clamp
         case (.whistlePlayed, .playCard(_, let card)):
@@ -72,8 +84,10 @@ enum WhistleTrigger: String, Hashable, Codable {
             let type = card.descriptor.type
             return type == .intangible || type == .specialMove
                 || card.descriptor.varena != nil || card.descriptor.variaball != nil
-        case (.shotClockLowered, .playCard(_, let card)):
-            return card.descriptor.clockDelta < 0
+        // **Any change at all.** Messing with the clock is the offence, so a card that
+        // hands a tick back trips it exactly as one that spends a tick does.
+        case (.shotClockChanged, .playCard(_, let card)):
+            return card.descriptor.clockDelta != 0
         default:
             return false
         }
@@ -145,6 +159,25 @@ struct WhistleEffect: Hashable, Codable {
     /// `MatchRules.movesPerPossession` — and a referee watching for Traveling does not
     /// bring it, he lowers it: one fewer Move a possession for as long as he is working.
     var lowersMoveLimit = 0
+    /// **Only a Clamp that would put cards into Retirement.** Flagrant Foul.
+    var requiresClampRetires = false
+    /// **Only a Clamp landing on a player who is already clamped.** Flagrant Foul II.
+    var requiresClampOnClamped = false
+    /// **Only a Clamp on a player with nothing.** Clear Path Foul: an empty hand, or a
+    /// look worth nothing.
+    var requiresDefencelessVictim = false
+    /// **Only a shot taken over a defender.** Goaltending, which is what the call is.
+    var requiresShotOverClamp = false
+    /// Travel and Back Court Violation: the call is a coin toss rather than a certainty.
+    var coinFlip = false
+    /// Crew Chief: the referee who made the call is retired and replaced.
+    var retiresCaller = false
+    /// Delay-of-Game Warning: no bonuses are paid while he works.
+    var barsBonuses = false
+    /// Official Review: how many passives a board may hold while he works.
+    var intangibleSlots: Int?
+    /// Rookie Official: a card put into Retirement may be swapped for one already there.
+    var swapsOnRetire = false
     /// **Which finish the crew is watching.** A call on dunks says nothing about a layup.
     /// This is the half of the matrix a Clamp forces a player into.
     var requiresShotType: ShotType?

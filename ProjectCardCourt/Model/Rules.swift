@@ -503,7 +503,7 @@ enum Rules {
         }
         // The card is a shot attempt in its own right, so a Whistle watching for one still
         // gets its say.
-        if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
+        if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
             return true
         }
@@ -945,16 +945,7 @@ enum Rules {
             guard legalMoves(state, for: seat).contains(.play(cardID)) else { return [] }
             // Declared but not yet resolved — a Whistle gets to speak here.
             let declared = state[seat].bag[index]
-            // **Traveling, called by the rules.** The limit is the match's and the crew
-            // only tightens it, so the call is made whether or not a referee is watching
-            // for one — see `GameState.moveLimit`. The Move being declared is the one that
-            // breaks it, so it counts itself: at a limit of three the fourth travels.
-            if declared.descriptor.isMove, let limit = state.moveLimit,
-               state.movesThisPossession >= limit {
-                travel(on: .playCard(seat: seat, card: declared), state: &state, events: &events)
-                return events
-            }
-            if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: state) {
+            if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: &state) {
                 // Negating the effect, not the activation: the Clamp is allowed to be
                 // played and to resolve. The Whistle waits for those defenders to try to
                 // land, because until then there is no clamped player to name.
@@ -1037,9 +1028,13 @@ enum Rules {
             }
             // Con-crete: hard on the joints.
             if descriptor.isMove { delta += state.floorEffect.shotPerMovePlayed }
-            let comboArmed = (descriptor.comboAfter != nil
-                              && descriptor.comboAfter == state.lastPlayThisPossession)
-                || (descriptor.comboAfterDribble && lastPlayWasDribble(state))
+            // **Nothing pays a bonus while Delay-of-Game works.** He makes no call and
+            // says nothing; he just stops them — combos included, which is where most of
+            // a good possession's extra comes from. See `GameState.bonusesPaid`.
+            let comboArmed = state.bonusesPaid
+                && ((descriptor.comboAfter != nil
+                     && descriptor.comboAfter == state.lastPlayThisPossession)
+                    || (descriptor.comboAfterDribble && lastPlayWasDribble(state)))
             // A Kick-Out asks whether the Drive it followed was *itself* a combo — that
             // is a dribble drive, and a different play from a Drive on its own.
             let afterCombo = comboArmed && state.lastPlayWasCombo
@@ -1369,7 +1364,7 @@ enum Rules {
             // returning on all of them meant this one cancelled a shot its own face says
             // it allows.
             var downgraded = false
-            if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
+            if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
                 downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
                 blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
                 guard downgraded, case .possession(let still) = state.phase, still == seat
@@ -1401,7 +1396,7 @@ enum Rules {
                   let offer = state.shotOffer(for: seat) else { return [] }
             let carried = state.nextShotBonus
             state.nextShotBonus = 0
-            if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
+            if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
                 blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
                 return events
             }
@@ -1995,7 +1990,7 @@ enum Rules {
         let special = descriptor.special
         state.pendingShotBonus += (special?.shotPerNamed ?? 0) * state.namedForAssist.count
 
-        if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+        if let whistle = interceptor(of: .shoot(seat: shooter), in: &state) {
             blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
             state.namedForAssist = []
             return events
@@ -2177,7 +2172,7 @@ enum Rules {
             settleHands(state: &state, events: &events)
             return events
         }
-        if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
+        if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
             adjustShot(by: -bought, state: &state)
             return events
@@ -2443,37 +2438,77 @@ enum Rules {
     ///
     /// Returns the Whistle that fires, if one does. Resolution is in arming order, which
     /// is what gives a Whistle-cancels-a-Whistle chain a defined winner.
-    private static func interceptor(of action: PendingAction, in state: GameState) -> ArmedWhistle? {
+    ///
+    /// **Takes the state to write to**, because some calls are a coin toss and a toss has
+    /// to be rolled somewhere. Matching stays a pure read; the roll happens once, here,
+    /// when a referee has otherwise decided to speak.
+    private static func interceptor(of action: PendingAction,
+                                    in state: inout GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
         // Oldest first: a trap set earlier is the one lying in wait.
         //
         // No owner exemption. A Whistle catches whoever trips it, its own player included
         // — that is what stops a table being flooded with traps by someone immune to them.
-        return state.armedWhistles.first { whistle in
-            guard whistle.trigger?.matches(action) == true, hasACallLeft(whistle) else {
-                return false
-            }
-            // Clear Path Foul is a call on a defender, so there has to be one holding the
-            // man down. Without the condition it fired on every clean look.
-            if whistle.card.descriptor.whistle?.requiresShotDebuffClamp == true {
-                return state[action.actor].clamps.contains { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
-            }
-            return true
-        }
+        let reading = state
+        guard let speaking = state.armedWhistles.first(where: {
+            passes($0, action, in: reading)
+        }) else { return nil }
+        return tossed(speaking, state: &state) ? speaking : nil
     }
 
-    /// **Whether this official still has his call to make.**
+    /// **Whether this official has anything to say about this play.**
     ///
-    /// The crew never leaves the floor — three of them work the whole round, and only the
-    /// round turning over changes them. What is spent is the *call*: a referee who has
-    /// made his stands there for the rest of it, read by everybody, and says nothing more.
-    ///
-    /// Without this a standing referee called the same violation on every play that tripped
-    /// it, and a violation that hands the ball back in is a play that trips it again — a
-    /// game came out at three and a half thousand calls. The few meant to be called more
-    /// than once say so on their own card.
-    private static func hasACallLeft(_ whistle: ArmedWhistle) -> Bool {
-        !whistle.stayed || whistle.card.descriptor.whistle?.staysArmed == true
+    /// A referee calls as often as his condition is met, all round — they stand for the
+    /// whole of it and retire at the end. What holds the rate down is the cards themselves:
+    /// coin tosses where a blanket cancel used to be, and conditions where there used to be
+    /// none. Crew Chief is the one that spends a caller, and he does it by retiring him.
+    private static func passes(_ whistle: ArmedWhistle, _ action: PendingAction,
+                               in state: GameState) -> Bool {
+        guard let effect = whistle.card.descriptor.whistle else { return false }
+
+        // Double Dribble, read literally: the same Move card twice running. Settled here
+        // rather than on the trigger, because it is a question about the possession.
+        if whistle.trigger == .sameMoveTwice {
+            guard case .playCard(_, let card) = action, card.descriptor.isMove,
+                  state.lastPlayThisPossession == card.descriptor.id else { return false }
+            return true
+        }
+        // Med Ball: the man carrying it can run all day.
+        if whistle.card.descriptor.id == CardLibrary.travel.id, state.ballEffect.ignoresTravel {
+            return false
+        }
+        guard whistle.trigger?.matches(action) == true else { return false }
+
+        if effect.requiresShotDebuffClamp {
+            return state[action.actor].clamps.contains { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
+        }
+        // Goaltending: a shot taken with a defender on him, which is what the call is.
+        if effect.requiresShotOverClamp {
+            return !state[action.actor].clamps.isEmpty
+        }
+        // The three that read the Clamp being played rather than the man playing it.
+        if case .playCard(_, let card) = action, card.descriptor.clamp != nil {
+            let victim = clampVictim(in: state)
+            if effect.requiresClampRetires {
+                return (card.descriptor.clamp?.discardAtStart ?? 0) > 0
+            }
+            if effect.requiresClampOnClamped {
+                return victim.map { !state[$0].clamps.isEmpty } ?? false
+            }
+            if effect.requiresDefencelessVictim {
+                return state.shot == 0 || (victim.map { state[$0].bag.isEmpty } ?? false)
+            }
+        }
+        return true
+    }
+
+    /// **Some calls are a coin toss.** Travel and Back Court Violation watch a whole class
+    /// of play, which as a certainty is a cancelled card in nearly every round they work —
+    /// so they are a chance of one instead. Rolled where the call is made, not where it is
+    /// matched, because matching has to stay a pure read.
+    private static func tossed(_ whistle: ArmedWhistle, state: inout GameState) -> Bool {
+        guard whistle.card.descriptor.whistle?.coinFlip == true else { return true }
+        return state.roll(1...2) == 1
     }
 
     /// A Whistle waiting on the draw itself, if one is set.
@@ -2482,7 +2517,7 @@ enum Rules {
     /// and a card reaching a hand is not something anybody did.
     private static func drawInterceptor(in state: GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
-        return state.armedWhistles.first { $0.trigger == .cardDrawn && hasACallLeft($0) }
+        return state.armedWhistles.first { $0.trigger == .cardDrawn }
     }
 
     /// Blows one called on a draw. **It ends the possession where it stands** and throws
@@ -2531,7 +2566,7 @@ enum Rules {
         // nothing.
         if whistle.trigger != .whistleFired,
            let over = state.armedWhistles.first(where: {
-               $0.id != whistle.id && $0.trigger == .whistleFired && hasACallLeft($0)
+               $0.id != whistle.id && $0.trigger == .whistleFired
            }) {
             spendWhistle(over.id, state: &state)
             spendWhistle(whistle.id, state: &state)
@@ -3296,6 +3331,9 @@ enum Rules {
         Seat.allCases.first { has($0, in: state, { $0.attractsClamps }) }
     }
 
+    /// **A round ends on a shot.** A turnover hands the ball back in and play carries on,
+    /// which keeps the one way a round closes the one everybody can see coming — and is
+    /// what the officials handing out turnovers everywhere is paid for.
     private static func endRound(state: inout GameState, events: inout [GameEvent]) {
         state.roundEnding = true
         defer { state.roundEnding = false }
@@ -3653,7 +3691,7 @@ enum Rules {
                 state.pendingBonusPoint = 0
                 return
             }
-            if let whistle = interceptor(of: .shoot(seat: shooter), in: state) {
+            if let whistle = interceptor(of: .shoot(seat: shooter), in: &state) {
                 blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
             } else {
                 resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
@@ -3711,13 +3749,11 @@ enum Rules {
         // this Break does not land, and the draw is taken again. One place, so a
         // third of them is a line rather than another branch through the reveal.
         if state.breaksWaived > 0 || (!wavingBreaks
-            && state.armedWhistles.contains {
-                $0.trigger == .gameBreakDrawn && hasACallLeft($0)
-            }) {
+            && state.armedWhistles.contains { $0.trigger == .gameBreakDrawn }) {
             if state.breaksWaived > 0 {
                 state.breaksWaived -= 1
             } else if let waved = state.armedWhistles.first(where: {
-                $0.trigger == .gameBreakDrawn && hasACallLeft($0)
+                $0.trigger == .gameBreakDrawn
             }) {
                 // Play-On is spent on the first one and the run carries on without
                 // it: "until a non-Game Break card is drawn" is the card's own text.
@@ -3757,9 +3793,7 @@ enum Rules {
         // Recoverena turns a new one into a card the same way.
         let shrugged = has(seat, in: state, { $0.shrugsOffInjuries })
             || state.floorEffect.injuriesBecomeDraws
-        let waved = state.armedWhistles.first {
-            $0.trigger == .injuryDrawn && hasACallLeft($0)
-        }
+        let waved = state.armedWhistles.first { $0.trigger == .injuryDrawn }
         if let waved, !shrugged {
             spendWhistle(waved.id, state: &state)
             state.discard.append(card)
@@ -4182,15 +4216,20 @@ enum Rules {
     private static func spendWhistle(_ id: UUID, state: inout GameState) {
         guard let at = state.armedWhistles.firstIndex(where: { $0.id == id }) else { return }
         state.armedWhistles[at].stayed = true
+        // **Crew Chief: a call spends the man who made it.** He retires where he stands and
+        // a replacement comes out, so the stage churns as it is used — and while he is
+        // working, every other official is back to one call apiece.
+        guard state.armedWhistles.contains(where: {
+            $0.card.descriptor.whistle?.retiresCaller == true
+        }) else { return }
+        state.officialsDiscard.append(state.armedWhistles.remove(at: at).card)
     }
 
     /// A Whistle waiting on a passive landing, if one is set. Its own reader for the same
     /// reason `drawInterceptor` is: a card arriving is not something anybody did.
     private static func intangibleInterceptor(in state: GameState) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
-        return state.armedWhistles.first {
-            $0.trigger == .intangibleRevealed && hasACallLeft($0)
-        }
+        return state.armedWhistles.first { $0.trigger == .intangibleRevealed }
     }
 
     /// Everything off a board.

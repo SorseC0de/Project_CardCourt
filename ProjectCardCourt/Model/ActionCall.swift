@@ -19,7 +19,7 @@ enum ActionCall: String, Identifiable, Equatable, CaseIterable {
         case .inbound:   return "Inbound"
         case .gameBreak: return "Game Break!"
         case .injury:    return "Injury!"
-        case .whistle:   return "Whistle"
+        case .whistle:   return "Ref"
         case .clamped:   return "Clamped!"
         }
     }

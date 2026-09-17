@@ -524,27 +524,21 @@ func runTests() {
 
     print("Discontinued Dribble")
     do {
-        var (state, seat, _) = openPossession(seed: 86, cards: [])
-        state.armedWhistles = [ArmedWhistle(owner: seat.across,
+        // **It cancels a Dribble now**, which is what Double Dribble used to do. Calling on
+        // the draw itself was written when a mid-possession draw was rare; every Move draws
+        // a card today, so it ended a possession on the first Move played.
+        var (state, seat, cards) = openPossession(seed: 86, cards: [CardLibrary.dribble])
+        state.armedWhistles = [ArmedWhistle(owner: nil,
                                             card: matchCard(CardLibrary.discontinuedDribble,
                                                             state.rules))]
-        state.deck = (0..<8).map { _ in matchCard(CardLibrary.skipPass, state.rules) }
-        var events: [GameEvent] = []
-        Rules.testDrawAll(Seat.allCases, count: 1, state: &state, events: &events)
+        let held = state[seat].bag.count
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
-                   "it is called on the draw itself")
-        // **He stays.** Three officials work the whole round whatever they call — see
-        // `Rules.spendWhistle`.
+                   "it is called on a Dribble")
+        Check.that(state[seat].turnovers == 1, "and charges the turnover")
+        Check.that(state[seat].bag.count < held, "and takes a card with it")
         Check.that(state.armedWhistles.first?.stayed == true,
                    "and the referee stays on the floor, having called it")
-        if case .inbound(let who) = state.phase {
-            Check.that(who == Seat.allCases[0], "the man who drew it puts it back in")
-        } else {
-            Check.that(false, "the man who drew it puts it back in")
-        }
-        Check.that(!state.pending.contains { $0.kind == .revealBreak }, "and nothing the draw had queued survives")
-        let dealt = events.filter { if case .drew = $0 { return true }; return false }.count
-        Check.that(dealt == 1, "only the card that tripped it is dealt, not the other three")
     }
 
     print("What a play owes")
@@ -1194,12 +1188,22 @@ func runTests() {
         Check.that(state.ball == seat, "and the possession continues")
     }
     do {
-        // **Traveling is the rules' call, and no referee has to be watching for it.** The
-        // fourth Move is played, discarded for nothing, and the offender hands the ball
-        // back in without the round advancing.
-        var (state, seat, cards) = openPossession(seed: 42, cards: [CardLibrary.dribble])
-        state.armedWhistles = []
-        state.movesThisPossession = state.rules.movesPerPossession
+        // **Travel is a coin toss on any Move**, so the test hunts a seed that lands
+        // tails rather than setting a run of Moves up.
+        var found: (GameState, Seat, [Card])?
+        for seed in UInt64(1)...UInt64(80) where found == nil {
+            var (fresh, who, hand) = openPossession(seed: seed, cards: [CardLibrary.dribble])
+            fresh.armedWhistles = [ArmedWhistle(owner: nil,
+                                                card: matchCard(CardLibrary.travel, fresh.rules))]
+            var probe = fresh
+            let called = Rules.apply(.play(hand[0].id), by: who, to: &probe)
+            if called.contains(where: { if case .whistleBlew = $0 { return true }; return false }) {
+                found = (fresh, who, hand)
+            }
+        }
+        guard var state = found?.0, let seat = found?.1, let cards = found?.2 else {
+            Check.that(false, "a tails turned up in eighty"); return
+        }
         let round = state.round
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state[seat].turnovers == 1, "Travel charges the turnover")
@@ -1218,11 +1222,19 @@ func runTests() {
         Check.that(!events.contains { if case .whistleBlew = $0 { return true }; return false },
                    "Drive is a Move but not a Dribble, so Double Dribble holds")
 
-        var (state2, seat2, cards2) = openPossession(seed: 44, cards: [CardLibrary.rhythmDribble])
-        state2.armedWhistles = [ArmedWhistle(owner: seat2.across, card: matchCard(CardLibrary.doubleDribble, state2.rules))]
-        let fired = Rules.apply(.play(cards2[0].id), by: seat2, to: &state2)
-        Check.that(fired.contains { if case .whistleBlew = $0 { return true }; return false },
-                   "Rhythm Dribble does trip it")
+        // **Double Dribble is literal now**: the same Move card twice running. One
+        // Rhythm Dribble is not two, so it takes a second to trip him.
+        var (state2, seat2, cards2) = openPossession(
+            seed: 44, cards: [CardLibrary.rhythmDribble, CardLibrary.rhythmDribble])
+        state2.armedWhistles = [ArmedWhistle(owner: nil,
+                                             card: matchCard(CardLibrary.doubleDribble,
+                                                             state2.rules))]
+        let once = Rules.apply(.play(cards2[0].id), by: seat2, to: &state2)
+        Check.that(!once.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "one Rhythm Dribble is fine")
+        let twice = Rules.apply(.play(cards2[1].id), by: seat2, to: &state2)
+        Check.that(twice.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "a second one running trips it")
     }
     do {
         // Timeout has no trigger, so it lands the moment it is played.

@@ -459,10 +459,9 @@ struct VariaballEffect: Hashable, Codable {
     var benchesReceiver = false
     /// **Med Ball: the man holding it is never called for Traveling.** A ball whose only
     /// word was a ceiling was a card you were sorry to be handed; this is the half that
-    /// makes picking it up a decision — you cannot get a good look with it, but you can
-    /// run all day. See `WhistleEffect.requiresMovesThisPossession`, which is the limit it
-    /// lifts.
-    var ignoresMoveLimit = false
+    /// makes picking it up a decision — you cannot get a good look with it, but you can run
+    /// all day. The speed limit itself is a Clamp's now, so what this lifts is the call.
+    var ignoresTravel = false
     /// Dishtracting Ball: putting it up costs a card. **On the shot, not on the catch** —
     /// a toll every player paid the moment the ball reached them taxed the whole table on
     /// every change of possession, which is a lot of hand for a ball nobody chose to hold.
@@ -572,7 +571,10 @@ enum CardType: String, Hashable, Codable, CaseIterable {
     case move = "Move"
     case specialMove = "Special Move"
     case clamp = "Clamp"
-    case whistle = "Whistle"
+    /// **Ref.** Short, and the slang fits the game — "what are the Refs this round?" reads
+    /// where "what are the Whistles this round?" does not. The Swift name stays `whistle`:
+    /// it is spelled that way in several hundred places and the rename would be noise.
+    case whistle = "Ref"
     case gameBreak = "Game Break"
     case intangible = "Intangible"
     /// Drawn and carried. A Devastating Injury is its sub-type, the one that lasts the game.
