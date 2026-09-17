@@ -71,17 +71,12 @@ game.
 
 **19 · Over-Varing Evidence** — kept as is. One of the later cards, and it holds up.
 
-## New
-
-**Instant Replay** — if the last referee left the game at the end of a round, bring him
-back.
-
 ## How the crew works
 
 **A referee calls as often as his condition is met, all round.** One-call-a-round was a
 patch I introduced and it is not the design: they stand for the whole round and are retired
 at the end of it. **The retired ones shuffle back into the ref deck each round**, so the
-same conditions can come back in new combinations — and **refs can duplicate**.
+same conditions can come back in new combinations.
 
 **This is the one thing to measure the moment it is built.** Standing referees that called
 every time is what produced 3,560 whistles and 614 turnovers a game with 467 of 500 games
