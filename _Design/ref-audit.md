@@ -73,10 +73,14 @@ game.
 
 ## New
 
-**Crew Chief** — each call he makes **retires one of the other two referees and draws a
-replacement**. The crew churns mid-round, so a stage that has been read can change under
-the people reading it — and with the retired ones shuffling back in, the man he sends off
-can walk straight back out.
+**Crew Chief** — **any call, by any referee, retires the one who made it and draws a
+replacement.** So a call spends the official who made it: the stage churns as it is used,
+and a rule you have just played around is replaced by one you have not read yet. With the
+retired ones shuffling back in, the man sent off can walk straight back out.
+
+Note what this does to the whole crew: while he is working, every other referee is back to
+**one call apiece** — which was the patch, arrived at from the other direction and as a card
+rather than as a rule.
 
 ## The count
 
