@@ -369,3 +369,36 @@ LIE!"** whether it drops or not.
 Not the final mechanics. What is settled is that challenges are going in, whatever shape
 they end up: a call you can answer is the other half of officials you can read, and one a
 game is the right number for a thing that should feel like spending something.
+
+
+## The refs on the floor (recorded mid-audit, not built)
+
+Comes in with the Travel revision — see the ref audit's record.
+
+**Rounds end on shots only.** A turnover no longer ends the round unless a card says so.
+In-round play speeds up and the one way a round closes becomes the one everybody can see
+coming.
+
+**A referee puts the ball in play.**
+
+- At the top of a round he inbounds to a random player — **always the local seat while this
+  is being developed**. Random first inbounder was always the plan; there is finally a
+  reason to build it.
+- He holds it in `Referee_holdball` and throws it in on `Referee_inbound`.
+- On a turnover that came from a ref's call and did not end the round, **the same official
+  who made the call** inbounds it, to a random player who is not the offender.
+
+**Where they stand.** The two far posts go. The two that are left move up to halfway
+between where they stand now and where the far ones were, scaled for the new depth, and two
+new posts go in **south-east and south-west of the south player**.
+
+**How they move.** Running is `Referee_run_N`. The looking is random and more often than the
+players do it. The two bottom posts use the new corner looks — **the south-east one looks
+NW and the south-west one looks NE**.
+
+**The huddle.** On a stoppage the bottom refs warp up with everyone else, and the three of
+them always form the same triangle in the **north-west corner of the court**: one facing
+east, north-east of him one facing south on the 0 → 1 → 0 → 2 loop, and south-east of that
+one facing west.
+
+**To import:** `Referee_inbound`, `Referee_holdball`, `Referee_run_look_N`, `_NW`, `_NE`.
