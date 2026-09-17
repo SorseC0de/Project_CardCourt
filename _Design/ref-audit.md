@@ -116,6 +116,22 @@ rest of them do.
 **Twenty.** Nineteen today, less Cleared to Play parked, plus Crew Chief and Rookie
 Official.
 
+## The Challenge
+
+**Once a game, called for anything, a player may throw the call out** — and the official
+who made it goes off with it. Spent whether it helps or not, which is what makes choosing
+the moment the whole of it.
+
+The call has not happened when the question is asked, so **taking a challenge means it
+never happened** rather than being undone — and the play he was making carries on, which is
+the real prize. Turning it down lets the call land and then picks the play up anyway if the
+card survived it.
+
+**Every call is challengeable**, with no exceptions: playing a card is two halves now, the
+declaring and the resolving, so a question can stop the game between them and either answer
+picks it back up. That split is what the consistency needed, and it measures better than
+the version that ducked it.
+
 ## How the crew works
 
 **A referee calls as often as his condition is met, all round.** One-call-a-round was a

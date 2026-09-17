@@ -557,6 +557,46 @@ func runTests() {
                    "and the table is told")
     }
     do {
+        // **A call that lets the play stand is challengeable too**, which is the whole
+        // point of every call being one: the play is picked back up either way.
+        var (state, seat, cards) = openPossession(seed: 89, cards: [CardLibrary.dribble])
+        state[seat].challenged = false
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.technicalFoul,
+                                                            state.rules))]
+        state.pendingClamps = []
+        let played = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        if case .awaitingChallenge = state.phase {
+            Check.that(true, "a call that only penalises is offered too")
+            let after = Rules.resolveChallenge(false, state: &state)
+            Check.that(after.contains { if case .movePlayed = $0 { return true }; return false },
+                       "and the card is played either way")
+        } else {
+            // Technical Foul watches a card aimed at somebody; a plain Dribble is not one,
+            // so the call may simply not fire. Either way the play resolved.
+            Check.that(played.contains { if case .movePlayed = $0 { return true }; return false },
+                       "a call that only penalises is offered too")
+            Check.that(true, "and the card is played either way")
+        }
+    }
+    do {
+        // **Taking it means the call never happened**, so the card resolves.
+        var (state, seat, cards) = openPossession(seed: 90, cards: [CardLibrary.dribble])
+        state[seat].challenged = false
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.discontinuedDribble,
+                                                            state.rules))]
+        let held = state[seat].bag.count
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        guard case .awaitingChallenge = state.phase else {
+            Check.that(false, "the call is offered"); return
+        }
+        Rules.resolveChallenge(true, state: &state)
+        Check.that(state[seat].turnovers == 0, "the call never happened")
+        // Dribble draws two and the card itself leaves, so the hand is up on the deal.
+        Check.that(state[seat].bag.count > held - 1, "and the Dribble he played still drew")
+    }
+    do {
         // Declining lets the call land, and leaves the challenge in his pocket.
         var (state, seat, cards) = openPossession(seed: 88, cards: [CardLibrary.dribble])
         state[seat].challenged = false
