@@ -3,7 +3,7 @@
 Card by card, under the rules as they stand: three officials a round, dealt face up, none
 retiring when called. **Decided, not built.** Measurements are from `./Tools/sim --refs`.
 
-## Decided so far
+## The nineteen
 
 **1 · Travel** — *On ~[Move]: flip a coin. If tails, #[TOV] +1 (Travel).* The move-limit
 lowering leaves this card and becomes a Clamp instead.
@@ -46,6 +46,59 @@ and voids it.
 this. It fires on **clamping an already-clamped player**: the new clamper Retires 2 and the
 clamped player takes 1 FT, and the Clamp still lands. Ganging up costs three or four cards
 and a free point, and is still worth it when somebody has to be stopped.
+
+**13 · Technical Foul** — it was never a turnover; a T gives free throws. It fires when a
+player **targets another player with a card effect** — a pass, a clamp. The card still
+resolves and the target takes 1 FT.
+
+**14 · Clear Path Foul** — fires on clamping a player with **0 cards in hand, or while SHOT
+is 0%**. It cancels the Clamp and gives the clamped player 1 FT. Fouling somebody who had
+nothing between them and the basket, which is what the real call is.
+
+**15 · Delay-of-Game Warning** — **silently disallows bonuses**, combo bonuses included. No
+call, no gesture, no stoppage: a standing condition rather than a thing that happens.
+
+**16 · Official Review** — **caps Intangible slots to 1** while he works. Play a new one and
+you give up the old; the refs checking your bag. Reuses `intangibleSlots` and the question
+`.awaitingIntangibleDrop` already asks.
+
+**17 · Cleared to Play** — **parked**: `numberInDeck: 0`, with a comment saying why. Its
+trigger is an Injury turning up and Injuries are parked, so it made 0 calls in 252 rounds
+worked. The crew deck is its own pile, so parking one costs no slot anywhere.
+
+**18 · Extravagant Mechanics** — kept as is. All three of its conditions are still in the
+game.
+
+**19 · Over-Varing Evidence** — kept as is. One of the later cards, and it holds up.
+
+## New
+
+**Instant Replay** — if the last referee left the game at the end of a round, bring him
+back.
+
+## How the crew works
+
+**A referee calls as often as his condition is met, all round.** One-call-a-round was a
+patch I introduced and it is not the design: they stand for the whole round and are retired
+at the end of it. **The retired ones shuffle back into the ref deck each round**, so the
+same conditions can come back in new combinations — and **refs can duplicate**.
+
+**This is the one thing to measure the moment it is built.** Standing referees that called
+every time is what produced 3,560 whistles and 614 turnovers a game with 467 of 500 games
+unfinished: a violation hands the ball back in and the next pass trips the same call. The
+revisions attack that directly — coin flips instead of blanket cancels, conditions instead
+of always-on, turnovers no longer ending rounds — but it is not gone by assumption, and the
+shot clock is the only thing left that closes a round nobody can score in.
+
+## The call animations
+
+More than one now, and which one plays is the card's.
+
+- `Referee_tech` — one held frame. A **T of light energy** fires from where his hands form
+  the T, hits the offending player, and sets off `SparkleBurst` and a 1s jitter on them.
+- `Referee_travel` — six frames. **All three referees run it at once**, from where they
+  stand, which is the joke.
+- `Referee_Call` — the pose and the rattle, for everything else.
 
 ## Clamps, decided alongside
 
