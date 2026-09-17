@@ -296,7 +296,8 @@ Nothing currently shelved — the shot-clock idea moved into Hurry-Up Hardwood a
 ## New balls (recorded, not built)
 
 **Liar Ball** — *On #[FT] miss: take once more.* The ball that will not tell you the truth
-about a miss.
+about a miss. **Once more is literal**: one extra attempt, and a missed retake is just a
+miss. It does not grant another.
 
 **A second ball, unnamed**, which takes Dishtracting Ball's parked toll: *Shooting:
 #[Retire] 1 card.*
