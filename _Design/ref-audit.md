@@ -78,14 +78,19 @@ replacement.** So a call spends the official who made it: the stage churns as it
 and a rule you have just played around is replaced by one you have not read yet. With the
 retired ones shuffling back in, the man sent off can walk straight back out.
 
-Note what this does to the whole crew: while he is working, every other referee is back to
-**one call apiece** — which was the patch, arrived at from the other direction and as a card
-rather than as a rule.
+**That is the point of him.** While he works, every other referee is back to one call
+apiece — the patch I had made a rule, arrived at from the other end and as a card, so the
+protection exists sometimes rather than always.
+
+**Rookie Official** — **on Retire: replace the Retired card with any other from
+Retirement.** Non-ref, which does not need saying on the face. Retiring stops being a loss
+and becomes a swap: you give up what you just spent and take back something already played.
+Another of the rare positive officials, and the deck wants more of them.
 
 ## The count
 
-**Nineteen today.** Parking Cleared to Play takes it to eighteen; Crew Chief makes nineteen.
-**One short of the twenty the deck wants** — a card still to be named.
+**Twenty.** Nineteen today, less Cleared to Play parked, plus Crew Chief and Rookie
+Official.
 
 ## How the crew works
 
@@ -124,6 +129,9 @@ if you want it to bite now — or pass elsewhere and it waits for them. **No out
 play**: a Clamp can never be aimed at whoever holds the ball right now, because the planned
 passive online mode cannot carry interrupts. **Floor General aims Clamps too**, and can send
 one back at the clamper, so stripping his Intangible first becomes a real play.
+
+**Cards that force a referee to be swapped.** The other half of a churning crew: if the
+stage can be changed by a call, it should be changeable by a play as well.
 
 **Cards that force another player to do something.** Without them people simply play around
 a ref for the whole round, which makes a stage everybody can read into a stage everybody can
