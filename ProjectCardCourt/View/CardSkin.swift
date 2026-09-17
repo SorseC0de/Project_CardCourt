@@ -332,3 +332,15 @@ struct CardSkin {
         }
     }
 }
+
+
+extension View {
+    /// **Boxes the type here, so what is hung on it next starts from scratch.**
+    ///
+    /// Building a view walks its generic type, and every modifier wraps the whole of what
+    /// came before in another generic. A long enough chain runs the walk off the end of
+    /// the stack — on a device first, whose main thread has less of one — and it arrives
+    /// as `EXC_BAD_ACCESS` in whichever leaf getter the walk was in, which is never the
+    /// thing at fault. Breaking the chain costs one allocation and nothing else.
+    func erased() -> AnyView { AnyView(self) }
+}

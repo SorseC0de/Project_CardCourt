@@ -78,19 +78,7 @@ struct GameView: View {
         // the questions 12, the set pieces 13 to 20, and what is called over the top 40
         // and above. Each is erased where it joins, which is what keeps the depth from
         // adding back up.
-        ZStack {
-            ground
-                .environment(\.floorIsHidden, floorIsCovered && floorAsleep)
-                .zIndex(0)
-            floorSheets.zIndex(1)
-            prompts.zIndex(2)
-            scenes.zIndex(3)
-            calls.zIndex(4)
-            // **Somebody leaving outranks the pause menu.** It is not a thing you
-            // opened and can close; the game is stopped until it is answered.
-            if !controller.walkedOut.isEmpty { walkedOut.zIndex(6) }
-            else if paused { pauseMenu.zIndex(5) }
-        }
+        bands
         .environment(\.tutorialFocus, tutorial?.focus ?? TutorialFocus())
         .environment(\.ballInPlay, controller.shown.currentBall)
         .overlayPreferenceValue(TutorialFrames.self) { anchors in
@@ -126,6 +114,7 @@ struct GameView: View {
             floorAsleep = true
         }
         .onChange(of: controller.gate) { detail = nil; picked = nil; comboOf = nil; bonusOf = nil }
+            .erased()
         // **Every press lands in one place.** Only this screen knows what is over the
         // floor, so it is the only thing that can say whether a button was answering the
         // hand or the pause menu on top of it.
@@ -147,6 +136,7 @@ struct GameView: View {
             cursor.settle(on: Row.at(controller))
         }
         .onAppear { cursor.settle(on: Row.at(controller)) }
+            .erased()
         // **Anything that takes the screen holds the game.** A sheet already did; a card
         // raised out of a slot and the discard browser did not, and the floor carried on
         // playing behind them. Not the hand's own card detail — that one is a card you
@@ -158,8 +148,60 @@ struct GameView: View {
         .background(keyboardCommands)
         .task {
             DevLog.say(.input, "GameView appeared")
+            #if DEBUG
+            // **How deep this screen's type is**, which is the thing that crashes rather
+            // than anything on the screen. Building a view walks its generic type, and a
+            // walk long enough runs off the end of the stack — on a device first, because
+            // its main thread has less of one. Measured rather than guessed at.
+            let name = _typeName(Self.Body.self)
+            let deep = name.filter { $0 == "<" }.count
+            DevLog.say(.input, "body type: \(name.count) chars, \(deep) deep")
+            // **A tripwire, not a reading.** This is the crash that arrives as
+            // EXC_BAD_ACCESS in some innocent leaf getter, so the only warning anybody
+            // gets is the number climbing. Break the chain with `.erased()` — see `bands`.
+            if deep > Self.deepestSafeBody {
+                DevLog.say(.input, "WARNING: body type is \(deep) deep, over \(Self.deepestSafeBody)"
+                           + " — add an .erased() before this crashes on a device")
+            }
+            #endif
             controller.begin()
         }
+    }
+
+    /// **How deep this screen's type may get before it is a crash waiting to happen.**
+    ///
+    /// It went over on a device at 132 and was comfortable at 49; this sits between, near
+    /// enough the measured-good number to catch a slide early and far enough above it that
+    /// ordinary work does not trip it. There is no real limit to quote — the stack a view
+    /// is built on is the device's, not ours — so this is a line drawn from the one crash
+    /// we have measured, and it moves if a bigger one turns up.
+    static let deepestSafeBody = 70
+
+    /// **The five bands, stacked and erased before a single modifier goes on.**
+    ///
+    /// `body` breaks its own chain a second time partway down with `.erased()`, for the
+    /// same reason: two dozen modifiers in a row is two dozen generics wrapped round each
+    /// other, and the walk that builds them is what runs off the end of a device's stack.
+    /// Measured, not guessed — see the depth line `body` logs in DEBUG.
+    ///
+    /// The stack is the cheap half: six children, each already an `AnyView`. What runs the
+    /// type up is the two dozen modifiers `body` hangs off it, because every one of them
+    /// wraps the whole thing in another generic. Boxing here means that chain starts from
+    /// `AnyView` instead of from the stack's own type.
+    private var bands: AnyView {
+        AnyView(ZStack {
+            ground
+                .environment(\.floorIsHidden, floorIsCovered && floorAsleep)
+                .zIndex(0)
+            floorSheets.zIndex(1)
+            prompts.zIndex(2)
+            scenes.zIndex(3)
+            calls.zIndex(4)
+            // **Somebody leaving outranks the pause menu.** It is not a thing you
+            // opened and can close; the game is stopped until it is answered.
+            if !controller.walkedOut.isEmpty { walkedOut.zIndex(6) }
+            else if paused { pauseMenu.zIndex(5) }
+        })
     }
 
     /// The floor and everything standing on it: the court, the panels either side of the
@@ -845,8 +887,8 @@ struct GameView: View {
         return 0
     }
 
-    private var stage: some View {
-        Group {
+    private var stage: AnyView {
+        AnyView(Group {
             if case .awaitingBid(let shooter) = controller.gate {
                 ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids,
                                     state: controller.shown, shot: controller.shownShot,
@@ -857,7 +899,7 @@ struct GameView: View {
                 court
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: controller.gate)
+        .animation(.easeInOut(duration: 0.25), value: controller.gate))
     }
 
     /// A practice pass overrides both ends of the flight; otherwise the rules say.
@@ -968,8 +1010,8 @@ struct GameView: View {
     /// **The only way it is drawn.** There were three — a panel, this, and nothing — on a
     /// button in the status bar. Two of them were there to be compared against this one
     /// while it was being settled, and it has been.
-    private var logStrip: some View {
-        ZStack {
+    private var logStrip: AnyView {
+        AnyView(ZStack {
             // **Actual black while the screen is dim.** A scrim over the court is a
             // lighter black than the dim lays over everything else, so the strip stood
             // out as a panel the moment the game stopped to ask something. Under the dim
@@ -987,7 +1029,7 @@ struct GameView: View {
                 .init(color: .black, location: 0.85),
                 .init(color: .clear, location: 1),
             ],
-            startPoint: .top, endPoint: .bottom))
+            startPoint: .top, endPoint: .bottom)))
     }
 
     /// Where that seat sits on the scoreboard, which orders by score.
@@ -997,8 +1039,10 @@ struct GameView: View {
         return ranked.firstIndex { $0.seat == seat } ?? 0
     }
 
-    private var statusBar: some View {
-        HStack {
+    /// **Erased where it joins `ground`.** See `body`: the floor's band is the tallest in
+    /// the screen, and the clock inside this is where the walk ran out on a device.
+    private var statusBar: AnyView {
+        AnyView(HStack {
             // **Which round it is, at a size that says so.** Eleven points of system
             // type in the corner was there all along and nobody could find it.
             SmallCapsText(text: "Round \(controller.shown.round)"
@@ -1022,7 +1066,7 @@ struct GameView: View {
         .padding(.horizontal, 14)
         .padding(.top, 2)
         .padding(.bottom, 8)
-        .background(Theme.panel)
+        .background(Theme.panel))
     }
 
     /// **The only way out of a game.** Louder than the two readings beside it, because it
@@ -1149,9 +1193,9 @@ struct GameView: View {
     /// only waiting.
     @State private var lastClock: Int?
 
-    private var shotClock: some View {
+    private var shotClock: AnyView {
         let clock = controller.shown.shotClock ?? lastClock
-        return VStack(spacing: 3) {
+        return AnyView(VStack(spacing: 3) {
             SevenSegmentClock(value: clock)
             Text("SHOT CLOCK")
                 .font(.system(size: 7, weight: .bold)).tracking(1.3)
@@ -1162,7 +1206,7 @@ struct GameView: View {
             if let now { lastClock = now }
         }
         // A new round starts the clock over, so the memory goes with it.
-        .onChange(of: controller.shown.round) { _, _ in lastClock = nil }
+        .onChange(of: controller.shown.round) { _, _ in lastClock = nil })
     }
 
     private var finalCard: some View {
