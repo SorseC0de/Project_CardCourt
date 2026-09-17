@@ -291,3 +291,14 @@ than adding one by default.
 ## Shelved
 
 Nothing currently shelved — the shot-clock idea moved into Hurry-Up Hardwood above.
+
+
+## New balls (recorded, not built)
+
+**Liar Ball** — *On #[FT] miss: take once more.* The ball that will not tell you the truth
+about a miss.
+
+**A second ball, unnamed**, which takes Dishtracting Ball's parked toll: *Shooting:
+#[Retire] 1 card.*
+
+Both take the balls to **20**, matching the crew. Every ball is one copy.
