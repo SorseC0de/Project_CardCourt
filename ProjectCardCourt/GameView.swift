@@ -450,6 +450,17 @@ struct GameView: View {
                                    onPick: takeTheOffer)
                         .zIndex(12)
                 }
+                latePrompts
+        })
+    }
+
+    /// **The second half of `prompts`, erased on its own.** Twelve conditional branches in
+    /// one ZStack is a type SwiftUI cannot build: it comes back as EXC_BAD_ACCESS in the
+    /// view's getter rather than as a compile error, which is what "Check Rock!" crashing
+    /// on a fresh build means. Splitting the join keeps each half shallow enough — see
+    /// `_Design` and the body's own erasure.
+    private var latePrompts: AnyView {
+        AnyView(ZStack {
                 if case .awaitingIntangibleDrop(let offered) = controller.gate {
                     // The one that just arrived is in the row, so "just discard it" is a
                     // pick rather than a second button.
