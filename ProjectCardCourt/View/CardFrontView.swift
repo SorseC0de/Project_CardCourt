@@ -708,10 +708,10 @@ struct CardFrontView: View {
         let side = width * CardLayout.arrowSizeFraction
         let drop = width * CardLayout.arrowShadowOffsetFraction
 
-        // **Each mark takes the colour that used to be under it**, and one drop goes under
-        // all four. White arrows were drawn for bodies that were the type's colour; on
-        // paper they need the colour themselves, and the four of them being four different
-        // colours is what tells left from right from across at a glance.
+        // **A colour each, and one drop under all four.** White arrows were drawn for
+        // bodies that were the type's colour; on paper they need the colour themselves,
+        // and telling left from right from across at a glance is what these cards do
+        // instead of using words. Blue right, red left, purple across and behind.
         //
         // Theme A only. B and C still carry the white they were drawn with, until there is
         // a reading of what they should be on tan and on the type's own colour.
@@ -721,7 +721,7 @@ struct CardFrontView: View {
         return Group {
             switch art {
             case .swingRight:
-                arrowImage(side, ink: plain ? .white : CardPalette.navy)
+                arrowImage(side, ink: plain ? .white : CardPalette.blue)
                     .shadow(color: CardPalette.darkBlue, radius: 0, x: 0, y: drop)
             case .swingLeft:
                 arrowImage(side, ink: plain ? .white : CardPalette.red)
@@ -739,7 +739,7 @@ struct CardFrontView: View {
                 // Flipped upright and smaller. The doubled edge it used to wear was two
                 // shadows standing in for a colour it did not have; it has one now.
                 arrowImage(side * CardLayout.backPassArrowScale,
-                           ink: plain ? .white : CardPalette.blue)
+                           ink: plain ? .white : CardPalette.purple)
                     // Both flips before the shadow, so the shadow stays east.
                     .scaleEffect(x: -1, y: -1)
                     .shadow(color: CardPalette.darkBlue, radius: 0, x: drop, y: 0)
