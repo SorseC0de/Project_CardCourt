@@ -71,6 +71,18 @@ game.
 
 **19 · Over-Varing Evidence** — kept as is. One of the later cards, and it holds up.
 
+## New
+
+**Crew Chief** — each call he makes **retires one of the other two referees and draws a
+replacement**. The crew churns mid-round, so a stage that has been read can change under
+the people reading it — and with the retired ones shuffling back in, the man he sends off
+can walk straight back out.
+
+## The count
+
+**Nineteen today.** Parking Cleared to Play takes it to eighteen; Crew Chief makes nineteen.
+**One short of the twenty the deck wants** — a card still to be named.
+
 ## How the crew works
 
 **A referee calls as often as his condition is met, all round.** One-call-a-round was a
@@ -108,6 +120,12 @@ if you want it to bite now — or pass elsewhere and it waits for them. **No out
 play**: a Clamp can never be aimed at whoever holds the ball right now, because the planned
 passive online mode cannot carry interrupts. **Floor General aims Clamps too**, and can send
 one back at the clamper, so stripping his Intangible first becomes a real play.
+
+**Cards that force another player to do something.** Without them people simply play around
+a ref for the whole round, which makes a stage everybody can read into a stage everybody can
+dodge. Lob is the one that already does it — the man it finds owes a shot — and the Clamps
+and Moves want more of that shape, so a referee's condition can be walked into by somebody
+other than the player who would trip it.
 
 **The counter-clamp Moves want their own audit.** Spin Move, Crossover, Pump Fake and Flop
 all clear every Clamp for free, which is far too cheap now that a defender is a task they
