@@ -299,7 +299,8 @@ Nothing currently shelved — the shot-clock idea moved into Hurry-Up Hardwood a
 about a miss. **Once more is literal**: one extra attempt, and a missed retake is just a
 miss. It does not grant another.
 
-**A second ball, unnamed**, which takes Dishtracting Ball's parked toll: *Shooting:
-#[Retire] 1 card.*
+**Bald Ball** — *Shooting: #[Retire] 1 card.* Dishtracting's parked toll, on the ball that
+earns it: the beaten grey one with the texture worn off that somebody always brings to an
+outdoor run. No grip, so putting it up costs you.
 
 Both take the balls to **20**, matching the crew. Every ball is one copy.
