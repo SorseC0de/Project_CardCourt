@@ -1363,9 +1363,17 @@ enum Rules {
             // broke pays: an empty hand puts a layup up at a look nobody else gets.
             let emptyHanded = finish == .layup && state[seat].bag.isEmpty
                 ? ShotType.emptyHandedLayupBonus : 0
+            // **A call that takes the point rather than the shot.** Foot On The Line says
+            // the three scores two instead, so it is blown for the scene and the ball
+            // still goes up — everything else on this trigger waves the attempt off, and
+            // returning on all of them meant this one cancelled a shot its own face says
+            // it allows.
+            var downgraded = false
             if let whistle = interceptor(of: .shoot(seat: seat), in: state) {
+                downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
                 blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
-                return events
+                guard downgraded, case .possession(let still) = state.phase, still == seat
+                else { return events }
             }
             state.pendingShotBonus += carried + emptyHanded + state.payoffShotBonus
             state.payoffShotBonus = 0
@@ -1375,14 +1383,14 @@ enum Rules {
             // twice. See `Step.shootAtOnce`.
             if state.ballEffect.shooterDiscards > 0, !state[seat].bag.isEmpty,
                let ball = state.currentBall {
-                state.pendingBonusPoint += finish == .three ? 1 : 0
+                state.pendingBonusPoint += (finish == .three && !downgraded) ? 1 : 0
                 state.owe(.shootAtOnce(seat))
                 state.phase = .awaitingGiveUp(seat: seat, card: ball,
                                               count: min(state.ballEffect.shooterDiscards,
                                                          state[seat].bag.count))
                 return events
             }
-            resolveShot(by: seat, bonusPoints: finish == .three ? 1 : 0,
+            resolveShot(by: seat, bonusPoints: (finish == .three && !downgraded) ? 1 : 0,
                         state: &state, events: &events)
 
         case .beatClamp(let payoff):

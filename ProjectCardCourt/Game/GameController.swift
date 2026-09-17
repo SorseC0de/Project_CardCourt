@@ -35,7 +35,7 @@ enum Pacing {
     /// it takes to get there, and how long he is left blowing it before the card comes up.
     static let whistleZoom: CGFloat = 1.8
     static let whistleFrame = 0.28
-    static let whistleHold = 1.40
+    static let whistleHold = 1.50
     /// One card crossing the court. Dealing is brisker than an in-game draw because
     /// twenty of them go by at once.
     /// How long a card takes to come off the pile. It was a third of a second, which is

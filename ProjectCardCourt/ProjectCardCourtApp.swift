@@ -23,7 +23,7 @@ struct RootView: View {
 
     @State private var screen: Screen = .front
 
-    /// **The game, and nothing until there is one to play.**
+    /// **The game, and nothing until there is one to play.** make it 1.5 
     ///
     /// A `GameController` deals the moment it exists — it has to, since it cannot know
     /// yet whether it is about to be a match — so one held while a menu is up is a deck

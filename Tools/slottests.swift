@@ -152,6 +152,29 @@ func slotTests() {
                    "Bench Ball: caught off a pass, no draw, straight to the inbound")
     }
     do {
+        // **Foot On The Line takes the point, not the shot.** Its face says the three
+        // scores two instead, and every other call on that trigger waves the attempt off
+        // — so the one that does not has to be let through.
+        var (state, seat, _) = openPossession(seed: 214, cards: [])
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.footOnTheLine,
+                                                            state.rules))]
+        state.shot = 100
+        while state[seat].bag.count < state.handLimit {
+            state[seat].bag.append(matchCard(CardLibrary.swingLeft, state.rules))
+        }
+        let events = Rules.apply(.shootAs(.three), by: seat, to: &state)
+        Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "the call is made")
+        Check.that(events.contains { if case .shotAttempted = $0 { return true }; return false },
+                   "and the ball still goes up")
+        var scored = 0
+        for case .shotMade(_, let points, _, _) in events { scored = points }
+        Check.that(scored == state.rules.madeShotPoints,
+                   "for two, not three (got \(scored))")
+    }
+
+    do {
         // **Med Ball lifts the speed limit.** Travel is called on the fourth Move of a
         // possession; the man carrying this one can run all day, which is the half of the
         // card that makes picking it up a decision rather than a punishment.
