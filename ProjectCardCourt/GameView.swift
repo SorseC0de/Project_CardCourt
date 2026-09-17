@@ -422,7 +422,7 @@ struct GameView: View {
                 if case .awaitingRetirement(let card, let choices) = controller.gate {
                     CardChoiceView(title: card.name, note: "Take one out of play",
                                    offered: choices.map { retirable($0) },
-                                   picks: choices.indices.map { CardPick.position($0) },
+                                   picks: choices.map { CardPick.named(retirableKey($0)) },
                                    tint: CardPalette.teal,
                                    taking: "Retire it",
                                    declining: "Leave them be",
@@ -441,7 +441,7 @@ struct GameView: View {
                                        ? "Sell it to one of them"
                                        : "\(named.count) sold — SHOT +\(named.count * card.shotPerClampNamed)%",
                                    offered: left.map(\.card),
-                                   picks: left.indices.map { CardPick.position($0) },
+                                   picks: left.map { CardPick.named($0.id.uuidString) },
                                    tint: CardPalette.teal,
                                    taking: "Sell it",
                                    declining: named.isEmpty ? "Sell nobody" : "That'll do",
@@ -1531,13 +1531,12 @@ struct GameView: View {
             guard hand.indices.contains(at) else { return }
             controller.choose(card: hand[at].id)
         case .awaitingRetirement(_, let choices):
-            guard case .position(let at) = pick, choices.indices.contains(at) else { return }
-            controller.choose(retiring: choices[at])
-        case .awaitingClampsNamed(_, let named):
-            guard case .position(let at) = pick else { return }
-            let left = controller.shown[GameRules.localSeat].clamps.filter { !named.contains($0.id) }
-            guard left.indices.contains(at) else { return }
-            controller.choose(selling: left[at].id)
+            guard case .named(let key) = pick,
+                  let target = choices.first(where: { retirableKey($0) == key }) else { return }
+            controller.choose(retiring: target)
+        case .awaitingClampsNamed:
+            guard case .named(let key) = pick, let id = UUID(uuidString: key) else { return }
+            controller.choose(selling: id)
         default:
             break
         }
@@ -1551,6 +1550,17 @@ struct GameView: View {
             return
         }
         open(.referees)
+    }
+
+    /// **A stable name for something in play**, so the sheet's rows keep their identity as
+    /// the list shrinks. Every one of these already carries an id of its own.
+    private func retirableKey(_ target: RetirementTarget) -> String {
+        switch target {
+        case .official(let id):            return "ref:\(id.uuidString)"
+        case .ball:                        return "ball"
+        case .intangible(let seat, let id): return "passive:\(seat.rawValue):\(id)"
+        case .clamp(let id):               return "clamp:\(id.uuidString)"
+        }
     }
 
     /// **The face of something in play**, for the sheet that names one to take out.

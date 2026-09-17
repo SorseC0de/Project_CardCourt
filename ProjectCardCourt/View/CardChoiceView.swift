@@ -35,6 +35,11 @@ struct CardChoiceView: View {
     /// **How each offered card answers**, when its name is not enough to tell them apart.
     /// Two Contests on two different players are the same card and two different answers,
     /// so the prompts that name things already in play hand their own picks in.
+    ///
+    /// **Each one has to be stable as well as unique.** A row identified by its position
+    /// keeps the same identity while the card in it changes — which hands a new card the
+    /// last one's `@State`, and that is the crash rather than a glitch. These carry the
+    /// thing's own id, so a row that leaves takes its identity with it.
     var picks: [CardPick]?
     var tint: Color = CardPalette.red
     /// What taking it is called, when "Take it" is not what is being done.
@@ -66,17 +71,25 @@ struct CardChoiceView: View {
         .transition(.opacity)
     }
 
+    /// **What is held out, and how each one answers.** The pick is the row's identity, so
+    /// it has to be both unique and stable: a row keyed by its position keeps its identity
+    /// while the card in it changes, which hands the new card the old one's `@State` — and
+    /// that is a crash rather than a glitch. A caller that can offer the same card twice
+    /// supplies picks carrying each thing's own id.
+    private var rows: [(pick: CardPick, card: CardDescriptor)] {
+        offered.enumerated().map { (picks?[safe: $0.offset] ?? .named($0.element.id), $0.element) }
+    }
+
     private var table: some View {
         VStack(spacing: 14) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(Array(offered.enumerated()), id: \.offset) { at, card in
-                        let pick = picks?[safe: at] ?? .named(card.id)
-                        face(card, pick: pick)
-                            .padRing(ringed == .offer(pick),
+                    ForEach(rows, id: \.pick) { row in
+                        face(row.card, pick: row.pick)
+                            .padRing(ringed == .offer(row.pick),
                                      corner: Table.card * CardLayout.cornerFraction)
-                            .offset(y: chosen == pick ? -Table.lift : 0)
-                            .onTapGesture { chosen = pick }
+                            .offset(y: chosen == row.pick ? -Table.lift : 0)
+                            .onTapGesture { chosen = row.pick }
                     }
                     // A hand is held, not laid out: what is face down fans.
                     if backs > 0 {
