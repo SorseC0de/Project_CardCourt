@@ -671,6 +671,61 @@ enum CardType: String, Hashable, Codable, CaseIterable {
 }
 
 /// One row of the card sheet. `numberInDeck` mirrors the Number in Deck column.
+/// **The eight kinds of effect, held behind one reference.**
+///
+/// Stored inline they came to 1,594 of `CardDescriptor`'s 2,016 bytes, and a descriptor
+/// that size is a `Card` that size, which is a `GameState` of fifteen kilobytes — read by
+/// value into every view getter that touches the board. `GameView.court` was claiming ten
+/// and a half kilobytes of stack before it ran an instruction, and on a device, whose main
+/// thread has a fraction of the simulator's stack, that overflowed.
+///
+/// Boxed, a descriptor carries a pointer instead. Nothing about the cards changes: the
+/// class is immutable, every property still reads `descriptor.clamp`, and two descriptors
+/// with the same effects are still equal — see `==`, which compares what is in the box
+/// rather than which box it is.
+final class CardEffects: Hashable, Codable {
+    let whistle: WhistleEffect?
+    let clamp: ClampEffect?
+    let intangible: IntangibleEffect?
+    let gameBreak: GameBreakEffect?
+    let injury: InjuryEffect?
+    let varena: VarenaEffect?
+    let variaball: VariaballEffect?
+    let special: SpecialMoveEffect?
+
+    /// The one every plain card shares, so a Pass costs no allocation at all.
+    static let none = CardEffects()
+
+    init(whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
+         intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
+         injury: InjuryEffect? = nil, varena: VarenaEffect? = nil,
+         variaball: VariaballEffect? = nil, special: SpecialMoveEffect? = nil) {
+        self.whistle = whistle
+        self.clamp = clamp
+        self.intangible = intangible
+        self.gameBreak = gameBreak
+        self.injury = injury
+        self.varena = varena
+        self.variaball = variaball
+        self.special = special
+    }
+
+    /// **By what is in it, never by which one it is.** A decoded card and the library card
+    /// it came from hold different boxes and are the same card.
+    static func == (lhs: CardEffects, rhs: CardEffects) -> Bool {
+        lhs === rhs || (lhs.whistle == rhs.whistle && lhs.clamp == rhs.clamp
+            && lhs.intangible == rhs.intangible && lhs.gameBreak == rhs.gameBreak
+            && lhs.injury == rhs.injury && lhs.varena == rhs.varena
+            && lhs.variaball == rhs.variaball && lhs.special == rhs.special)
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(whistle); hasher.combine(clamp); hasher.combine(intangible)
+        hasher.combine(gameBreak); hasher.combine(injury); hasher.combine(varena)
+        hasher.combine(variaball); hasher.combine(special)
+    }
+}
+
 struct CardDescriptor: Hashable, Identifiable, Codable {
     let id: String
     let name: String
@@ -713,7 +768,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     /// runs the other way: it hands a tick back rather than costing one.
     var replacesClockTick = false
     /// Set on Whistles.
-    let whistle: WhistleEffect?
+    var whistle: WhistleEffect? { effects.whistle }
     /// Part of the Dribble family, which Double Dribble watches for.
     let isDribble: Bool
     /// Discarded at random from your own hand after the card resolves. Pound Dribble
@@ -773,20 +828,22 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var modes: [CardMode] = []
     /// And what it costs — no more Moves this possession.
     var blocksFurtherMoves = false
+    /// Everything a card *does*, behind one pointer — see `CardEffects`.
+    let effects: CardEffects
     /// Set on Clamps.
-    let clamp: ClampEffect?
+    var clamp: ClampEffect? { effects.clamp }
     /// Set on Intangibles.
-    let intangible: IntangibleEffect?
+    var intangible: IntangibleEffect? { effects.intangible }
     /// Set on Game Breaks.
-    let gameBreak: GameBreakEffect?
+    var gameBreak: GameBreakEffect? { effects.gameBreak }
     /// Set on Injuries.
-    let injury: InjuryEffect?
+    var injury: InjuryEffect? { effects.injury }
     /// Set on Varenas.
-    let varena: VarenaEffect?
+    var varena: VarenaEffect? { effects.varena }
     /// Set on Variaballs.
-    let variaball: VariaballEffect?
+    var variaball: VariaballEffect? { effects.variaball }
     /// Set on Special Moves.
-    let special: SpecialMoveEffect?
+    var special: SpecialMoveEffect? { effects.special }
     /// Flop: a trip to the line for every Clamp standing on you.
     let freeThrowsPerClamp: Int
     /// Clears every Clamp on the player — Flop sells it, Clear Out steps away from it.
@@ -871,6 +928,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
          modes: [CardMode] = [], blocksFurtherMoves: Bool = false,
          combo: String? = nil, bonus: String? = nil) {
+        self.effects = (whistle == nil && clamp == nil && intangible == nil
+                        && gameBreak == nil && injury == nil && varena == nil
+                        && variaball == nil && special == nil)
+            ? .none
+            : CardEffects(whistle: whistle, clamp: clamp, intangible: intangible,
+                          gameBreak: gameBreak, injury: injury, varena: varena,
+                          variaball: variaball, special: special)
         self.clearsTargetClamp = clearsTargetClamp
         self.compulsoryFirstAction = compulsoryFirstAction
         self.requiresDribbleFirst = requiresDribbleFirst
@@ -917,11 +981,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.comboDraw = comboDraw; self.comboAssist = comboAssist
         self.upgradesToThree = upgradesToThree
         self.replacesClockTick = replacesClockTick
-        self.whistle = whistle; self.clamp = clamp
-        self.intangible = intangible; self.gameBreak = gameBreak
-        self.injury = injury
-        self.varena = varena; self.variaball = variaball
-        self.special = special; self.isDribble = isDribble
+        self.isDribble = isDribble
         self.freeThrowsPerClamp = freeThrowsPerClamp; self.clearsClamps = clearsClamps
         self.turnoverIfNoClamps = turnoverIfNoClamps
         self.combo = combo; self.bonus = bonus

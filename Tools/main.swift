@@ -184,6 +184,27 @@ if args.contains("--refs") {
     probeDime()
 } else if args.contains("--steps") {
     stepReadout()
+} else if args.contains("--sizes") {
+    // **What each value costs on the stack.** A view getter that holds a few of these at
+    // once is a frame measured in kilobytes, and a deep enough screen overflows — which
+    // arrives as EXC_BAD_ACCESS in an innocent getter. Measured, not guessed.
+    func say<T>(_ what: String, _ type: T.Type) {
+        print("  \(what.padding(toLength: 26, withPad: " ", startingAt: 0))"
+              + String(format: "%6d bytes", MemoryLayout<T>.size))
+    }
+    say("CardDescriptor", CardDescriptor.self)
+    say("  ClampEffect", ClampEffect.self)
+    say("  IntangibleEffect", IntangibleEffect.self)
+    say("  SpecialMoveEffect", SpecialMoveEffect.self)
+    say("  VariaballEffect", VariaballEffect.self)
+    say("  WhistleEffect", WhistleEffect.self)
+    say("  InjuryEffect", InjuryEffect.self)
+    say("  VarenaEffect", VarenaEffect.self)
+    say("  GameBreakEffect", GameBreakEffect.self)
+    say("Card", Card.self)
+    say("GameState", GameState.self)
+    say("PlayerState", PlayerState.self)
+    say("MatchRules", MatchRules.self)
 } else if args.contains("--names") {
     listNames()
 } else if args.contains("--clearout") {

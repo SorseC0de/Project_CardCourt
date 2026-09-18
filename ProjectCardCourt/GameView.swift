@@ -952,7 +952,25 @@ struct GameView: View {
     /// with its frame, its overlay, its sheet came out as a type deep enough that
     /// instantiating it recursed off the end of the stack. `EXC_BAD_ACCESS` in
     /// `court.getter`, attached; a crash on the first frame, not.
-    private var court: AnyView {
+    /// **Whether the card being read is a Clamp**, without putting the card on this frame.
+    ///
+    /// `CardDescriptor` is two kilobytes. Asking `beingRead?.clamp != nil` inline copied it
+    /// onto `court`'s stack three times over — visible in the crash as three `memcpy`s of
+    /// 2016 bytes — and `court` is already the deepest frame on the screen. Out of line,
+    /// the copy happens here and is gone before the court is built.
+    @inline(never)
+    private var readingAClamp: Bool { beingRead?.clamp != nil }
+
+    /// **The court itself, built in its own frame.**
+    ///
+    /// Thirty-three arguments, most of them read from `@Observable` getters that each
+    /// return a struct onto the stack: `GameState`, `ShotCutscene`, `CourtCamera`, a
+    /// `CardDescriptor`. Built inline with the modifiers below it, that came to a ten and
+    /// a half kilobyte frame before a single instruction ran, and on a device — whose main
+    /// thread has a fraction of the simulator's stack — it overflowed. Split, each half
+    /// claims its own and gives it straight back.
+    @inline(never)
+    private var courtFloor: AnyView {
         AnyView(CourtView(state: controller.shown,
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
@@ -986,12 +1004,20 @@ struct GameView: View {
                   // both, which is the point — the floor is what the call is about.
                   callingRef: controller.callOnFloor,
                   shooting: controller.cutscene != nil,
-                  showingClamps: beingRead?.clamp != nil,
+                  showingClamps: readingAClamp,
                   // A lesson is about the cards; nobody on the floor opens.
                   onInspectPlayer: { seat in if tutorial == nil { open(.player(seat)) } },
                   onTapReferee: { tapReferee($0) },
                   camera: controller.camera,
-                  passThrow: controller.passThrow)
+                  passThrow: controller.passThrow))
+    }
+
+    /// In every style but .panel the court claims the log's real estate.
+    ///
+    /// **Type-erased, and it has to be.** See `courtFloor` for why it is also built apart
+    /// from the chrome hung on it here.
+    private var court: AnyView {
+        AnyView(courtFloor
             // No inset: the floor and the streaks run to the screen edges, and
             // `CourtGeometry` lays the diamond out across the whole width.
             .frame(maxHeight: .infinity)
