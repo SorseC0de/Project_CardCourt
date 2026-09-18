@@ -95,7 +95,7 @@ Tarmac is the exception**: the player assigns its Clamps.
 | **Med Ball** | Variaball | SHOT cannot exceed 50%. The heavy ball, and it retires Rock Fight | 2 |
 | **Dishcount Ball** | Variaball | Discard one fewer for card costs and Clamps | 2 |
 | **Boarder Court** | Varena | Roswell Reach off your *own* miss: the shooter's Rebound bid counts as one card more. Still needs a bid of at least one. Retires Off the Backboard | 1 |
-| **Blight Ball** | Variaball | Injuries travel with the ball — pass the token and your Injury *cards* go with it. New injuries join the pile, Katamari-style, so it escalates. Discarding the ball takes the pile with it, so anyone can end it by spending a Variaball — nobody wants to be the one who does | 3 |
+| **Blight Ball** | Variaball | The TOV stat travels with the ball. Receiving it (pass, rebound, inbound) adds the last holder's TOV to yours and zeroes theirs — no prompt. Once it's Retired, whoever last had it keeps the pile | 3 |
 | **Dim Dome** | Varena | The SHOT number is hidden from everyone but the ball holder. On a table you flip the % device face down | 1 |
 | **Tri-hard Tiling** | Varena | Hand limit 3. *Tri* for the number, *try-hard* for the joke, tiling for the anchor — the card teaches its own rule | 3 |
 | **Policeum** | Varena | Referees do not leave once triggered, so their restrictions run until the floor changes. The existing 3-ref cap bounds it. Police + policy + coliseum | 3 |

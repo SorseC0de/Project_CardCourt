@@ -1000,9 +1000,7 @@ enum Rules {
            replaced.descriptor.variaball?.removedFromPlayWhenRetired != true {
             state.discard.append(replaced)
         }
-        if leaving.injuriesTravel, let carrier = state.pileCarrier {
-            healInjuries(of: carrier, state: &state)
-        }
+        // Blight Ball leaving: whoever last had it is left holding the TOVs.
         state.pileCarrier = nil
         if leaving.absorbsIntangibles, !state.monsterBallIntangibles.isEmpty {
             state.intangibleBoard += state.monsterBallIntangibles
@@ -1011,7 +1009,7 @@ enum Rules {
         }
         state.ballCard = card
         let arriving = state.ballEffect
-        if arriving.injuriesTravel { state.pileCarrier = state.ball ?? seat }
+        if arriving.turnoversTravel { state.pileCarrier = state.ball ?? seat }
         if arriving.absorbsIntangibles {
             for other in Seat.allCases where !state[other].intangibles.isEmpty {
                 for passive in state[other].intangibles {
@@ -3574,14 +3572,13 @@ enum Rules {
         state.moveCardsThisPossession = 0
         state.playedIntangibleThisPossession = false
         state.possessedThisRound.insert(seat)
-        // Blight Ball: the Injuries come with the ball, whoever it came from.
-        if state.ballEffect.injuriesTravel {
-            if let carrier = state.pileCarrier, carrier != seat, !state[carrier].injuries.isEmpty {
-                let pile = state[carrier].injuries
-                state[carrier].injuries.removeAll()
-                state[carrier].injuryUnlocked = []
-                state[seat].injuries += pile
-                events.append(.injuriesMoved(from: carrier, to: seat, count: pile.count))
+        // Blight Ball: the TOVs come with the ball, whoever it came from.
+        if state.ballEffect.turnoversTravel {
+            if let carrier = state.pileCarrier, carrier != seat, state[carrier].turnovers > 0 {
+                let pile = state[carrier].turnovers
+                state[carrier].turnovers = 0
+                state[seat].turnovers += pile
+                events.append(.turnoversMoved(from: carrier, to: seat, count: pile))
             }
             state.pileCarrier = seat
         }

@@ -25,6 +25,7 @@ new card text is written to them first.
 | You may … | | anything optional |
 | while passing | | as possession changes, before the draw phase |
 | possession | turn | a player's go. **Turn** is only ever rotating a card |
+| Bag | hand | the cards a player holds |
 | it has | it gets | a boost that belongs to one shot only |
 
 ## Keywords

@@ -119,8 +119,8 @@ enum ClampCounter: Hashable, Codable {
     var printed: String {
         switch self {
         case .givingUpTheBall: return "Give up the ball"
-        case .handAtLeast(let n): return "\(n) cards or more in hand"
-        case .handAtMost(let n): return "\(n) cards or fewer in hand"
+        case .handAtLeast(let n): return "\(n) cards or more in Bag"
+        case .handAtMost(let n): return "\(n) cards or fewer in Bag"
         case .clockAtMost(let n): return String(format: "Shot Clock %02d or less", n)
         case .clockAtLeast(let n): return String(format: "Shot Clock %02d or more", n)
         case .movesAtLeast(let n): return "\(n) Move cards this possession"
@@ -498,8 +498,8 @@ struct VariaballEffect: Hashable, Codable {
     var overridesPassShot = false
     /// Dishcount Ball: one fewer for card costs and Clamps.
     var discountsDiscards = false
-    /// Blight Ball: Injuries go wherever the ball goes.
-    var injuriesTravel = false
+    /// Blight Ball: the TOV stat goes wherever the ball goes.
+    var turnoversTravel = false
     /// Bench Ball: caught off a pass, you go straight to the inbound.
     var benchesReceiver = false
     /// **Med Ball: the man holding it is never called for Traveling.** A ball whose only

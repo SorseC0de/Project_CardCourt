@@ -101,7 +101,7 @@ struct HandPickerView: View {
             DimLayer(on: true, amount: Theme.dimBrowser)
             Color.clear.contentShape(Rectangle()).ignoresSafeArea()
 
-            ModeCardView(title: "\(victim.playerName)'s Hand",
+            ModeCardView(title: "\(victim.playerName)'s Bag",
                          subtitle: card.name,
                          ink: .white,
                          subtitleInk: .white,

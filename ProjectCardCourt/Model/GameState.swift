@@ -472,7 +472,7 @@ struct GameState: Codable {
     var monsterBallIntangibles: [CardDescriptor] = []
     /// And the ones being rebounded for now it has gone, first up first.
     var intangibleBoard: [CardDescriptor] = []
-    /// Blight Ball: who is carrying the pile.
+    /// Blight Ball: who is carrying the TOVs.
     var pileCarrier: Seat?
     /// S.O.S: the shot on its way up is a two at double SHOT.
     var sellingOut = false

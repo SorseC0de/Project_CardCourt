@@ -75,13 +75,12 @@ func slotTests() {
     do {
         var (state, seat, cards) = openPossession(seed: 206, cards: [CardLibrary.swingLeft,
                                                                      CardLibrary.blightBall])
-        state[seat].injuries = [CardLibrary.tornAchilles]
-        state[seat].injuryUnlocked = state[seat].bag.map(\.id)
+        state[seat].turnovers = 3
+        state[seat.left].turnovers = 4
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         _ = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(state[seat].injuries.isEmpty
-                   && state[seat.left].injuries.contains { $0.id == CardLibrary.tornAchilles.id },
-                   "Blight Ball: the Injuries go with the ball")
+        Check.that(state[seat].turnovers == 0 && state[seat.left].turnovers == 7,
+                   "Blight Ball: the receiver takes on the passer's TOVs")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 207, cards: [CardLibrary.dimDome])
@@ -668,7 +667,7 @@ func slotCoverage() {
     print("played across 200 Standard games:")
     for card in every { print("  \(played[card.name] ?? 0)\t\(card.name)") }
     let kinds = ["ballChanged", "graveyardEmpty", "benched", "handsRotated", "clampHandedOff",
-                 "intangibleAbsorbed", "intangibleWon", "floorWiped", "injuriesMoved"]
+                 "intangibleAbsorbed", "intangibleWon", "floorWiped", "turnoversMoved"]
     print("events: " + kinds.map { "\($0) \(seen[$0] ?? 0)" }.joined(separator: " · "))
     print("stalls: \(stalls)")
 }

@@ -9,19 +9,19 @@ extension CardOption {
         case .flipForDraw:    return "Flip for a card?"
         case .assignClamps:   return "Assign your Clamps?"
         case .resetShotClock: return "Reset the Shot Clock?"
-        case .dumpHand:       return "Retire your hand?"
+        case .dumpHand:       return "Retire your Bag?"
         case .ankleBreaker:   return "Ankle Breaker?"
         }
     }
 
     var note: String {
         switch self {
-        case .takeBall:       return "Lob: the current Ball comes out of play and into your hand"
+        case .takeBall:       return "Lob: the current Ball comes out of play and into your Bag"
         case .flipForDraw:    return "No-Look: Heads draws 1 card"
         case .assignClamps:   return "Kick-Out: every Clamp on you goes to the new player"
         case .resetShotClock: return "Outlet Pass: the Shot Clock back to the top"
         case .dumpHand:       return "Turnaround Three: SHOT = 100%"
-        case .ankleBreaker:   return "Retire 1 card from a target player's hand"
+        case .ankleBreaker:   return "Retire 1 card from a target player's Bag"
         }
     }
 

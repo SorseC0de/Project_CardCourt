@@ -58,7 +58,7 @@ enum CardLibrary {
         effect: "SHOT +10%. ~[Pass] to target player. They must shoot.",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 10, forcesReceiverShot: true, mayTakeBall: true,
-        bonus: "You may add current Ball to hand while passing.")
+        bonus: "You may add current Ball to your Bag while passing.")
 
     static let nutmeg = CardDescriptor(
         id: "nutmeg", name: "Nutmeg", type: .pass,
@@ -116,7 +116,7 @@ enum CardLibrary {
 
     static let bulletPass = CardDescriptor(
         id: "bullet-pass", name: "Bullet", type: .pass,
-        effect: "SHOT +10%. ~[Pass] to target player. #[Retire] 1 card from their hand while passing",
+        effect: "SHOT +10%. ~[Pass] to target player. #[Retire] 1 card from their Bag while passing",
         numberInDeck: 5,
         passTarget: .choice, shotDelta: 10, receiverDiscards: 1)
 
@@ -151,7 +151,7 @@ enum CardLibrary {
         numberInDeck: 5,
         shotDelta: 10, drawCount: 1, comboAfterDribble: true, comboBonus: 10,
         clearsTargetClamp: true,
-        combo: "SHOT +10% extra. You may #[Retire] 1 card from target player's hand")
+        combo: "SHOT +10% extra. You may #[Retire] 1 card from target player's Bag")
 
     static let rhythmDribble = CardDescriptor(
         id: "rhythm-dribble", name: "Rhythm Dribble", type: .move,
@@ -262,13 +262,13 @@ enum CardLibrary {
 
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
-        effect: "Target player #[Lock|2]\n#[Clear]: 2 cards or fewer in hand",
+        effect: "Target player #[Lock|2]\n#[Clear]: 2 cards or fewer in Bag",
         numberInDeck: 3,
         clamp: ClampEffect(clearedBy: .handAtMost(2), defenders: 2, locksRandomCards: 2))
 
     static let tripleTeam = CardDescriptor(
         id: "triple-team", name: "Triple-Team", type: .clamp,
-        effect: "Target player #[Lock|3]\n#[Clear]: 1 card or fewer in hand",
+        effect: "Target player #[Lock|3]\n#[Clear]: 1 card or fewer in Bag",
         numberInDeck: 3,
         clamp: ClampEffect(clearedBy: .handAtMost(1), defenders: 3, locksRandomCards: 3))
 
@@ -296,15 +296,15 @@ enum CardLibrary {
 
     static let crushingCenter = CardDescriptor(
         id: "crushing-center", name: "Crushing Center", type: .clamp,
-        effect: "Target player with 2 cards or fewer in hand: SHOT -30%\n"
-            + "#[Clear]: 4 cards or more in hand", numberInDeck: 6,
+        effect: "Target player with 2 cards or fewer in Bag: SHOT -30%\n"
+            + "#[Clear]: 4 cards or more in Bag", numberInDeck: 6,
         clamp: ClampEffect(clearedBy: .handAtLeast(4), appliesWhen: .handAtMost(2),
                            shotDebuff: -30))
 
     static let pressingPoint = CardDescriptor(
         id: "pressing-point", name: "Pressing Point", type: .clamp,
-        effect: "Target player with 4 cards or more in hand: SHOT -30%\n"
-            + "#[Clear]: 2 cards or fewer in hand", numberInDeck: 6,
+        effect: "Target player with 4 cards or more in Bag: SHOT -30%\n"
+            + "#[Clear]: 2 cards or fewer in Bag", numberInDeck: 6,
         clamp: ClampEffect(clearedBy: .handAtMost(2), appliesWhen: .handAtLeast(4),
                            shotDebuff: -30))
 
@@ -330,13 +330,13 @@ enum CardLibrary {
 
     static let baselineDenial = CardDescriptor(
         id: "baseline-denial", name: "Baseline Denial", type: .clamp,
-        effect: "Target player can only shoot a @[Layup]\n#[Clear]: 5 cards in hand",
+        effect: "Target player can only shoot a @[Layup]\n#[Clear]: 5 cards in Bag",
         numberInDeck: 4,
         clamp: ClampEffect(clearedBy: .handAtLeast(5), forcesShotType: .layup))
 
     static let paintPacker = CardDescriptor(
         id: "paint-packer", name: "Paint Packer", type: .clamp,
-        effect: "Target player can only shoot a @[Three]\n#[Clear]: 2 cards or fewer in hand",
+        effect: "Target player can only shoot a @[Three]\n#[Clear]: 2 cards or fewer in Bag",
         numberInDeck: 4,
         clamp: ClampEffect(clearedBy: .handAtMost(2), forcesShotType: .three))
 
@@ -409,7 +409,7 @@ enum CardLibrary {
 
     static let inadvertentWhistle = CardDescriptor(
         id: "inadvertent-whistle", name: "Inadvertent Whistle", type: .whistle,
-        effect: "Any other ~[Ref] fires: cancel it. Turn player #[Draws] 1",
+        effect: "Any other ~[Ref] fires: cancel it. Player in possession #[Draws] 1",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .whistleFired, offenderDraws: 1))
 
@@ -534,7 +534,7 @@ enum CardLibrary {
 
     static let clutchGene = CardDescriptor(
         id: "clutch-gene", name: "Clutch Gene", type: .intangible,
-        effect: "SHOT = $[2X] if you have 1 card or fewer in hand, or the #[Shot Clock] is 03 or less",
+        effect: "SHOT = $[2X] if you have 1 card or fewer in your Bag, or the #[Shot Clock] is 03 or less",
         numberInDeck: 1,
         intangible: IntangibleEffect(shotMultiplier: 2,
                                      requiresHandAtMost: 1, requiresClockAtMost: 3))
@@ -710,7 +710,7 @@ enum CardLibrary {
 
     static let tradedMidGame = CardDescriptor(
         id: "traded-mid-game", name: "Traded Mid-Game", type: .gameBreak,
-        effect: "Trade hands with another player, at random", numberInDeck: 1,
+        effect: "Trade Bags with another player, at random", numberInDeck: 1,
         gameBreak: GameBreakEffect(swapsHandsAtRandom: true))
 
     static let rockFight = CardDescriptor(
@@ -727,7 +727,7 @@ enum CardLibrary {
 
     static let floorCleanup = CardDescriptor(
         id: "floor-cleanup", name: "Floor Cleanup", type: .gameBreak,
-        effect: "Every hand is shuffled back in. Everyone #[Draws] what they had",
+        effect: "Every Bag is shuffled back in. Everyone #[Draws] what they had",
         numberInDeck: 3,
         gameBreak: GameBreakEffect(everyoneRedraws: true))
 
@@ -820,7 +820,7 @@ enum CardLibrary {
     /// gone. The button under the triangle reads EQUALIZER.
     static let equalizer = CardDescriptor(
         id: "equalizer", name: "The Equalizer", type: .whistle,
-        effect: "A player may #[Retire] this card and their hand: SHOT = 100%. "
+        effect: "A player may #[Retire] this card and their Bag: SHOT = 100%. "
             + "All players' PTS become your new total PTS.\n"
             + "(This card does not shuffle back into the deck once #[Retired] "
             + "and cannot be retrieved from Retirement)",
@@ -885,7 +885,7 @@ enum CardLibrary {
         varena: VarenaEffect(hidesShot: true))
     static let triHardTiling = CardDescriptor(
         id: "tri-hard-tiling", name: "Tri-hard Tiling", type: .varena,
-        effect: "Hand limit 3", numberInDeck: 3,
+        effect: "Max Bag size 3", numberInDeck: 3,
         varena: VarenaEffect(handLimit: 3))
     /// **Out of the deck** (2026-09-15): its referees could lock a game into a loop.
     static let policeum = CardDescriptor(
@@ -898,7 +898,7 @@ enum CardLibrary {
         varena: VarenaEffect(shotBonus: 10, dunkBonus: 10, barsThrees: true, makesCount: 2))
     static let rechargingResin = CardDescriptor(
         id: "recharging-resin", name: "Recharging Resin", type: .varena,
-        effect: "Everyone refills their hand at the start of their possession",
+        effect: "Everyone refills their Bag at the start of their possession",
         numberInDeck: 3,
         varena: VarenaEffect(refillsToHand: true))
     static let contactCourt = CardDescriptor(
@@ -907,7 +907,7 @@ enum CardLibrary {
         varena: VarenaEffect(freeThrowsWhenClamped: 1))
     static let mvpiquia = CardDescriptor(
         id: "mvpiquia", name: "MVPiquia", type: .varena,
-        effect: "The highest scorer refills their hand at the start of their possession",
+        effect: "The highest scorer refills their Bag at the start of their possession",
         numberInDeck: 1,
         varena: VarenaEffect(leaderRefillsToHand: true))
     static let polypaypylene = CardDescriptor(
@@ -921,12 +921,12 @@ enum CardLibrary {
         varena: VarenaEffect(healsInjuriesOnArrival: true, injuriesBecomeDraws: true))
     static let carouselCourt = CardDescriptor(
         id: "carousel-court", name: "Carousel Court", type: .varena,
-        effect: "Declare left or right. Every possession, hands move one seat that way",
+        effect: "Declare left or right. Every possession, Bags move one seat that way",
         numberInDeck: 1,
         varena: VarenaEffect(rotatesHands: true))
     static let traderousTarmac = CardDescriptor(
         id: "traderous-tarmac", name: "Traderous Tarmac", type: .varena,
-        effect: "During your turn, hand off any number of the ~[Clamps] on you to other players",
+        effect: "During your possession, hand off any number of the ~[Clamps] on you to other players",
         numberInDeck: 1,
         varena: VarenaEffect(clampsHandOff: true))
     static let clearcoatCourt = CardDescriptor(
@@ -936,7 +936,7 @@ enum CardLibrary {
         varena: VarenaEffect(wipesEachPossession: true))
     static let malicePalace = CardDescriptor(
         id: "malice-palace", name: "Malice Palace", type: .varena,
-        effect: "At the start of your possession, before your draw: #[Retire] your hand",
+        effect: "At the start of your possession, before your draw: #[Retire] your Bag",
         numberInDeck: 1,
         varena: VarenaEffect(discardsHandBeforeDraw: true))
     static let turnstileTile = CardDescriptor(
@@ -946,11 +946,11 @@ enum CardLibrary {
         varena: VarenaEffect(turnstileSwing: 25))
     static let roleplayerPolymer = CardDescriptor(
         id: "roleplayer-polymer", name: "Roleplayer Polymer", type: .varena,
-        effect: "Every possession, everyone but the turn player #[Draws] 1", numberInDeck: 2,
+        effect: "Every possession, everyone but the player in possession #[Draws] 1", numberInDeck: 2,
         varena: VarenaEffect(othersDrawEachPossession: 1))
     static let variaballVinyl = CardDescriptor(
         id: "variaball-vinyl", name: "Variaball Vinyl", type: .varena,
-        effect: "The draw for turn goes to a random player each possession", numberInDeck: 1,
+        effect: "The draw for possession goes to a random player each possession", numberInDeck: 1,
         varena: VarenaEffect(turnDrawToRandomPlayer: true))
     static let graviGym = CardDescriptor(
         id: "gravi-gym", name: "Gravi-Gym", type: .varena,
@@ -1011,9 +1011,9 @@ enum CardLibrary {
         variaball: VariaballEffect(discountsDiscards: true))
     static let blightBall = CardDescriptor(
         id: "blight-ball", name: "Blight Ball", type: .variaball,
-        effect: "~[Injuries] travel with the ball, and new ones join the pile. Discarding the ball takes the pile with it",
+        effect: "#[TOV] travels with the ball: whoever receives it takes on the last holder's #[TOV]",
         numberInDeck: 1,
-        variaball: VariaballEffect(injuriesTravel: true))
+        variaball: VariaballEffect(turnoversTravel: true))
     /// **The one you take outside.** The easy shot stops being the easy shot: it goes up
     /// from range and pays like it, though it is still a layup to everybody watching. The
     /// opposite of the card that used to sit here — Bench Ball killed the pace.
@@ -1054,7 +1054,7 @@ enum CardLibrary {
 
     static let handBall = CardDescriptor(
         id: "hand-ball", name: "Hand Ball", type: .variaball,
-        effect: "A ~[Pass] swaps hands: yours goes with the ball, theirs comes back",
+        effect: "A ~[Pass] swaps Bags: yours goes with the ball, theirs comes back",
         numberInDeck: 1,
         variaball: VariaballEffect(swapsHandsOnPass: true))
     static let footBall = CardDescriptor(
@@ -1064,7 +1064,7 @@ enum CardLibrary {
         variaball: VariaballEffect(locksInsteadOfSpending: true))
     static let rechargeRock = CardDescriptor(
         id: "recharge-rock", name: "Recharge Rock", type: .variaball,
-        effect: "Double your draw for turn", numberInDeck: 1,
+        effect: "Double your draw for possession", numberInDeck: 1,
         variaball: VariaballEffect(turnDrawMultiplier: 2))
     static let variaball = CardDescriptor(
         id: "variaball", name: "Variaball", type: .variaball,
@@ -1073,12 +1073,12 @@ enum CardLibrary {
         variaball: VariaballEffect(rollsFromDiscard: true))
     static let shufflebagBall = CardDescriptor(
         id: "shufflebag-ball", name: "Shufflebag Ball", type: .variaball,
-        effect: "Every possession, the turn player shuffles their hand into the deck and #[Draws] the same number, then draws for turn",
+        effect: "Every possession, the player in possession shuffles their Bag into the deck and #[Draws] the same number, then draws for possession",
         numberInDeck: 1,
         variaball: VariaballEffect(reshufflesHandEachPossession: true))
     static let bagnBall = CardDescriptor(
         id: "bagn-ball", name: "Bag'n Ball", type: .variaball,
-        effect: "#[Draw] 1 card when played. SHOT = 10% for each card in your hand",
+        effect: "#[Draw] 1 card when played. SHOT = 10% for each card in your Bag",
         numberInDeck: 1,
         variaball: VariaballEffect(shotPerCardInHand: 10, drawsOnArrival: 1))
     static let blazeBall = CardDescriptor(
@@ -1345,7 +1345,7 @@ enum CardLibrary {
         special: SpecialMoveEffect(shootsImmediately: true, shotType: .three,
                                    offersHandDumpAt: 3,
                                    handDumpRetiresARef: true, handDumpOverrideAt: 5),
-        bonus: "If you have 3 or more cards in hand, you may #[Retire] them: "
+        bonus: "If you have 3 or more cards in your Bag, you may #[Retire] them: "
             + "#[Retire] target ~[Ref]. If #[Retiring] 5 or more, SHOT = 100%")
 
     static let specialMoves: [CardDescriptor] = [
@@ -1363,7 +1363,7 @@ enum CardLibrary {
 
     static let hugeAltercation = CardDescriptor(
         id: "huge-altercation", name: "Huge Altercation", type: .gameBreak,
-        effect: "All players #[Retire] their hands. With a referee out, all take 1 #[TOV]. Inbound the ball",
+        effect: "All players #[Retire] their Bags. With a referee out, all take 1 #[TOV]. Inbound the ball",
         numberInDeck: 1,
         gameBreak: GameBreakEffect(everyoneDiscardsHands: true, turnoversIfReferee: 1,
                                    givesBallAway: true))

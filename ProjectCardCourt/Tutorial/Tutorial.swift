@@ -227,7 +227,7 @@ enum Tutorials {
         let dime = CardLibrary.dime.id
         return Tutorial(id: "passes", title: "Pass Cards", cardName: "Pass", face: .pass, legs: [
             TutorialLeg(title: "Playing a card", hand: [CardLibrary.swingRight], steps: [
-                TutorialStep(text: "Every card type has its own colour, so you can read a hand at "
+                TutorialStep(text: "Every card type has its own colour, so you can read a Bag at "
                                  + "a glance. Pass cards are blue.",
                              focus: [.handCard(swing)], enlarged: [.handCard(swing)]),
                 TutorialStep(text: "This is a Pass. To play a card, tap it to raise it, "

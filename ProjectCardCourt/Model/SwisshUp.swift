@@ -41,10 +41,10 @@ enum SwisshUp: String, CaseIterable, Codable, Hashable, Identifiable {
         case .quarterKing:   return "SHOT = 25% on your attempts"
         case .unconscious:   return "SHOT + 20% shooting first after taking a pass"
         case .vastVision:    return "Every pass you play is a pass of choice"
-        case .empoweredPace: return "Draw 1 additional card for turn"
+        case .empoweredPace: return "Draw 1 additional card for possession"
         case .unguardable:   return "Clamps have no effect on you"
-        case .sixthSense:    return "Draw up to a hand of 6"
-        case .downloaded:    return "Replace your hand from the top of Retirement"
+        case .sixthSense:    return "Draw up to a Bag of 6"
+        case .downloaded:    return "Replace your Bag from the top of Retirement"
         }
     }
 

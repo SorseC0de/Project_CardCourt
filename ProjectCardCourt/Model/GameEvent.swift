@@ -129,8 +129,8 @@ enum GameEvent: Hashable, Codable {
     case floorWiped
     /// Varsitile: the floor or the ball, swapped for ones out of the discard.
     case slotsExchanged(seat: Seat, cards: [CardDescriptor])
-    /// Blight Ball: the Injuries going with the ball.
-    case injuriesMoved(from: Seat, to: Seat, count: Int)
+    /// Blight Ball: the TOVs going with the ball.
+    case turnoversMoved(from: Seat, to: Seat, count: Int)
 
     /// True for events the player should see spelled out; draws and clock sets are noise.
     var isLoggable: Bool {
@@ -252,7 +252,7 @@ enum GameEvent: Hashable, Codable {
         case .shotMissed(let seat, _, let chance):
             return "No good. \(seat.playerName) \(seat.verb("misses", "miss")). (\(chance)%)"
         case .handsTraded(let seat, let other):
-            return "\(seat.playerName) \(seat.verb("trades", "trade")) hands with "
+            return "\(seat.playerName) \(seat.verb("trades", "trade")) Bags with "
                  + "\(other.playerName)"
         case .assisted(let seat):
             return "\(seat.playerName) +1 AST."
@@ -290,7 +290,7 @@ enum GameEvent: Hashable, Codable {
         case .clampedPossession(let seat, let clamps):
             return "\(seat.playerName) \(seat.verb("opens", "open")) up under \(clamps.count) Clamp\(clamps.count == 1 ? "" : "s")."
         case .halftime:
-            return "— HALFTIME — hands retired, fresh 5 each."
+            return "— HALFTIME — Bags retired, fresh 5 each."
         case .gameEnded(let winners):
             return winners.count == 1
                 ? "FINAL. \(winners[0].playerName) \(winners[0].verb("wins", "win"))."
@@ -302,7 +302,7 @@ enum GameEvent: Hashable, Codable {
         case .benched(let seat):
             return "Bench Ball! \(seat.playerName) \(seat.verb("is", "are")) benched and \(seat.verb("inbounds", "inbound"))."
         case .handsRotated(let clockwise):
-            return "Carousel Court: every hand moves one seat \(clockwise ? "left" : "right")."
+            return "Carousel Court: every Bag moves one seat \(clockwise ? "left" : "right")."
         case .clampHandedOff(let from, let to, let card):
             return "\(from.playerName) \(from.verb("hands", "hand")) \(card.name) off to \(to.playerName)."
         case .intangibleAbsorbed(let seat, let card):
@@ -313,8 +313,8 @@ enum GameEvent: Hashable, Codable {
             return "Clearcoat Court: referees, Clamps, Injuries and Intangibles, wiped."
         case .slotsExchanged(let seat, let cards):
             return "\(seat.playerName) \(seat.verb("swaps", "swap")) in \(cards.map(\.name).joined(separator: " and "))."
-        case .injuriesMoved(let from, let to, let count):
-            return "Blight Ball: \(count) Injur\(count == 1 ? "y goes" : "ies go") from \(from.playerName) to \(to.playerName)."
+        case .turnoversMoved(let from, let to, let count):
+            return "Blight Ball: \(from.playerName)'s \(count) TOV\(count == 1 ? "" : "s") \(count == 1 ? "goes" : "go") to \(to.playerName)."
         }
     }
 
