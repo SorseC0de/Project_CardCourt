@@ -28,6 +28,19 @@ enum Sprite: String, CaseIterable {
     /// The referee's own sheet. He jogs and looks about like everyone else — a referee
     /// standing dead still would read as a prop rather than a man watching you.
     case refereeRunLook = "Referee_Run_Look"
+    /// **Directional runs, one per kind of post.** Each is drawn facing the way that post
+    /// looks, so none of them is ever mirrored — mirroring the one sheet that faced left is
+    /// what had the left-hand refs running backwards. See `RefereePost.runSheet`.
+    case refereeRunN = "Referee_Run_Look_N"
+    case refereeRunNE = "Referee_Run_Look_NE"
+    case refereeRunNW = "Referee_Run_Look_NW"
+    /// **The ball in his hands, and the throw.** A referee puts it in play now.
+    case refereeHoldBall = "Referee_holdball"
+    case refereeInbound = "Referee_inbound"
+    /// The two call poses with their own bit — see `CardLibrary`'s Technical Foul and
+    /// Traffic Cop.
+    case refereeTech = "Referee_tech"
+    case refereeTravel = "Referee_travel"
     /// The three the referee holds rather than plays. He jogs the look-around loop while
     /// the game runs and stands in one of these the rest of the time — see `RefereeFigure`.
     case refereeRight = "Referee_Right"

@@ -385,7 +385,11 @@ struct GameView: View {
     private var floorSheets: AnyView {
         AnyView(ZStack {
                 if let scene = controller.cutscene {
-                    ShotCutsceneView(scene: scene, referee: controller.refereeOnFloor)
+                    ShotCutsceneView(scene: scene)
+                        // **No referee under the basket.** Three of them work every round
+                        // now and are always on the floor, so an ordinary shot is not an
+                        // event for them. A free throw still has its watcher — that is
+                        // `FreeThrowView`, not this.
                         .transition(.opacity)
                         .zIndex(10)
                 }

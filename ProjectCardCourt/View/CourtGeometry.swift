@@ -85,6 +85,25 @@ enum Perspective {
     /// the same nudge that clears the far pair of North barely moves them off the flanks.
     static let refereeNearUpcourt: CGFloat = 0.20
 
+    /// **Where the two wing posts stand now: halfway up to where the far posts were.**
+    /// The far pair are gone; the user asked for the wings to move "halfway between where
+    /// they stand now and where the far ones were." Worked from the two old depths rather
+    /// than typed, so it moves if either of them does.
+    static var refereeWingDepth: CGFloat {
+        let wing = depth(of: .east) - refereeNearUpcourt
+        let far = depth(of: .north) - refereeUpcourt
+        return (wing + far) / 2
+    }
+    /// **The two new posts either side of South**, a step nearer the camera than he
+    /// stands and out toward the sidelines. Not the user's numbers — placed by eye, and
+    /// named so they can be moved.
+    static let refereeSouthStep: CGFloat = 0.02
+    static let refereeSouthLateral: CGFloat = 0.35
+
+    /// **Where a player throws it in from.** It used to borrow the far referee posts'
+    /// depth, which tied the sideline to posts that no longer exist.
+    static var throwInDepth: CGFloat { depth(of: .north) - refereeUpcourt }
+
     /// How wide a card in a pile reads, as a share of the view. The stage sizes the piles
     /// to this and the deck's floor shadow is drawn from it, so the shadow cannot come out
     /// a different size from the thing casting it.
@@ -103,50 +122,55 @@ enum Perspective {
 
 }
 
-/// Where a referee can stand: outside a player and a little up the floor from them, along
-/// the sideline. Four posts, so the three a game can field never share one.
+/// Where a referee can stand. Four posts, so the three a game can field never share one.
+///
+/// **Two up the wings and two beside South.** The far pair either side of North are gone;
+/// the wings moved halfway up toward where they were, and two new posts went in south-east
+/// and south-west of the south player.
 ///
 /// Named for the slots they sit beside rather than the seats, so they stay in the same
 /// places on screen whoever the court is being drawn for.
 enum RefereePost: CaseIterable {
-    /// Off the right-hand flank player's outside shoulder, and the left-hand one's.
+    /// Off the right-hand flank player's shoulder and the left-hand one's, up the floor.
     case rightWing, leftWing
-    /// Either side of the player upcourt, and smaller for it.
-    case farRight, farLeft
+    /// Either side of South, a step nearer the camera than he stands.
+    case southEast, southWest
 
-    /// Which touchline he is on — which is also which way he faces.
-    var isLeft: Bool { self == .leftWing || self == .farLeft }
+    /// Which side of the floor he is on.
+    var isLeft: Bool { self == .leftWing || self == .southWest }
+
+    /// True for the pair beside South, which are the two nearest the camera.
+    var isSouth: Bool { self == .southEast || self == .southWest }
 
     var depth: CGFloat {
-        let onWing = self == .rightWing || self == .leftWing
-        let beside: Seat = onWing ? .east : .north
-        return Perspective.depth(of: beside)
-            - (onWing ? Perspective.refereeNearUpcourt : Perspective.refereeUpcourt)
+        isSouth ? Perspective.depth(of: .south) + Perspective.refereeSouthStep
+                : Perspective.refereeWingDepth
     }
 
     var lateral: CGFloat {
-        Perspective.refereeLateral * (isLeft ? -1 : 1)
+        let out = isSouth ? Perspective.refereeSouthLateral : Perspective.refereeLateral
+        return out * (isLeft ? -1 : 1)
     }
 
-    /// Where a seat throws it in from.
-    ///
-    /// Two spots and no more: the sprite is drawn facing one way, and a thrower at four
-    /// different spots would be looking four different directions at the same basket.
-    /// Upcourt and to one side — the same corners the far referees stand in.
-    static func inbounding(_ slot: Seat) -> RefereePost {
-        slot == .north || slot == .west ? .farLeft : .farRight
+    /// **The sheet he runs on — never mirrored.** The wings face up the floor, away from
+    /// the players. The south-east one looks north-west and the south-west one north-east,
+    /// both in toward the court. Each sheet is drawn facing that way already, which is what
+    /// fixes the refs who ran backwards: they were one left-facing sheet, flipped.
+    var runSheet: Sprite {
+        switch self {
+        case .rightWing, .leftWing: return .refereeRunN
+        case .southEast:            return .refereeRunNW
+        case .southWest:            return .refereeRunNE
+        }
     }
-
-    /// True for the two posts beside the flank players, false for the pair upcourt.
-    var isNear: Bool { self == .rightWing || self == .leftWing }
 
     /// The post on the other side *and* the other end of the floor.
     var opposite: RefereePost {
         switch self {
-        case .rightWing: return .farLeft
-        case .leftWing:  return .farRight
-        case .farRight:  return .leftWing
-        case .farLeft:   return .rightWing
+        case .rightWing: return .southWest
+        case .leftWing:  return .southEast
+        case .southEast: return .leftWing
+        case .southWest: return .rightWing
         }
     }
 
@@ -155,8 +179,8 @@ enum RefereePost: CaseIterable {
         switch self {
         case .rightWing: return .leftWing
         case .leftWing:  return .rightWing
-        case .farRight:  return .farLeft
-        case .farLeft:   return .farRight
+        case .southEast: return .southWest
+        case .southWest: return .southEast
         }
     }
 

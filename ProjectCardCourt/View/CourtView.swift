@@ -341,7 +341,7 @@ struct CourtView: View {
                 if let thrower, atLine != nil {
                     // Dead centre, facing the line of three. He is not on the floor,
                     // so there is no side for him to be on.
-                    let depth = RefereePost.farLeft.depth
+                    let depth = Perspective.throwInDepth
                     // The ball leaves his hands the moment he throws, and he holds the
                     // pose he threw in until it lands.
                     InbounderFigure(seat: thrower, holdsBall: throwing == nil,
@@ -781,7 +781,7 @@ struct CourtView: View {
         let coin = withUnsafeBytes(of: first.id.uuid) { Array($0.prefix(2)) }
         let start: RefereePost = coin[0].isMultiple(of: 2)
             ? (coin[1].isMultiple(of: 2) ? .rightWing : .leftWing)
-            : (coin[1].isMultiple(of: 2) ? .farRight : .farLeft)
+            : (coin[1].isMultiple(of: 2) ? .southEast : .southWest)
         return zip(RefereePost.crew(from: start), state.armedWhistles)
             .map(RefereeCall.init)
     }
@@ -948,7 +948,7 @@ struct CourtView: View {
 
     /// Where the throw leaves from. The same spot the thrower is drawn standing on.
     private func throwOrigin(on court: CourtGeometry) -> CGPoint {
-        let depth = RefereePost.farLeft.depth
+        let depth = Perspective.throwInDepth
         return CGPoint(x: court.centreX + prompt.throwerX * court.scale(at: depth),
                        y: court.y(at: depth) - Theme.Figure.height * 0.4)
     }
@@ -1041,7 +1041,8 @@ struct CourtView: View {
             let duty = refereeDuty(call)
             let turned = { if case .turned = duty { return true }; return false }()
             RefereeFigure(duty: duty,
-                          mirrored: turned ? false : post.isLeft,
+                          runSheet: post.runSheet,
+                          mirrored: false,
                           phase: post.phase,
                           tone: look.refereeTone(for: called.id),
                           frozen: frozen)

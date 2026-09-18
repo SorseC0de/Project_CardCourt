@@ -9,8 +9,9 @@ struct RefereeFigure: View {
     enum Duty: Equatable {
         /// Jogging and looking about, which is the only one that moves on its own.
         case working
-        /// Stood still, because the game is. Anything that holds the players in a pose
-        /// holds him in this one — see `CourtView.courtIsRunning`.
+        /// **Stood still facing the room, looking one way and then the other**, because the
+        /// game is stopped. Every stoppage and the start of the game: `_front`, on the same
+        /// slow 0 → 1 → 0 → 2 the inbounder looks around on — see `waitingLook`.
         case waiting
         /// Blowing it. The pose does the shouting; the shake is this view's.
         case calling
@@ -21,10 +22,12 @@ struct RefereeFigure: View {
         /// Following a free throw up, from the moment it is launched.
         case watching
 
+        /// The sheet for everything but running, which belongs to the post — see
+        /// `RefereeFigure.runSheet`.
         var sheet: Sprite {
             switch self {
-            case .working:  return .refereeRunLook
-            case .waiting:  return .refereeRight
+            case .working:  return .refereeRunN
+            case .waiting:  return .refereeFront
             case .calling:  return .refereeCall
             case .turned:   return .refereeFront
             case .watching: return .refereeShotFront
@@ -39,7 +42,10 @@ struct RefereeFigure: View {
     }
 
     var duty: Duty = .working
-    /// The sheet faces the right-hand touchline. The left-hand posts turn him around.
+    /// **The sheet he runs on, which is his post's** — see `RefereePost.runSheet`. Drawn
+    /// facing the right way already, so nothing turns him round.
+    var runSheet: Sprite = .refereeRunN
+    /// Kept for the few poses still drawn one way only. Running never uses it now.
     var mirrored = false
     /// His own offset into the sprite clock, so two referees do not jog in step.
     var phase: TimeInterval = 0
@@ -65,21 +71,36 @@ struct RefereeFigure: View {
         static let hopFPS: Double = 15
     }
 
+    /// **The stoppage look: straight, left, straight, right.** Stepped at the inbounder's
+    /// own pace, which is the slowest thing in the game on purpose, so a crew waiting on a
+    /// decision reads as waiting rather than fidgeting.
+    private static let waitingLook = [0, 1, 0, 2]
+
     var body: some View {
         ZStack(alignment: .bottom) {
             SpriteShadow(scale: scale)
             TimelineView(.animation(minimumInterval: 1 / Rattle.sideFPS,
-                                    paused: duty != .calling)) { tick in
+                                    paused: duty != .calling && duty != .waiting)) { tick in
                 let shake = rattle(at: tick.date)
-                SpriteAnimation(sprite: duty.sheet, scale: scale,
+                SpriteAnimation(sprite: duty == .working ? runSheet : duty.sheet,
+                                scale: scale,
                                 fps: Theme.Figure.playerFPS,
                                 isPlaying: duty == .working && !frozen,
-                                restFrame: duty.frame, phase: phase)
-                    .scaleEffect(x: mirrored ? -1 : 1)
+                                restFrame: restFrame(at: tick.date), phase: phase)
+                    .scaleEffect(x: mirrored && duty != .working ? -1 : 1)
                     .offset(x: shake.x * scale, y: shake.y * scale)
             }
             .paletteSwap(PixelPalette.skin(tone: tone))
         }
+    }
+
+    /// Which cell he is held on this instant. The stoppage look steps through its loop; a
+    /// turned pose holds the frame it was given; everything else rests on nought.
+    private func restFrame(at date: Date) -> Int {
+        guard duty == .waiting, !frozen else { return duty.frame }
+        let beat = Int((date.timeIntervalSinceReferenceDate + phase)
+                       * Theme.Figure.sidelineFPS)
+        return Self.waitingLook[beat % Self.waitingLook.count]
     }
 
     /// Where the shake has him this instant, in art pixels. Zero unless he is calling.
