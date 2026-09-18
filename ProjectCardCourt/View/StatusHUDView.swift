@@ -87,7 +87,10 @@ struct StatusHUDView: View {
     var deck: Int?
     var ballSize: CGFloat = 58
     /// Tapping the referee opens the crew's sheet, the same as tapping one on the floor.
-    var onInspectReferees: () -> Void = {}
+    /// **One official, raised from where he sits.** Each card in the crew row opens itself,
+    /// the way a passive in the slots does — no sheet of all three in between, since you
+    /// tapped the one you wanted to read.
+    var onInspectReferee: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     /// Which way the count is arranged against the deck. A setting, so it is kept.
     @AppStorage(DeckReadout.setting) private var layout = DeckReadout.beside
@@ -209,12 +212,21 @@ struct StatusHUDView: View {
                 CardFrontView(descriptor: whistle.card.descriptor,
                               displayWidth: refereeSide * Crew.share,
                               isDormant: whistle.stayed)
+                    // Its own tap, reporting where it sits so the card rises from there.
+                    .overlay {
+                        GeometryReader { geo in
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    let at = geo.frame(in: .global)
+                                    onInspectReferee(whistle.card.descriptor,
+                                                     CGPoint(x: at.midX, y: at.midY))
+                                }
+                        }
+                    }
             }
         }
-        .drawingGroup()
         .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onInspectReferees)
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 

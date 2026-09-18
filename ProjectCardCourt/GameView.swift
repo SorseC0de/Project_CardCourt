@@ -1059,7 +1059,7 @@ struct GameView: View {
             Spacer(minLength: 8)
             StatusHUDView(state: controller.shown, shot: controller.shownShot,
                           deck: controller.shownDeck,
-                          onInspectReferees: { open(.referees) })
+                          onInspectReferee: { inspecting = (card: $0, from: $1) })
         }
         .padding(.horizontal, 14)
         .padding(.top, 6)
