@@ -632,14 +632,6 @@ struct GameView: View {
                                   onDecline: { controller.challenge(false) })
                         .zIndex(12)
                 }
-                if case .awaitingPayoff(let clamp) = controller.gate {
-                    PayoffPickerView(clamp: clamp,
-                                     ringed: { if case .payoff(let which) = ring { return which }
-                                               else { return nil } }()) {
-                        controller.take(payoff: $0)
-                    }
-                        .zIndex(12)
-                }
                 if let scene = controller.reveal {
                     RevealCutsceneView(scene: scene) { controller.dismissReveal() }
                         // Keyed to the card, so two reveals in a row are two views rather than
@@ -1547,7 +1539,6 @@ struct GameView: View {
             }
         case .shoot:   controller.shoot()
         case .finish(let type): controller.shoot(as: type)
-        case .payoff(let payoff): controller.take(payoff: payoff)
         case .borrow:  controller.beginBorrow()
         case .confirm: confirm()
         case .decline: declineTheOffer()

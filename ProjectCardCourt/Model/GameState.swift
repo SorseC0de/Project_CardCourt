@@ -117,9 +117,6 @@ enum Phase: Hashable, Codable {
     /// **A call, and the man it is against.** Once a game he may throw it out and send the
     /// official who made it off with it.
     case awaitingChallenge(seat: Seat, card: CardDescriptor)
-    /// **You beat your man.** The defender whose printed counter has just been met, and
-    /// the three things blowing by him is worth.
-    case awaitingPayoff(seat: Seat, clamp: CardDescriptor)
     /// A card taken out of somebody else's hand, chosen rather than rolled for. The hand
     /// is face down — picking one is a guess, which is the point.
     case awaitingCardFrom(seat: Seat, card: CardDescriptor, victim: Seat)
@@ -165,7 +162,7 @@ enum Phase: Hashable, Codable {
     var isMidPlay: Bool {
         switch self {
         case .awaitingTarget, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
-             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop, .awaitingPayoff,
+             .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop,
              .awaitingRetirement:
             return true
         default:
@@ -192,7 +189,6 @@ enum Phase: Hashable, Codable {
         case .awaitingTarget(let seat, _, _): return seat
         case .awaitingRetirement(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
-        case .awaitingPayoff(let seat, _): return seat
         case .awaitingChallenge(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat
         case .awaitingInjuryPick(let seat, _): return seat
@@ -421,10 +417,6 @@ struct GameState: Codable {
     /// **How the attempt in the air was taken.** Set the moment a shoot button is pressed
     /// and read by the crew, by scoring, and by the cutscene.
     var shotType: ShotType = .layup
-    /// The defender just beaten, held while his man picks what it was worth.
-    var beatenClamp: ActiveClamp?
-    /// Paid to the one attempt taken off a payoff.
-    var payoffShotBonus = 0
     /// What the passer said yes to, carried into the pass — see `CardOption`.
     var passTakesBall = false
     var passFlipsCoin = false

@@ -71,29 +71,3 @@ enum ShotType: String, Hashable, Codable, CaseIterable, Identifiable {
     }
 }
 
-
-/// **What beating your man is worth.** The same three every time, so the choice is read
-/// once and known for the rest of the game — you blew by him, and now you are the one
-/// with the advantage.
-enum ClampPayoff: String, Hashable, Codable, CaseIterable, Identifiable {
-    /// Keep going.
-    case draw
-    /// Rise into the space he left.
-    case shoot
-    /// **He rotates.** The defender you just beat picks up whoever you throw it to,
-    /// instead of going to the pile. You blew by him; now he is somebody else's problem.
-    case passAndRotate
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .draw: return "Draw 1 card"
-        case .shoot: return "Shoot at SHOT +\(ClampPayoff.shotBonus)%"
-        case .passAndRotate: return "Pass, and he follows"
-        }
-    }
-
-    /// What rising into the space is worth, for the one attempt.
-    static let shotBonus = 25
-}

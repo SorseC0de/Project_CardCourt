@@ -1023,12 +1023,16 @@ func runTests() {
             seed: 32, cards: [CardLibrary.fullCourtPress, CardLibrary.swingLeft])
         let receiver = seat.left
         playClamp(cards[0].id, by: seat, on: receiver, &state)
-        let before = state[receiver].bag.count
+        state[receiver].bag = [matchCard(CardLibrary.swingRight, state.rules),
+                               matchCard(CardLibrary.dribble, state.rules)]
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         declineCounter(&state)
-        // Draws one on the possession, then the press takes two.
-        Check.that(state[receiver].bag.count == before + 1 - 2,
-                   "Full-Court Press takes two cards at the start of the turn")
+        let playable = Rules.legalMoves(state, for: receiver).compactMap { move -> Card? in
+            guard case .play(let id) = move else { return nil }
+            return state[receiver].bag.first { $0.id == id }
+        }
+        Check.that(!playable.isEmpty && playable.allSatisfy(\.descriptor.isMove),
+                   "Full-Court Press: only Move cards can be played")
     }
     do {
         var (state, seat, cards) = openPossession(
@@ -1813,6 +1817,7 @@ func runTests() {
     }
 
     slotTests()
+    clampTests()
     slotTestsTwo()
     alleyOopTests()
 

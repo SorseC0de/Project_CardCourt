@@ -495,8 +495,6 @@ final class GameController {
         /// A card that names a player, and the branches of one that names a mode.
         case awaitingTarget(card: CardDescriptor, choices: [Seat])
         case awaitingMode(card: CardDescriptor)
-        /// A defender beaten: which of the three things that is worth.
-        case awaitingPayoff(clamp: CardDescriptor)
         /// A call, and the one challenge a game that can throw it out.
         case awaitingChallenge(card: CardDescriptor)
         /// Dishtracting Ball: which of the crew gets waved off, if any.
@@ -1209,8 +1207,6 @@ final class GameController {
                                 : .thinking
         case .awaitingClampsNamed(let seat, let card, let named):
             return seat.isLocal ? .awaitingClampsNamed(card: card, named: named) : .thinking
-        case .awaitingPayoff(let seat, let clamp):
-            return seat.isLocal ? .awaitingPayoff(clamp: clamp) : .thinking
         case .awaitingChallenge(let seat, let card):
             return seat.isLocal ? .awaitingChallenge(card: card) : .thinking
         case .awaitingCardFrom(let seat, let card, let victim):
@@ -1838,13 +1834,6 @@ final class GameController {
 
     /// **Who is challenging**, while the floor holds on them. Nil the rest of the time.
     private(set) var challenging: Seat?
-
-    func take(payoff: ClampPayoff) {
-        guard !isPaused else { return }
-        guard case .awaitingPayoff = gate else { return }
-        DevLog.say(.input, "payoff: \(payoff.label)")
-        choose(.beatClamp(payoff: payoff))
-    }
 
     /// Sixth Man's second Shoot button.
     func shootAtOffer() {
@@ -2623,18 +2612,6 @@ final class GameController {
                 }
                 if Task.isCancelled { return }
                 await present(Rules.resolveChallenge(taking, state: &state))
-                continue
-            }
-            if case .awaitingPayoff(let seat, _) = state.phase {
-                if seat.isLocal { gate = localGate; return }
-                let payoff = AIPolicy.payoff(state, for: seat)
-                if !Table.shared.isRemote(seat) {
-                    gate = .thinking
-                    await think()
-                }
-                if Task.isCancelled { return }
-                await present(Rules.takePayoff(payoff, by: seat, state: &state),
-                              playedCard: true)
                 continue
             }
             if case .awaitingGiveUp(let seat, _, let count) = state.phase {

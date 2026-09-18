@@ -31,9 +31,9 @@ struct ClampEffect: Hashable, Codable {
     /// defender in your way for the whole possession; one that only takes cards has done
     /// its work the moment it arrives and leaves again.
     var isStanding: Bool {
-        shotDebuff != 0 || locksRandomCards > 0 || passOnly || shotPerCardPlayed != 0
-            || blocksThrees || blocksShooting || turnoverWithoutAPass
-            || forcesShotType != nil
+        shotDebuff != 0 || locksRandomCards > 0 || passOnly || movesOnly || shootOnly
+            || shotPerCardPlayed != 0 || !blocksShotTypes.isEmpty || blocksShooting
+            || turnoverWithoutAPass || forcesShotType != nil
     }
 
     /// **What sends him off, printed on his own card.** Every defender has one, even if it
@@ -59,18 +59,21 @@ struct ClampEffect: Hashable, Codable {
     var defenders = 1
     /// Feeds the debuff layer of the SHOT stack if the clamped player shoots.
     var shotDebuff: Int = 0
-    /// Discarded at random when the clamped player's possession begins.
-    var discardAtStart: Int = 0
     /// Cards in the clamped player's hand they cannot play this possession, picked at
     /// random when the Clamp lands and then fixed — see `ActiveClamp.locked`. Re-rolling
     /// them each time the hand is drawn would make the lock unreadable.
     var locksRandomCards: Int = 0
     /// Nothing but Pass cards. Shooting is a free action rather than a card, so it stays.
     var passOnly = false
+    /// Full-Court Press: nothing but Move cards. Shooting stays, as it does for Trap.
+    var movesOnly = false
+    /// Baseline Denial: no cards at all. The only thing left to do is shoot.
+    var shootOnly = false
     /// Man-To-Man: SHOT, every time the clamped player plays a card.
     var shotPerCardPlayed = 0
-    /// Close-Out: no three-point attempts.
-    var blocksThrees = false
+    /// Finishes taken away: Close-Out the three, Crushing Center the dunk, Pressing
+    /// Point and Rim Runner the layup.
+    var blocksShotTypes: Set<ShotType> = []
     /// Zone: no shots at all.
     var blocksShooting = false
     /// **A defender who shortens the drive.** Fewer Moves in the possession, which is also
@@ -100,6 +103,21 @@ enum ClampCounter: Hashable, Codable {
     case shotAtLeast(Int)
     /// Or the other way: a look this poor is one nobody needs to guard.
     case shotAtMost(Int)
+    /// Contest: strictly over the line.
+    case shotAbove(Int)
+    /// Waiting Wing's band: a hand of this size, inclusive at both ends.
+    case handBetween(Int, Int)
+    /// And his way out: either side of the band.
+    case handOutside(atMost: Int, atLeast: Int)
+    // **Cleared by something happening**, not by a line: read at the moment it happens
+    // — see `Rules.clampEvent` — so `met` never holds for them.
+    case attemptingAShot
+    case passingTheBall
+    /// Trap: a pass to a player with no Clamps on them.
+    case passingToAnOpenPlayer
+    case playingAnIntangibleOrChangingTheBall
+    /// Anything where the players stop running.
+    case stoppageOfPlay
 
     /// Whether a player meets it right now.
     func met(by seat: Seat, in state: GameState) -> Bool {
@@ -112,6 +130,13 @@ enum ClampCounter: Hashable, Codable {
         case .movesAtLeast(let n): return state.movesThisPossession >= n
         case .shotAtLeast(let n): return state.shot >= n
         case .shotAtMost(let n): return state.shot <= n
+        case .shotAbove(let n): return state.shot > n
+        case .handBetween(let low, let high): return (low...high).contains(state[seat].bag.count)
+        case .handOutside(let atMost, let atLeast):
+            return state[seat].bag.count <= atMost || state[seat].bag.count >= atLeast
+        case .attemptingAShot, .passingTheBall, .passingToAnOpenPlayer,
+             .playingAnIntangibleOrChangingTheBall, .stoppageOfPlay:
+            return false
         }
     }
 
@@ -126,6 +151,15 @@ enum ClampCounter: Hashable, Codable {
         case .movesAtLeast(let n): return "\(n) Move cards this possession"
         case .shotAtLeast(let n): return "SHOT \(n)% or more"
         case .shotAtMost(let n): return "SHOT \(n)% or less"
+        case .shotAbove(let n): return "SHOT above \(n)%"
+        case .handBetween(let low, let high): return "\(low) to \(high) cards in Bag"
+        case .handOutside(let atMost, let atLeast):
+            return "\(atMost) card\(atMost == 1 ? "" : "s") or fewer, or \(atLeast) cards or more in Bag"
+        case .attemptingAShot: return "Attempt a Shot"
+        case .passingTheBall: return "Pass the ball"
+        case .passingToAnOpenPlayer: return "Pass to an Open player"
+        case .playingAnIntangibleOrChangingTheBall: return "Play an Intangible or change the ball"
+        case .stoppageOfPlay: return "Any stoppage of play"
         }
     }
 }

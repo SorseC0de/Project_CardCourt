@@ -244,14 +244,6 @@ struct AIPolicy {
         return choices.first { if case .clamp = $0 { return true }; return false }
     }
 
-    /// What to take for beating a defender. Cards first while the hand is thin, the free
-    /// look once it is not — and the rotation when there is somebody worth putting him on.
-    static func payoff(_ state: GameState, for seat: Seat) -> ClampPayoff {
-        if state[seat].bag.count <= 2 { return .draw }
-        if state.shot >= 50 { return .shoot }
-        return .passAndRotate
-    }
-
     /// **A floor or a ball worth putting down.** Most go down as the first thing; the balls
     /// that hurt whoever holds them only go down when there is a pass to hand them on with.
     private mutating func slotCard(_ state: GameState, for seat: Seat, from playable: [Card],

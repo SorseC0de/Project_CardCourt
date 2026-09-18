@@ -46,18 +46,6 @@ func slotTests() {
                    "and holds an Intangible's Three bonus to it as well")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 204, cards: [CardLibrary.swingLeft])
-        state.ballCard = Card(CardLibrary.dishcountBall)
-        state.pendingClamps = [ActiveClamp(card: CardLibrary.fullCourtPress, from: seat)]
-        state[seat.left].bag = (0..<4).map { _ in matchCard(CardLibrary.swingRight, state.rules) }
-        let events = playDeclining(.play(cards[0].id), by: seat, &state)
-        let bit = events.compactMap { event -> Int? in
-            if case .clampBit(let who, _, let count) = event, who == seat.left { return count }
-            return nil
-        }.first
-        Check.that(bit == 1, "Dishcount Ball: a Full-Court Press takes one fewer")
-    }
-    do {
         var (state, seat, _) = openPossession(seed: 205, cards: [])
         state.courtCard = Card(CardLibrary.boarderCourt)
         state.phase = .awaitingRebound(shooter: seat)

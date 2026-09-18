@@ -47,8 +47,9 @@ enum Glossary {
         "UnRetire": "Take a card out of Retirement.",
         "Lock": "The card stays in your Bag but cannot be played this possession. Which "
               + "one is picked when the Clamp lands, and it does not change.",
-        "Clamp": "Defenders standing on whoever has the ball next. They lower SHOT while "
-               + "they are there, and some of them take cards instead.",
+        "Clamp": "A defender you assign to a player. It stays on them until they meet "
+               + "its Clear.",
+        "Open": "A player with no Clamps on them.",
         "Clear": "Send the defenders away before they land, or off you if they already "
                + "have.",
         "Target": "You choose which player it goes to, rather than the card choosing.",

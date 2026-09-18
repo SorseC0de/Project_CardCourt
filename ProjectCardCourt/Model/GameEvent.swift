@@ -37,11 +37,8 @@ enum GameEvent: Hashable, Codable {
     /// **An official sent off by a card** rather than by a call — the ball got his
     /// attention, and somebody else comes out to take his place.
     case officialDistracted(seat: Seat, card: CardDescriptor)
-    /// **A defender beaten.** His printed counter was met, so he is off his man — and the
-    /// man he was on picks what blowing by him was worth.
+    /// **A defender beaten.** The Clear printed on his card was met, so he is Retired.
     case clampBeaten(seat: Seat, card: CardDescriptor)
-    /// And the payoff taken for it.
-    case payoffTaken(seat: Seat, card: CardDescriptor, payoff: ClampPayoff)
     /// A defender who simply ran out of somebody to guard.
     case clampExpired(seat: Seat, cards: [CardDescriptor])
     /// **The crew for the round, turned face-up.** Nobody played these and nobody owns
@@ -231,8 +228,6 @@ enum GameEvent: Hashable, Codable {
             return "\(seat.playerName) \(seat.verb("is", "are")) full — gets open instead. SHOT +\(shot)%."
         case .clampBeaten(let seat, let card):
             return "\(seat.playerName) \(seat.verb("beats", "beat")) \(card.name)!"
-        case .payoffTaken(let seat, _, let payoff):
-            return "\(seat.playerName): \(payoff.label)."
         case .clampExpired(let seat, let cards):
             let names = cards.map(\.name).joined(separator: ", ")
             return "\(names) \(cards.count == 1 ? "has" : "have") nobody to guard on \(seat.playerName)."

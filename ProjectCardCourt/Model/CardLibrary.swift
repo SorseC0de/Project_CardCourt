@@ -233,55 +233,55 @@ enum CardLibrary {
     // is on the HUD — so being squeezed is something a player can see coming and play out
     // of rather than something that simply happens to them.
     //
-    // Beating one pays: see `ClampPayoff`. Giving up the ball always sends one off, which
-    // is the floor under the whole system — nobody is ever stuck with a defender they
-    // have no answer to.
+    // Meeting the Clear printed on his card retires him.
 
     static let contest = CardDescriptor(
         id: "contest", name: "Contest", type: .clamp,
-        effect: "Target player: SHOT -25%\n#[Clear]: SHOT 60% or more", numberInDeck: 8,
-        clamp: ClampEffect(clearedBy: .shotAtLeast(60), shotDebuff: -25))
+        effect: "SHOT -25% when shooting\n#[Clear]: SHOT above 50%", numberInDeck: 10,
+        clamp: ClampEffect(clearedBy: .shotAbove(50), shotDebuff: -25))
 
     static let manToMan = CardDescriptor(
         id: "man-to-man", name: "Man-To-Man", type: .clamp,
-        effect: "Target player: SHOT -10% each time a card is played\n"
-            + "#[Clear]: 3 ~[Move] cards this possession", numberInDeck: 4,
+        effect: "SHOT -10% each time a card is played\n"
+            + "#[Clear]: 3 ~[Move] cards this possession", numberInDeck: 3,
         clamp: ClampEffect(clearedBy: .movesAtLeast(3), shotPerCardPlayed: -10))
 
     static let closeOut = CardDescriptor(
         id: "close-out", name: "Close-Out", type: .clamp,
-        effect: "Target player cannot attempt a @[Three]\n"
-            + "#[Clear]: #[Shot Clock] 03 or less", numberInDeck: 4,
-        clamp: ClampEffect(clearedBy: .clockAtMost(3), blocksThrees: true))
+        effect: "Cannot attempt a @[Three]\n"
+            + "#[Clear]: Attempt a Shot", numberInDeck: 3,
+        clamp: ClampEffect(clearedBy: .attemptingAShot, blocksShotTypes: [.three]))
 
     static let zone = CardDescriptor(
         id: "zone", name: "Zone", type: .clamp,
-        effect: "Target player cannot #[Shoot]. With no playable ~[Pass] cards, "
-            + "#[TOV] +1 and the round ends\n#[Clear]: Give up the ball", numberInDeck: 1,
-        clamp: ClampEffect(blocksShooting: true, turnoverWithoutAPass: true))
+        effect: "Cannot #[Shoot]. With no playable ~[Pass] cards, "
+            + "#[TOV] +1 and the round ends\n#[Clear]: ~[Pass] the ball", numberInDeck: 1,
+        clamp: ClampEffect(clearedBy: .passingTheBall, blocksShooting: true,
+                           turnoverWithoutAPass: true))
 
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
-        effect: "Target player #[Lock|2]\n#[Clear]: 2 cards or fewer in Bag",
+        effect: "#[Lock|2] cards\n#[Clear]: 2 cards or fewer in Bag",
         numberInDeck: 3,
         clamp: ClampEffect(clearedBy: .handAtMost(2), defenders: 2, locksRandomCards: 2))
 
     static let tripleTeam = CardDescriptor(
         id: "triple-team", name: "Triple-Team", type: .clamp,
-        effect: "Target player #[Lock|3]\n#[Clear]: 1 card or fewer in Bag",
+        effect: "#[Lock|3] cards\n#[Clear]: ~[Pass] the ball",
         numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .handAtMost(1), defenders: 3, locksRandomCards: 3))
+        clamp: ClampEffect(clearedBy: .passingTheBall, defenders: 3, locksRandomCards: 3))
 
     static let trap = CardDescriptor(
         id: "trap", name: "Trap", type: .clamp,
-        effect: "Target player can only ~[Pass] or #[Shoot]\n#[Clear]: Give up the ball",
-        numberInDeck: 3,
-        clamp: ClampEffect(defenders: 3, passOnly: true))
+        effect: "Can only ~[Pass] or #[Shoot]\n#[Clear]: ~[Pass] to an #[Open] player",
+        numberInDeck: 1,
+        clamp: ClampEffect(clearedBy: .passingToAnOpenPlayer, defenders: 3, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
-        effect: "Target player #[Retire|2]", numberInDeck: 2,
-        clamp: ClampEffect(discardAtStart: 2))
+        effect: "Can only play ~[Move] cards\n#[Clear]: Play 3 ~[Move] cards in a possession",
+        numberInDeck: 1,
+        clamp: ClampEffect(clearedBy: .movesAtLeast(3), movesOnly: true))
 
     // ── The pace defenders ────────────────────────────────────────────
     //
@@ -296,30 +296,32 @@ enum CardLibrary {
 
     static let crushingCenter = CardDescriptor(
         id: "crushing-center", name: "Crushing Center", type: .clamp,
-        effect: "Target player with 2 cards or fewer in Bag: SHOT -30%\n"
-            + "#[Clear]: 4 cards or more in Bag", numberInDeck: 6,
+        effect: "2 cards or fewer in Bag: SHOT -30%\nCannot @[Dunk]\n"
+            + "#[Clear]: 4 cards or more in Bag", numberInDeck: 5,
         clamp: ClampEffect(clearedBy: .handAtLeast(4), appliesWhen: .handAtMost(2),
-                           shotDebuff: -30))
+                           shotDebuff: -30, blocksShotTypes: [.dunk]))
 
     static let pressingPoint = CardDescriptor(
         id: "pressing-point", name: "Pressing Point", type: .clamp,
-        effect: "Target player with 4 cards or more in Bag: SHOT -30%\n"
-            + "#[Clear]: 2 cards or fewer in Bag", numberInDeck: 6,
+        effect: "4 cards or more in Bag: SHOT -30%\nCannot shoot @[Layups]\n"
+            + "#[Clear]: 2 cards or fewer in Bag", numberInDeck: 5,
         clamp: ClampEffect(clearedBy: .handAtMost(2), appliesWhen: .handAtLeast(4),
-                           shotDebuff: -30))
+                           shotDebuff: -30, blocksShotTypes: [.layup]))
 
-    static let lurkingWing = CardDescriptor(
-        id: "lurking-wing", name: "Lurking Wing", type: .clamp,
-        effect: "Target player at #[Shot Clock] 05 or less: SHOT -25%\n"
-            + "#[Clear]: #[Shot Clock] 06 or more", numberInDeck: 4,
-        clamp: ClampEffect(clearedBy: .clockAtLeast(6), appliesWhen: .clockAtMost(5),
-                           shotDebuff: -25))
+    /// **Wings are the most important defenders in the game**, so his band is the middle
+    /// of the hand, where most players live.
+    static let waitingWing = CardDescriptor(
+        id: "lurking-wing", name: "Waiting Wing", type: .clamp,
+        effect: "2 to 4 cards in Bag: SHOT -30%\n"
+            + "#[Clear]: 1 card or fewer, or 5 cards or more in Bag", numberInDeck: 5,
+        clamp: ClampEffect(clearedBy: .handOutside(atMost: 1, atLeast: 5),
+                           appliesWhen: .handBetween(2, 4), shotDebuff: -30))
 
     static let helpSideForward = CardDescriptor(
         id: "help-side-forward", name: "Help-Side Forward", type: .clamp,
-        effect: "Target player: SHOT -15%\n#[Clear]: 2 ~[Move] cards this possession",
-        numberInDeck: 4,
-        clamp: ClampEffect(clearedBy: .movesAtLeast(2), shotDebuff: -15))
+        effect: "SHOT -15%\n#[Clear]: Play an ~[Intangible] or change the ~[Ball]",
+        numberInDeck: 3,
+        clamp: ClampEffect(clearedBy: .playingAnIntangibleOrChangingTheBall, shotDebuff: -15))
 
     // ── The forcers ───────────────────────────────────────────────────
     //
@@ -330,21 +332,21 @@ enum CardLibrary {
 
     static let baselineDenial = CardDescriptor(
         id: "baseline-denial", name: "Baseline Denial", type: .clamp,
-        effect: "Target player can only shoot a @[Layup]\n#[Clear]: 5 cards in Bag",
-        numberInDeck: 4,
-        clamp: ClampEffect(clearedBy: .handAtLeast(5), forcesShotType: .layup))
+        effect: "Can only #[Shoot]\n#[Clear]: Any stoppage of play",
+        numberInDeck: 1,
+        clamp: ClampEffect(clearedBy: .stoppageOfPlay, shootOnly: true))
 
     static let paintPacker = CardDescriptor(
         id: "paint-packer", name: "Paint Packer", type: .clamp,
-        effect: "Target player can only shoot a @[Three]\n#[Clear]: 2 cards or fewer in Bag",
-        numberInDeck: 4,
-        clamp: ClampEffect(clearedBy: .handAtMost(2), forcesShotType: .three))
+        effect: "When shooting: can only shoot a @[Three]\n#[Clear]: ~[Pass] the ball",
+        numberInDeck: 3,
+        clamp: ClampEffect(clearedBy: .passingTheBall, forcesShotType: .three))
 
     static let rimRunner = CardDescriptor(
         id: "rim-runner", name: "Rim Runner", type: .clamp,
-        effect: "Target player can only shoot a @[Dunk]\n#[Clear]: SHOT 40% or less",
-        numberInDeck: 4,
-        clamp: ClampEffect(clearedBy: .shotAtMost(40), forcesShotType: .dunk))
+        effect: "Cannot shoot @[Layups]\n#[Clear]: SHOT 40% or less",
+        numberInDeck: 3,
+        clamp: ClampEffect(clearedBy: .shotAtMost(40), blocksShotTypes: [.layup]))
 
     // ── Whistles ──────────────────────────────────────────────────────
     // A nil trigger resolves on play; everything else lies in wait. A turnover always
@@ -1511,7 +1513,7 @@ enum CardLibrary {
     /// that stops the ball, which was a nine-card afterthought before.
     static let clamps: [CardDescriptor] = [
         contest, manToMan, closeOut, zone, fullCourtPress, doubleTeam, tripleTeam, trap,
-        crushingCenter, pressingPoint, lurkingWing, helpSideForward,
+        crushingCenter, pressingPoint, waitingWing, helpSideForward,
         baselineDenial, paintPacker, rimRunner,
     ]
 

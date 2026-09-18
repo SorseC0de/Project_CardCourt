@@ -20,8 +20,6 @@ enum Move: Hashable, Codable {
     case shoot
     /// **The shoot button, which is three buttons.** A plain `shoot` is a layup.
     case shootAs(ShotType)
-    /// Which payoff a player takes for beating the defender in front of them.
-    case beatClamp(payoff: ClampPayoff)
     /// Sixth Man: the second Shoot button, at the SHOT the Intangible offers.
     case shootAtOffer
     /// Traderous Tarmac: one of the Clamps on you, onto another player.

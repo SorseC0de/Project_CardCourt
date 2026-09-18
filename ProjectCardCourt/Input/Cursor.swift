@@ -12,8 +12,6 @@ enum PadSpot: Hashable {
     case shoot
     /// **One of the three buttons.** A shot is a choice of finish now — see `ShotType`.
     case finish(ShotType)
-    /// One of the three things beating your man is worth.
-    case payoff(ClampPayoff)
     /// Free Agent's way into somebody else's hand.
     case borrow
     /// The bar's single confirm — a bid, a spend, a toll. There is only ever one of them
@@ -128,9 +126,6 @@ enum Row {
         case .awaitingMode(let card):
             return card.modes.indices.map(PadSpot.mode)
 
-        case .awaitingPayoff:
-            return ClampPayoff.allCases.map(PadSpot.payoff)
-
         // The emblem, and the button that lets the call stand.
         case .awaitingChallenge:
             return [.confirm, .decline]
@@ -153,7 +148,6 @@ enum Row {
     /// Everything else in the game is a row of cards or a line of men on a floor.
     static func runsDown(_ controller: GameController) -> Bool {
         if case .awaitingMode = controller.gate { return true }
-        if case .awaitingPayoff = controller.gate { return true }
         return false
     }
 
