@@ -371,7 +371,21 @@ they end up: a call you can answer is the other half of officials you can read, 
 game is the right number for a thing that should feel like spending something.
 
 
-## The refs on the floor (recorded mid-audit, not built)
+## The refs on the floor — built 2026-09-18, except the huddle
+
+**Built:** directional runs (wings `_N`, south-east `_NW`, south-west `_NE`, nothing
+mirrored); the far posts removed, the wings moved halfway up, two new posts beside South;
+`_front` on a 0-1-0-2 loop at every stoppage; a referee inbounds at the top of every round
+and after a turnover his call caused; no referee under the basket on an ordinary shot.
+
+**Dropped by the user:** the north-west huddle triangle — "if a ref always inbounds then
+they cant form a triangle." The inbounding ref takes the player-thrower's spot instead, and
+the other two stay at their posts.
+
+**Still open:** a turnover no ref called still goes back in by the player — the spec does
+not cover it. `Referee_tech` and `Referee_travel` are imported but not yet played on a call.
+
+The original record follows.
 
 Comes in with the Travel revision — see the ref audit's record.
 
