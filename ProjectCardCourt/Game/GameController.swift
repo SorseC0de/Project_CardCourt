@@ -410,6 +410,24 @@ struct WhistleReveal: Identifiable, Equatable {
         }
         return nil
     }
+
+    /// **A call that is waiting on a challenge**, shown before anybody is asked to answer
+    /// it. The rules hold it back until the challenge is settled, so there is no
+    /// `whistleBlew` to read yet — but the card and the man are both known, and you cannot
+    /// decide whether to challenge a call you have not seen.
+    static func pending(_ call: GameState.PendingCall, in state: GameState,
+                        seen: SeenCards) -> WhistleReveal? {
+        guard let whistle = state.armedWhistles.first(where: { $0.id == call.whistle })
+        else { return nil }
+        let card = whistle.card.descriptor
+        let on: CardDescriptor? = {
+            if case .playCard(_, let played) = call.action { return played.descriptor }
+            return nil
+        }()
+        return WhistleReveal(caller: whistle.id, owner: whistle.owner, card: card,
+                             cancelled: on?.name ?? "the play", cancelledCard: on,
+                             isNew: seen.meet(card.id))
+    }
 }
 
 /// A Game Break or Intangible shown large to everyone as it is drawn.
@@ -2556,6 +2574,15 @@ final class GameController {
             //
             // TODO: no wire case yet, so a remote seat's payoff is decided by the host.
             if case .awaitingChallenge(let seat, _) = state.phase {
+                // **See it, then decide.** The zoom on the man, the Z card and the card
+                // turning over, all before the question — the prompt used to go up first,
+                // so you were asked to throw out a call you had not been shown.
+                if let call = state.challengedCall, call.whistle != revealedBeforeChallenge,
+                   let scene = WhistleReveal.pending(call, in: state, seen: SeenCards.shared) {
+                    revealedBeforeChallenge = call.whistle
+                    await playCall(scene)
+                    if Task.isCancelled { return }
+                }
                 if seat.isLocal { gate = localGate; return }
                 let taking = AIPolicy.challenges(state, for: seat)
                 if !Table.shared.isRemote(seat) {
@@ -2709,6 +2736,21 @@ final class GameController {
     /// it was. See `WhistleRevealView`, which runs the last two.
     private func showWhistle(in events: [GameEvent]) async {
         guard let scene = WhistleReveal.first(in: events, seen: SeenCards.shared) else { return }
+        // **Already shown, before the challenge was asked.** Turning a challenge down lets
+        // the call land, and landing emits the whistle — which would play the whole reveal
+        // a second time for a card everybody has just read.
+        if let caller = scene.caller, caller == revealedBeforeChallenge {
+            revealedBeforeChallenge = nil
+            return
+        }
+        await playCall(scene)
+    }
+
+    /// **The id of a call already played out for its challenge**, so it is not played twice.
+    private var revealedBeforeChallenge: UUID?
+
+    /// The three beats of a call: the man, then the Z card, then the turn.
+    private func playCall(_ scene: WhistleReveal) async {
         // Which of the crew it was, by where his card stands in the line — the court lays
         // the men out in that order, so the index is the man.
         let slot = state.armedWhistles.firstIndex { $0.id == scene.caller }
