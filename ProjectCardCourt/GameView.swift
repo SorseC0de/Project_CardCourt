@@ -44,11 +44,13 @@ struct GameView: View {
     @State private var onFloor: Inspection?
 
     /// The log keeps this height whether it sits in its own band or floats over the court.
-    private let logHeight: CGFloat = 74
     /// The log's bottom edge in the screen's own space, which is what the name plate
     /// hangs from. Nought until the first layout, which is one frame before anything
     /// can be played.
-    @State private var logBottom: CGFloat = 0
+    @State private var hudBottom: CGFloat = 0
+    /// **The log, opened on request.** It was a strip across the top of the court, and the
+    /// court was losing the fight for the eye to a scrolling wall of text.
+    @State private var readingLog = false
     /// Whether the final card is showing the game's log rather than its result. **Over
     /// the result, not instead of it** — the score stays underneath, because the log is
     /// being read to work out how it got there.
@@ -248,17 +250,15 @@ struct GameView: View {
                     statusBar
                     ScoreboardView(state: controller.shown, withheld: controller.withheldPoints)
                         .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
-                    logStrip
+                    hudRow
                         // **Where the name plate hangs from.** Measured rather than added up:
-                        // the plate sits under the log, and the log's own top depends on the
+                        // the plate sits under this row, and the row's own top depends on the
                         // scoreboard, whose height depends on how many players there are.
-                        // Summing `statusBar + logHeight` left the whole board out of the
-                        // total, which is why every number tried for it landed short.
                         .background {
                             GeometryReader { geo in
                                 Color.clear.onGeometryChange(for: CGFloat.self) { _ in
                                     geo.frame(in: .named(Chrome.screen)).maxY
-                                } action: { logBottom = $0 }
+                                } action: { hudBottom = $0 }
                             }
                         }
                     stage
@@ -368,11 +368,8 @@ struct GameView: View {
                                          isLeaving: controller.playedCardLeaving)
                         }
                         .frame(height: NameCallStyle.size(reaching: 393).height)
-                        // Under the log rather than beside the scoreboard: the log is the
-                        // other thing that talks, and the two were talking over each other.
-                        // The overlay style floats the log over the court and still occupies
-                        // that band, so only a log turned off gives the space back.
-                        .padding(.top, logBottom + Chrome.underLog)
+                        // Under the HUD row, clear of the scoreboard and the readings.
+                        .padding(.top, hudBottom + Chrome.underLog)
                         Spacer()
                     }
                     .id(played.id)
@@ -447,6 +444,13 @@ struct GameView: View {
                 if browsingDiscard {
                     DiscardBrowserView(cards: controller.shown.discard,
                                        onDismiss: { browsingDiscard = false })
+                        .transition(.opacity)
+                        .zIndex(11)
+                }
+                if readingLog {
+                    LogBrowserView(lines: controller.log,
+                                   onDismiss: { withAnimation(.easeOut(duration: 0.2)) {
+                                       readingLog = false } })
                         .transition(.opacity)
                         .zIndex(11)
                 }
@@ -790,7 +794,7 @@ struct GameView: View {
     /// Everything that takes the screen away from the floor — see the `onChange` that
     /// holds the game while any of it is up.
     private var holdsTheFloor: Bool {
-        onFloor != nil || inspecting != nil || browsingDiscard
+        onFloor != nil || inspecting != nil || browsingDiscard || readingLog
     }
 
     /// **Clamps and Injuries, one behind the other.**
@@ -1020,18 +1024,7 @@ struct GameView: View {
         AnyView(courtFloor
             // No inset: the floor and the streaks run to the screen edges, and
             // `CourtGeometry` lays the diamond out across the whole width.
-            .frame(maxHeight: .infinity)
-            .overlay(alignment: .topTrailing) {
-                StatusHUDView(state: controller.shown, shot: controller.shownShot,
-                              deck: controller.shownDeck,
-                              onInspectReferees: { open(.referees) })
-                    .padding(.trailing, 18)
-                    .padding(.top, 6)
-            }
-            // The floor and the ball in play, across from the SHOT.
-            .overlay(alignment: .topLeading) { floorCorner }
-
-            )
+            .frame(maxHeight: .infinity))
     }
 
     /// The Varena and the ball in play, top left of the court — and in a lesson, the bare
@@ -1057,32 +1050,20 @@ struct GameView: View {
             .padding(.top, 8))
     }
 
-    /// Sits under the scoreboard: a scrim rather than a solid panel, so the top of the
-    /// court still reads through it.
-    ///
-    /// **The only way it is drawn.** There were three — a panel, this, and nothing — on a
-    /// button in the status bar. Two of them were there to be compared against this one
-    /// while it was being settled, and it has been.
-    private var logStrip: AnyView {
-        AnyView(ZStack {
-            // **Actual black while the screen is dim.** A scrim over the court is a
-            // lighter black than the dim lays over everything else, so the strip stood
-            // out as a panel the moment the game stopped to ask something. Under the dim
-            // it goes the whole way, and matches.
-            Rectangle().fill(Color.black.opacity(dim > 0 ? 1 : 0.35))
-                .animation(.easeInOut(duration: 0.22), value: dim > 0)
-            LogView(lines: controller.log, showsBackground: false)
+    /// **The readings, under the scoreboard.** They used to hang in the court's two top
+    /// corners, over the floor and over the players standing on it. Up here they sit with
+    /// the other numbers, and the court is left to be a court.
+    private var hudRow: AnyView {
+        AnyView(HStack(alignment: .top) {
+            floorCorner
+            Spacer(minLength: 8)
+            StatusHUDView(state: controller.shown, shot: controller.shownShot,
+                          deck: controller.shownDeck,
+                          onInspectReferees: { open(.referees) })
         }
-        .frame(height: logHeight)
-        // Faded at both ends. A mask does not block touches, so this still scrolls.
-        .mask(LinearGradient(
-            stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .black, location: 0.2),
-                .init(color: .black, location: 0.85),
-                .init(color: .clear, location: 1),
-            ],
-            startPoint: .top, endPoint: .bottom)))
+        .padding(.horizontal, 14)
+        .padding(.top, 6)
+        .padding(.bottom, 4))
     }
 
     /// Where that seat sits on the scoreboard, which orders by score.
@@ -1112,7 +1093,10 @@ struct GameView: View {
                               font: Chrome.display, size: 15, tracking: 0.6)
                     .foregroundStyle(CardPalette.gray)
                 // A lesson leaves by its own button.
-                if tutorial == nil { pauseButton }
+                if tutorial == nil {
+                    logButton
+                    pauseButton
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -1124,6 +1108,27 @@ struct GameView: View {
 
     /// **The only way out of a game.** Louder than the two readings beside it, because it
     /// is the one thing on the bar that does something rather than saying something.
+    /// **Opens the log.** Styled as the pause button's twin, because the two are the same
+    /// kind of thing: somewhere to step out of the game and look, not a play.
+    private var logButton: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) { readingLog = true }
+        } label: {
+            Image(systemName: "text.alignleft")
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 27, height: 27)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(CardPalette.blue))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(.white, lineWidth: 1.5))
+                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Game log")
+    }
+
     private var pauseButton: some View {
         Button {
             controller.pause()

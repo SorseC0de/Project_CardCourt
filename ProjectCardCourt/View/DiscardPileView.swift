@@ -131,3 +131,44 @@ struct DiscardBrowserView: View {
         }
     }
 }
+
+
+/// **The game's log, opened on request** — the same dimmed pop-up the discard pile uses.
+///
+/// It lived as a strip across the top of the court, and a scrolling wall of text was
+/// winning the fight for the eye. Here it is somewhere you go to look, the way the pile is,
+/// and the newest line is at the bottom where the eye lands.
+struct LogBrowserView: View {
+    let lines: [LogLine]
+    var onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            DimLayer(on: true, amount: Theme.dimBrowser)
+                .onTapGesture(perform: onDismiss)
+
+            VStack(spacing: 10) {
+                HStack {
+                    Text("LOG")
+                        .font(.system(size: 12, weight: .black)).tracking(1.6)
+                        .foregroundStyle(Theme.ink)
+                    Spacer()
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Theme.inkDim)
+                    }
+                }
+                .padding(.horizontal, 18)
+
+                LogView(lines: lines, showsBackground: false)
+                    .frame(maxHeight: .infinity)
+            }
+            .padding(.vertical, 16)
+            .frame(maxWidth: 360, maxHeight: 520)
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Theme.panel))
+            .padding(20)
+        }
+    }
+}
