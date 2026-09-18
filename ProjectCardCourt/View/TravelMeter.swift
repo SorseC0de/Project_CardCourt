@@ -17,20 +17,23 @@ struct TravelMeter: View {
     /// has lifted the limit — see `GameState.moveLimit`.
     var limit: Int?
 
-    /// **The width of three cards in a hand.** A three-card fan spreads 21 degrees on a
-    /// 300 radius, which puts its outer edges 185 points apart — so the gauge is the width
-    /// of the hand it sits over rather than a number picked to look right.
-    static let width: CGFloat = 185
+    /// **How tall the row stands — the one number the rest is read off.**
+    ///
+    /// It was sized the other way round, stretched to 185 points wide, and that is what
+    /// made the arrow enormous: the drawing's dashes are a sliver of its width, so filling
+    /// the row put 150 points of arrow beside 5-point pips. The pips are the reading, so
+    /// they set the size now, and the arrow stands the same height beside them.
+    static let height: CGFloat = 22
 
     var body: some View {
-        HStack(spacing: Dash.gap * scale) {
+        HStack(spacing: Self.height * Dash.gap / Dash.height) {
             ForEach(0..<Dash.count, id: \.self) { index in
                 pip(index)
             }
             Image("MoveMeter")
                 .resizable()
                 .scaledToFit()
-                .frame(width: scale, height: scale / Dash.aspect)
+                .frame(width: Self.height * Dash.aspect, height: Self.height)
         }
     }
 
@@ -39,21 +42,17 @@ struct TravelMeter: View {
     private func pip(_ index: Int) -> some View {
         let spent = index < played
         let beyond = limit.map { index >= $0 } ?? false
-        return RoundedRectangle(cornerRadius: Dash.width * scale * Dash.corner,
-                                style: .continuous)
+        // Each pip keeps the shape of the dash it stands in for — its own width to height —
+        // at the row's height.
+        let wide = Self.height * Dash.width / Dash.height
+        return RoundedRectangle(cornerRadius: wide * Dash.corner, style: .continuous)
             .fill(spent ? CardPalette.gold : PixelPalette.deepTeal)
             .overlay {
-                RoundedRectangle(cornerRadius: Dash.width * scale * Dash.corner,
-                                 style: .continuous)
+                RoundedRectangle(cornerRadius: wide * Dash.corner, style: .continuous)
                     .strokeBorder(CardPalette.teal, lineWidth: Dash.stroke)
             }
-            .frame(width: Dash.width * scale, height: Dash.height * scale)
+            .frame(width: wide, height: Self.height)
             .opacity(beyond ? Dash.gone : 1)
-    }
-
-    /// The drawing's width, worked back from the row's.
-    private var scale: CGFloat {
-        Self.width / (1 + CGFloat(Dash.count) * (Dash.width + Dash.gap))
     }
 
     /// **Measured off the drawing**, as shares of what is left of it once the two dashes
