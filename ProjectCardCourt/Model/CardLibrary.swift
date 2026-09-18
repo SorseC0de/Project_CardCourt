@@ -1011,7 +1011,7 @@ enum CardLibrary {
         variaball: VariaballEffect(discountsDiscards: true))
     static let blightBall = CardDescriptor(
         id: "blight-ball", name: "Blight Ball", type: .variaball,
-        effect: "#[TOV] travels with the ball: whoever receives it takes on the last holder's #[TOV]",
+        effect: "#[TOVs] travel with the ball.",
         numberInDeck: 1,
         variaball: VariaballEffect(turnoversTravel: true))
     /// **The one you take outside.** The easy shot stops being the easy shot: it goes up
