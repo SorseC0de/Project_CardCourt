@@ -261,13 +261,22 @@ if args.contains("--refs") {
                 for s in Seat.allCases { bids[s] = ai.reboundBid(state, for: s) }
                 _ = Rules.resolveRebound(bids: bids, state: &state); continue
             }
-            if Prompts.step(&state, &ai) { continue }
-            guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
-            if case .shoot = m {
-                handSize += state[seat].bag.count; shootDecisions += 1
-                if !state[seat].bag.contains(where: { $0.isPass }) { forcedShots += 1 }
+            // **Counted from both paths.** A card that asks a question first — a Clamp's
+            // target, a retirement — returns nothing from its own move and emits what it
+            // did when the question is answered. Counting only `apply` made every Clamp
+            // vanish from the tally the moment Clamps started being aimed.
+            let happened: [GameEvent]
+            if let answered = Prompts.answer(&state, &ai) {
+                happened = answered
+            } else {
+                guard let seat = state.phase.actingSeat, let m = ai.move(state, for: seat) else { break }
+                if case .shoot = m {
+                    handSize += state[seat].bag.count; shootDecisions += 1
+                    if !state[seat].bag.contains(where: { $0.isPass }) { forcedShots += 1 }
+                }
+                happened = Rules.apply(m, by: seat, to: &state)
             }
-            for e in Rules.apply(m, by: seat, to: &state) {
+            for e in happened {
                 if case .shotAttempted = e { shots += 1 }
                 if case .shotMade = e { makes += 1 }
                 if case .movePlayed(_, let c, _) = e { moves[c.name, default: 0] += 1 }

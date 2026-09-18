@@ -174,8 +174,8 @@ enum Rules {
                 // only one of them is yours — so a matchup is always readable by who set
                 // it, and three opponents can never gang into a lock.
                 if card.descriptor.clamp != nil {
-                    guard state.pendingClamps.count < state.rules.clampSlots else { return false }
-                    return !alreadyGuarding(seat, in: state)
+                    guard !alreadyGuarding(seat, in: state) else { return false }
+                    return !clampTargets(for: seat, in: state).isEmpty
                 }
                 return true
             }
@@ -228,6 +228,17 @@ enum Rules {
     }
 
     /// Whether this seat already has a defender of their own out on somebody.
+    /// **Who a Clamp may be put on.** Anybody else with room for another defender. Gravity
+    /// makes it one man — "All Clamps must target you" — whoever is playing it.
+    static func clampTargets(for seat: Seat, in state: GameState) -> [Seat] {
+        if let magnet = gravityHolder(in: state) {
+            return state[magnet].clamps.count < state.rules.clampSlots ? [magnet] : []
+        }
+        return Seat.allCases.filter {
+            $0 != seat && state[$0].clamps.count < state.rules.clampSlots
+        }
+    }
+
     static func alreadyGuarding(_ seat: Seat, in state: GameState) -> Bool {
         if state.pendingClamps.contains(where: { $0.from == seat }) { return true }
         return Seat.allCases.contains { state[$0].clamps.contains { $0.from == seat } }
@@ -385,8 +396,12 @@ enum Rules {
     }
 
     /// The Clamps about to land on him, which is not the same question as the ones on him.
+    /// **The defenders about to bite: the ones already waiting on him.** A Clamp is set on
+    /// a man when it is played and bites when he next has the ball, so what arrives with
+    /// the ball is whatever has been waiting — which is what Clear Out and Crossover answer.
     static func clampsArriving(on seat: Seat, in state: GameState) -> [ActiveClamp] {
-        clampLanding(seat, in: state) == seat ? state.pendingClamps : []
+        let waiting = state[seat].clamps.filter { !$0.bitten }
+        return waiting + (clampLanding(seat, in: state) == seat ? state.pendingClamps : [])
     }
 
     /// The card he is offered as the possession arrives, before the defenders land.
@@ -818,12 +833,23 @@ enum Rules {
             // **Taken out of the air, not off the player.** They never land, so they
             // never get to lock anything — and the possession opens on a clean board
             // before the card pays out on to it.
+            //
+            // **The ones waiting on him, and one or all of them.** A Clamp sits on its
+            // man until he has the ball, so what is broken here is what was waiting —
+            // Clear Out takes the lot, Crossover and Outlet take the one worst placed.
             let arriving = clampsArriving(on: seat, in: state)
-            state.pendingClamps = []
+            let breaking: [ActiveClamp] = card.descriptor.clearsClamps
+                ? arriving
+                : Array(arriving.sorted {
+                    ($0.card.clamp?.shotDebuff ?? 0) < ($1.card.clamp?.shotDebuff ?? 0)
+                }.prefix(1))
+            let broken = Set(breaking.map(\.id))
+            state[seat].clamps.removeAll { broken.contains($0.id) }
+            state.pendingClamps.removeAll { broken.contains($0.id) }
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
                             fromOwnMiss: held.fromOwnMiss, offering: false,
                             alreadyDrew: held.drew, state: &state, events: &events)
-            pay(card.descriptor, breaking: arriving, for: seat, state: &state, events: &events)
+            pay(card.descriptor, breaking: breaking, for: seat, state: &state, events: &events)
             // **A trip is queued, not taken.** `awardFreeThrows` only puts one down —
             // the phase is set here, after the possession has finished settling, or the
             // line would be set on a phase about to be replaced. Flop broke the Clamps
@@ -1196,6 +1222,20 @@ enum Rules {
             guard case .possession(let holder) = state.phase, holder == seat,
                   let index = state[seat].bag.firstIndex(where: { $0.id == cardID })
             else { return [] }
+            // **A Clamp says who it is on before anything else happens.** Asked first,
+            // because the officials who judge a Clamp judge its victim — and the man
+            // playing it is not him. Answering replays this with the target set.
+            if state[seat].bag[index].descriptor.clamp != nil, state.clampTarget == nil,
+               legalMoves(state, for: seat).contains(.play(cardID)) {
+                let choices = clampTargets(for: seat, in: state)
+                guard !choices.isEmpty else { return [] }
+                state.assigningClamp = cardID
+                state.pendingActor = seat
+                state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                              card: state[seat].bag[index].descriptor,
+                                              choices: choices)
+                return []
+            }
             // **The rules are the rules here, not only in the hand that draws them.**
             // `legalMoves` is what bars a card — a Clamp holding it down, Triple Threat
             // closing the book on Moves, a Lob owing a shot — and this took any card in
@@ -1741,6 +1781,18 @@ enum Rules {
         state.pendingPlay = nil
         state.pendingActor = nil
         state.phase = .possession(holder: actor)
+
+        // **A Clamp being assigned**: the man is named, and the card is played with him
+        // known — so the crew judges the right person. It stays on him, waiting, until he
+        // next has the ball; pass to him to set it off now, or to anybody else and leave
+        // it for later.
+        if let clampCard = state.assigningClamp {
+            state.assigningClamp = nil
+            state.clampTarget = target
+            let played = apply(.play(clampCard), by: actor, to: &state)
+            state.clampTarget = nil
+            return played
+        }
 
         // **A beaten defender, rotating.** The ball and the man both go to the player
         // named — which is the whole picture the card is drawing, and the reason it is
@@ -2911,21 +2963,19 @@ enum Rules {
                 state.armedWhistles.append(ArmedWhistle(owner: seat, card: card))
                 events.append(.whistleArmed(seat: seat))
             }
-        } else if let clamp = descriptor.clamp {
-            // Set down now, lands on whoever receives the ball next. The possession
-            // continues, like a Move card.
-            // Belt and braces: `legalMoves` refuses a fourth, and anything reaching
-            // here past that — a card whose effect sets one — still cannot exceed it.
-            if state.pendingClamps.count < state.rules.clampSlots {
-                state.pendingClamps.append(ActiveClamp(card: descriptor, from: seat))
+        } else if descriptor.clamp != nil {
+            // **On the man it was aimed at, waiting.** Not tied to the pass any more: it
+            // sits on him until he next has the ball and bites then. The possession carries
+            // on, like a Move card. Belt and braces on the slots, since a card that sets
+            // one could still reach here past `legalMoves`.
+            let victim = state.clampTarget ?? gravityHolder(in: state)
+                ?? clampTargets(for: seat, in: state).first
+            if let victim, state[victim].clamps.count < state.rules.clampSlots {
+                var waiting = ActiveClamp(card: descriptor, from: seat)
+                waiting.bitten = false
+                state[victim].clamps.append(waiting)
+                events.append(.clampSet(seat: victim, card: descriptor))
             }
-            // Gravity: whoever it was aimed at, it lands on the man who draws
-            // everybody. Set here so the possession that opens finds it waiting.
-            if let magnet = gravityHolder(in: state) {
-                state.clampMagnet = magnet
-            }
-            _ = clamp
-            events.append(.clampSet(seat: seat, card: descriptor))
         } else if var target = descriptor.passTarget {
             // **Misdirection.** A Crossover sells one direction; the swing after it goes
             // the other, and takes a card off whoever it passes on the way.
@@ -3497,7 +3547,7 @@ enum Rules {
     /// Who a Clamp on its way is heading for: Gravity's magnet if one is out, otherwise
     /// whoever has the ball. Read by a call that pays the man being guarded.
     private static func clampVictim(in state: GameState) -> Seat? {
-        state.clampMagnet ?? state.ball
+        state.clampTarget ?? state.clampMagnet ?? state.ball
     }
 
     private static func beginPossession(_ seat: Seat, tickClock shouldTick: Bool,

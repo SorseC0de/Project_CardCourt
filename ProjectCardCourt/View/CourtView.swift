@@ -861,10 +861,16 @@ struct CourtView: View {
     /// `Inbound` is picked out because it is the only word in the sentence that is a rule
     /// rather than English.
     /// What the two-line prompt says, which depends on what is being asked for.
-    private var promptRuns: (top: String, verb: String) {
-        if case .awaitingTarget(let card, _) = gate { return ("Select a Player", card.name) }
-        if case .awaitingNaming(let card, _) = gate { return ("Name a Player", card.name) }
-        return ("Select a Player", "Inbound")
+    /// **A Clamp is Assigned, not played to.** "to Contest to!" is what the pass wording
+    /// made of it; a defender is a defensive assignment, so the keyword is Assign and the
+    /// card is what gets assigned.
+    private var promptRuns: (top: String, verb: String, tail: String) {
+        if case .awaitingTarget(let card, _) = gate {
+            if card.clamp != nil { return ("Select a Player", "Assign", " \(card.name) to!") }
+            return ("Select a Player", card.name, " to!")
+        }
+        if case .awaitingNaming(let card, _) = gate { return ("Name a Player", card.name, " to!") }
+        return ("Select a Player", "Inbound", " to!")
     }
 
     private var inboundPrompt: AnyView {
@@ -877,7 +883,7 @@ struct CourtView: View {
                 ActionText(runs: [.init("to "),
                                   .init(promptRuns.verb, ink: CardPalette.gold,
                                         drop: CardPalette.orange),
-                                  .init(" to!")],
+                                  .init(promptRuns.tail)],
                            size: 26)
                     .offset(x: prompt.bottomX, y: prompt.bottomY)
             }

@@ -75,6 +75,18 @@ func answerArrival(_ state: inout GameState) {
     }
 }
 
+/// **Plays a Clamp at a man**, answering the target question it now asks first. A Clamp
+/// is aimed when it is played and waits on that man; it no longer rides the next pass.
+@discardableResult
+func playClamp(_ id: UUID, by seat: Seat, on target: Seat,
+               _ state: inout GameState) -> [GameEvent] {
+    var events = Rules.apply(.play(id), by: seat, to: &state)
+    if case .awaitingTarget(_, _, let choices) = state.phase, choices.contains(target) {
+        events += Rules.resolveTarget(target, state: &state)
+    }
+    return events
+}
+
 /// Turns down the offer a possession opens with, and nothing else.
 ///
 /// **Deliberately narrow.** `answerArrival` answers every question, which is wrong for any
@@ -985,15 +997,20 @@ func runTests() {
         var (state, seat, cards) = openPossession(
             seed: 31, cards: [CardLibrary.contest, CardLibrary.swingLeft])
         let ballBefore = state.ball
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        let receiver = seat.left
+        // **Aimed when it is played**, not carried by the pass: it goes on the man named
+        // and waits there until he has the ball.
+        playClamp(cards[0].id, by: seat, on: receiver, &state)
         Check.that(state.ball == ballBefore, "setting a Clamp does not move the ball")
-        Check.that(state.pendingClamps.count == 1, "it waits for a ball-holder")
+        Check.that(state[receiver].clamps.count == 1
+                   && state[receiver].clamps.first?.bitten == false,
+                   "it waits on the man it was aimed at")
         Check.that(state[seat].clamps.isEmpty, "and never lands on the player who set it")
 
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         declineCounter(&state)
-        let receiver = seat.left
-        Check.that(state[receiver].clamps.count == 1, "it lands on whoever receives the ball")
+        Check.that(state[receiver].clamps.first?.bitten == true,
+                   "it bites when he gets the ball")
         let debuffs = state.shotModifiers(for: receiver).debuffs
         Check.that(debuffs.first?.amount == -25, "and feeds the debuff layer")
 
@@ -1004,8 +1021,8 @@ func runTests() {
     do {
         var (state, seat, cards) = openPossession(
             seed: 32, cards: [CardLibrary.fullCourtPress, CardLibrary.swingLeft])
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
         let receiver = seat.left
+        playClamp(cards[0].id, by: seat, on: receiver, &state)
         let before = state[receiver].bag.count
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         declineCounter(&state)
@@ -1016,9 +1033,9 @@ func runTests() {
     do {
         var (state, seat, cards) = openPossession(
             seed: 33, cards: [CardLibrary.contest, CardLibrary.swingLeft, CardLibrary.swingLeft])
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Rules.apply(.play(cards[1].id), by: seat, to: &state)
         let receiver = seat.left
+        playClamp(cards[0].id, by: seat, on: receiver, &state)
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
         // He may be offered something on the way in, and the Clamp lands on the answer
         // rather than on the pass — same reason as the decline further down.
         declineCounter(&state)
@@ -1059,11 +1076,16 @@ func runTests() {
         for passer in [receiver, middle, gravity] {
             state[passer].bag.append(matchCard(CardLibrary.swingLeft, state.rules))
         }
+        // **Gravity is the only man it can go on**: the target question offers him alone.
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        if case .awaitingTarget(_, _, let choices) = state.phase {
+            Check.that(choices == [gravity], "Gravity is the only target a Clamp is offered")
+            Rules.resolveTarget(gravity, state: &state)
+        }
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         declineCounter(&state)
         Check.that(state[receiver].clamps.isEmpty && state[gravity].clamps.count == 1,
-                   "Gravity takes the Clamp aimed at the man who received")
+                   "Gravity takes the Clamp whoever it was aimed at")
 
         let fromReceiver = state[receiver].bag.last { $0.descriptor.id == CardLibrary.swingLeft.id }!
         Rules.apply(.play(fromReceiver.id), by: receiver, to: &state)
@@ -1088,8 +1110,8 @@ func runTests() {
     do {
         var (state, seat, cards) = openPossession(
             seed: 77, cards: [CardLibrary.doubleTeam, CardLibrary.swingLeft])
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
         let receiver = seat.left
+        playClamp(cards[0].id, by: seat, on: receiver, &state)
         // A Crossover in the receiver's hand, and nothing else that could be offered.
         // Spin Move stopped answering Clamps in the audit; taking one man off is
         // Crossover's job now, and clearing the floor is Clear Out's.
@@ -1136,10 +1158,13 @@ func runTests() {
     do {
         var (state, seat, cards) = openPossession(
             seed: 78, cards: [CardLibrary.doubleTeam, CardLibrary.swingLeft])
-        Rules.apply(.play(cards[0].id), by: seat, to: &state)
         let receiver = seat.left
-        state[receiver].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
-        state[receiver].bag.append(matchCard(CardLibrary.spinMove, state.rules))
+        playClamp(cards[0].id, by: seat, on: receiver, &state)
+        state[receiver].bag.removeAll {
+            $0.descriptor.clearsOut || $0.descriptor.clearsClamps
+                || $0.descriptor.clearsTargetClamp
+        }
+        state[receiver].bag.append(matchCard(CardLibrary.crossover, state.rules))
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         Rules.resolveCounter(false, state: &state)
         Check.that(state[receiver].clamps.count == 1, "turning it down lets them land")

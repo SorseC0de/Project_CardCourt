@@ -294,6 +294,14 @@ struct GameState: Codable {
     /// separation is what people take threes off — so the card that makes it lets you
     /// rise from a thinner hand, for that shot and no other.
     var threeDiscount = 0
+    /// **Who a Clamp being played is going on**, chosen before the play is shown to the
+    /// crew. The officials who judge a Clamp judge its *victim* — Flagrant Foul II, Clear
+    /// Path, Blocking Foul — and before targeting the victim was whoever held the ball,
+    /// which is the man playing it. Named first, so the call reads the right person.
+    var clampTarget: Seat?
+    /// The Clamp whose target is being asked for, so the answer knows to assign rather
+    /// than to rotate a beaten defender — the other thing a Clamp and a target mean.
+    var assigningClamp: Card.ID?
     /// Misdirection: this swing was turned round by the Crossover in front of it, so it
     /// also knocks a card loose on the way past.
     var misdirected = false
