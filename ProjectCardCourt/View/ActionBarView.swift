@@ -125,7 +125,9 @@ struct ActionBarView: View {
                     if canExchange { sideButton("EXCHANGE", run: onExchange) }
                 }
             }
-            if case .awaitingMove = controller.gate, canShoot, allowsShooting {
+            // **Up for every possession of yours, whether or not anything can go.** A Zone
+            // that forbids shooting greys all three rather than taking the capsule away.
+            if case .awaitingMove = controller.gate, allowsShooting {
                 HStack(spacing: 8) {
                     shootButton
                     if canBorrow { borrowButton }
@@ -222,6 +224,21 @@ struct ActionBarView: View {
     private enum Act {
         static let width: CGFloat = 190
         static let height: CGFloat = 42
+        /// **Two of the old buttons wide.** With all three showing, each was a third of
+        /// `width` plus 18, with six between them — so this is exactly the room two of
+        /// them took, and the three finishes fold into it.
+        static let capsule: CGFloat = 2 * (width / 3 + 18) + 6
+        /// The ball at the head of the capsule, and the room either side of it.
+        static let ballInset: CGFloat = 10
+        static let ballGap: CGFloat = 6
+        /// The word in each segment — smaller than the old lone button's, since three
+        /// share the room one used to have.
+        static let segmentWord: CGFloat = 12
+        /// The seam between segments, and the white edge round the whole capsule.
+        static let seam: CGFloat = 1.5
+        static let capsuleStroke: CGFloat = 1.5
+        /// How much of the word a greyed segment keeps.
+        static let greyedInk: Double = 0.45
         /// The word, in the game's own lettering. The figure beside it is not — a
         /// percentage squeezed through `minimumScaleFactor` comes out unreadable, and it
         /// is a reading rather than a call.
@@ -303,69 +320,81 @@ struct ActionBarView: View {
         })
     }
 
-    /// **Three buttons, not one.** A layup is always there; the other two are earned, and
-    /// a button that is not on offer is simply not drawn — what it wanted is printed on
-    /// the card of whatever is keeping it away.
+    /// **One capsule, three segments, all of them always there.** The ball leads, then a
+    /// layup, a dunk and a three. A finish that is not on offer is greyed in place rather
+    /// than taken away, so the shape of the choice never changes under your thumb and you
+    /// can see what you are working toward.
     ///
-    /// **Laid out by hand rather than with a `ForEach`.** There are exactly three of them
-    /// and which ones are offered changes as the look and the hand move — so as a dynamic
-    /// list, each pill's identity came and went underneath it, and the `SpectrumFill` in
-    /// its background is a view with `@State` of its own. SwiftUI was updating a state box
-    /// belonging to a child the list had already rebuilt, which is a crash rather than a
-    /// glitch. Three fixed slots give each button a permanent place in the tree.
+    /// **Three fixed slots, never a `ForEach`.** Each segment's `SpectrumFill` has `@State`
+    /// of its own, and a list whose members come and go hands one child's state box to
+    /// another — a crash rather than a glitch. They never come and go now, but they stay
+    /// fixed so nothing can reintroduce it.
     private var shootPill: AnyView {
         AnyView(Group {
-            HStack(spacing: 6) {
-                if finishes.contains(.layup) { finishPill(.layup) }
-                if finishes.contains(.dunk) { finishPill(.dunk) }
-                if finishes.contains(.three) { finishPill(.three) }
+            HStack(spacing: 0) {
+                Image("BallVector")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: Act.ball)
+                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
+                    .padding(.leading, Act.ballInset)
+                    .padding(.trailing, Act.ballGap)
+                finishPill(.layup)
+                segmentRule
+                finishPill(.dunk)
+                segmentRule
+                finishPill(.three)
             }
+            .frame(width: Act.capsule, height: Act.height)
+            .background(Capsule().fill(CardPalette.orange))
+            .clipShape(Capsule())
+            .overlay(Capsule().strokeBorder(.white, lineWidth: Act.capsuleStroke))
+            .background(Capsule().fill(CardPalette.blue)
+                .offset(x: Act.pillDrop, y: Act.pillDrop))
         })
     }
 
+    /// The seam between two segments.
+    private var segmentRule: some View {
+        Rectangle()
+            .fill(CardPalette.blue.opacity(0.6))
+            .frame(width: Act.seam)
+    }
+
+    /// **One segment.** On offer, it is the finish's own colour — lit when the shot is
+    /// special. Off offer, it is greyed where it stands and cannot be pressed.
     private func finishPill(_ finish: ShotType) -> AnyView {
         AnyView(Group {
-            let alone = finishes.count == 1
+            let open = finishes.contains(finish)
             return Button { controller.shoot(as: finish) } label: {
-                HStack(spacing: alone ? 6 : 4) {
-                    Image("BallVector")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: alone ? Act.ball : Act.ball * 0.7)
-                        .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
-                    // Plain type, not `ActionText`. The word sits beside a reading set in
-                    // ordinary letters and takes the same drop shadow as it — a display face
-                    // between the ball and the percentage made three treatments in one pill.
-                    Text(finish.name.uppercased())
-                        .font(.system(size: alone ? Act.word : Act.word * 0.74,
-                                      weight: .heavy, design: .rounded))
-                        .tracking(Act.wordGap)
-                        .foregroundStyle(.white)
-                        .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
-                    if alone {
-                        Text("(\(controller.shownShot)%)")
-                            .font(.system(size: Act.figure, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
+                // Plain type, not `ActionText`, with the same drop as the ball beside it.
+                Text(finish.name.uppercased())
+                    .font(.system(size: Act.segmentWord, weight: .heavy, design: .rounded))
+                    .tracking(Act.wordGap)
+                    .foregroundStyle(open ? .white : Color.white.opacity(Act.greyedInk))
+                    .shadow(color: CardPalette.blue.opacity(open ? 1 : 0),
+                            radius: 0, x: Act.drop, y: Act.drop)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background {
+                        if open {
+                            // **Lit when the shot is special** — Project Stars' Start
+                            // button, which is what this game reaches for when something
+                            // is *ready* rather than merely available. See `SpectrumFill`.
+                            // No `fill`: a filled shape ignores `foregroundStyle`.
+                            SpectrumFill(isLive: armed != nil && !floorIsHidden,
+                                         resting: Act.pill(for: finish)) {
+                                Rectangle()
+                            }
+                        } else {
+                            Rectangle().fill(CardPalette.gray)
+                        }
                     }
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: Act.height)
-                // **Lit when the shot is special.** Project Stars' Start button, which is
-                // what this game reaches for when something is *ready* rather than merely
-                // available — see `SpectrumFill`. Ordinary shots keep the orange pill.
-                .background(
-                    // **No `fill`.** A filled shape ignores `foregroundStyle`, so the pill
-                    // came out white at rest instead of orange — the resting colour had
-                    // nothing to colour.
-                    SpectrumFill(isLive: armed != nil && !floorIsHidden,
-                                 resting: Act.pill(for: finish)) {
-                        Capsule()
-                    }
-                    .shadow(color: CardPalette.blue, radius: 0, x: Act.pillDrop, y: Act.pillDrop))
             }
+            .buttonStyle(.plain)
+            .disabled(!open)
             .padRing(ringed == .finish(finish), corner: Act.height / 2)
-            .frame(width: alone ? Act.width : Act.width / CGFloat(finishes.count) + 18)
         })
     }
 
