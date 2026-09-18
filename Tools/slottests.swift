@@ -538,12 +538,14 @@ func slotTestsTwo() {
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(Rules.legalMoves(state, for: seat).contains(.play(cards[1].id)),
                    "Varsitile: more than one Varena a turn")
-        let buried = matchCard(CardLibrary.kiddieCourt, state.rules)
+        let buried = matchCard(CardLibrary.blazeBall, state.rules)
         state.discard.append(buried)
-        Rules.apply(.exchangeSlots(court: buried.id, ball: nil), by: seat, to: &state)
-        Check.that(state.courtCard?.id == buried.id
-                   && Rules.exchangeOptions(state, for: seat).courts.isEmpty,
-                   "and once a possession, a floor out of the discards")
+        state.ballCard = Card(CardLibrary.medBall)
+        Rules.apply(.exchangeWithRetirement, by: seat, to: &state)
+        Rules.resolveRetiredPick(buried.id, state: &state)
+        Check.that(state.ballCard?.id == buried.id
+                   && Rules.exchangeOptions(state, for: seat).isEmpty,
+                   "and once a possession, the ball exchanged for one in Retirement")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 279, cards: [CardLibrary.blazeBall])

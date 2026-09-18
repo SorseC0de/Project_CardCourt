@@ -314,17 +314,100 @@ enum Rules {
         }
     }
 
-    /// Varsitile: the floors and balls in the discard this seat may swap in, once a
-    /// possession. The Variaball card is never a ball, so it is never on offer.
-    static func exchangeOptions(_ state: GameState,
-                                for seat: Seat) -> (courts: [Card], balls: [Card]) {
-        guard has(seat, in: state, { $0.playsSlotsFreely }), !state.slotsExchangedThisPossession,
-              case .possession(let holder) = state.phase, holder == seat else { return ([], []) }
-        let courts = state.discard.filter { $0.descriptor.varena != nil }
-        let balls = state.floorEffect.barsVariaballs ? [] : state.discard.filter {
+    /// **Varsitile: what Retirement could give for what you have in play**, once a
+    /// possession — a Ball for the ball, an Intangible for one of yours. The Variaball card
+    /// is never a ball, so it is never on offer.
+    static func exchangeOptions(_ state: GameState, for seat: Seat) -> [Card] {
+        guard has(seat, in: state, { $0.exchangesWithRetirement }),
+              !state.slotsExchangedThisPossession,
+              case .possession(let holder) = state.phase, holder == seat else { return [] }
+        let balls = state.ballCard == nil || state.floorEffect.barsVariaballs ? [] : state.discard.filter {
             $0.descriptor.variaball != nil && $0.descriptor.variaball?.rollsFromDiscard != true
         }
-        return (courts, balls)
+        let passives = state[seat].intangibles.isEmpty ? [] : state.discard.filter {
+            $0.descriptor.intangible != nil
+        }
+        return balls + passives
+    }
+
+    /// **Skyhook: the card it reaches for.** Anything but another Skyhook, while the Bag
+    /// has room for it. True when the question is standing.
+    private static func askForRetiredPick(_ descriptor: CardDescriptor, by seat: Seat,
+                                          state: inout GameState) -> Bool {
+        guard descriptor.takesFromRetirement > 0,
+              state[seat].bag.count < state.handLimit(for: seat) else { return false }
+        let choices = state.discard.filter { $0.descriptor.name != descriptor.name }.map(\.id)
+        guard !choices.isEmpty else { return false }
+        state.pendingPlay = descriptor
+        state.pendingActor = seat
+        state.phase = .awaitingRetiredPick(seat: seat, card: descriptor, choices: choices)
+        return true
+    }
+
+    /// **A card out of Retirement, chosen** — or nil for none — and the play carried on.
+    @discardableResult
+    static func resolveRetiredPick(_ id: Card.ID?, state: inout GameState) -> [GameEvent] {
+        guard case .awaitingRetiredPick(_, let card, let choices) = state.phase,
+              let actor = state.pendingActor else { return [] }
+        var events: [GameEvent] = []
+        let descriptor = state.pendingPlay
+        state.pendingPlay = nil
+        state.pendingActor = nil
+        state.phase = .possession(holder: actor)
+        let taken = id.flatMap { id in choices.contains(id) ? state.discard.first { $0.id == id } : nil }
+
+        // Varsitile: a ball for the ball, or an Intangible for one of yours.
+        if card.intangible?.exchangesWithRetirement == true {
+            guard let taken else {
+                settleHands(state: &state, events: &events)
+                return events
+            }
+            if taken.descriptor.variaball != nil {
+                state.slotsExchangedThisPossession = true
+                state.discard.removeAll { $0.id == taken.id }
+                events.append(.slotsExchanged(seat: actor, cards: [taken.descriptor]))
+                setBall(taken, by: actor, state: &state, events: &events)
+                settleHands(state: &state, events: &events)
+                return events
+            }
+            let mine = state[actor].intangibles
+            if mine.count == 1, let only = mine.first {
+                exchangeIntangible(only.id, for: taken, by: actor, state: &state, events: &events)
+                settleHands(state: &state, events: &events)
+                return events
+            }
+            // More than one on the board: which of them goes in its place.
+            state.retiredPick = taken.id
+            state.pendingActor = actor
+            state.phase = .awaitingRetirement(seat: actor, card: card,
+                                              choices: mine.map { .intangible(seat: actor, id: $0.id) })
+            return events
+        }
+
+        // Skyhook: into the Bag, and then the shot it was holding goes up.
+        if let taken {
+            state.discard.removeAll { $0.id == taken.id }
+            state[actor].bag.append(taken)
+            events.append(.drewFromRetirement(seat: actor, card: taken.descriptor))
+        }
+        if let descriptor, descriptor.special?.shootsImmediately == true {
+            _ = shootTheCard(descriptor, by: actor, state: &state, events: &events)
+            return events
+        }
+        settleHands(state: &state, events: &events)
+        return events
+    }
+
+    /// Varsitile: one of yours to Retirement, and the one chosen out of it in its place.
+    private static func exchangeIntangible(_ givingID: String, for taken: Card, by seat: Seat,
+                                           state: inout GameState, events: inout [GameEvent]) {
+        guard let at = state[seat].intangibles.firstIndex(where: { $0.id == givingID }) else { return }
+        let giving = state[seat].intangibles.remove(at: at)
+        state.discard.removeAll { $0.id == taken.id }
+        state.discard.append(Card(giving))
+        state[seat].intangibles.insert(taken.descriptor, at: at)
+        state.slotsExchangedThisPossession = true
+        events.append(.slotsExchanged(seat: seat, cards: [taken.descriptor]))
     }
 
     /// A Move's price in other cards — Frostbite Finish's and Rolled Ankle's — after Dishcount
@@ -652,6 +735,18 @@ enum Rules {
               let actor = state.pendingActor else { return [] }
         var events: [GameEvent] = []
         state.phase = .possession(holder: actor)
+        // Varsitile's second question: which Intangible goes in exchange.
+        if card.intangible?.exchangesWithRetirement == true {
+            let pick = state.retiredPick
+            state.retiredPick = nil
+            state.pendingActor = nil
+            if case .intangible(_, let id)? = target, let pick,
+               let taken = state.discard.first(where: { $0.id == pick }) {
+                exchangeIntangible(id, for: taken, by: actor, state: &state, events: &events)
+            }
+            settleHands(state: &state, events: &events)
+            return events
+        }
         if let target { retire(target, by: actor, card: card, state: &state, events: &events) }
         let descriptor = state.pendingPlay
         state.pendingPlay = nil
@@ -1417,25 +1512,14 @@ enum Rules {
             state[target].clamps.append(clamp)
             events.append(.clampHandedOff(from: seat, to: target, card: clamp.card))
 
-        case .exchangeSlots(let courtID, let ballID):
+        case .exchangeWithRetirement:
             let options = exchangeOptions(state, for: seat)
-            let court = courtID.flatMap { id in options.courts.first { $0.id == id } }
-            let ball = ballID.flatMap { id in options.balls.first { $0.id == id } }
-            guard court != nil || ball != nil,
-                  courtID == nil || court != nil, ballID == nil || ball != nil else { return [] }
-            state.slotsExchangedThisPossession = true
-            state.movesThisPossession += 1
-            state.lastPlayWasCombo = false
-            events.append(.slotsExchanged(seat: seat,
-                                          cards: [court, ball].compactMap { $0?.descriptor }))
-            if let court {
-                state.discard.removeAll { $0.id == court.id }
-                setCourt(court, by: seat, state: &state, events: &events)
-            }
-            if let ball, !state.floorEffect.barsVariaballs {
-                state.discard.removeAll { $0.id == ball.id }
-                setBall(ball, by: seat, state: &state, events: &events)
-            }
+            guard !options.isEmpty else { return [] }
+            state.pendingActor = seat
+            state.pendingPlay = nil
+            state.phase = .awaitingRetiredPick(seat: seat, card: CardLibrary.varsitile,
+                                               choices: options.map(\.id))
+            return events
         }
         takeTheLine(state: &state, events: &events)
         // A card that draws can turn up a Game Break, and a Break can hand the ball over.
@@ -2613,8 +2697,6 @@ enum Rules {
         // The three that read the Clamp being played rather than the man playing it.
         if case .playCard(_, let card) = action, card.descriptor.clamp != nil {
             let victim = clampVictim(in: state)
-            // Flagrant Foul: no Clamp Retires cards since Full-Court Press stopped.
-            if effect.requiresClampRetires { return false }
             if effect.requiresClampOnClamped {
                 return victim.map { !state[$0].clamps.isEmpty } ?? false
             }
@@ -2962,21 +3044,6 @@ enum Rules {
             if special.ignoresATargetClamp, let man = worstClamp(on: seat, in: state) {
                 state.ignoredClamps.insert(man.id)
             }
-            if descriptor.takesFromRetirement > 0, !state.discard.isEmpty {
-                for _ in 0..<descriptor.takesFromRetirement {
-                    // Never the card that is doing the taking.
-                    guard let at = state.discard.lastIndex(where: {
-                        $0.descriptor.name != descriptor.name
-                    }) else { break }
-                    let taken = state.discard.remove(at: at)
-                    if state[seat].bag.count < state.handLimit(for: seat) {
-                        state[seat].bag.append(taken)
-                        events.append(.drewFromRetirement(seat: seat, card: taken.descriptor))
-                    } else {
-                        state.discard.append(taken)
-                    }
-                }
-            }
             if special.coinFlipShot != 0 {
                 // One flip, and it pays the same either way — the risk is the whole
                 // card.
@@ -3047,6 +3114,8 @@ enum Rules {
                 // card that reaches for the table has to reach first — see
                 // `resolveRetirement`, which puts the attempt up once it is answered.
                 if askForRetirement(descriptor, by: seat, state: &state) { return }
+                // Skyhook: a card out of Retirement, chosen, before the ball goes up.
+                if askForRetiredPick(descriptor, by: seat, state: &state) { return }
                 // Turnaround Three: a hand big enough may all go in, for a sure thing.
                 if let least = special.offersHandDumpAt, state[seat].bag.count >= least {
                     state.pendingPlay = descriptor
@@ -3585,6 +3654,8 @@ enum Rules {
         state.passiveShotOverride = nil
         state.whistlesSilenced = false
         state.whistleCallsThisRound.removeAll()
+        // **The Ref deck is shuffled every round**, retired officials and all.
+        state.officials = state.shuffled(state.officials)
         assignCrew(state: &state, events: &events)
         events.append(.roundBegan(round: state.round, inbounder: state.inbounder))
         // **A referee inbounds it.** The round opens on the officials rather than on
@@ -3641,11 +3712,7 @@ enum Rules {
         guard slots > 0 else { return }
         var assigned: [CardDescriptor] = []
         for _ in 0..<slots {
-            if state.officials.isEmpty {
-                guard !state.officialsDiscard.isEmpty else { break }
-                state.officials = state.shuffled(state.officialsDiscard)
-                state.officialsDiscard.removeAll()
-            }
+            guard !state.officials.isEmpty else { break }
             let card = state.officials.removeLast()
             state.armedWhistles.append(ArmedWhistle(owner: nil, card: card))
             assigned.append(card.descriptor)
@@ -3672,7 +3739,11 @@ enum Rules {
             state.discard.removeAll()
             events.append(.deckReshuffled)
         }
-        state.officialsDiscard.append(leaving.card)
+        // Retired officials go to the bottom of the Ref deck, never to Retirement — except
+        // The Equalizer, which leaves the game.
+        if leaving.card.descriptor.whistle?.neverReturns != true {
+            state.officials.insert(leaving.card, at: 0)
+        }
         return leaving.card
     }
 
@@ -4198,9 +4269,8 @@ enum Rules {
             state.discard.removeAll()
             events.append(.deckReshuffled)
         }
-        // Into the officials' own pile, never the main discard: the crew deck is a
-        // separate pile all game and comes back off this when it runs dry.
-        state.officialsDiscard.append(contentsOf: state.armedWhistles.map(\.card))
+        // To the bottom of the Ref deck, never the main discard.
+        state.officials.insert(contentsOf: state.armedWhistles.map(\.card), at: 0)
         state.armedWhistles = []
         state.clockTicksOwed = 0
         state.threeDiscount = 0

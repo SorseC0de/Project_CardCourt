@@ -565,7 +565,7 @@ func runTests() {
         // back to fill his place is the same card again.
         Check.that(!state.armedWhistles.contains { $0.id == sent },
                    "the official goes off with it")
-        Check.that(state.officialsDiscard.contains { $0.descriptor.id == "discontinued-dribble" }
+        Check.that(state.officials.first?.descriptor.id == "discontinued-dribble"
                    || !state.armedWhistles.isEmpty,
                    "and a replacement comes out")
         Check.that(state[seat].turnovers == 0, "the call never happened")
@@ -1825,6 +1825,7 @@ func runTests() {
     slotTests()
     clampTests()
     cutTests()
+    retirementTests()
     slotTestsTwo()
     alleyOopTests()
 

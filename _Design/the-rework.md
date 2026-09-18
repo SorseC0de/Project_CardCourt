@@ -75,7 +75,10 @@ Sequence:
 2. Hands of five are dealt.
 3. The top three officials cards are turned face-up. Those are the rules for the round.
 
-Each round the three current refs are discarded and three new ones dealt.
+Each round the three current refs go to the bottom of the officials deck, the deck is
+shuffled, and three new ones are dealt. **A Retired Ref goes to the bottom of the Ref deck,
+never to Retirement** — so Retirement only ever holds main-deck cards, and the Ref deck is
+simply reshuffled every round. The Equalizer is the exception: once Retired it leaves the game.
 
 **Being experimented with instead:** swap one per round, with the scorer choosing which to
 bench — picking based on what makes it easier for them to score next round given the hand

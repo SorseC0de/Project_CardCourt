@@ -24,8 +24,8 @@ enum Move: Hashable, Codable {
     case shootAtOffer
     /// Traderous Tarmac: one of the Clamps on you, onto another player.
     case handOffClamp(clamp: UUID, to: Seat)
-    /// Varsitile: the floor, the ball or both, swapped for ones in the discard.
-    case exchangeSlots(court: UUID?, ball: UUID?)
+    /// Varsitile: the ball or an Intangible, exchanged for one in Retirement.
+    case exchangeWithRetirement
     /// S.O.S — Sell-Out Stadium: a three, put up as a two at double SHOT.
     case playAsTwo(Card.ID)
 }

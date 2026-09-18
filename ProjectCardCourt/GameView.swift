@@ -35,7 +35,6 @@ struct GameView: View {
     /// Traderous Tarmac's sheet, open while the player hands Clamps on.
     @State private var handingOff = false
     /// Varsitile's sheet, open while the player picks what to swap in.
-    @State private var exchanging = false
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
     @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
@@ -305,7 +304,7 @@ struct GameView: View {
                                       onCombo: { comboOf = $0 },
                                       onBonus: { bonusOf = (card: $0, at: $1) },
                                       onHandOff: { handingOff = true },
-                                      onExchange: { exchanging = true },
+                                      onExchange: { controller.exchange() },
                                       allowsShooting: tutorial == nil)
                     }
                     // Out of the way rather than washed over. Two translucent sheets meeting
@@ -496,6 +495,20 @@ struct GameView: View {
                 // **Something in play, named to come out of it.** The crew, the ball and
                 // every board are face up, so this is the same sheet every other question
                 // uses — a row held out, one taken, and a button underneath.
+                // **Retirement, face up, and one chosen out of it.** Skyhook's reach and
+                // Varsitile's exchange.
+                if case .awaitingRetiredPick(let card, let choices) = controller.gate {
+                    CardChoiceView(title: card.name, note: "Choose one from Retirement",
+                                   offered: choices.map(\.descriptor),
+                                   picks: choices.map { CardPick.named($0.id.uuidString) },
+                                   tint: CardPalette.teal,
+                                   taking: "Take it",
+                                   declining: "Take nothing",
+                                   chosen: $picked, ringed: ring,
+                                   onDecline: declineTheOffer,
+                                   onPick: takeTheOffer)
+                        .zIndex(12)
+                }
                 if case .awaitingRetirement(let card, let choices) = controller.gate {
                     CardChoiceView(title: card.name, note: "Take one out of play",
                                    offered: choices.map { retirable($0) },
@@ -576,16 +589,6 @@ struct GameView: View {
                                          onDone: { handingOff = false })
                             .zIndex(12)
                     }
-                }
-                if exchanging, case .awaitingMove(let seat) = controller.gate {
-                    let options = Rules.exchangeOptions(controller.shown, for: seat)
-                    SlotExchangeView(courts: options.courts, balls: options.balls,
-                                     onExchange: { court, ball in
-                                         exchanging = false
-                                         controller.exchange(court: court, ball: ball)
-                                     },
-                                     onCancel: { exchanging = false })
-                        .zIndex(12)
                 }
                 if let card = controller.sellOutChoice {
                     // S.O.S: the card held up, and the two ways it can go up.
@@ -1507,7 +1510,7 @@ struct GameView: View {
         case .awaitingOption:
             controller.choose(option: true)
         case .awaitingCounter, .awaitingToll, .awaitingIntangibleDrop,
-             .awaitingInjuryPick, .awaitingCardFrom:
+             .awaitingInjuryPick, .awaitingCardFrom, .awaitingRetiredPick:
             if let picked { takeTheOffer(picked) }
         case .gameOver:
             onRunItBack()
@@ -1628,6 +1631,9 @@ struct GameView: View {
             let hand = controller.shown[victim].bag
             guard hand.indices.contains(at) else { return }
             controller.choose(card: hand[at].id)
+        case .awaitingRetiredPick:
+            guard case .named(let key) = pick, let id = UUID(uuidString: key) else { return }
+            controller.choose(retiredPick: id)
         case .awaitingRetirement(_, let choices):
             guard case .named(let key) = pick,
                   let target = choices.first(where: { retirableKey($0) == key }) else { return }
@@ -1688,6 +1694,7 @@ struct GameView: View {
         case .awaitingToll:    controller.choose(toll: nil)
         case .awaitingNaming:  controller.choose(naming: nil)
         case .awaitingRetirement: controller.choose(retiring: nil)
+        case .awaitingRetiredPick: controller.choose(retiredPick: nil)
         case .awaitingClampsNamed: controller.choose(selling: nil)
         default: break
         }
@@ -1703,7 +1710,7 @@ struct GameView: View {
         case .awaitingOption:   controller.choose(option: true)
         // The button under a sheet, which takes whatever has been picked off it.
         case .awaitingCounter, .awaitingToll, .awaitingIntangibleDrop,
-             .awaitingInjuryPick, .awaitingCardFrom:
+             .awaitingInjuryPick, .awaitingCardFrom, .awaitingRetiredPick:
             if let picked { takeTheOffer(picked) }
         default: break
         }

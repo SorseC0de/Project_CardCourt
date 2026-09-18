@@ -431,10 +431,9 @@ struct ActionBarView: View {
         !Rules.handOffTargets(state, for: GameRules.localSeat).isEmpty
     }
 
-    /// Varsitile: something in the discard to swap in.
+    /// Varsitile: something in Retirement to exchange for.
     private var canExchange: Bool {
-        let options = Rules.exchangeOptions(state, for: GameRules.localSeat)
-        return !options.courts.isEmpty || !options.balls.isEmpty
+        !Rules.exchangeOptions(state, for: GameRules.localSeat).isEmpty
     }
 
     /// A white pill beside the shot, for a thing the floor lets you do that is not a card.

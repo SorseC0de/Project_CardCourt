@@ -62,6 +62,9 @@ enum Prompts {
             let room = clock + card.clockPerClampNamed * (named.count + 1) > 1
             let next = state[seat].clamps.first { !named.contains($0.id) }
             return Rules.resolveClampNamed(room ? next?.id : nil, state: &state)
+        case .awaitingRetiredPick(let seat, _, let choices):
+            return Rules.resolveRetiredPick(AIPolicy.retiredPick(choices, state, for: seat),
+                                            state: &state)
         case .awaitingRetirement(let seat, _, let choices):
             // The same read the shot takes, spent a step earlier.
             return Rules.resolveRetirement(AIPolicy.retires(choices, state, for: seat),

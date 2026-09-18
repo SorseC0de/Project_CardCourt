@@ -26,6 +26,8 @@ enum Decision: Codable {
     case option(Bool)
     /// What is being taken off the table, or nil for none.
     case retiring(RetirementTarget?)
+    /// A card out of Retirement, or nil for none.
+    case retiredPick(UUID?)
     /// One more defender sold on a Pump Fake, or nil to stop.
     case selling(UUID?)
     case cardFrom(UUID)

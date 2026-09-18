@@ -112,6 +112,9 @@ enum Phase: Hashable, Codable {
     /// The crew and the board are face-up, so this is a real read rather than a guess —
     /// and declining is always an answer.
     case awaitingRetirement(seat: Seat, card: CardDescriptor, choices: [RetirementTarget])
+    /// **A card chosen out of Retirement.** Face up, so it is a choice rather than a draw:
+    /// Skyhook's, and Varsitile's exchange.
+    case awaitingRetiredPick(seat: Seat, card: CardDescriptor, choices: [Card.ID])
     /// Triple Threat: one of the card's own branches.
     case awaitingMode(seat: Seat, card: CardDescriptor)
     /// **A call, and the man it is against.** Once a game he may throw it out and send the
@@ -163,7 +166,7 @@ enum Phase: Hashable, Codable {
         switch self {
         case .awaitingTarget, .awaitingMode, .awaitingCardFrom, .awaitingInjuryPick,
              .awaitingNaming, .awaitingToll, .awaitingIntangibleDrop,
-             .awaitingRetirement:
+             .awaitingRetirement, .awaitingRetiredPick:
             return true
         default:
             return false
@@ -188,6 +191,7 @@ enum Phase: Hashable, Codable {
         case .awaitingGiveUp(let seat, _, _): return seat
         case .awaitingTarget(let seat, _, _): return seat
         case .awaitingRetirement(let seat, _, _): return seat
+        case .awaitingRetiredPick(let seat, _, _): return seat
         case .awaitingMode(let seat, _): return seat
         case .awaitingChallenge(let seat, _): return seat
         case .awaitingCardFrom(let seat, _, _): return seat
@@ -274,13 +278,9 @@ struct GameState: Codable {
     var players: [PlayerState]
     var deck: [Card] = []
     var discard: [Card] = []
-    /// **The officials deck.** Shuffled once at the start of the game, like the main deck,
-    /// and dealt from at the top of every round. Nobody is ever dealt one into a hand and
-    /// nothing shuffles it back into the main pile — the crew is its own pile all game.
+    /// **The officials deck.** Shuffled at the top of every round and dealt from. A Retired
+    /// official goes to the bottom, never to Retirement — the crew is its own pile all game.
     var officials: [Card] = []
-    /// The officials who have already worked a round. The crew deck comes back off this
-    /// when it runs dry, the same way the main deck does.
-    var officialsDiscard: [Card] = []
     /// **Passes thrown this round**, by anybody. Open Three is paid for the floor having
     /// been swung, and swinging it is something the whole table does.
     var passesThisRound = 0
@@ -333,6 +333,8 @@ struct GameState: Codable {
     var mustMoveFirst: Seat?
     /// V-Cut: SHOT on a Three, if it is the very next thing.
     var nextThreeBonus = 0
+    /// Varsitile: the Intangible taken out of Retirement, while the one going in is named.
+    var retiredPick: Card.ID?
     /// A Cut waiting on its "You may" before the ball leaves: who it is going to.
     var cutReceiver: Seat?
     /// Dime: who threw it, so a make pays them the extra assist.

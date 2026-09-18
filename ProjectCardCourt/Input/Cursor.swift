@@ -75,6 +75,9 @@ enum Row {
         case .awaitingRetirement(_, let choices):
             return choices.map(PadSpot.retiring) + [.decline] + hand
 
+        case .awaitingRetiredPick(_, let choices):
+            return choices.map { PadSpot.offer(.named($0.id.uuidString)) } + [.confirm, .decline]
+
         // Pump Fake: one more to sell it to, or stop. Stopping is on the row with them.
         case .awaitingClampsNamed(_, let named):
             let mine = controller.shown[seat].clamps

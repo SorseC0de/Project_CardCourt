@@ -159,8 +159,6 @@ struct WhistleEffect: Hashable, Codable {
     /// `MatchRules.movesPerPossession` — and a referee watching for Traveling does not
     /// bring it, he lowers it: one fewer Move a possession for as long as he is working.
     var lowersMoveLimit = 0
-    /// **Only a Clamp that would put cards into Retirement.** Flagrant Foul.
-    var requiresClampRetires = false
     /// **Only a Clamp landing on a player who is already clamped.** Flagrant Foul II.
     var requiresClampOnClamped = false
     /// **Only a Clamp on a player with nothing.** Clear Path Foul: an empty hand, or a

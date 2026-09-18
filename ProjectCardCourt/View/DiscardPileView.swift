@@ -60,6 +60,10 @@ struct DiscardPileView: View {
                 .contentTransition(.numericText())
                 .offset(y: width * Spent.countDrop)
         }
+        // **The whole footprint is the tap**, not just the count — the pile itself is
+        // usually drawn by the 3D stage, which leaves nothing here to hit but the number.
+        .frame(width: width, height: width * DeckBody.frameHeight)
+        .contentShape(Rectangle())
         // Nothing at all when nothing has been spent. A greyed-out zero over a bare
         // patch of floor is a thing that looks broken rather than a thing that is empty.
         .opacity(count == 0 ? 0 : 1)

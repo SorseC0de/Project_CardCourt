@@ -193,3 +193,34 @@ func cutTests() {
                    "L-Cut: may Retire the ball, then the ball goes")
     }
 }
+
+func retirementTests() {
+    print("Retirement")
+    do {
+        var (state, seat, cards) = openPossession(seed: 321, cards: [CardLibrary.skyhook])
+        state[seat].bag = Array(state[seat].bag.suffix(1))
+        let wanted = matchCard(CardLibrary.slamDunk, state.rules)
+        state.discard = [matchCard(CardLibrary.skyhook, state.rules), wanted]
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        var offered: [UUID] = []
+        if case .awaitingRetiredPick(_, _, let choices) = state.phase { offered = choices }
+        Check.that(offered == [wanted.id], "Skyhook: chooses from Retirement, never a Skyhook")
+        let events = Rules.resolveRetiredPick(wanted.id, state: &state)
+        Check.that(state[seat].bag.contains { $0.id == wanted.id }
+                   && events.contains { if case .shotAttempted = $0 { return true }; return false },
+                   "and the chosen card is taken before the shot goes up")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 322, cards: [])
+        state[seat].intangibles = [CardLibrary.varsitile, CardLibrary.sniper]
+        let buried = matchCard(CardLibrary.lethalShooter, state.rules)
+        state.discard = [buried]
+        Rules.apply(.exchangeWithRetirement, by: seat, to: &state)
+        Rules.resolveRetiredPick(buried.id, state: &state)
+        Rules.resolveRetirement(.intangible(seat: seat, id: CardLibrary.sniper.id), state: &state)
+        Check.that(state[seat].intangibles.contains { $0.id == CardLibrary.lethalShooter.id }
+                   && !state[seat].intangibles.contains { $0.id == CardLibrary.sniper.id }
+                   && state.discard.contains { $0.descriptor.id == CardLibrary.sniper.id },
+                   "Varsitile: an Intangible exchanged for one in Retirement")
+    }
+}

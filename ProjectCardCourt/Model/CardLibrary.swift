@@ -445,12 +445,12 @@ enum CardLibrary {
 
     static let flagrantFoul = CardDescriptor(
         id: "flagrant-foul", name: "Flagrant Foul", type: .whistle,
-        effect: "~[Clamp] that #[Retires] cards: no effect. Clamper #[Retires] 1. "
+        effect: "~[Clamp] assigned: no effect. Clamper #[Retires] 1. "
             + "Target player +1 #[FT] and keeps the ball",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 1,
                                voidsClampOnLanding: true, freeThrowsToClampVictim: 1,
-                               victimKeepsBall: true, requiresClampRetires: true))
+                               victimKeepsBall: true))
 
     static let flagrantFoulII = CardDescriptor(
         id: "flagrant-foul-ii", name: "Flagrant Foul II", type: .whistle,

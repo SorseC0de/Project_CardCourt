@@ -499,6 +499,8 @@ final class GameController {
         case awaitingChallenge(card: CardDescriptor)
         /// Dishtracting Ball: which of the crew gets waved off, if any.
         case awaitingRetirement(card: CardDescriptor, choices: [RetirementTarget])
+        /// A card to choose out of Retirement.
+        case awaitingRetiredPick(card: CardDescriptor, choices: [Card])
         /// Pump Fake: one more defender to sell it to, or stop.
         case awaitingClampsNamed(card: CardDescriptor, named: [UUID])
         /// A card out of somebody else's hand, face down.
@@ -1202,6 +1204,12 @@ final class GameController {
             return seat.isLocal ? .awaitingTarget(card: card, choices: choices) : .thinking
         case .awaitingMode(let seat, let card):
             return seat.isLocal ? .awaitingMode(card: card) : .thinking
+        case .awaitingRetiredPick(let seat, let card, let choices):
+            return seat.isLocal
+                ? .awaitingRetiredPick(card: card,
+                                       choices: choices.compactMap { id in
+                                           shown.discard.first { $0.id == id } })
+                : .thinking
         case .awaitingRetirement(let seat, let card, let choices):
             return seat.isLocal ? .awaitingRetirement(card: card, choices: choices)
                                 : .thinking
@@ -1766,11 +1774,23 @@ final class GameController {
         choose(.handOffClamp(clamp: clamp, to: seat))
     }
 
-    /// Varsitile: the floor, the ball or both, swapped for cards in the discard.
-    func exchange(court: UUID?, ball: UUID?) {
-        guard !isPaused, case .awaitingMove = gate, court != nil || ball != nil else { return }
-        DevLog.say(.input, "exchange the slots from the discard")
-        choose(.exchangeSlots(court: court, ball: ball))
+    /// Varsitile: open Retirement to exchange the ball or an Intangible.
+    func exchange() {
+        guard !isPaused, case .awaitingMove = gate else { return }
+        DevLog.say(.input, "exchange with Retirement")
+        choose(.exchangeWithRetirement)
+    }
+
+    /// A card chosen out of Retirement, or nil for none.
+    func choose(retiredPick id: UUID?) {
+        guard !isPaused else { return }
+        guard case .awaitingRetiredPick = gate else { return }
+        if sendUp(.retiredPick(id)) { return }
+        loop?.cancel()
+        drive {
+            await present(Rules.resolveRetiredPick(id, state: &state))
+            await run()
+        }
     }
 
     /// **What throwing a card at the table means, wherever the throw came from.**
@@ -2509,6 +2529,19 @@ final class GameController {
                 }
                 if Task.isCancelled { return }
                 await present(Rules.resolveClampNamed(selling, state: &state))
+                continue
+            }
+            if case .awaitingRetiredPick(let seat, _, let choices) = state.phase {
+                if seat.isLocal { gate = localGate; return }
+                var taking = AIPolicy.retiredPick(choices, state, for: seat)
+                if case .retiredPick(let said)? = await decision(from: seat) {
+                    taking = said.flatMap { choices.contains($0) ? $0 : nil }
+                } else if !Table.shared.isRemote(seat) {
+                    gate = .thinking
+                    await think()
+                }
+                if Task.isCancelled { return }
+                await present(Rules.resolveRetiredPick(taking, state: &state))
                 continue
             }
             if case .awaitingRetirement(let seat, _, let choices) = state.phase {

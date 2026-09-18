@@ -232,6 +232,13 @@ struct AIPolicy {
     /// alone. An official who is standing between this hand and a basket goes first —
     /// that is the same read the shot takes. Failing that, somebody else's passive, then
     /// a ball that is hurting whoever holds it. Nothing worth taking is left alone.
+    /// **Out of Retirement: the most expensive thing on offer.** A Special Move first,
+    /// then whatever else is there — the AI does not yet weigh one against another.
+    static func retiredPick(_ choices: [Card.ID], _ state: GameState, for seat: Seat) -> Card.ID? {
+        let cards = choices.compactMap { id in state.discard.first { $0.id == id } }
+        return (cards.first { $0.descriptor.type == .specialMove } ?? cards.last)?.id
+    }
+
     static func retires(_ choices: [RetirementTarget], _ state: GameState,
                         for seat: Seat) -> RetirementTarget? {
         if let waving = distracts(state, for: seat),
