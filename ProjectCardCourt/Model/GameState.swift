@@ -327,6 +327,14 @@ struct GameState: Codable {
     var movesClosed = false
     /// Lob: the man it found owes a shot before anything else.
     var mustShootFirst: Seat?
+    /// Backdoor Cut: the man it found owes a pass before anything else.
+    var mustPassFirst: Seat?
+    /// Flash Cut: the man it found owes a Move before anything else.
+    var mustMoveFirst: Seat?
+    /// V-Cut: SHOT on a Three, if it is the very next thing.
+    var nextThreeBonus = 0
+    /// A Cut waiting on its "You may" before the ball leaves: who it is going to.
+    var cutReceiver: Seat?
     /// Dime: who threw it, so a make pays them the extra assist.
     var dimeFrom: Seat?
     /// Gravity: where the pending Clamps are actually going to land.

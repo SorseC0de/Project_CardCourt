@@ -135,6 +135,12 @@ enum Rules {
                 if state.mustShootFirst == seat, card.descriptor.special?.dunks != true {
                     return false
                 }
+                // Backdoor Cut and Flash Cut: what the man it found has to do first.
+                if state.mustPassFirst == seat,
+                   !card.descriptor.isPass, card.descriptor.cut == nil { return false }
+                if state.mustMoveFirst == seat, !card.descriptor.isMove { return false }
+                // A Cut is only there to be played with a defender on you.
+                if card.descriptor.cut != nil, state[seat].clamps.isEmpty { return false }
                 // Clear Out: you step aside before the play starts, or not at all — and
                 // only out of a ball that was going somewhere.
                 if card.descriptor.firstActionOnly, !isFirstAction(state) { return false }
@@ -196,6 +202,7 @@ enum Rules {
             }
             // Rock Fight: nobody takes a good look. A bad one is still on offer.
             let barred = (state.shotCeilingThisRound.map { state.shot >= $0 } ?? false) || zoned
+                || state.mustPassFirst == seat || state.mustMoveFirst == seat
             // **Three buttons, not one.** A layup is always there; a dunk wants the look
             // to be good already and a three wants a full hand. A defender who forces a
             // finish takes the other two away, which is the half of the matrix the crew is
@@ -290,7 +297,10 @@ enum Rules {
         }
         guard legal.isEmpty || (zoned && !canPass) else { return }
         state[holder].turnovers += 1
-        events.append(.turnover(holder, cause: zoned && !canPass ? CardLibrary.zone.name : "Shot Clock"))
+        let owedByCut = state.mustPassFirst == holder || state.mustMoveFirst == holder
+            || state.mustShootFirst == holder
+        events.append(.turnover(holder, cause: zoned && !canPass ? CardLibrary.zone.name
+                                : owedByCut ? (state.arrivedBy?.name ?? "Shot Clock") : "Shot Clock"))
         stoppage(state: &state, events: &events)
         endRound(state: &state, events: &events)
     }
@@ -630,6 +640,7 @@ enum Rules {
         state.pendingPlay = nil
         state.pendingActor = nil
         if case .awaitingClampsNamed = state.phase { state.phase = .possession(holder: actor) }
+        settleHands(state: &state, events: &events)
         return events
     }
 
@@ -648,7 +659,7 @@ enum Rules {
         // **"And/or" means it may reach twice.** From the Logo can take an official and
         // the ball, so once one is gone the rest of the table is offered again — and only
         // ever once more, because two kinds is all any card names.
-        if let descriptor, target != nil, card.id == descriptor.id,
+        if let descriptor, target != nil, card.id == descriptor.id, descriptor.cut == nil,
            descriptor.retiresARef, descriptor.mayRetireTheBall {
             let again = retirementChoices(descriptor, by: actor, in: state)
                 .filter { $0 != target }
@@ -663,6 +674,14 @@ enum Rules {
         }
         state.reachedTwice = false
         guard let descriptor else { return events }
+        if descriptor.cut != nil, let receiver = state.cutReceiver {
+            state.cutReceiver = nil
+            if case .possession(let holder) = state.phase, holder == actor {
+                cutPass(descriptor, from: actor, to: receiver, state: &state, events: &events)
+            }
+            settleHands(state: &state, events: &events)
+            return events
+        }
         // A shot was held back so the card could reach first; now it goes up.
         if descriptor.special?.shootsImmediately == true {
             if let least = descriptor.special?.offersHandDumpAt, state[actor].bag.count >= least {
@@ -770,12 +789,17 @@ enum Rules {
             return true
         }
         // The card is a shot attempt in its own right, so a Whistle watching for one still
-        // gets its say.
+        // gets its say — and reads which finish this is, not the last one taken.
+        state.shotType = special.shotType ?? .layup
+        var downgraded = false
         if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
+            downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
-            return true
+            // Foot On The Line takes the point, not the shot.
+            guard downgraded, case .possession(let still) = state.phase, still == seat
+            else { return true }
         }
-        resolveShot(by: seat, bonusPoints: extraPoint(for: special.shotType),
+        resolveShot(by: seat, bonusPoints: extraPoint(for: special.shotType, downgraded: downgraded),
                     overClamps: special.ignoresClamps, card: descriptor,
                     state: &state, events: &events)
         return false
@@ -1311,8 +1335,9 @@ enum Rules {
             guard finish.available(to: seat, in: state) else { return [] }
             state.shotType = finish
             // Rhythm Dribble's extra, when this shot is the very next thing.
-            let carried = state.nextShotBonus
+            let carried = state.nextShotBonus + (finish == .three ? state.nextThreeBonus : 0)
             state.nextShotBonus = 0
+            state.nextThreeBonus = 0
             // **Nothing left to hold, so he is already at the rim.** The one place being
             // broke pays: an empty hand puts a layup up at a look nobody else gets.
             let emptyHanded = finish == .layup && state[seat].bag.isEmpty
@@ -1630,6 +1655,16 @@ enum Rules {
         return false
     }
 
+    /// **The ball and the defenders, to the man named.** A pass in every way but the card.
+    private static func cutPass(_ descriptor: CardDescriptor, from seat: Seat, to receiver: Seat,
+                                state: inout GameState, events: inout [GameEvent]) {
+        for clamp in state[seat].clamps {
+            events.append(.clampHandedOff(from: seat, to: receiver, card: clamp.card))
+        }
+        state.passAssignsClamps = true
+        completePass(descriptor, from: seat, to: receiver, state: &state, events: &events)
+    }
+
     /// Everything a pass does once its man is known.
     ///
     /// Shared, because a pass that names its target geometrically and one that had to be
@@ -1681,7 +1716,22 @@ enum Rules {
         state.passesThisRound += 1
         events.append(.passed(card: descriptor, from: seat, to: receiver,
                               shot: loggedShot(state), returning: returning))
-        clampEvent(.passingTheBall, on: [seat], passingTo: receiver, state: &state, events: &events)
+        // A Cut takes the defenders with it rather than beating them.
+        if descriptor.cut == nil {
+            clampEvent(.passingTheBall, on: [seat], passingTo: receiver, state: &state,
+                       events: &events)
+        }
+        if !returning {
+            switch descriptor.cut?.receiverMust {
+            case .pass: state.mustPassFirst = receiver
+            case .shoot: state.mustShootFirst = receiver
+            case .move: state.mustMoveFirst = receiver
+            case nil: break
+            }
+        }
+        if returning, let bonus = descriptor.cut?.threeBonusOnReturn, bonus > 0 {
+            state.nextThreeBonus = bonus
+        }
         if descriptor.bonusAssistOnScore { state.dimeFrom = seat }
         if descriptor.offersClockReset, !returning { state[seat].mayResetShotClock = true }
         if descriptor.forcesReceiverShot { state.mustShootFirst = receiver }
@@ -1690,7 +1740,7 @@ enum Rules {
         // ball never stops. Asked of the leg itself rather than of what is owed, which
         // the drain has already popped by the time it sends the ball home — so the guard
         // was reading nil and arming a second trip every time.
-        if descriptor.returnsImmediately, !returning {
+        if descriptor.returnsImmediately || descriptor.cut?.passedBack == true, !returning {
             state.owe(.returnBall(to: seat, leg: descriptor))
         }
         // **Off the glass and back to himself.** A new possession like any other — he
@@ -1733,6 +1783,8 @@ enum Rules {
             state.arrivedBy = nil
             state.pendingBonusPoint = 0
             state.mustShootFirst = nil
+            state.mustPassFirst = nil
+            state.mustMoveFirst = nil
             state.forget(.returnBall, .shootAtOnce)
             state.inbounder = receiver
             state.phase = .inbound(inbounder: receiver)
@@ -1783,11 +1835,14 @@ enum Rules {
         let forcing = descriptor.stealsAlongPass > 0 || state.misdirected
         state.misdirected = false
         if forcing, !state[receiver].bag.isEmpty {
-            state.stealTravelsTo = seat.seat(inDirection: .left) == receiver
-                ? receiver.left : receiver.right
+            // Curl Cut: it comes back to the man who cut.
+            state.stealTravelsTo = descriptor.cut?.forcesToPasser == true
+                ? seat
+                : seat.seat(inDirection: .left) == receiver ? receiver.left : receiver.right
             state.pendingActor = seat
             state.phase = .awaitingCardFrom(seat: asker(instead: seat, in: state),
                                             card: descriptor, victim: receiver)
+            forceAtRandom(descriptor, from: receiver, state: &state, events: &events)
         } else if descriptor.receiverDiscards > 0, !state[receiver].bag.isEmpty {
             // Bullet Pass: it goes in hard and something drops — **the passer's pick**, face
             // down (2026-09-14). Asked after the possession opens, like Nutmeg's.
@@ -1819,17 +1874,18 @@ enum Rules {
             return played
         }
 
-        // **A beaten defender, rotating.** The ball and the man both go to the player
-        // named — which is the whole picture the card is drawing, and the reason it is
-        // worth giving up a draw for.
-        if descriptor.clamp != nil {
-            var rotated = ActiveClamp(card: descriptor, from: actor)
-            rotated.bitten = false
-            state[target].clamps.append(rotated)
-            events.append(.clampedPossession(seat: target,
-                                             clamps: [ClampBrief(id: rotated.id,
-                                                                 card: descriptor, from: actor)]))
-            beginPossession(target, tickClock: false, state: &state, events: &events)
+        // **A Cut, with its man named.** L-Cut's "You may" is asked before the ball goes.
+        if descriptor.cut != nil {
+            let choices = retirementChoices(descriptor, by: actor, in: state)
+            if !choices.isEmpty {
+                state.cutReceiver = target
+                state.pendingPlay = descriptor
+                state.pendingActor = actor
+                state.phase = .awaitingRetirement(seat: asker(instead: actor, in: state),
+                                                  card: descriptor, choices: choices)
+                return events
+            }
+            cutPass(descriptor, from: actor, to: target, state: &state, events: &events)
             settleHands(state: &state, events: &events)
             return events
         }
@@ -2060,6 +2116,14 @@ enum Rules {
         return events
     }
 
+    /// **Curl Cut: nobody picks.** The card comes out of his Bag at random.
+    private static func forceAtRandom(_ descriptor: CardDescriptor, from victim: Seat,
+                                      state: inout GameState, events: inout [GameEvent]) {
+        guard descriptor.cut?.forcesToPasser == true, !state[victim].bag.isEmpty else { return }
+        let taken = state[victim].bag[state.roll(0...(state[victim].bag.count - 1))]
+        events += resolveCardFrom(taken.id, state: &state)
+    }
+
     /// The card picked out of somebody's hand.
     ///
     /// Face down when it was chosen, so this is where the guess is settled. Nutmeg passes
@@ -2088,6 +2152,7 @@ enum Rules {
             state[onward].bag.append(taken)
             state.stealTravelsTo = nil
             state.phase = .possession(holder: state.ball ?? actor)
+            settleHands(state: &state, events: &events)
             return events
         }
         // Bullet Pass and the Ankle Breaker combo: the card is spent, and the play that
@@ -2341,6 +2406,8 @@ enum Rules {
             state.levelsPointsFor = nil
             state.sellingOut = false
             state.mustShootFirst = nil
+            state.mustPassFirst = nil
+            state.mustMoveFirst = nil
             state[seat].turnovers += 1
             events.append(.turnover(seat, cause: CardLibrary.brandNewBall.name))
             stoppage(state: &state, events: &events)
@@ -2360,6 +2427,8 @@ enum Rules {
         if state.dunking != nil { state[seat].dunks += 1 }
         state.shotsThisRound += 1
         state.mustShootFirst = nil
+        state.mustPassFirst = nil
+        state.mustMoveFirst = nil
         let upgraded = state.pendingBonusPoint
         state.pendingBonusPoint = 0
         _ = upgraded
@@ -2650,8 +2719,15 @@ enum Rules {
             return
         }
         // Rhythm Dribble: its extra belongs to the next action, and only if that is a shot.
+        // V-Cut's the same, for a Three.
         let carriedShotBonus = state.nextShotBonus
+            + (descriptor.isThree ? state.nextThreeBonus : 0)
         state.nextShotBonus = 0
+        state.nextThreeBonus = 0
+        // The Cut's demand is met by whatever the man plays first — legalMoves only let
+        // him play what it asked for.
+        if state.mustPassFirst == seat { state.mustPassFirst = nil }
+        if state.mustMoveFirst == seat { state.mustMoveFirst = nil }
         // Hip Contusion: throwing a pass costs a card.
         if descriptor.isPass {
             let hip = state[seat].injuries.reduce(0) { $0 + ($1.injury?.discardsOnPlayingPass ?? 0) }
@@ -2887,8 +2963,12 @@ enum Rules {
                 state.ignoredClamps.insert(man.id)
             }
             if descriptor.takesFromRetirement > 0, !state.discard.isEmpty {
-                for _ in 0..<descriptor.takesFromRetirement where !state.discard.isEmpty {
-                    let taken = state.discard.removeLast()
+                for _ in 0..<descriptor.takesFromRetirement {
+                    // Never the card that is doing the taking.
+                    guard let at = state.discard.lastIndex(where: {
+                        $0.descriptor.name != descriptor.name
+                    }) else { break }
+                    let taken = state.discard.remove(at: at)
                     if state[seat].bag.count < state.handLimit(for: seat) {
                         state[seat].bag.append(taken)
                         events.append(.drewFromRetirement(seat: seat, card: taken.descriptor))
@@ -3007,6 +3087,18 @@ enum Rules {
                 state[victim].clamps.append(waiting)
                 events.append(.clampSet(seat: victim, card: descriptor))
             }
+        } else if descriptor.cut != nil {
+            // **A Cut: the ball goes without a Pass card**, and the defenders with it.
+            events.append(.movePlayed(seat: seat, card: descriptor, shot: loggedShot(state)))
+            state.lastPlayThisPossession = descriptor.id
+            state.lastPlayWasCombo = false
+            state.movesThisPossession += 1
+            guard case .possession(let holder) = state.phase, holder == seat else { return }
+            state.pendingPlay = descriptor
+            state.pendingActor = seat
+            state.phase = .awaitingTarget(seat: asker(instead: seat, in: state), card: descriptor,
+                                          choices: Seat.allCases.filter { $0 != seat })
+            return
         } else if var target = descriptor.passTarget {
             // **Misdirection.** A Crossover sells one direction; the swing after it goes
             // the other, and takes a card off whoever it passes on the way.
@@ -3173,6 +3265,7 @@ enum Rules {
             blow(whistle, on: pending.action, state: &state, events: &events)
             // The call landed. If the card survived it, the play still has to happen.
             resume(pending.action, state: &state, events: &events)
+            settleHands(state: &state, events: &events)
             return events
         }
         // **Spent, and the official with it.** One a game whether it helps or not.
@@ -3451,6 +3544,9 @@ enum Rules {
         // The play a Lob owed a shot to is over. Carrying it into the throw-in leaves a
         // man barred from his own hand for a possession the pass never reached.
         state.mustShootFirst = nil
+        state.mustPassFirst = nil
+        state.mustMoveFirst = nil
+        state.nextThreeBonus = 0
         state.sellingOut = false
         // **And so is anything else the play still owed.** A dead ball ends the play, so
         // a Right Back's second leg and a forced shot go with it — a Clear Out charging
@@ -4080,6 +4176,9 @@ enum Rules {
         state.shotCeilingThisRound = nil
         state.dimeFrom = nil
         state.mustShootFirst = nil
+        state.mustPassFirst = nil
+        state.mustMoveFirst = nil
+        state.nextThreeBonus = 0
         state.inboundBarred = nil
         state.holderShot = 0
         // The orders still in flight go with it. A shot the round no longer has room for
@@ -4467,8 +4566,10 @@ enum Rules {
             guard !state[receiver].bag.isEmpty,
                   case .possession(let holding) = state.phase, holding == receiver else { return }
             state.pendingActor = passer
+            if card.cut?.forcesToPasser == true { state.stealTravelsTo = passer }
             state.phase = .awaitingCardFrom(seat: asker(instead: passer, in: state),
                                             card: card, victim: receiver)
+            forceAtRandom(card, from: receiver, state: &state, events: &events)
 
         // Monster Ball's Intangibles go up, one board at a time, from the man with the ball.
         case .intangibleBoards:

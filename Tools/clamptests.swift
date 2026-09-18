@@ -91,3 +91,105 @@ func clampTests() {
         Check.that(beat(events, CardLibrary.waitingWing), "Waiting Wing: cleared at 1 card")
     }
 }
+
+/// Plays a Cut to `target`, turning down anything the catch asks.
+private func cut(_ id: UUID, by seat: Seat, to target: Seat, _ state: inout GameState) -> [GameEvent] {
+    var events = playDeclining(.play(id), by: seat, &state)
+    if case .awaitingTarget(_, _, let choices) = state.phase, choices.contains(target) {
+        events += Rules.resolveTarget(target, state: &state)
+    }
+    if case .awaitingRetirement = state.phase { events += Rules.resolveRetirement(nil, state: &state) }
+    while case .awaitingCounter = state.phase { events += Rules.resolveCounter(false, state: &state) }
+    return events
+}
+
+func cutTests() {
+    print("Cuts")
+    do {
+        var (state, seat, cards) = openPossession(seed: 312, cards: [CardLibrary.backdoorCut])
+        state[seat].clamps = []
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
+                   "a Cut needs a Clamp on you")
+        stand(CardLibrary.contest, on: seat, &state)
+        let receiver = seat.left
+        state[receiver].bag = [matchCard(CardLibrary.swingLeft, state.rules),
+                               matchCard(CardLibrary.dribble, state.rules)]
+        _ = cut(cards[0].id, by: seat, to: receiver, &state)
+        Check.that(state.ball == receiver && state[seat].clamps.isEmpty
+                   && state[receiver].clamps.contains { $0.card.id == CardLibrary.contest.id },
+                   "Backdoor Cut: the ball and the Clamps go to the man named")
+        let legal = Rules.legalMoves(state, for: receiver)
+        let onlyPasses = legal.allSatisfy { move in
+            guard case .play(let id) = move else { return false }
+            return state[receiver].bag.first { $0.id == id }?.isPass == true
+        }
+        Check.that(!legal.isEmpty && onlyPasses, "and he must Pass first")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 313, cards: [CardLibrary.backdoorCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        let receiver = seat.left
+        state.deck.removeAll { $0.isPass }
+        state[receiver].bag = [matchCard(CardLibrary.dribble, state.rules)]
+        let before = state[receiver].turnovers
+        _ = cut(cards[0].id, by: seat, to: receiver, &state)
+        Check.that(state[receiver].turnovers == before + 1,
+                   "Backdoor Cut: no Pass to play is a turnover")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 314, cards: [CardLibrary.flareCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        _ = cut(cards[0].id, by: seat, to: seat.left, &state)
+        Check.that(state.mustShootFirst == seat.left, "Flare Cut: he must Shoot first")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 315, cards: [CardLibrary.flashCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        let receiver = seat.left
+        state[receiver].bag = [matchCard(CardLibrary.swingLeft, state.rules),
+                               matchCard(CardLibrary.dribble, state.rules)]
+        _ = cut(cards[0].id, by: seat, to: receiver, &state)
+        let legal = Rules.legalMoves(state, for: receiver)
+        Check.that(!legal.isEmpty && legal.allSatisfy { move in
+            guard case .play(let id) = move else { return false }
+            return state[receiver].bag.first { $0.id == id }?.descriptor.isMove == true
+        }, "Flash Cut: he must play a Move first")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 316, cards: [CardLibrary.curlCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        let receiver = seat.left
+        state[receiver].bag = [matchCard(CardLibrary.dribble, state.rules)]
+        let mine = state[seat].bag.count
+        _ = cut(cards[0].id, by: seat, to: receiver, &state)
+        // Played the Cut (-1), drew 1, and took his card.
+        Check.that(state[seat].bag.count == mine + 1
+                   && state[seat].bag.contains { $0.descriptor.id == CardLibrary.dribble.id },
+                   "Curl Cut: a card out of his Bag and into yours")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 317, cards: [CardLibrary.vCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        let receiver = seat.left
+        _ = cut(cards[0].id, by: seat, to: receiver, &state)
+        Check.that(state.ball == seat && state[seat].clamps.isEmpty
+                   && !state[receiver].clamps.isEmpty,
+                   "V-Cut: the ball comes back and the Clamps stay with him")
+        Check.that(state.nextThreeBonus == 30, "and a Three first is SHOT +30%")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 318, cards: [CardLibrary.lCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        state.ballCard = Card(CardLibrary.blightBall)
+        _ = playDeclining(.play(cards[0].id), by: seat, &state)
+        if case .awaitingTarget = state.phase { _ = Rules.resolveTarget(seat.left, state: &state) }
+        var asked = false
+        if case .awaitingRetirement(_, _, let choices) = state.phase {
+            asked = choices.contains(.ball)
+            _ = Rules.resolveRetirement(.ball, state: &state)
+        }
+        while case .awaitingCounter = state.phase { _ = Rules.resolveCounter(false, state: &state) }
+        Check.that(asked && state.ballCard == nil && state.ball == seat.left,
+                   "L-Cut: may Retire the ball, then the ball goes")
+    }
+}

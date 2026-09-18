@@ -1655,6 +1655,9 @@ func runTests() {
         }
         if case .awaitingTarget(_, _, let choices) = state.phase, let receiver = choices.first {
             events += Rules.resolveTarget(receiver, state: &state)
+            while case .awaitingCounter = state.phase {
+                events += Rules.resolveCounter(false, state: &state)
+            }
             let drawn = events.filter {
                 switch $0 {
                 case .drew(let who, _, _), .injuryRevealed(let who, _): return who == seat
@@ -1693,6 +1696,9 @@ func runTests() {
         if case .awaitingTarget(_, _, let choices) = state.phase, let receiver = choices.first {
             state[receiver].clamps = [ActiveClamp(card: CardLibrary.closeOut, from: seat)]
             events += Rules.resolveTarget(receiver, state: &state)
+            while case .awaitingCounter = state.phase {
+                events += Rules.resolveCounter(false, state: &state)
+            }
             Check.that(!events.contains { if case .shotAttempted = $0 { return true }; return false },
                        "a Kick-Out to a Closed-Out player is not shot")
             Check.that(state.ball == receiver && state.pendingBonusPoint == 0,
@@ -1818,6 +1824,7 @@ func runTests() {
 
     slotTests()
     clampTests()
+    cutTests()
     slotTestsTwo()
     alleyOopTests()
 

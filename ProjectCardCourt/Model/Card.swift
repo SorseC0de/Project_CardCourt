@@ -84,6 +84,21 @@ struct ClampEffect: Hashable, Codable {
     var turnoverWithoutAPass = false
 }
 
+/// **Passing the ball without a Pass card.** Only playable with a Clamp on you, and the
+/// Clamps go with the ball. A Move rather than a Pass, so it slips under anything that
+/// stops Pass cards.
+struct CutEffect: Hashable, Codable {
+    /// What the receiver has to do first. Unable to, it is a turnover.
+    enum Demand: String, Hashable, Codable { case pass, shoot, move }
+    var receiverMust: Demand?
+    /// V-Cut: the receiver passes it straight back.
+    var passedBack = false
+    /// V-Cut: SHOT on a Three taken as the first thing once it is back.
+    var threeBonusOnReturn = 0
+    /// Curl Cut: the card it Forces comes back to the man who cut.
+    var forcesToPasser = false
+}
+
 /// **A condition a Clamp is read against**, printed on its face either as what clears it
 /// or as when it bites. Everything here is public: hand sizes are counted across the
 /// table, the Shot Clock is on the wall, and the board is face-up.
@@ -726,6 +741,7 @@ final class CardEffects: Hashable, Codable {
     let varena: VarenaEffect?
     let variaball: VariaballEffect?
     let special: SpecialMoveEffect?
+    let cut: CutEffect?
 
     /// The one every plain card shares, so a Pass costs no allocation at all.
     static let none = CardEffects()
@@ -733,7 +749,8 @@ final class CardEffects: Hashable, Codable {
     init(whistle: WhistleEffect? = nil, clamp: ClampEffect? = nil,
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
          injury: InjuryEffect? = nil, varena: VarenaEffect? = nil,
-         variaball: VariaballEffect? = nil, special: SpecialMoveEffect? = nil) {
+         variaball: VariaballEffect? = nil, special: SpecialMoveEffect? = nil,
+         cut: CutEffect? = nil) {
         self.whistle = whistle
         self.clamp = clamp
         self.intangible = intangible
@@ -742,6 +759,7 @@ final class CardEffects: Hashable, Codable {
         self.varena = varena
         self.variaball = variaball
         self.special = special
+        self.cut = cut
     }
 
     /// **By what is in it, never by which one it is.** A decoded card and the library card
@@ -750,13 +768,14 @@ final class CardEffects: Hashable, Codable {
         lhs === rhs || (lhs.whistle == rhs.whistle && lhs.clamp == rhs.clamp
             && lhs.intangible == rhs.intangible && lhs.gameBreak == rhs.gameBreak
             && lhs.injury == rhs.injury && lhs.varena == rhs.varena
-            && lhs.variaball == rhs.variaball && lhs.special == rhs.special)
+            && lhs.variaball == rhs.variaball && lhs.special == rhs.special
+            && lhs.cut == rhs.cut)
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(whistle); hasher.combine(clamp); hasher.combine(intangible)
         hasher.combine(gameBreak); hasher.combine(injury); hasher.combine(varena)
-        hasher.combine(variaball); hasher.combine(special)
+        hasher.combine(variaball); hasher.combine(special); hasher.combine(cut)
     }
 }
 
@@ -878,6 +897,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var variaball: VariaballEffect? { effects.variaball }
     /// Set on Special Moves.
     var special: SpecialMoveEffect? { effects.special }
+    var cut: CutEffect? { effects.cut }
     /// Flop: a trip to the line for every Clamp standing on you.
     let freeThrowsPerClamp: Int
     /// Clears every Clamp on the player — Flop sells it, Clear Out steps away from it.
@@ -936,7 +956,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          intangible: IntangibleEffect? = nil, gameBreak: GameBreakEffect? = nil,
          injury: InjuryEffect? = nil,
          varena: VarenaEffect? = nil, variaball: VariaballEffect? = nil,
-         special: SpecialMoveEffect? = nil, isDribble: Bool = false,
+         special: SpecialMoveEffect? = nil, cut: CutEffect? = nil, isDribble: Bool = false,
          selfDiscard: Int = 0, shotPerClamp: Int = 0, drawPerClamp: Int = 0,
          clockPerClamp: Int = 0, clamperDiscardsPerClamp: Int = 0,
          freeThrowsPerClamp: Int = 0, clearsClamps: Bool = false,
@@ -964,11 +984,11 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          combo: String? = nil, bonus: String? = nil) {
         self.effects = (whistle == nil && clamp == nil && intangible == nil
                         && gameBreak == nil && injury == nil && varena == nil
-                        && variaball == nil && special == nil)
+                        && variaball == nil && special == nil && cut == nil)
             ? .none
             : CardEffects(whistle: whistle, clamp: clamp, intangible: intangible,
                           gameBreak: gameBreak, injury: injury, varena: varena,
-                          variaball: variaball, special: special)
+                          variaball: variaball, special: special, cut: cut)
         self.clearsTargetClamp = clearsTargetClamp
         self.compulsoryFirstAction = compulsoryFirstAction
         self.requiresDribbleFirst = requiresDribbleFirst

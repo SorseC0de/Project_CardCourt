@@ -138,7 +138,7 @@ enum CardLibrary {
 
     static let spinMove = CardDescriptor(
         id: "spin-move", name: "Spin Move", type: .move,
-        effect: "#[Draw] 1 card. SHOT +10%", numberInDeck: 5,
+        effect: "#[Draw] 1 card. SHOT +10%", numberInDeck: 3,
         shotDelta: 10, drawCount: 1,
         retiresARef: true, reassignsAClamp: true,
         bonus: "You may #[Retire] target ~[Ref] or #[Reassign] target ~[Clamp] "
@@ -148,7 +148,7 @@ enum CardLibrary {
     static let crossover = CardDescriptor(
         id: "crossover", name: "Crossover", type: .move,
         effect: "#[Draw] 1 card. SHOT +10%. #[Clear] target ~[Clamp]",
-        numberInDeck: 5,
+        numberInDeck: 3,
         shotDelta: 10, drawCount: 1, comboAfterDribble: true, comboBonus: 10,
         clearsTargetClamp: true,
         combo: "SHOT +10% extra. You may #[Retire] 1 card from target player's Bag")
@@ -1497,6 +1497,54 @@ enum CardLibrary {
     /// type, its effect structs, every time. Both devices already hold this library, so
     /// what has to travel is *which* card it is, not what that card does.
     /// The passes and the moves — **not every card**, whatever the old name said.
+    // ── Cuts ──────────────────────────────────────────────────────────
+    //
+    // **Passing the ball without a Pass card.** Only there with a defender on you, and the
+    // defenders go with the ball — a Move, so it slips under anything that stops Passes.
+
+    static let backdoorCut = CardDescriptor(
+        id: "backdoor-cut", name: "Backdoor Cut", type: .move,
+        effect: "If Clamped: #[Draw] 1 card. Pass your ~[Clamps] and the ball to target player. "
+            + "They must Pass as their first action. (If they cannot, #[TOV] +1)",
+        numberInDeck: 3, drawCount: 1, cut: CutEffect(receiverMust: .pass))
+
+    static let flareCut = CardDescriptor(
+        id: "flare-cut", name: "Flare Cut", type: .move,
+        effect: "If Clamped: #[Draw] 1 card. Pass your ~[Clamps] and the ball to target player. "
+            + "They must #[Shoot] as their first action. (If they cannot, #[TOV] +1)",
+        numberInDeck: 3, drawCount: 1, cut: CutEffect(receiverMust: .shoot))
+
+    static let flashCut = CardDescriptor(
+        id: "flash-cut", name: "Flash Cut", type: .move,
+        effect: "If Clamped: #[Draw] 1 card. Pass your ~[Clamps] and the ball to target player. "
+            + "They must play a ~[Move] card as their first action. (If they cannot, #[TOV] +1)",
+        numberInDeck: 3, drawCount: 1, cut: CutEffect(receiverMust: .move))
+
+    static let curlCut = CardDescriptor(
+        id: "curl-cut", name: "Curl Cut", type: .move,
+        effect: "If Clamped: #[Draw] 1 card. Pass your ~[Clamps] and the ball to target player. "
+            + "#[Force] 1 random card from their Bag to yours",
+        numberInDeck: 3, drawCount: 1, cut: CutEffect(forcesToPasser: true),
+        stealsAlongPass: 1)
+
+    static let lCut = CardDescriptor(
+        id: "l-cut", name: "L-Cut", type: .specialMove,
+        effect: "If Clamped: #[Draw] 2 cards. Pass your ~[Clamps] and the ball to target player. "
+            + "You may #[Retire] target ~[Ref], ~[Intangible], or the ~[Ball]",
+        numberInDeck: 1, drawCount: 2, cut: CutEffect(),
+        retiresARef: true, mayRetireTheBall: true, retiresAnIntangible: true)
+
+    static let vCut = CardDescriptor(
+        id: "v-cut", name: "V-Cut", type: .specialMove,
+        effect: "If Clamped: #[Draw] 2 cards. Pass your ~[Clamps] and the ball to target player, "
+            + "who passes it back immediately. SHOT +30% if your first action is a @[Three]",
+        numberInDeck: 1, drawCount: 2,
+        cut: CutEffect(passedBack: true, threeBonusOnReturn: 30))
+
+    static let cuts: [CardDescriptor] = [
+        backdoorCut, flareCut, flashCut, curlCut, lCut, vCut,
+    ]
+
     static let passesAndMoves: [CardDescriptor] = [
         swingLeft, swingRight, skipPass, behindTheBack,
         dime, lob, nutmeg, noLook, bulletPass, handOff, outletPass, kickOut,
@@ -1525,7 +1573,7 @@ enum CardLibrary {
     /// with nobody hurt. The descriptors stay reachable by id so a saved match still
     /// decodes; see `byID`.
     static let standardPool: [CardDescriptor] = passesAndMoves
-        + [flop] + clamps
+        + [flop] + cuts + clamps
         + intangibles + specialMoves
         + variaballs
 
