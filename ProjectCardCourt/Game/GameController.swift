@@ -71,6 +71,9 @@ enum Pacing {
     /// **And how long everybody holds before the floor runs again.** At half a second they
     /// were off and running the moment the ball arrived, before the stoppage had read.
     static let inboundHold = 1.5
+    /// **How long a referee stands holding it before he throws.** Long enough to read as
+    /// him being the one putting it in — the new thing, and the thing to notice.
+    static let refereeHold = 1.0
     /// How long a phase call holds before it takes itself off.
     static let actionCall = 1.4
     /// How long the board holds after a basket.
@@ -254,6 +257,18 @@ struct ThrowIn: Identifiable, Equatable {
     let id = UUID()
     let from: Seat
     let to: Seat
+}
+
+/// **A referee putting it in play**, as the floor draws it: stood on the sideline where the
+/// player-thrower used to stand, holding the ball, then throwing it.
+struct RefereeThrow: Identifiable, Equatable {
+    let id = UUID()
+    /// Which of the crew, by his armed id — the court draws him at the throw-in spot and
+    /// leaves his post empty while he is there.
+    let official: UUID
+    let to: Seat
+    /// False while he holds it, true from the moment it leaves his hands.
+    var thrown = false
 }
 
 /// A turnover, played as a beat rather than processed instantly.
@@ -540,6 +555,8 @@ final class GameController {
     /// while this is on: the dim stays, everybody stays where they were, and the thrower
     /// stands frozen on the pose he threw in.
     private(set) var throwing: ThrowIn?
+    /// A referee's throw-in, while the floor is playing it.
+    private(set) var refereeThrow: RefereeThrow?
     private(set) var log: [LogLine] = []
     /// Whether this device has put its bid in and is waiting on the rest of the table.
     ///
@@ -1212,6 +1229,8 @@ final class GameController {
             return seat.isLocal ? .awaitingGiveUp(card: card, count: count) : .thinking
         case .inbound(let seat):
             return seat.isLocal ? .awaitingInbound(seat) : .thinking
+        case .refereeInbound:
+            return .thinking
         case .possession(let seat):
             return seat.isLocal ? .awaitingMove(seat) : .thinking
         case .gameOver:
@@ -2357,6 +2376,19 @@ final class GameController {
                 return
             }
 
+            // **A referee puts it in play.** Nothing to ask anybody: he stands on the
+            // sideline holding it, throws it, and it lands with the man he threw it to.
+            if case .refereeInbound(let official, let to) = state.phase {
+                refereeThrow = RefereeThrow(official: official, to: to)
+                try? await Task.sleep(for: .seconds(Pacing.refereeHold))
+                if Task.isCancelled { return }
+                refereeThrow?.thrown = true
+                try? await Task.sleep(for: .seconds(Pacing.inboundThrow))
+                if Task.isCancelled { return }
+                await present(Rules.completeRefereeInbound(state: &state))
+                refereeThrow = nil
+                continue
+            }
             if case .awaitingRebound(let shooter) = state.phase {
                 // No call in front of it. The board's own scene is black with the same
                 // streaks across it and the word "Rebound!" already on it — a card saying

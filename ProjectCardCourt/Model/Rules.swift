@@ -3266,15 +3266,14 @@ enum Rules {
 
         if effect.endsRound {
             endRound(state: &state, events: &events)
-        } else if effect.setterChoosesInbound {
-            // Side-out. Nobody set this one down, so the ball goes back in by the man it
-            // was called on, like every other violation.
-            reinbound(by: whistle.owner ?? offender, state: &state, events: &events)
-        } else if effect.turnoverOnOffender || effect.offenderInbounds {
-            // A turnover costs the ball. The offender hands it back in, and the round
-            // does not advance — only a made shot or a real clock expiry does that.
-            // Charge takes the ball the same way without charging the turnover.
-            reinbound(by: offender, state: &state, events: &events)
+        } else if effect.setterChoosesInbound || effect.turnoverOnOffender
+                    || effect.offenderInbounds {
+            // **The official who called it puts it back in**, to anybody but the man it
+            // was called on. The round does not advance — only a made shot or a real clock
+            // expiry does that. Charge takes the ball the same way without charging the
+            // turnover.
+            refereeReinbound(caller: whistle.id, offender: offender,
+                             state: &state, events: &events)
         } else {
             // **A call the man plays on from.** His card was waved off and he still has
             // the ball — but the card that was going to free him may have been the one
@@ -3405,8 +3404,49 @@ enum Rules {
         state.whistlesSilenced = false
         state.whistleCallsThisRound.removeAll()
         assignCrew(state: &state, events: &events)
-        state.phase = .inbound(inbounder: state.inbounder)
         events.append(.roundBegan(round: state.round, inbounder: state.inbounder))
+        // **A referee inbounds it.** The round opens on the officials rather than on
+        // whoever happened to hold it last. With no crew out — a match that fields none —
+        // it falls back to the player, as it always did.
+        if let official = state.armedWhistles.first?.id {
+            let to = GameRules.debugRefereeInboundsTo ?? state.pick(from: Seat.allCases)
+            state.phase = .refereeInbound(official: official, to: to)
+        } else {
+            state.phase = .inbound(inbounder: state.inbounder)
+        }
+    }
+
+    /// **The ball arriving from a referee**, once the floor has shown him holding it and
+    /// throwing it. The same arrival a player's inbound makes: a fresh round is handed a
+    /// clock and one inside a round keeps the one it had, and it is not a pass — no SHOT,
+    /// no assist.
+    @discardableResult
+    static func completeRefereeInbound(state: inout GameState) -> [GameEvent] {
+        guard case .refereeInbound(_, let target) = state.phase else { return [] }
+        var events: [GameEvent] = []
+        state.inboundBarred = nil
+        state.ball = target
+        events.append(.refereeInbounded(to: target))
+        if state.shotClock == nil {
+            state.shotClock = state.shotClockLength
+            events.append(.shotClockSet(state.shotClockLength))
+        }
+        beginPossession(target, tickClock: false, state: &state, events: &events)
+        settleHands(state: &state, events: &events)
+        return events
+    }
+
+    /// **The official who made the call puts it back in**, to anybody but the man it was
+    /// called on. If he has already gone — Crew Chief and Officially Infamous both send a
+    /// caller off — whoever is still working takes it.
+    private static func refereeReinbound(caller: UUID, offender: Seat,
+                                         state: inout GameState, events: inout [GameEvent]) {
+        reinbound(by: offender, state: &state, events: &events)
+        let official = state.armedWhistles.contains(where: { $0.id == caller })
+            ? caller : state.armedWhistles.first?.id
+        guard let official else { return }
+        let to = state.pick(from: Seat.allCases.filter { $0 != offender })
+        state.phase = .refereeInbound(official: official, to: to)
     }
 
     /// **The three officials working this round**, turned face-up off the officials deck.

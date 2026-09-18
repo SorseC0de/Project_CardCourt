@@ -48,6 +48,8 @@ enum GameEvent: Hashable, Codable {
     /// them: they are the rules everyone is about to play under, so they are announced
     /// rather than hidden the way an armed Whistle was.
     case crewAssigned(cards: [CardDescriptor])
+    /// A referee threw it in.
+    case refereeInbounded(to: Seat)
     /// **Skyhook: a card pulled back out of Retirement.** Nothing else in the game
     /// reaches in there, which is what makes it the homage it is.
     case drewFromRetirement(seat: Seat, card: CardDescriptor)
@@ -218,6 +220,8 @@ enum GameEvent: Hashable, Codable {
                 + "\(card.name) is thrown out."
         case .officialDistracted(let seat, let card):
             return "\(seat.playerName) \(seat.verb("waves", "wave")) \(card.name) off."
+        case .refereeInbounded(let seat):
+            return "The official throws it in to \(seat.playerName)."
         case .crewAssigned(let cards):
             let names = cards.map(\.name).joined(separator: ", ")
             return "Working tonight: \(names)."

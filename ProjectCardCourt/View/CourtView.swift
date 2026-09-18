@@ -75,6 +75,9 @@ struct CourtView: View {
     var camera: CourtCamera?
     /// The last pass thrown — see `GameController.passThrow`.
     var passThrow: PassThrow?
+    /// **A referee's throw-in, while it is being played** — see `GameController.refereeThrow`.
+    /// He stands where the player-thrower used to, and his own post is empty meanwhile.
+    var refereeThrow: RefereeThrow?
 
     /// The name under a player's feet.
     ///
@@ -303,7 +306,10 @@ struct CourtView: View {
 
                 // Painted far to near, so anything upcourt is overlapped by what
                 // stands in front of it instead of by whatever draws last.
-                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: refereeCrew),
+                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer,
+                                               referees: refereeCrew.filter {
+                                                   $0.whistle.id != refereeThrow?.official
+                                               }),
                         id: \.self) { item in
                     place(item, on: court, in: geo.size)
                         // People come up over the dim; the piles stay under it. Equal
@@ -336,6 +342,23 @@ struct CourtView: View {
                     inboundPrompt
                         .position(x: geo.size.width / 2, y: geo.size.height * Prompt.y)
                         .zIndex(Layer.prompt)
+                }
+
+                // **The official on the sideline**, in the spot a player used to throw
+                // it in from: holding it, then throwing it. The other two stay at their
+                // posts, where they already are.
+                if let refereeThrow,
+                   let whistle = state.armedWhistles.first(where: { $0.id == refereeThrow.official }) {
+                    let depth = Perspective.throwInDepth
+                    RefereeFigure(duty: refereeThrow.thrown ? .inbounding : .holdingBall,
+                                  tone: look.refereeTone(for: whistle.id),
+                                  frozen: true)
+                        .scaleEffect(court.scale(at: depth), anchor: .bottom)
+                        .position(x: court.centreX + prompt.throwerX * court.scale(at: depth),
+                                  y: court.y(at: depth) - nodeHeight / 2
+                                     + Perspective.footDrop(at: court.scale(at: depth)))
+                        .zIndex(Layer.thrower)
+                        .transition(.columnWarp())
                 }
 
                 if let thrower, atLine != nil {

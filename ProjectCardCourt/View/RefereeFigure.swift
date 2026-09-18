@@ -21,6 +21,10 @@ struct RefereeFigure: View {
         case turned(Int)
         /// Following a free throw up, from the moment it is launched.
         case watching
+        /// **On the sideline with the ball**, about to put it in play.
+        case holdingBall
+        /// And the throw.
+        case inbounding
 
         /// The sheet for everything but running, which belongs to the post — see
         /// `RefereeFigure.runSheet`.
@@ -31,6 +35,8 @@ struct RefereeFigure: View {
             case .calling:  return .refereeCall
             case .turned:   return .refereeFront
             case .watching: return .refereeShotFront
+            case .holdingBall: return .refereeHoldBall
+            case .inbounding:  return .refereeInbound
             }
         }
 

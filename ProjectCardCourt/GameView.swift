@@ -1017,7 +1017,8 @@ struct GameView: View {
                   onInspectPlayer: { seat in if tutorial == nil { open(.player(seat)) } },
                   onTapReferee: { tapReferee($0) },
                   camera: controller.camera,
-                  passThrow: controller.passThrow))
+                  passThrow: controller.passThrow,
+                  refereeThrow: controller.refereeThrow))
     }
 
     /// In every style but .panel the court claims the log's real estate.

@@ -1304,10 +1304,14 @@ func runTests() {
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state[seat].turnovers == 1, "Travel charges the turnover")
         Check.that(state.round == round, "a Whistle turnover does not advance the round")
-        if case .inbound(let who) = state.phase {
-            Check.that(who == seat, "the offender hands it back in")
+        // **The official who called it puts it back in**, to anybody but the man it was
+        // called on — not the offender, as it used to be.
+        if case .refereeInbound(let official, let to) = state.phase {
+            Check.that(state.armedWhistles.contains { $0.id == official },
+                       "the official who called it throws it back in")
+            Check.that(to != seat, "and never to the man it was called on")
         } else {
-            Check.that(false, "the offender hands it back in")
+            Check.that(false, "the official who called it throws it back in")
         }
     }
     do {

@@ -93,6 +93,11 @@ struct PlayerState: Hashable, Identifiable, Codable {
 
 enum Phase: Hashable, Codable {
     case inbound(inbounder: Seat)
+    /// **A referee putting the ball in play.** Nobody decides anything: he holds it, then
+    /// throws it to the man already named. The top of every round, and the throw-in after
+    /// a turnover his own call caused. The floor plays the hold and the throw, then
+    /// completes it — see `Rules.completeRefereeInbound`.
+    case refereeInbound(official: UUID, to: Seat)
     case possession(holder: Seat)
     case awaitingRebound(shooter: Seat)
     /// Turnaround Three: pick any number to discard, then the shot goes up.

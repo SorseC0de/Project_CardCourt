@@ -22,6 +22,9 @@ enum Prompts {
     /// or the harness and the game drift apart question by question.
     static func answer(_ state: inout GameState, _ ai: inout AITable) -> [GameEvent]? {
         switch state.phase {
+        // Nobody decides a referee's throw-in; the floor shows it and it lands.
+        case .refereeInbound:
+            return Rules.completeRefereeInbound(state: &state)
         case .awaitingTarget(let seat, _, let choices):
             // Whoever holds the most: the man worth finding, and the man worth taking
             // from. The same rule either way, because the AI has no reason to prefer one.

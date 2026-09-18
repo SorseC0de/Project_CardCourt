@@ -123,6 +123,8 @@ enum Sprite: String, CaseIterable {
         case .sparkleBurst3: return 17
         case .front, .back, .right, .akuma, .praised, .gooseneck, .holdBall: return 1
         case .refereeRight, .refereeCall, .refereeShot, .refereeShotFront: return 1
+        case .refereeHoldBall, .refereeInbound, .refereeTech: return 1
+        case .refereeTravel: return 6
         case .refereeFront: return 3
         case .heads, .faces: return 9
         case .inbounder:    return 4
