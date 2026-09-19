@@ -57,6 +57,9 @@ enum Step: Hashable, Codable {
     /// business, and the pass's business does not stop being owed because somebody was
     /// asked whether to answer a defender.
     case takeFromReceiver(passer: Seat, receiver: Seat, card: CardDescriptor)
+    /// **Rookie Official: a card of another name, out of Retirement**, picked by the man
+    /// whose play earned it once that play has settled — Skyhook's question, asked late.
+    case takeFromRetirement(seat: Seat, card: CardDescriptor, excluding: String)
 
     /// **Where this sits in a drain, which is not the order it was pushed in.**
     ///
@@ -79,6 +82,7 @@ enum Step: Hashable, Codable {
         case .intangibleBoards: return 5
         // After the hand has settled and before the board is asked about.
         case .takeFromReceiver: return 4
+        case .takeFromRetirement: return 5
         }
     }
 
@@ -95,11 +99,12 @@ enum Step: Hashable, Codable {
         case .tax:          return .tax
         case .intangibleBoards: return .intangibleBoards
         case .takeFromReceiver: return .takeFromReceiver
+        case .takeFromRetirement: return .takeFromRetirement
         }
     }
 
     enum Kind: String, Hashable, Codable {
         case spendHand, returnBall, shootAtOnce, handOverBall, takeTheLine, revealBreak
-        case tax, intangibleBoards, takeFromReceiver
+        case tax, intangibleBoards, takeFromReceiver, takeFromRetirement
     }
 }

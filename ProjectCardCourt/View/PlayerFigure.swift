@@ -534,7 +534,7 @@ struct BallView: View {
     }
 }
 
-/// Brand New Ball catching the light: the Gold Swisshbone's shine and twinkles, less the
+/// Brand New Ball catching the light: the Gold Swishbone's shine and twinkles, less the
 /// one that sat bottom left.
 struct BallShine: View {
     let asset: String

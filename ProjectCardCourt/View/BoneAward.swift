@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A Swisshbone payout, the way the end of a match hands one over.
+/// A Swishbone payout, the way the end of a match hands one over.
 ///
 /// **It arrives rather than appears.** The bone pops in on a spring loose enough to
 /// overshoot, and the count lands with it — a reward that fades up reads as a number
@@ -152,7 +152,7 @@ struct BoneAward: View {
     }
 }
 
-/// A band of light walking down a drawing now and then — a Swisshbone's metal, and Brand
+/// A band of light walking down a drawing now and then — a Swishbone's metal, and Brand
 /// New Ball.
 ///
 /// **Clipped to the drawing, not to a box.** The gradient is a wide angled strip, and
@@ -194,7 +194,7 @@ struct MetalShine: View {
     }
 }
 
-/// The strips a Swisshbone comes in. One drawing, four ramps — see `Tools/bones`, which
+/// The strips a Swishbone comes in. One drawing, four ramps — see `Tools/bones`, which
 /// writes the assets from the palette indices.
 enum Bone: String, CaseIterable, Identifiable {
     /// **Declared in the order they are worth**, because that is the order every screen
@@ -205,11 +205,11 @@ enum Bone: String, CaseIterable, Identifiable {
 
     var asset: String {
         switch self {
-        case .plain:   return "Swisshbone"
-        case .bronze:  return "SwisshboneBronze"
-        case .silver:  return "SwisshboneSilver"
-        case .gold:    return "SwisshboneGold"
-        case .crystal: return "SwisshboneCrystal"
+        case .plain:   return "Swishbone"
+        case .bronze:  return "SwishboneBronze"
+        case .silver:  return "SwishboneSilver"
+        case .gold:    return "SwishboneGold"
+        case .crystal: return "SwishboneCrystal"
         }
     }
 

@@ -208,7 +208,7 @@ private struct FlyingCard: View {
     ZStack {
         CardPalette.blue.ignoresSafeArea()
         FlyingCards(from: CGPoint(x: 196, y: 226))
-        SwisshWordmark(size: SwisshWordmark.Mark.size)
+        TitleWordmark()
             .frame(maxHeight: .infinity, alignment: .top)
             .padding(.top, 96)
     }

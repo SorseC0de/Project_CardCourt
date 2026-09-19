@@ -33,13 +33,18 @@ struct SevenSegmentDigit: View {
             // **Only the lit segments glow**, in their own colour. A separate layer so the
             // glow falls outside the digit's own box instead of being clipped by it.
             segments(lit: true)
-                .shadow(color: lit.opacity(Glow.strength), radius: Glow.radius)
+                .shadow(color: lit.opacity(Glow.coreStrength), radius: Glow.coreRadius)
+                .shadow(color: lit.opacity(Glow.haloStrength), radius: Glow.haloRadius)
         }
     }
 
+    /// **A core and a halo**: tight and full round the segment, then wide. One 4-point
+    /// shadow at 0.8 barely left the segment's edge.
     private enum Glow {
-        static let radius: CGFloat = 4
-        static let strength: Double = 0.8
+        static let coreRadius: CGFloat = 3
+        static let coreStrength: Double = 1
+        static let haloRadius: CGFloat = 10
+        static let haloStrength: Double = 0.9
     }
 
     private func segments(lit showsLit: Bool) -> some View {

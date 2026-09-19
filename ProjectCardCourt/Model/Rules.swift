@@ -353,7 +353,9 @@ enum Rules {
         let descriptor = state.pendingPlay
         state.pendingPlay = nil
         state.pendingActor = nil
-        state.phase = .possession(holder: actor)
+        // **Back to whoever has the ball**, which after a Rookie Official's pick need not
+        // be the man who picked: his first card may have been the pass that moved it.
+        state.phase = .possession(holder: state.ball ?? actor)
         let taken = id.flatMap { id in choices.contains(id) ? state.discard.first { $0.id == id } : nil }
 
         // Varsitile: a ball for the ball, or an Intangible for one of yours.
@@ -418,14 +420,14 @@ enum Rules {
                       - (state.ballEffect.discountsDiscards ? 1 : 0))
     }
 
-    // MARK: - Swissh-Ups
+    // MARK: - Swish-Ups
 
     /// Whether a seat could pop one right now. One at a time, and only on your own turn.
     ///
     /// `Downloaded` is the one with a table condition: it swaps the hand for the same
     /// number off the discard pile, so the pile has to be able to pay.
-    static func canPop(_ up: SwisshUp, by seat: Seat, in state: GameState) -> Bool {
-        guard state[seat].swisshUp == nil else { return false }
+    static func canPop(_ up: SwishUp, by seat: Seat, in state: GameState) -> Bool {
+        guard state[seat].swishUp == nil else { return false }
         guard case .possession(let holder) = state.phase, holder == seat else { return false }
         guard up.takesFromDiscard else { return true }
         return downloadable(from: state).count >= state[seat].bag.count
@@ -442,7 +444,7 @@ enum Rules {
 
     /// Pops one. The single acts happen here and are gone; the rest start their clock.
     @discardableResult
-    static func popSwisshUp(_ up: SwisshUp, by seat: Seat,
+    static func popSwishUp(_ up: SwishUp, by seat: Seat,
                             state: inout GameState) -> [GameEvent] {
         var events: [GameEvent] = []
         guard canPop(up, by: seat, in: state) else { return events }
@@ -467,7 +469,7 @@ enum Rules {
         } else {
             // Three possessions, and the one it is popped on is the first — except for the
             // one that pays at the top of a turn, whose turn has already been paid.
-            state[seat].swisshUp = ActiveSwisshUp(
+            state[seat].swishUp = ActiveSwishUp(
                 kind: up,
                 left: up.startsNextPossession ? up.possessions : up.possessions - 1,
                 waiting: up.startsNextPossession)
@@ -476,24 +478,24 @@ enum Rules {
         return events
     }
 
-    /// Runs a seat's Swissh-Up down by one, at the top of their own possession.
+    /// Runs a seat's Swish-Up down by one, at the top of their own possession.
     ///
     /// Called from `beginPossession` once this is wired in. The one that was waiting for a
     /// possession of its own starts here instead of counting down.
-    static func tickSwisshUp(_ seat: Seat, state: inout GameState) {
-        guard var live = state[seat].swisshUp else { return }
+    static func tickSwishUp(_ seat: Seat, state: inout GameState) {
+        guard var live = state[seat].swishUp else { return }
         if live.waiting {
             live.waiting = false
-            state[seat].swisshUp = live
+            state[seat].swishUp = live
             return
         }
         live.left -= 1
-        state[seat].swisshUp = live.left > 0 ? live : nil
+        state[seat].swishUp = live.left > 0 ? live : nil
     }
 
     /// The Zone a seat is in, if it is doing anything yet.
-    static func swisshUp(on seat: Seat, in state: GameState) -> SwisshUp? {
-        guard let live = state[seat].swisshUp, !live.waiting else { return nil }
+    static func swishUp(on seat: Seat, in state: GameState) -> SwishUp? {
+        guard let live = state[seat].swishUp, !live.waiting else { return nil }
         return live.kind
     }
 
@@ -604,9 +606,8 @@ enum Rules {
         switch target {
         case .official(let id):
             guard let at = state.armedWhistles.firstIndex(where: { $0.id == id }) else { return }
-            let gone = sendOff(at, state: &state, events: &events)
+            let gone = replaceOfficial(at, state: &state, events: &events)
             events.append(.officialDistracted(seat: seat, card: gone.descriptor))
-            assignCrew(state: &state, events: &events)
         case .ball:
             setBall(nil, by: seat, state: &state, events: &events)
             events.append(.ballChanged(card: nil))
@@ -630,14 +631,21 @@ enum Rules {
     }
 
     /// **The official who made the last call, sent off for it.** Behind-the-Back goes
-    /// behind his back; Officially Infamous does it to anybody who blows on him.
+    /// behind his back. The last call's own man — the crew's highest-placed man who had
+    /// called anything that round stood in for him, and was often somebody else.
     private static func retireLastCaller(by seat: Seat, source: CardDescriptor,
                                          state: inout GameState, events: inout [GameEvent]) {
-        guard let at = state.armedWhistles.lastIndex(where: { $0.stayed }) else { return }
-        let gone = sendOff(at, state: &state, events: &events)
-        events.append(.officialDistracted(seat: seat, card: gone.descriptor))
-        assignCrew(state: &state, events: &events)
+        guard let caller = state.lastCaller else { return }
+        retireCaller(caller, by: seat, state: &state, events: &events)
         _ = source
+    }
+
+    /// One named official sent off for his call, if he is still on the floor.
+    private static func retireCaller(_ caller: UUID, by seat: Seat,
+                                     state: inout GameState, events: inout [GameEvent]) {
+        guard let at = state.armedWhistles.firstIndex(where: { $0.id == caller }) else { return }
+        let gone = replaceOfficial(at, state: &state, events: &events)
+        events.append(.officialDistracted(seat: seat, card: gone.descriptor))
     }
 
     /// **Stops to ask what this card is taking off the table**, if it takes anything and
@@ -672,18 +680,17 @@ enum Rules {
     /// Non-standing only — a Clamp, a passive or a ball stays on the table and was never
     /// Retired, so there is nothing to trade. And only the *first* card, or two Moves
     /// played back and forth would fish the same pair out of Retirement all night.
-    private static func rookieSwap(_ spent: CardDescriptor, by seat: Seat,
-                                   state: inout GameState, events: inout [GameEvent]) {
-        guard state.armedWhistles.contains(where: {
-            $0.card.descriptor.whistle?.swapsOnRetire == true
-        }), state.rookieSwapped != seat, spent.isNonStanding else { return }
-        state.rookieSwapped = seat
-        guard state[seat].bag.count < state.handLimit(for: seat),
-              let at = state.discard.lastIndex(where: { $0.name != spent.name })
-        else { return }
-        let taken = state.discard.remove(at: at)
-        state[seat].bag.append(taken)
-        events.append(.drewFromRetirement(seat: seat, card: taken.descriptor))
+    ///
+    /// **Picked, not handed over**: Skyhook's question, owed until the play has settled.
+    /// It used to take the newest card of another name out of Retirement by itself.
+    private static func rookieSwap(_ spent: CardDescriptor, by seat: Seat, first: Bool,
+                                   state: inout GameState) {
+        guard first, spent.isNonStanding,
+              let rookie = state.armedWhistles.first(where: {
+                  $0.card.descriptor.whistle?.swapsOnRetire == true
+              }) else { return }
+        state.owe(.takeFromRetirement(seat: seat, card: rookie.card.descriptor,
+                                      excluding: spent.name))
     }
 
     /// **Splash Ball, if the man going up for three is carrying the cousin.** The passive
@@ -840,9 +847,8 @@ enum Rules {
                     retireLastCaller(by: actor, source: descriptor, state: &state, events: &events)
                     if state.armedWhistles.contains(where: { !$0.stayed }),
                        let at = state.armedWhistles.indices.last {
-                        let gone = sendOff(at, state: &state, events: &events)
+                        let gone = replaceOfficial(at, state: &state, events: &events)
                         events.append(.officialDistracted(seat: actor, card: gone.descriptor))
-                        assignCrew(state: &state, events: &events)
                     }
                 }
                 if let least = descriptor.special?.handDumpOverrideAt, hand.count >= least {
@@ -887,7 +893,7 @@ enum Rules {
         // gets its say — and reads which finish this is, not the last one taken.
         state.shotType = special.shotType ?? .layup
         var downgraded = false
-        if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
+        if let whistle = interceptor(of: .shoot(seat: seat), in: &state, events: &events) {
             downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
             // Foot On The Line takes the point, not the shot.
@@ -1146,6 +1152,8 @@ enum Rules {
                        events: &events)
         }
         let arriving = state.ballEffect
+        // Med Ball: base SHOT comes down under it the moment it is in play.
+        state.shot = min(state.shot, state.baseShotCeiling)
         if arriving.turnoversTravel { state.pileCarrier = state.ball ?? seat }
         if arriving.absorbsIntangibles {
             for other in Seat.allCases where !state[other].intangibles.isEmpty {
@@ -1404,7 +1412,8 @@ enum Rules {
             guard legalMoves(state, for: seat).contains(.play(cardID)) else { return [] }
             // Declared but not yet resolved — a Whistle gets to speak here.
             let declared = state[seat].bag[index]
-            if let whistle = interceptor(of: .playCard(seat: seat, card: declared), in: &state) {
+            if let whistle = interceptor(of: .playCard(seat: seat, card: declared),
+                                         in: &state, events: &events) {
                 // **His one challenge, offered before the call lands.** Only here and on a
                 // shot: those are the two places a player is doing something and a call can
                 // take it away, and the two where stopping to ask costs nothing because
@@ -1458,7 +1467,7 @@ enum Rules {
             // returning on all of them meant this one cancelled a shot its own face says
             // it allows.
             var downgraded = false
-            if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
+            if let whistle = interceptor(of: .shoot(seat: seat), in: &state, events: &events) {
                 if offerChallenge(whistle, on: .shoot(seat: seat), state: &state) {
                     return events
                 }
@@ -1490,7 +1499,7 @@ enum Rules {
                   let offer = state.shotOffer(for: seat) else { return [] }
             let carried = state.nextShotBonus
             state.nextShotBonus = 0
-            if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
+            if let whistle = interceptor(of: .shoot(seat: seat), in: &state, events: &events) {
                 blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
                 return events
             }
@@ -2039,8 +2048,7 @@ enum Rules {
             // Both men lose something in it, and the ball goes back in to somebody else.
             discardAtRandom(from: actor, state: &state)
             discardAtRandom(from: target, state: &state)
-            reinbound(by: actor, state: &state, events: &events)
-            state.inboundBarred = target
+            reinbound(by: actor, barring: target, state: &state, events: &events)
             return events
         }
         if descriptor.targetDiscards > 0 {
@@ -2164,7 +2172,7 @@ enum Rules {
         let special = descriptor.special
         state.pendingShotBonus += (special?.shotPerNamed ?? 0) * state.namedForAssist.count
 
-        if let whistle = interceptor(of: .shoot(seat: shooter), in: &state) {
+        if let whistle = interceptor(of: .shoot(seat: shooter), in: &state, events: &events) {
             blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
             state.namedForAssist = []
             return events
@@ -2355,7 +2363,7 @@ enum Rules {
             settleHands(state: &state, events: &events)
             return events
         }
-        if let whistle = interceptor(of: .shoot(seat: seat), in: &state) {
+        if let whistle = interceptor(of: .shoot(seat: seat), in: &state, events: &events) {
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
             adjustShot(by: -bought, state: &state)
             return events
@@ -2674,8 +2682,8 @@ enum Rules {
     /// **Takes the state to write to**, because some calls are a coin toss and a toss has
     /// to be rolled somewhere. Matching stays a pure read; the roll happens once, here,
     /// when a referee has otherwise decided to speak.
-    private static func interceptor(of action: PendingAction,
-                                    in state: inout GameState) -> ArmedWhistle? {
+    private static func interceptor(of action: PendingAction, in state: inout GameState,
+                                    events: inout [GameEvent]) -> ArmedWhistle? {
         guard !state.whistlesSilenced else { return nil }
         // **Fadeaway Three and Full-Court Heave are taken from too far out to argue with.**
         // Nobody is close enough to have a view, so nothing the crew is watching for
@@ -2691,7 +2699,8 @@ enum Rules {
         guard let speaking = state.armedWhistles.first(where: {
             !reading.callsAnswered.contains($0.id) && passes($0, action, in: reading)
         }) else { return nil }
-        return tossed(speaking, state: &state) ? speaking : nil
+        return tossed(speaking, against: action.actor, state: &state, events: &events)
+            ? speaking : nil
     }
 
     /// **Whether this official has anything to say about this play.**
@@ -2750,9 +2759,16 @@ enum Rules {
     /// of play, which as a certainty is a cancelled card in nearly every round they work —
     /// so they are a chance of one instead. Rolled where the call is made, not where it is
     /// matched, because matching has to stay a pure read.
-    private static func tossed(_ whistle: ArmedWhistle, state: inout GameState) -> Bool {
+    ///
+    /// **Thrown where everyone can see it.** Heads was silent, so a Move went straight
+    /// through a Traffic Cop and nobody could tell he had looked at it.
+    private static func tossed(_ whistle: ArmedWhistle, against seat: Seat,
+                               state: inout GameState, events: inout [GameEvent]) -> Bool {
         guard whistle.card.descriptor.whistle?.coinFlip == true else { return true }
-        return state.roll(1...2) == 1
+        let calls = state.roll(1...2) == 1
+        events.append(.refereeToss(seat: seat, card: whistle.card.descriptor, heads: !calls,
+                                   caller: whistle.id))
+        return calls
     }
 
     /// A Whistle waiting on the draw itself, if one is set.
@@ -2768,18 +2784,18 @@ enum Rules {
     /// the rest of the chain away — see `WhistleEffect.endsPossession`.
     private static func blowOnDraw(_ whistle: ArmedWhistle, against seat: Seat,
                                    state: inout GameState, events: inout [GameEvent]) {
-        spendWhistle(whistle.id, state: &state, events: &events)
         // Nobody chose this. See `possessionWasInterrupted` — Give-and-Go asks.
         state.possessionWasInterrupted = true
         // Nothing was cancelled — the card reached the hand and stays there. What is
         // called is the draw itself, so that is what the log says.
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                    cancelled: "the draw", cancelledCard: nil,
-                                   against: seat))
+                                   against: seat, caller: whistle.id))
+        spendWhistle(whistle.id, state: &state, events: &events)
         stoppage(state: &state, events: &events)
         guard whistle.card.descriptor.whistle?.endsPossession == true else { return }
         state.chainBroken = true
-        reinbound(by: seat, state: &state, events: &events)
+        reinbound(by: seat, official: whistle.id, state: &state, events: &events)
     }
 
     /// **The travel call.**
@@ -2831,13 +2847,18 @@ enum Rules {
         // The play has landed; whatever was kept quiet for it is free again.
         state.callsAnswered = []
         let descriptor = card.descriptor
+        // Read before this card is counted — see `rookieSwap`.
+        let firstOfPossession = isFirstAction(state)
         // **The Retiring Official.** A defender put out in front of him is waved off
         // before it lands and the man who played it draws instead — which is why
         // players are glad to see him.
-        if descriptor.clamp != nil, state.armedWhistles.contains(where: {
+        if descriptor.clamp != nil, let official = state.armedWhistles.first(where: {
             $0.card.descriptor.whistle?.clampsDrawInstead == true
         }) {
             state.discard.append(card)
+            events.append(.clampWavedOff(seat: seat, clamp: descriptor,
+                                         official: official.card.descriptor,
+                                         caller: official.id))
             events.append(.discarded(seat: seat, cards: [descriptor]))
             drawTogether([seat], count: 1, state: &state, events: &events)
             settleHands(state: &state, events: &events)
@@ -2905,7 +2926,7 @@ enum Rules {
         if descriptor.blocksFurtherMoves { state.movesClosed = true }
         if descriptor.nextShotBonus != 0 { state.nextShotBonus = descriptor.nextShotBonus }
         if descriptor.threeWithFewerCards > 0 { state.threeDiscount = descriptor.threeWithFewerCards }
-        rookieSwap(descriptor, by: seat, state: &state, events: &events)
+        rookieSwap(descriptor, by: seat, first: firstOfPossession, state: &state)
 
         // Read before the card is played, because playing it may spend the tick it
         // is being priced against.
@@ -3388,10 +3409,9 @@ enum Rules {
         // **Spent, and the official with it.** One a game whether it helps or not.
         state[seat].challenged = true
         if let at = state.armedWhistles.firstIndex(where: { $0.id == whistle.id }) {
-            sendOff(at, state: &state, events: &events)
+            replaceOfficial(at, state: &state, events: &events)
         }
         events.append(.challenged(seat: seat, card: whistle.card.descriptor))
-        assignCrew(state: &state, events: &events)
         // **The call never happened**, so what he was doing happens. That is the whole of
         // what a challenge is worth: not the official going off, but the play going on.
         resume(pending.action, state: &state, events: &events)
@@ -3454,14 +3474,6 @@ enum Rules {
         let calls = (state.whistleCallsThisRound[whistle.card.descriptor.id] ?? 0) + 1
         state.whistleCallsThisRound[whistle.card.descriptor.id] = calls
 
-        // Most Whistles are spent by being called. Delay-of-Game stays on the floor for
-        // its first call — the warning — and is spent by the second, which is the foul.
-        // Without the second half it fouls at every possession for the rest of the round.
-        // Called, so it is public now — and only now does it reach the pile.
-        if !effect.staysArmed || calls > 1 {
-            spendWhistle(whistle.id, state: &state, events: &events)
-        }
-
         var cancelled = "the play"
         var cancelledCard: CardDescriptor?
         if case .playCard(let seat, let card) = action {
@@ -3482,12 +3494,20 @@ enum Rules {
         events.append(.whistleBlew(owner: whistle.owner, card: whistle.card.descriptor,
                                    cancelled: cancelled, cancelledCard: cancelledCard,
                                    against: action.actor, caller: whistle.id))
+        // Most Whistles are spent by being called. Delay-of-Game stays on the floor for
+        // its first call — the warning — and is spent by the second, which is the foul.
+        // Without the second half it fouls at every possession for the rest of the round.
+        // **After the call is written down**, so a Crew Chief's replacement comes out
+        // after the call that sent the man off, in the log as on the floor.
+        if !effect.staysArmed || calls > 1 {
+            spendWhistle(whistle.id, state: &state, events: &events)
+        }
         stoppage(state: &state, events: &events)
 
         // **Officially Infamous: the call stands and the official does not.** He blows it,
         // it lands, and then he is gone — which is why the card is worth carrying against
         // a crew you cannot play around.
-        defer { infamy(against: action.actor, state: &state, events: &events) }
+        defer { infamy(caller: whistle.id, against: action.actor, state: &state, events: &events) }
 
         if effect.recoversTimeout, let owner = whistle.owner,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
@@ -3649,7 +3669,14 @@ enum Rules {
 
     /// Hands the ball back in without advancing the round. Shot Clock Violation and
     /// Double Dribble both work this way, and so does any turnover a Whistle causes.
-    private static func reinbound(by seat: Seat, state: inout GameState, events: inout [GameEvent]) {
+    ///
+    /// **A referee always puts it back in** — the one who made the call, if one did and
+    /// he is still working, or else whoever leads the crew — to anybody but the man it
+    /// went dead on, and anybody `barring` names. Only a match with no crew out has the
+    /// man throw it in himself.
+    private static func reinbound(by seat: Seat, barring: Seat? = nil,
+                                  official caller: UUID? = nil,
+                                  state: inout GameState, events: inout [GameEvent]) {
         // **SHOT and the clock are the round's, not the throw-in's.** A Whistle that sends
         // the ball back in has not ended anything — the round holds, and so does what the
         // ball is worth and how long is left on it. Only `beginRound` starts either over.
@@ -3685,8 +3712,17 @@ enum Rules {
             state.shotClock = clock - 1
             events.append(.shotClockTicked(clock - 1))
         }
-        state.phase = .inbound(inbounder: seat)
         events.append(.reinbound(seat: seat))
+        let working = caller.flatMap { id in
+            state.armedWhistles.contains { $0.id == id } ? id : nil
+        }
+        guard let official = working ?? state.armedWhistles.first?.id else {
+            state.phase = .inbound(inbounder: seat)
+            state.inboundBarred = barring
+            return
+        }
+        let to = state.pick(from: Seat.allCases.filter { $0 != seat && $0 != barring })
+        state.phase = .refereeInbound(official: official, to: to)
     }
 
     // MARK: - Flow
@@ -3705,6 +3741,7 @@ enum Rules {
         // **The Ref deck is shuffled every round**, retired officials and all.
         state.officials = state.shuffled(state.officials)
         assignCrew(state: &state, events: &events)
+        state.crewAnchor = state.armedWhistles.first?.id
         events.append(.roundBegan(round: state.round, inbounder: state.inbounder))
         // **A referee inbounds it.** The round opens on the officials rather than on
         // whoever happened to hold it last. With no crew out — a match that fields none —
@@ -3743,12 +3780,7 @@ enum Rules {
     /// caller off — whoever is still working takes it.
     private static func refereeReinbound(caller: UUID, offender: Seat,
                                          state: inout GameState, events: inout [GameEvent]) {
-        reinbound(by: offender, state: &state, events: &events)
-        let official = state.armedWhistles.contains(where: { $0.id == caller })
-            ? caller : state.armedWhistles.first?.id
-        guard let official else { return }
-        let to = state.pick(from: Seat.allCases.filter { $0 != offender })
-        state.phase = .refereeInbound(official: official, to: to)
+        reinbound(by: offender, official: caller, state: &state, events: &events)
     }
 
     /// **The three officials working this round**, turned face-up off the officials deck.
@@ -4193,7 +4225,7 @@ enum Rules {
     }
 
     private static func adjustShot(by delta: Int, state: inout GameState) {
-        state.shot = max(state.rules.shotFloor, min(state.rules.shotCeiling, state.shot + delta))
+        state.shot = max(state.rules.shotFloor, min(state.baseShotCeiling, state.shot + delta))
     }
 
     private static func resolve(_ target: PassTarget, from seat: Seat, state: GameState) -> Seat? {
@@ -4356,7 +4388,6 @@ enum Rules {
         state.armedWhistles = []
         state.clockTicksOwed = 0
         state.threeDiscount = 0
-        state.rookieSwapped = nil
         state.passesThisRound = 0
         state.ignoredClamps = []
         state.sellingOut = false
@@ -4572,7 +4603,7 @@ enum Rules {
         }
         // A step that has just asked a question leaves the floor to it.
         switch state.phase {
-        case .awaitingGiveUp, .awaitingRebound: return
+        case .awaitingGiveUp, .awaitingRebound, .awaitingRetiredPick: return
         default: break
         }
         // Outlet Pass: the man who threw it may put the clock back to the top as his next
@@ -4635,7 +4666,8 @@ enum Rules {
         // **Both need a possession to happen from.** A chain that ended on a question —
         // a toll, a give-up, a card asked for, a full board — has none yet, and finding
         // that and throwing the step away is exactly the bug this exists to stop.
-        case .returnBall, .shootAtOnce, .tax, .intangibleBoards, .takeFromReceiver:
+        case .returnBall, .shootAtOnce, .tax, .intangibleBoards, .takeFromReceiver,
+             .takeFromRetirement:
             if case .possession = state.phase { return true }
             return false
         // **Not the settle's to pay.** A Break waits for the draw that turned it up to
@@ -4691,7 +4723,7 @@ enum Rules {
                 state.pendingBonusPoint = 0
                 return
             }
-            if let whistle = interceptor(of: .shoot(seat: shooter), in: &state) {
+            if let whistle = interceptor(of: .shoot(seat: shooter), in: &state, events: &events) {
                 blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
             } else {
                 resolveShot(by: shooter, bonusPoints: 0, state: &state, events: &events)
@@ -4722,6 +4754,16 @@ enum Rules {
             state.phase = .awaitingCardFrom(seat: asker(instead: passer, in: state),
                                             card: card, victim: receiver)
             forceAtRandom(card, from: receiver, state: &state, events: &events)
+
+        // Rookie Official: anything in Retirement but the card that earned it, while the
+        // Bag has room.
+        case .takeFromRetirement(let seat, let card, let excluding):
+            guard state[seat].bag.count < state.handLimit(for: seat) else { return }
+            let choices = state.discard.filter { $0.descriptor.name != excluding }.map(\.id)
+            guard !choices.isEmpty else { return }
+            state.pendingPlay = nil
+            state.pendingActor = seat
+            state.phase = .awaitingRetiredPick(seat: seat, card: card, choices: choices)
 
         // Monster Ball's Intangibles go up, one board at a time, from the man with the ball.
         case .intangibleBoards:
@@ -5233,22 +5275,44 @@ enum Rules {
                                      events: inout [GameEvent]) {
         guard let at = state.armedWhistles.firstIndex(where: { $0.id == id }) else { return }
         state.armedWhistles[at].stayed = true
+        state.lastCaller = id
         // **Crew Chief: a call spends the man who made it.** He retires where he stands and
         // a replacement comes out, so the stage churns as it is used — and while he is
         // working, every other official is back to one call apiece.
         guard state.armedWhistles.contains(where: {
             $0.card.descriptor.whistle?.retiresCaller == true
         }) else { return }
-        sendOff(at, state: &state, events: &events)
+        replaceOfficial(at, state: &state, events: &events)
+    }
+
+    /// **One official off, and a new one out onto his post.** The newcomer takes the
+    /// leaving man's place in the crew rather than the end of it — the crew's posts are
+    /// laid out in that order, so appending him walked everybody after the gap onto
+    /// somebody else's post, and it looked as though the wrong man had gone.
+    @discardableResult
+    private static func replaceOfficial(_ at: Int, state: inout GameState,
+                                        events: inout [GameEvent]) -> Card {
+        let gone = sendOff(at, state: &state, events: &events)
+        if !state.officials.isEmpty {
+            let card = state.officials.removeLast()
+            state.armedWhistles.insert(ArmedWhistle(owner: nil, card: card), at: at)
+            events.append(.crewAssigned(cards: [card.descriptor]))
+        }
+        // Anything still short — a crew that was never full — fills in behind.
+        assignCrew(state: &state, events: &events)
+        return gone
     }
 
     /// **Officially Infamous: a call against him sends the official off with it.** Read
     /// after the call has landed, so the whistle still does what it came to do — he just
     /// does not get to do it twice.
-    private static func infamy(against seat: Seat?, state: inout GameState,
+    ///
+    /// **The man who made this call**, and only a call on the card's holder. It sent off
+    /// whoever had last called anything, so a call on somebody else cost an official too.
+    private static func infamy(caller: UUID, against seat: Seat?, state: inout GameState,
                                events: inout [GameEvent]) {
         guard let seat, has(seat, in: state, { $0.retiresCallerAgainstYou }) else { return }
-        retireLastCaller(by: seat, source: CardLibrary.dirtyPlayer, state: &state, events: &events)
+        retireCaller(caller, by: seat, state: &state, events: &events)
     }
 
     /// A Whistle waiting on a passive landing, if one is set. Its own reader for the same
@@ -5382,7 +5446,7 @@ enum Rules {
            descriptor.passTarget == nil, descriptor.special == nil,
            descriptor.clamp == nil, descriptor.whistle == nil, descriptor.gameBreak == nil {
             if delta < 0 && state.shot <= state.rules.shotFloor { return true }
-            if delta > 0 && state.shot >= state.rules.shotCeiling { return true }
+            if delta > 0 && state.shot >= state.baseShotCeiling { return true }
         }
 
         return false

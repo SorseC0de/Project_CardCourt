@@ -103,14 +103,17 @@ struct StatusHUDView: View {
     /// tapped the one you wanted to read.
     var onInspectReferee: (CardDescriptor, CGPoint) -> Void = { _, _ in }
     /// **Spread across the screen** — the main HUD: SHOT and the deck count in the
-    /// middle, the crew and the officials deck to the right of them. Off, it is the one
-    /// row it always was, which is how the rebound scene wears it.
+    /// middle, the crew and the two decks to the right of them. Off, it is the one row it
+    /// always was.
     var spread = false
 
     /// Which way the count is arranged against the deck. A setting, so it is kept.
     @AppStorage(DeckReadout.setting) private var layout = DeckReadout.beside
 
     private var readout: DeckReadout.Metrics { layout.metrics }
+
+    /// Never over the ceiling — Med Ball's 50 included, whatever the holder carries.
+    private var shownShot: Int { min(shot ?? state.shot, state.baseShotCeiling) }
 
     /// Each icon gets its own multiplier. The art is trimmed to its own subject rather
     /// than squared off, so two SVGs at the same width do not read at the same size.
@@ -122,16 +125,13 @@ struct StatusHUDView: View {
         if spread { spreadOut } else { row }
     }
 
-    /// **SHOT dead centre, the crew to the right of it.** The deck under SHOT and the
-    /// officials deck under the crew, each the same drawing.
+    /// **SHOT dead centre, the crew to the right of it**, and under the crew the two decks
+    /// side by side — the main one and the officials', each the same drawing.
     private var spreadOut: some View {
         ZStack(alignment: .top) {
-            VStack(spacing: ballSize * 0.10) {
-                ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize,
-                              hidden: !state.canReadShot(GameRules.localSeat))
-                    .tutorialTarget(.shotHUD)
-                remaining
-            }
+            ShotBadgeView(shot: shownShot, ballSize: ballSize,
+                          hidden: !state.canReadShot(GameRules.localSeat))
+                .tutorialTarget(.shotHUD)
             HStack(alignment: .top) {
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: ballSize * 0.10) {
@@ -141,7 +141,10 @@ struct StatusHUDView: View {
                         if state.whistlesSilenced { silenced }
                         if !state.armedWhistles.isEmpty { crew }
                     }
-                    officialsRemaining
+                    HStack(alignment: .center, spacing: ballSize * Deck.pair) {
+                        remaining
+                        officialsRemaining
+                    }
                 }
             }
         }
@@ -159,6 +162,7 @@ struct StatusHUDView: View {
     private var officialsRemaining: some View {
         DeckGlyph(cell: readout.cell, deck: .officials, side: readout.side)
             .rotationEffect(.degrees(readout.rotation))
+            .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
                 Text("\(state.officials.count)")
                     .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
@@ -180,7 +184,7 @@ struct StatusHUDView: View {
                 if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
                 if state.whistlesSilenced { silenced }
                 if !state.armedWhistles.isEmpty { crew }
-                ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize,
+                ShotBadgeView(shot: shownShot, ballSize: ballSize,
                               hidden: !state.canReadShot(GameRules.localSeat))
                     .tutorialTarget(.shotHUD)
             }
@@ -205,6 +209,7 @@ struct StatusHUDView: View {
             // Before the overlay, so the deck turns and the count does not. The frame is
             // square, so a right angle costs no layout.
             .rotationEffect(.degrees(readout.rotation))
+            .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
                 Text("\(deck ?? state.deck.count)")
                     .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
@@ -220,6 +225,11 @@ struct StatusHUDView: View {
 
     private enum Deck {
         static let drop: CGFloat = 3
+        /// **The turned deck, drawn up and left of its count** by this much: turned, the
+        /// sheet sat low and to the right of the number it carries.
+        static let tilt: CGFloat = 4
+        /// The room between the two decks, as a share of the ball.
+        static let pair: CGFloat = 0.30
     }
 
     /// **Off the Backboard, still owed.** The card itself, shrunk to a mark, held in the
@@ -247,7 +257,7 @@ struct StatusHUDView: View {
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 
-    /// Cards this player is owed on their next make — All-Swissh Selection.
+    /// Cards this player is owed on their next make — All-Swish Selection.
     private var owed: Int { state[GameRules.localSeat].drawsOwedOnMake }
 
     /// What is waiting on a make. It says a number because the number is the whole of it.
@@ -276,25 +286,29 @@ struct StatusHUDView: View {
     /// be read.
     private var crew: some View {
         HStack(spacing: refereeSide * Crew.gap) {
-            ForEach(state.armedWhistles) { whistle in
-                CardFrontView(descriptor: whistle.card.descriptor,
-                              displayWidth: Self.crewCardWidth(ballSize: ballSize),
-                              isDormant: whistle.stayed)
-                    // Its own tap, reporting where it sits so the card rises from there.
-                    .overlay {
-                        GeometryReader { geo in
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    let at = geo.frame(in: .global)
-                                    onInspectReferee(whistle.card.descriptor,
-                                                     CGPoint(x: at.midX, y: at.midY))
-                                }
+            // Outside the cards' drop, which would fall under the word too.
+            FloorName(text: "Refs:")
+            HStack(spacing: refereeSide * Crew.gap) {
+                ForEach(state.armedWhistles) { whistle in
+                    CardFrontView(descriptor: whistle.card.descriptor,
+                                  displayWidth: Self.crewCardWidth(ballSize: ballSize),
+                                  isDormant: whistle.stayed)
+                        // Its own tap, reporting where it sits so the card rises from there.
+                        .overlay {
+                            GeometryReader { geo in
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        let at = geo.frame(in: .global)
+                                        onInspectReferee(whistle.card.descriptor,
+                                                         CGPoint(x: at.midX, y: at.midY))
+                                    }
+                            }
                         }
-                    }
+                }
             }
+            .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
         }
-        .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 

@@ -61,7 +61,7 @@ struct FrontBenchView: View {
                 // drawing, shown the way the end of a match shows them — see `BoneAward`.
                 // Tap to watch one land again.
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Swisshbones").font(.system(size: 15, weight: .heavy))
+                    Text("Swishbones").font(.system(size: 15, weight: .heavy))
                     ForEach(Bone.allCases) { bone in
                         HStack(spacing: 12) {
                             BoneAward(bone: bone, amount: 12, side: 44,

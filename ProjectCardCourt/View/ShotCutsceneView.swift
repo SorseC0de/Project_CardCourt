@@ -20,11 +20,15 @@ struct ShotCutsceneView: View {
 
     private var distance: CGFloat { scene.isThree ? Distance.three : Distance.jumper }
 
+    /// **The ball at the ring is the ring's size.** Tuned on a jumper, and smaller again
+    /// by as much as the basket is when it stands back for a three.
+    private var ballEndScale: CGFloat { tuning.ballEndScale * distance / Distance.jumper }
+
     /// Everything that stands off with the basket is scaled about the ring itself, so the
     /// ball's target never moves and only the size of what it is aimed at changes.
     private var rimAnchor: UnitPoint { UnitPoint(x: tuning.rimX, y: tuning.rimY) }
 
-    /// The dark the painted court fades into at its own horizon, off `SwisshCourt`. The
+    /// The dark the painted court fades into at its own horizon, off `SwishCourt`. The
     /// scene stands on this rather than on black, or the floor's top edge draws a seam
     /// against the ground once it is stood back for a three.
     private enum Court {
@@ -218,7 +222,7 @@ struct ShotCutsceneView: View {
                     // Wider than the stage and left unclipped, so a wide phone still has floor
                     // to its edges without the stage itself growing.
                     // TODO: more set dressing is coming for this floor, laid over it in code.
-                    Image("SwisshCourt")
+                    Image("SwishCourt")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .drawingGroup()
@@ -280,7 +284,7 @@ struct ShotCutsceneView: View {
                                 if scene.signature == .understood {
                                     understood
                                 } else {
-                                    SwisshTitle(line: scene.line)
+                                    SwishTitle(line: scene.line)
                                 }
                             }
                         } else if scene.drama == .robbery {
@@ -289,12 +293,12 @@ struct ShotCutsceneView: View {
                             // stacked, the two are unreadable.
                             ZStack {
                                 if showResult {
-                                    SwisshTitle()
+                                    SwishTitle()
                                         .opacity(siiike ? 0 : 1)
                                         .animation(.easeOut(duration: 0.15), value: siiike)
                                 }
                                 if siiike {
-                                    SwisshTitle(text: "Siiike!!!", top: Theme.ball,
+                                    SwishTitle(text: "Siiike!!!", top: Theme.ball,
                                                 bottom: Theme.danger, glow: Theme.danger)
                                 }
                             }
@@ -450,7 +454,7 @@ struct ShotCutsceneView: View {
                     .zIndex(dunkBehind ? Depth.climbing : Depth.shooter)
 
                     PixelBallView(scale: ballStartScale
-                                  + (tuning.ballEndScale - ballStartScale) * min(flight, 1))
+                                  + (ballEndScale - ballStartScale) * min(flight, 1))
                         .opacity(scene.dunk == nil && released && !ballGone ? 1 : 0)
                         .animation(released ? .easeOut(duration: 0.25) : nil, value: ballGone)
                         // Spin the ball itself, then place it, then move it. Rotating after
@@ -477,7 +481,7 @@ struct ShotCutsceneView: View {
                     // that sails past or falls short never lets go of it, and there is
                     // nothing here to draw.
                     if scene.dunk != nil, dunkBallOut, dunkBallShows {
-                        PixelBallView(scale: tuning.ballEndScale)
+                        PixelBallView(scale: ballEndScale)
                             .position(rimPoint(in: stage))
                             // A ball kept by the iron rattles it or kicks off the back of it
                             // before it drops — see `ShotDrama.offTheIron`.

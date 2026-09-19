@@ -95,7 +95,7 @@ struct FreeThrowView: View {
                 // The painted floor, standing on the bottom of the scene. Its own
                 // background fades up into near black, so it meets the dark above it
                 // without a seam — no mask needed.
-                Image("SwisshCourt")
+                Image("SwishCourt")
                     .resizable()
                     // Fills the scene: this is the backdrop the whole thing stands in,
                     // not a strip of floor along the bottom. Cropped at the sides rather

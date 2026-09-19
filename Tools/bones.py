@@ -1,7 +1,7 @@
 import pathlib, re, sys, json
 
 root = pathlib.Path(sys.argv[1])
-source = root / "_Graphic Assets/Vectors/Swisshbone.svg"
+source = root / "_Graphic Assets/Vectors/Swishbone.svg"
 assets = root / "ProjectCardCourt/Assets.xcassets"
 
 # Zuphy32, in the order CardCourt_Palette.png lists it — read off the file rather than
@@ -33,10 +33,10 @@ def sourceColours(art):
 # A variant is four palette indices, light to dark. Anything else would be a colour the
 # rest of the game cannot use.
 RAMPS = {
-    "Swisshbone":        [15, 14, 13, 12],
-    "SwisshboneGold":    [6, 26, 4, 1],
-    "SwisshboneCopper":  [6, 5, 4, 1],
-    "SwisshboneCrystal": [16, 17, 18, 22],
+    "Swishbone":        [15, 14, 13, 12],
+    "SwishboneGold":    [6, 26, 4, 1],
+    "SwishboneCopper":  [6, 5, 4, 1],
+    "SwishboneCrystal": [16, 17, 18, 22],
 }
 
 art = source.read_text()

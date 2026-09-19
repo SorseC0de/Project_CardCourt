@@ -76,11 +76,6 @@ enum Perspective {
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.
     static let refereeLateral: CGFloat = 0.75
-    /// **Where the two wing posts stand**: halfway up to where the old far posts were,
-    /// fixed here rather than worked from the players' depths — the players moved up
-    /// (2026-09-19) and the crew, already placed by eye, stayed where it was.
-    static let refereeWingDepth: CGFloat = 0.11
-
     /// **The line the near pair's step is measured from**: where South stood when their
     /// `RefereeTuning.nearStep` was set, so moving South does not move them.
     static let refereeNearLine: CGFloat = 0.52
@@ -131,7 +126,7 @@ enum RefereePost: CaseIterable {
         // The pair beside South, a step nearer the camera than he stands — see
         // `RefereeTuning.nearStep`.
         isSouth ? Perspective.refereeNearLine + RefereeTuning.shared.nearStep
-                : Perspective.refereeWingDepth
+                : RefereeTuning.shared.farDepth
     }
 
     /// Which side of the floor, and how far out. The south pair are placed against the
@@ -277,10 +272,11 @@ struct CourtGeometry {
         return CGPoint(x: centreX + side * out, y: y(at: depth))
     }
 
-    /// How big a referee is drawn: his depth's scale, and the near pair's own size on top.
+    /// How big a referee is drawn: his depth's scale, and each pair's own size on top.
     @MainActor
     func scale(of post: RefereePost) -> CGFloat {
-        scale(at: post.depth) * (post.isSouth ? RefereeTuning.shared.nearScale : 1)
+        scale(at: post.depth) * (post.isSouth ? RefereeTuning.shared.nearScale
+                                              : RefereeTuning.shared.farScale)
     }
 
     func scale(of seat: Seat, inbounding thrower: Seat? = nil) -> CGFloat {

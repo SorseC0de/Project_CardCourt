@@ -131,7 +131,7 @@ struct ActionText: View {
     }
 
     /// Publishes where a character landed, for anything that has to sit on one — see
-    /// `SwisshWordmark`, which puts a ball on the dot of the i. Nothing at all unless it
+    /// `SwishWordmark`, which puts a ball on the dot of the i. Nothing at all unless it
     /// was asked for; see `reports`.
     @ViewBuilder private func reporter(_ index: Int) -> some View {
         if reports {

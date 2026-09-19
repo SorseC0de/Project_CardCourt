@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Recolours the Swisshbone from its own four fills.
+# Recolours the Swishbone from its own four fills.
 #
 # The drawing is four flat colours — palette 15, 14, 13, 12, light to dark — so a variant
 # is four hex values rather than a second drawing. Add a ramp below and run this; it

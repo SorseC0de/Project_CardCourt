@@ -1829,6 +1829,7 @@ func runTests() {
     retirementTests()
     aimTests()
     randomnessTests()
+    crewTests()
     slotTestsTwo()
     alleyOopTests()
 

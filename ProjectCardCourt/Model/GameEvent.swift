@@ -37,6 +37,13 @@ enum GameEvent: Hashable, Codable {
     /// **An official sent off by a card** rather than by a call — the ball got his
     /// attention, and somebody else comes out to take his place.
     case officialDistracted(seat: Seat, card: CardDescriptor)
+    /// **The Retiring Official waving a Clamp off** before it lands; the man who played it
+    /// draws instead. Not a call, but an official acting, so it is shown as one.
+    case clampWavedOff(seat: Seat, clamp: CardDescriptor, official: CardDescriptor,
+                       caller: UUID)
+    /// **An official's coin toss** on whether he calls it — Traffic Cop, Back Court
+    /// Violation. Heads, play on.
+    case refereeToss(seat: Seat, card: CardDescriptor, heads: Bool, caller: UUID)
     /// **A defender beaten.** The Clear printed on his card was met, so he is Retired.
     case clampBeaten(seat: Seat, card: CardDescriptor)
     /// A defender who simply ran out of somebody to guard.
@@ -202,8 +209,8 @@ enum GameEvent: Hashable, Codable {
             return "\(count) whistle\(count == 1 ? "" : "s") back in the deck."
         case .whistleRefocused:
             return "The referees seem to have shifted their focus…"
-        case .reinbound(let seat):
-            return "\(seat.playerName) \(seat.verb("takes", "take")) it back in. The round carries on."
+        case .reinbound:
+            return "The ball goes back in. The round carries on."
         case .clampSet(let seat, let card):
             return "\(seat.playerName) \(seat.verb("clamps", "clamp")) down — \(card.name)."
         case .clampBit(let seat, let card, let discarded):
@@ -215,6 +222,12 @@ enum GameEvent: Hashable, Codable {
         case .challenged(let seat, let card):
             return "\(seat.playerName) \(seat.verb("challenges", "challenge")) — "
                 + "\(card.name) is thrown out."
+        case .clampWavedOff(let seat, let clamp, let official, _):
+            return "\(official.name) waves off \(seat.playerName)'s \(clamp.name) — "
+                + "\(seat.verb("draws", "draw")) 1 instead."
+        case .refereeToss(let seat, let card, let heads, _):
+            return "\(card.name) tosses a coin on \(seat.playerName): "
+                + (heads ? "Heads, play on." : "Tails.")
         case .officialDistracted(let seat, let card):
             return "\(seat.playerName) \(seat.verb("waves", "wave")) \(card.name) off."
         case .refereeInbounded(let seat):

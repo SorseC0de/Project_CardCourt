@@ -47,7 +47,7 @@ What I did instead, in order of how much it is worth to you:
 
 `GameController` now typechecks against `Model/`, `GameRules`, `AIPolicy` and `Net/`
 alone. It names nothing in the view layer. Nine types moved to `Model/` (`ShotDrama`,
-`SwisshLine`, `OpeningDeal`, the `Sprite` frame table, `TravelBit`, `DeckRoutine`,
+`SwishLine`, `OpeningDeal`, the `Sprite` frame table, `TravelBit`, `DeckRoutine`,
 `ActionCall`, `PassTiming`, `ReboundTiming`); two seams were closed properly rather than
 moved (`reseatEveryone` is on `MatchTransport` with a default no-op instead of a downcast
 that made the loopback silently do nothing; the crew seed and the local player's look moved

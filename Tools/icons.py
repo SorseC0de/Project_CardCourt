@@ -405,11 +405,13 @@ if "Variaball" in boxes and subject:
 # The ball is the group the subject's ball was copied into, found by its transform, deepest
 # first. Where the group holding it also holds the aura it is named here instead, as the
 # child indices from the root.
-BALL_GROUPS = {"blazeball": (0, 0, 1), "snowball": (0, 0, 0)}
+BALL_GROUPS = {"blazeball": (0, 0, 1), "snowball": (0, 0, 0),
+               # Its crimson panel and highlights sit beside the ball's group, not in it.
+               "medicineball": (0,)}
 # Pieces of the aura drawn inside the ball's own group, taken out by the same indices.
 BALL_DROPPED = {"rechargerock": [(0, 8, 4)], "heroball": [(0, 0, 0, 0)]}
 # Balls with nothing of their own to put in play, and why.
-BALL_SKIPPED = {"brandnewball": "the plain ball, with the Gold Swisshbone's shine",
+BALL_SKIPPED = {"brandnewball": "the plain ball, with the Gold Swishbone's shine",
                 "variaball": "never stays in play"}
 ASSETS = root / "ProjectCardCourt/Assets.xcassets"
 INKS = root / "ProjectCardCourt/Art/BallSpriteInks.swift"

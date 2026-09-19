@@ -778,8 +778,8 @@ enum CardLibrary {
         effect: "#[Draw|2]", numberInDeck: 3,
         gameBreak: GameBreakEffect(draws: 2))
 
-    static let allSwisshSelection = CardDescriptor(
-        id: "all-swissh-selection", name: "All-Swissh Selection", type: .gameBreak,
+    static let allSwishSelection = CardDescriptor(
+        id: "all-swish-selection", name: "All-Swish Selection", type: .gameBreak,
         effect: "#[Draw] 3 after your next make", numberInDeck: 3,
         gameBreak: GameBreakEffect(drawsOnNextMake: 3))
 

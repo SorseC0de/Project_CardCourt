@@ -20,7 +20,7 @@ enum BallInPlay {
         ball.flatMap { BallSizes.share[$0.id] } ?? 1
     }
 
-    /// Brand New Ball is the plain ball, catching the light the way a Gold Swisshbone does.
+    /// Brand New Ball is the plain ball, catching the light the way a Gold Swishbone does.
     static func shines(_ ball: CardDescriptor?) -> Bool {
         ball?.id == CardLibrary.brandNewBall.id
     }

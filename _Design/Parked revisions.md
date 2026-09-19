@@ -38,7 +38,7 @@ Dunk cards are the one exception — those get done when they arrive.
   forward, the ones without stay small and fade out at the top edge. Compared against two
   other arrangements before choosing.
 
-  **And one thing found.** `Rasters/Swissh Card Design_v2.png` is the PNG of the vector,
+  **And one thing found.** `Rasters/Swish Card Design_v2.png` is the PNG of the vector,
   and it is **stale**: it carries the old navy `#1F3665` from before the `#1C3261`
   correction. Re-exported from the current SVG as `Rasters/CardCourt_CardBack.png` at
   507×667 and imported as `CardBackRaster`. Worth re-exporting the old one or deleting it.

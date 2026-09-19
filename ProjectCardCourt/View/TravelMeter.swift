@@ -26,7 +26,7 @@ struct TravelMeter: View {
     static let height: CGFloat = 22
 
     var body: some View {
-        HStack(spacing: Self.height * Dash.gap / Dash.height) {
+        HStack(spacing: Self.height * Dash.spacing) {
             ForEach(0..<Dash.count, id: \.self) { index in
                 pip(index)
             }
@@ -51,19 +51,21 @@ struct TravelMeter: View {
                 RoundedRectangle(cornerRadius: thick * Dash.corner, style: .continuous)
                     .strokeBorder(CardPalette.teal, lineWidth: Dash.stroke)
             }
-            .frame(width: Self.height, height: thick)
+            .frame(width: Self.height * Dash.length, height: thick)
             .offset(y: Self.height * (Dash.shaftCentre - 0.5))
             .opacity(beyond ? Dash.gone : 1)
     }
 
-    /// **Measured off the drawing**, as shares of what is left of it once the two dashes
-    /// are gone — so the pips are the size the dashes were and stand the distance apart
-    /// they stood. See `Tools/icons.py`, which trims the icon to that ink.
+    /// **Thickness measured off the drawing**, as shares of what is left of it once the
+    /// two dashes are gone. See `Tools/icons.py`, which trims the icon to that ink.
     private enum Dash {
         static let count = 3
         static let width: CGFloat = 0.032
         static let height: CGFloat = 0.129
-        static let gap: CGFloat = 0.045
+        /// **Long, and close together**, as shares of the row's height: each dash runs
+        /// on into most of what used to be the gap, and the row keeps its length.
+        static let length: CGFloat = 1.2
+        static let spacing: CGFloat = 0.15
         static let aspect: CGFloat = 705.3375 / 448.5802
         static let corner: CGFloat = 0.3
         /// Where the arrow's shaft runs, as a share of the drawing's height from the top —

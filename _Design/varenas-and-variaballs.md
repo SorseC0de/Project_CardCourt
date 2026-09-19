@@ -106,7 +106,7 @@ Tarmac is the exception**: the player assigns its Clamps.
 | **Contact Court** | Varena | Being clamped sends you to the line for one free throw. The Clamp still lands. The expensive-clamping floor, against Smacktop's cheap one. Retires Foul | 3 |
 | **MVPiquia** | Varena | The highest scorer refills to 5 at the start of their possession. *Piquia* is a real Brazilian hardwood used for heavy flooring, and MVP is literally in the word. Retires MVP Vote | 1 |
 | **Hand Ball** | Variaball | Passing **swaps** hands: yours goes with the ball, theirs comes back. The sprite shrinks to handball size, which is the whole visual. The space is deliberate — it keeps the `[X] Ball` convention while sitting one space from the real sport. Retires Traded Mid-Game | 1 |
-| **Polypaypylene** | Varena | Making a shot pays you 3 cards. *Polypropylene* is the real material in modular sport-court tiles, with *pay* in the middle of it. Retires All-Swissh Selection | 1 |
+| **Polypaypylene** | Varena | Making a shot pays you 3 cards. *Polypropylene* is the real material in modular sport-court tiles, with *pay* in the middle of it. Retires All-Swish Selection | 1 |
 | **Foot Ball** | Variaball | **Moves and Passes are not consumed** — playing one locks it (`#[Lock]`, existing keyword) instead of discarding it, and the lock clears the moment your possession ends. A straight buff to ball movement: passing costs nothing, so you pass. Art is an orange soccer ball with the black hexagons | 1 |
 | **Recharge Rock** | Variaball | Double your draw for turn. The electric ball, twin to Recharging Resin — they sit in different slots, so they stack. Retires All Star Selection | 5 |
 | **Recoverena** | Varena | On play, discard all injuries. Standing, a new injury is discarded instead of applying and that player draws 1. Recover + Varena. Retires Hit the Bike | 3 |
@@ -239,7 +239,7 @@ Settled while building them, 2026-09-14:
 - **Wet Spot** — the effect (fetch an Injury from the deck) had nothing to do with the name.
   The slick-floor concept survives unnamed; *Wet Wood* was killed on sight.
 - **Crowd Noise**, **Foul**, **Benched**, **Traded Mid-Game**, **Designed Play**, **MVP Vote**,
-  **All Star Selection**, **All-Swissh Selection**, **Off the Backboard**, **Off Night**,
+  **All Star Selection**, **All-Swish Selection**, **Off the Backboard**, **Off Night**,
   **Rock Fight**, **Swallowed Whistle**, **2-Minute Warning**, **Mic'd Up**, **Hit the Bike**,
   **Fresh Ball**, **Trade Deadline**, **Official Timeout**,
   **Huge Altercation**, **Home Court Advantage**, **Away Game**, **In The Zone**,

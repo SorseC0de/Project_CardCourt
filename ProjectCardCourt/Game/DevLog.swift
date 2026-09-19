@@ -139,7 +139,7 @@ enum DevLog {
             case .turnover(let seat, _):
                 say(.phase, "turnover on \(seat.dev)")
             case .reinbound(let seat):
-                say(.phase, "\(seat.dev) re-inbounds, round holds")
+                say(.phase, "dead ball on \(seat.dev), round holds")
             case .rebounded(let seat):
                 say(.phase, "\(seat.dev) rebounds")
             case .shotClockTicked(let value):

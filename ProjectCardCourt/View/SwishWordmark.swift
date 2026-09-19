@@ -14,8 +14,8 @@ import SwiftUI
 /// * **Two strokes.** Text has no stroke in SwiftUI, so each is a ring of copies drawn
 ///   behind the fill: a thin white one, and a thick navy one around that. Rasterised
 ///   once, because that is thirty-odd copies of the same word.
-struct SwisshWordmark: View {
-    var text = "Swissh"
+struct SwishWordmark: View {
+    var text = "Swish"
     var size: CGFloat = Mark.size
     var taper: CGFloat = 0.55
     /// All three on the bench — see the preview at the foot of this file.
@@ -107,7 +107,7 @@ struct SwisshWordmark: View {
     /// Where the split actually falls in the *frame*, as against in the letters.
     ///
     /// A line of text is taller than its letters: above the caps there is nothing, and
-    /// below the baseline there is a descender's worth of nothing, and "Swissh" has no
+    /// below the baseline there is a descender's worth of nothing, and "Swish" has no
     /// descenders to put in it. Four-fifths of the frame lands under the ink, which is
     /// why the mark came out white — the blue half was painted on empty space.
     ///
@@ -265,24 +265,63 @@ struct SwisshWordmark: View {
     }
 }
 
+/// **The title: "Project" over "CardCourt"**, the small word laid across the top of the
+/// big one. Both wear the wordmark's treatment, without the arrows or the ball — those
+/// belong to the word they were drawn for.
+struct TitleWordmark: View {
+    /// The big word's size.
+    var size: CGFloat = Title.size
+
+    enum Title {
+        /// Nine letters: the mark's own 100 would run the word off a phone's width.
+        static let size: CGFloat = 80
+        /// The small word against the big one.
+        static let project: CGFloat = 0.4
+        /// How far the small word's baseline comes down past the big one's cap line, as a
+        /// share of the big word's size.
+        static let overlap: CGFloat = 0.1
+    }
+
+    var body: some View {
+        let small = size * Title.project
+        // The face's own empty line over the capitals and under the baseline, so the
+        // overlap is measured letter to letter rather than frame to frame.
+        let face = UIFont(name: Chrome.display, size: 1)
+        let overCaps = (face?.ascender ?? 1) - (face?.capHeight ?? 0.708)
+        let underBaseline = -(face?.descender ?? -0.366)
+        VStack(spacing: -(size * (overCaps + Title.overlap) + small * underBaseline)) {
+            SwishWordmark(text: "Project", size: small, arrows: [], blanked: [])
+                .zIndex(1)
+            SwishWordmark(text: "CardCourt", size: size, arrows: [], blanked: [])
+        }
+    }
+}
+
 #if DEBUG
+#Preview("Title") {
+    ZStack {
+        CardPalette.blue.ignoresSafeArea()
+        TitleWordmark()
+    }
+}
+
 #Preview("Wordmark") {
     struct Bench: View {
-        @State private var size = SwisshWordmark.Mark.size
-        @State private var split = SwisshWordmark.Mark.split
-        @State private var thin = SwisshWordmark.Mark.thin
-        @State private var thick = SwisshWordmark.Mark.thick
-        @State private var ballScale = SwisshWordmark.Mark.ball
-        @State private var ballX = SwisshWordmark.Mark.ballX
-        @State private var ballY = SwisshWordmark.Mark.ballY
-        @State private var arrows = SwisshWordmark.Mark.arrows
-        @State private var arrowThin = SwisshWordmark.Mark.arrowThin
-        @State private var arrowThick = SwisshWordmark.Mark.arrowThick
+        @State private var size = SwishWordmark.Mark.size
+        @State private var split = SwishWordmark.Mark.split
+        @State private var thin = SwishWordmark.Mark.thin
+        @State private var thick = SwishWordmark.Mark.thick
+        @State private var ballScale = SwishWordmark.Mark.ball
+        @State private var ballX = SwishWordmark.Mark.ballX
+        @State private var ballY = SwishWordmark.Mark.ballY
+        @State private var arrows = SwishWordmark.Mark.arrows
+        @State private var arrowThin = SwishWordmark.Mark.arrowThin
+        @State private var arrowThick = SwishWordmark.Mark.arrowThick
 
         var body: some View {
             VStack(spacing: 30) {
                 Spacer()
-                SwisshWordmark(size: size, split: split, thin: thin, thick: thick,
+                SwishWordmark(size: size, split: split, thin: thin, thick: thick,
                                ballScale: ballScale, ballX: ballX, ballY: ballY,
                                arrows: arrows,
                                arrowThin: arrowThin, arrowThick: arrowThick)

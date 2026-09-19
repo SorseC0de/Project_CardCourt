@@ -354,7 +354,7 @@ struct GameBreakEffect: Hashable, Codable {
     var healsInjuries = false
     /// Ice Wrap: what it is worth when there was nothing to heal.
     var drawIfUninjured = 0
-    /// All-Swissh Selection: owed, and paid on the next make rather than now.
+    /// All-Swish Selection: owed, and paid on the next make rather than now.
     var drawsOnNextMake = 0
     /// Rock Fight: nobody shoots from a look this good or better, for the round.
     var blocksShotAtOrAbove: Int?

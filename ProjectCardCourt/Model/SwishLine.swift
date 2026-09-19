@@ -1,13 +1,13 @@
 import Foundation
 
-// Moved out of View/SwisshTitle.swift. What a make is called is a fact about the
-// make; `SwisshTitle` is how it is lettered.
+// Moved out of View/SwishTitle.swift. What a make is called is a fact about the
+// make; `SwishTitle` is how it is lettered.
 
 /// What a made shot says, and what it throws.
 ///
 /// The word itself never changes — it is the game's name. These set it inside a sentence,
 /// with the emoji the hoop throws back chosen to match rather than picked at random.
-struct SwisshLine: Equatable {
+struct SwishLine: Equatable {
     /// When a line is allowed out. nil is any day of the year.
     enum Season: Equatable { case christmas, halloween, thanksgiving }
 
@@ -30,28 +30,28 @@ struct SwisshLine: Equatable {
         self.season = season
     }
 
-    static let plain = SwisshLine()
+    static let plain = SwishLine()
 
-    static let all: [SwisshLine] = [
-        SwisshLine(after: "upon a star!", emoji: ["💫"]),
-        SwisshLine(after: "cheese!", emoji: ["🧀"]),
+    static let all: [SwishLine] = [
+        SwishLine(after: "upon a star!", emoji: ["💫"]),
+        SwishLine(after: "cheese!", emoji: ["🧀"]),
         // No lamp emoji reads as a genie's, so this one takes the genie and the second
         // genie line goes, per the rule set when they were written.
-        SwisshLine(before: "As you", emoji: ["🧞‍♂️"]),
-        SwisshLine(after: "a ninja would!", emoji: ["🥷", "🪵"]),
-        SwisshLine(before: "Going", after: "-ing!", emoji: ["🎣"]),
+        SwishLine(before: "As you", emoji: ["🧞‍♂️"]),
+        SwishLine(after: "a ninja would!", emoji: ["🥷", "🪵"]),
+        SwishLine(before: "Going", after: "-ing!", emoji: ["🎣"]),
 
         // Seasonal, and disarmed until the calendar is wired up. Written now so the
         // catalogue is complete rather than remembered later.
-        SwisshLine(before: "Merry", after: "-mas!",
+        SwishLine(before: "Merry", after: "-mas!",
                    // No gingerbread man exists, so the cookie stands in for it — which
                    // is the one left out for Santa anyway.
                    emoji: ["🎄", "🎅", "🎁", "❄️", "⛄", "🛷", "🍪"],
                    season: .christmas),
-        SwisshLine(after: "or Treat!",
+        SwishLine(after: "or Treat!",
                    emoji: ["🎃", "🐈‍⬛", "🦇", "🕸️", "👻", "🍬"],
                    season: .halloween),
-        SwisshLine(before: "Happy Thanks", after: "-ing!",
+        SwishLine(before: "Happy Thanks", after: "-ing!",
                    emoji: ["🦃", "🍗", "🍁", "🥧", "🌽", "🍠"],
                    season: .thanksgiving),
     ]
@@ -63,7 +63,7 @@ struct SwisshLine: Equatable {
     var isArmed: Bool { season == nil }
 
     /// Most makes are the plain word. A line is a treat, not the default.
-    static func roll() -> SwisshLine {
+    static func roll() -> SwishLine {
         guard Int.random(in: 0..<3) == 0 else { return .plain }
         return all.filter(\.isArmed).randomElement() ?? .plain
     }

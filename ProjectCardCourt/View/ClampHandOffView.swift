@@ -23,7 +23,7 @@ struct ClampHandOffView: View {
                 .onTapGesture(perform: onDone)
 
             VStack(spacing: 16) {
-                SwisshTitle(text: "Hand Off", size: 30)
+                SwishTitle(text: "Hand Off", size: 30)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 14) {
                         ForEach(clamps) { clamp in

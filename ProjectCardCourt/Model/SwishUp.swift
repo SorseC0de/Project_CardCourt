@@ -2,7 +2,7 @@ import Foundation
 
 /// The Zone: a player reaching a gear nobody can follow, for about three possessions.
 ///
-/// Named for the shot, not the buff — a Swissh-Up is what a player pops when the game is
+/// Named for the shot, not the buff — a Swish-Up is what a player pops when the game is
 /// getting away from them. One at a time, popped at will on their own turn, and it burns
 /// whether or not they do anything with it.
 ///
@@ -13,7 +13,7 @@ import Foundation
 ///
 /// Two of them are not buffs at all but single acts: `sixthSense` and `downloaded` happen
 /// once and are gone, so they carry no clock.
-enum SwisshUp: String, CaseIterable, Codable, Hashable, Identifiable {
+enum SwishUp: String, CaseIterable, Codable, Hashable, Identifiable {
     case lockedIn, deadEye, quarterKing, unconscious, vastVision
     case empoweredPace, unguardable, sixthSense, downloaded
 
@@ -52,7 +52,7 @@ enum SwisshUp: String, CaseIterable, Codable, Hashable, Identifiable {
     //
     // Every one of these is a number or a flag the rules can ask for, so the shot maths
     // and the draw both stay one place that reads a buff rather than nine places that
-    // know about Swissh-Ups.
+    // know about Swish-Ups.
 
     /// Added to every attempt.
     var shotBonus: Int { self == .lockedIn ? 10 : 0 }
@@ -83,10 +83,10 @@ enum SwisshUp: String, CaseIterable, Codable, Hashable, Identifiable {
 }
 
 /// One popped, and what is left of it.
-struct ActiveSwisshUp: Hashable, Codable {
-    let kind: SwisshUp
+struct ActiveSwishUp: Hashable, Codable {
+    let kind: SwishUp
     /// Possessions still to come, this one included. Nil while it waits for the next one
-    /// to start — see `SwisshUp.startsNextPossession`.
+    /// to start — see `SwishUp.startsNextPossession`.
     var left: Int
     var waiting: Bool = false
 }

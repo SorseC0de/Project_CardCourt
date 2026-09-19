@@ -5,7 +5,7 @@ enum Theme {
     static let court        = Color(red: 0.72, green: 0.47, blue: 0.26)
     /// Opaque, so it hides the streaks behind it. Matches what the old translucent
     /// floor composited to, rather than quietly brightening the court.
-    /// Sampled from the bottom of Swissh Court, so the drawn floor and the painted one
+    /// Sampled from the bottom of Swish Court, so the drawn floor and the painted one
     /// are the same brown. Its background is a gradient running up from this into near
     /// black, and the corners clamp to the bottom stop — rgb(133, 97, 71).
     static let courtFloor   = Color(red: 133 / 255, green: 97 / 255, blue: 71 / 255)
@@ -101,7 +101,6 @@ enum Theme {
         // engine can read them without importing SwiftUI. Forwarded here so every view
         // that already spells them this way is untouched.
         static var flightSeconds: Double { PassTiming.flight }
-        static var holdSeconds: Double { PassTiming.hold }
         static var catchFPS: Double { PassTiming.catchFPS }
         static var catchSeconds: Double { PassTiming.catchSeconds }
     }

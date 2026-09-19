@@ -5,12 +5,9 @@ import SwiftUI
 struct ReboundCutsceneView: View {
     let shooter: Seat
     let revealedBids: [Seat: Int]?
-    /// The board comes with, because a bid is a decision and SHOT is what it is made on.
+    /// The table, for Monster Ball's board. SHOT is read off the screen's own HUD, over
+    /// the top of this — the scene drew a second one of its own.
     let state: GameState
-    /// What the board should read. The scene is played after the rules have run, so the
-    /// live numbers are already the ones from the other side of it.
-    var shot: Int?
-    var deck: Int?
     /// What the miss was taken at, which is not what the board reads — a shot can be
     /// priced above or below the ball's SHOT by whatever paid for it.
     var chance: Int?
@@ -51,7 +48,7 @@ struct ReboundCutsceneView: View {
             // Their own layer, at their own offset, and nothing below can reach them.
             VStack(spacing: 10) {
                 // The same lettering a made shot gets. This is a moment, not a caption.
-                SwisshTitle(text: prize != nil ? "Monster Ball!"
+                SwishTitle(text: prize != nil ? "Monster Ball!"
                                 : (revealedBids == nil ? "Rebound!" : "Crashing the Glass!"),
                             size: 34)
 
@@ -113,13 +110,6 @@ struct ReboundCutsceneView: View {
                 }
             }
             .offset(y: Self.bidsY)
-        }
-        // The board, larger than the court draws it. A bid is a decision and this is the
-        // only number it is made on, so it belongs in the room.
-        .overlay(alignment: .topTrailing) {
-            StatusHUDView(state: state, shot: shot, deck: deck, ballSize: 74)
-                .padding(.trailing, 20)
-                .padding(.top, 14)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: revealedBids)
         .onAppear {

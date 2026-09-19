@@ -11,17 +11,22 @@ struct FloorAndBallView: View {
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     private enum Layout {
-        static let card: CGFloat = 40
+        /// **The size of one of the crew's cards** in the HUD, so the ball reads as one
+        /// more card in the same set.
+        static var card: CGFloat { StatusHUDView.crewCardWidth() }
         static let gap: CGFloat = 6
         static let note: CGFloat = 10
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: Layout.gap) {
+        HStack(alignment: .center, spacing: Layout.gap) {
             if state.courtCard != nil { slot(state.currentCourt, note: floorNote) }
             if let ball = state.currentBall {
-                slot(ball, note: ballNote)
-                    .transition(.scale.combined(with: .opacity))
+                HStack(alignment: .center, spacing: Layout.gap) {
+                    FloorName(text: "Current Ball:")
+                    slot(ball, note: ballNote)
+                }
+                .transition(.scale.combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.72), value: state.currentCourt.id)

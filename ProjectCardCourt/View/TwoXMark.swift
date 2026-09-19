@@ -10,7 +10,7 @@ struct TwoXMark: View {
 
     /// How far under the baseline the picture sits, as a share of the text size, so it
     /// centres on the letters beside it rather than standing on their feet.
-    static let baselineDrop: CGFloat = 0.2
+    static let baselineDrop: CGFloat = 0.3
 
     private enum Layout {
         static let face = "AvenirNextCondensed-Heavy"

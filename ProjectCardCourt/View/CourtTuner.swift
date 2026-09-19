@@ -95,6 +95,10 @@ final class RefereeTuning {
 
     /// The far pair, up the wings: a share of the floor's half-width at their depth.
     var farSpread: CGFloat = 0.75
+    /// How far up the floor they stand, as floor depth — above North, who is at 0.11.
+    var farDepth: CGFloat = 0.07
+    /// How big they are drawn against what their depth alone would make them.
+    var farScale: CGFloat = 0.85
     /// The near pair beside South: how far in from the screen's edge, in points. Nought
     /// is as far out as they go with the whole of them still on screen; below it they go
     /// part way off it.
@@ -236,8 +240,8 @@ struct DebugActionsView: View {
             if showRefs {
                 HStack(spacing: 4) {
                     action("reset") {
-                        refs.farSpread = 0.75; refs.nearInset = -75
-                        refs.nearStep = 0.15; refs.nearScale = 1
+                        refs.farSpread = 0.75; refs.farDepth = 0.07; refs.farScale = 0.85
+                        refs.nearInset = -75; refs.nearStep = 0.15; refs.nearScale = 1
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
@@ -245,6 +249,14 @@ struct DebugActionsView: View {
                            Binding(get: { Double(refs.farSpread) },
                                    set: { refs.farSpread = CGFloat($0) }),
                            0...1.2)
+                    slider("far y",
+                           Binding(get: { Double(refs.farDepth) },
+                                   set: { refs.farDepth = CGFloat($0) }),
+                           0...0.3)
+                    slider("far size",
+                           Binding(get: { Double(refs.farScale) },
+                                   set: { refs.farScale = CGFloat($0) }),
+                           0.5...1.6)
                     slider("near inset",
                            Binding(get: { Double(refs.nearInset) },
                                    set: { refs.nearInset = CGFloat($0) }),

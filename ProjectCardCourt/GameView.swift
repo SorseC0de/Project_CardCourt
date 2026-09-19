@@ -681,19 +681,28 @@ struct GameView: View {
                 }
                 // The player's own trip is a gate; an opponent's plays itself. Both use the
                 // same scene, so a free throw looks the same from either seat.
-                if case .awaitingFreeThrow(let trip) = controller.gate {
-                    FreeThrowView(trip: trip, auto: nil,
-                                  onResult: { controller.shootFreeThrow(made: $0) },
-                                  referee: controller.refereeOnFloor)
-                        .id(trip.attempted)
-                        .transition(.opacity)
-                        .zIndex(16)
+                //
+                // **One scene for the whole trip.** It fades in and out once; each attempt
+                // inside it is a fresh line, swapped in where the last one stood.
+                if let trip = controller.localLineTrip {
+                    ZStack {
+                        FreeThrowView(trip: trip, auto: nil,
+                                      onResult: { controller.shootFreeThrow(made: $0) },
+                                      referee: controller.refereeOnFloor)
+                            .id(trip.attempted)
+                            .transition(.identity)
+                    }
+                    .transition(.opacity)
+                    .zIndex(16)
                 } else if let shot = controller.aiFreeThrow {
-                    FreeThrowView(trip: shot.trip, auto: shot.made,
-                                  referee: controller.refereeOnFloor)
-                        .id(shot.id)
-                        .transition(.opacity)
-                        .zIndex(16)
+                    ZStack {
+                        FreeThrowView(trip: shot.trip, auto: shot.made,
+                                      referee: controller.refereeOnFloor)
+                            .id(shot.id)
+                            .transition(.identity)
+                    }
+                    .transition(.opacity)
+                    .zIndex(16)
                 }
                 if case .gameOver = controller.gate {
                     finalCard.zIndex(20)
@@ -822,8 +831,7 @@ struct GameView: View {
         if controller.cutscene != nil || controller.turnover != nil || controller.aiFreeThrow != nil {
             return true
         }
-        if case .awaitingFreeThrow = controller.gate { return true }
-        return false
+        return controller.localLineTrip != nil
     }
 
     /// **Everything but the floor, faded back while the camera is on a referee making a
@@ -857,8 +865,7 @@ struct GameView: View {
         AnyView(Group {
             if case .awaitingBid(let shooter) = controller.gate {
                 ReboundCutsceneView(shooter: shooter, revealedBids: controller.revealedBids,
-                                    state: controller.shown, shot: controller.shownShot,
-                                    deck: controller.shownDeck, chance: controller.lastChance)
+                                    state: controller.shown, chance: controller.lastChance)
                     .frame(maxHeight: .infinity)
                     .transition(.opacity)
             } else {
@@ -992,8 +999,8 @@ struct GameView: View {
     /// the other numbers, and the court is left to be a court.
     ///
     /// **Three columns.** Down the left, the ball and then your own plates — Intangibles,
-    /// and the Clamps on you under them. SHOT and the deck in the middle; the crew and the
-    /// officials deck to the right of them.
+    /// and the Clamps on you under them. SHOT in the middle; the crew to the right of it,
+    /// and the two decks under the crew.
     private var hudRow: AnyView {
         AnyView(ZStack(alignment: .topLeading) {
             StatusHUDView(state: controller.shown, shot: controller.shownShot,

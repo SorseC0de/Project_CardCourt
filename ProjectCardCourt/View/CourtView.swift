@@ -91,8 +91,14 @@ struct CourtView: View {
         /// frame: just over the crown of his head.
         static let overHead: CGFloat = (SpriteMetrics.headOrigin.y - 1)
             * Theme.Figure.playerScale - 2
-        /// How much higher the hand count rides, to leave the name room under it.
-        static let badgeLift: CGFloat = 12
+        /// **How much higher the hand count rides, to leave the name room under it**: the
+        /// name's own height, and this much air over it. In the figure's points, which his
+        /// row scales — so the name, drawn the same size on every row, is taller in them
+        /// the further off he stands. A fixed lift cleared nobody's name at the back.
+        static let badgeAir: CGFloat = 12
+        static func badgeLift(atScale scale: CGFloat) -> CGFloat {
+            badgeAir + FloorName.size / scale
+        }
     }
 
     /// Who the court draws as holding the ball.
@@ -104,6 +110,10 @@ struct CourtView: View {
 
     /// How wide a pile is drawn before the bench's multiplier.
     private static let pileWidth: CGFloat = 138
+    /// **How far outside a man on the same post a second referee stands**, in the figure's
+    /// own points before his row scales him: half his frame, so the two stand shoulder
+    /// to shoulder rather than one inside the other.
+    private static let refereeAside: CGFloat = Theme.Figure.height / 2
 
     /// Fixed so a bid badge appearing cannot shift a figure off its footing.
     private var nodeHeight: CGFloat { Theme.Figure.height + 26 }
@@ -301,10 +311,7 @@ struct CourtView: View {
 
                 // Painted far to near, so anything upcourt is overlapped by what
                 // stands in front of it instead of by whatever draws last.
-                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer,
-                                               referees: refereeCrew.filter {
-                                                   $0.whistle.id != refereeThrow?.official
-                                               }),
+                ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: floorCrew),
                         id: \.self) { item in
                     place(item, on: court, in: geo.size)
                         // People come up over the dim; the piles stay under it. Equal
@@ -313,7 +320,7 @@ struct CourtView: View {
                         .zIndex(isStill && item.isPerson ? Layer.people : Layer.stage)
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
-                           value: refereeCrew)
+                           value: floorCrew)
 
                 // Over the player he is taking from, and gone again in under a second.
                 if let swipe {
@@ -508,8 +515,7 @@ struct CourtView: View {
                 // simply travels faster across the diamond than to a neighbour. The
                 // arrival is what the catch is timed against, so it stays put.
                 withAnimation(.easeInOut(duration: Theme.Pass.flightSeconds)) { passFlight = 1 }
-                try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds
-                                                    + Theme.Pass.holdSeconds))
+                try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds))
 
                 landedAt = Date()
             }
@@ -734,7 +740,7 @@ struct CourtView: View {
     /// See `boardLeaves`.
     private func hoopPoint(on court: CourtGeometry, in size: CGSize) -> CGPoint {
         CGPoint(x: court.centreX,
-                y: court.horizonY - 18 - size.height * 0.075)
+                y: court.horizonY - 18 - size.height * 0.1)
     }
 
     /// Where the ball comes out of the rim: the rim, and the offset off it.
@@ -789,19 +795,37 @@ struct CourtView: View {
     private struct RefereeCall: Hashable {
         let post: RefereePost
         let whistle: ArmedWhistle
+        /// Stood just outside whoever else is on his post — see `floorCrew`.
+        var outside = false
+    }
+
+    /// **The crew on the floor while one of them throws it in.** The throw-in spot is
+    /// up the left wing, so a man on that post stood right beside the thrower: he crosses
+    /// to the thrower's right — the right wing if nobody is on it, or just outside the
+    /// man who is.
+    private var floorCrew: [RefereeCall] {
+        let crew = refereeCrew.filter { $0.whistle.id != refereeThrow?.official }
+        guard refereeThrow != nil,
+              let beside = crew.firstIndex(where: { $0.post == .leftWing }) else { return crew }
+        var moved = crew
+        moved[beside] = RefereeCall(post: .rightWing, whistle: crew[beside].whistle,
+                                    outside: crew.contains { $0.post == .rightWing })
+        return moved
     }
 
     private var refereeCrew: [RefereeCall] {
         guard let first = state.armedWhistles.first else { return [] }
-        // Only the first is rolled — read off that Whistle's own id rather than a random
-        // number, so a redraw cannot move the crew mid-round. Everyone after him is
-        // placed relative to him.
-        let coin = withUnsafeBytes(of: first.id.uuid) { Array($0.prefix(2)) }
+        // Only the first is rolled — read off the round's first official's own id rather
+        // than a random number, so a redraw cannot move the crew mid-round, and **kept
+        // when he goes**: his replacement takes his post. Everyone after him is placed
+        // relative to him.
+        let anchor = state.crewAnchor ?? first.id
+        let coin = withUnsafeBytes(of: anchor.uuid) { Array($0.prefix(2)) }
         let start: RefereePost = coin[0].isMultiple(of: 2)
             ? (coin[1].isMultiple(of: 2) ? .rightWing : .leftWing)
             : (coin[1].isMultiple(of: 2) ? .southEast : .southWest)
         return zip(RefereePost.crew(from: start), state.armedWhistles)
-            .map(RefereeCall.init)
+            .map { RefereeCall(post: $0.0, whistle: $0.1) }
     }
 
     /// What sits above what while an inbound is being asked for.
@@ -894,7 +918,9 @@ struct CourtView: View {
     /// hold the receiver was dropping back into the pose that asks for a throw-in, with
     /// the ball in his hands.
     private func waitingForThrow(_ seat: Seat) -> Bool {
-        guard isStill else { return false }
+        // **A call is not an inbound.** It stills the floor too, and the men stood in the
+        // receiving pose through it; they stand as they do for a rebound instead.
+        guard isStill, callingRef == nil else { return false }
         if let throwing, throwing.to == seat, caughtThrow == throwing.id { return false }
         return true
     }
@@ -1081,7 +1107,8 @@ struct CourtView: View {
                 .onTapGesture(coordinateSpace: .global) { onTapReferee(called.id, $0) }
                 .scaleEffect(court.scale(of: post), anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .top)
-                .position(x: court.footing(of: post).x,
+                .position(x: court.footing(of: post).x
+                             + (call.outside ? Self.refereeAside * court.scale(of: post) : 0),
                           y: court.y(at: post.depth) - nodeHeight / 2
                              + Perspective.footDrop(at: court.scale(of: post)))
                 // Referees do not walk on. They are there or they are not.
@@ -1144,7 +1171,8 @@ struct CourtView: View {
                         && state.phase.actingSeat != seat,
                     marker: marker(for: seat, selectable: selectable),
                     clampCount: showingClamps ? state[seat].clamps.count : nil,
-                    badgeLift: NamePlate.badgeLift,
+                    badgeLift: NamePlate.badgeLift(
+                        atScale: court.scale(of: seat, inbounding: thrower)),
                     handCount: state[seat].bag.count { !undelivered.contains($0.id) },
                     // Set and waiting for it, like everybody else during an inbound — and
                     // turned to watch whoever is throwing it, rather than facing whichever

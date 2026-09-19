@@ -21,7 +21,6 @@ struct EntryScreenView: View {
     @State private var at = 6
 
     private enum Front {
-        static let title: CGFloat = SwisshWordmark.Mark.size
         /// How far down the mark sits. Clear of the corners rather than tucked under
         /// them — it is the thing the screen is for.
         static let titleTop: CGFloat = 96
@@ -45,7 +44,7 @@ struct EntryScreenView: View {
          ("Settings", onSettings),
          ("How To Play", onHowToPlay),
          ("My Hooper", onHooper),
-         ("Swisshing Well", onWell),
+         ("Swishing Well", onWell),
          ("Card Gallery", onGallery),
          ("Check Rock!", onPlay)]
     }
@@ -78,7 +77,7 @@ struct EntryScreenView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                SwisshWordmark(size: Front.title)
+                TitleWordmark()
                     // **Where the rays come from, measured rather than written down.**
                     // In `.global`, which is the whole window — the same space the cards
                     // are drawn in, since they ignore the safe area and this does not.
@@ -106,7 +105,7 @@ struct EntryScreenView: View {
                         .padRing(ringed(3), corner: Front.corner)
                     // Half size, side by side.
                     HStack(spacing: Front.gap) {
-                        tile("Swisshing Well", art: .image("SwisshingWellIcon"), compact: true,
+                        tile("Swishing Well", art: .image("SwishingWellIcon"), compact: true,
                              run: onWell)
                             .padRing(ringed(4), corner: Front.corner)
                         tile("Card Gallery", art: .symbol("rectangle.stack.fill"), compact: true,

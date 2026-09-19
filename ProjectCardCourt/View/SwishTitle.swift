@@ -6,12 +6,12 @@ import SwiftUI
 /// settle at alternating tilts so the word reads as hand-lettered rather than typeset.
 /// Every letter is its own view driven off one state flip, so the whole thing
 /// interpolates without rebuilding per frame.
-struct SwisshTitle: View {
-    var text = "Swissh!!!"
+struct SwishTitle: View {
+    var text = "Swish!!!"
     var size: CGFloat = 46
     /// The line the word is part of, set around it. Nothing by default — most makes are
     /// just the word.
-    var line: SwisshLine = .plain
+    var line: SwishLine = .plain
     /// The lettering top to bottom, and what it throws off. A robbery wears the same
     /// treatment with red where the orange sits.
     var top: Color = Theme.clockAmber
@@ -48,7 +48,7 @@ struct SwisshTitle: View {
     /// one meant to be looked at.
     ///
     /// Arrives *with* the word rather than after it. Waiting for the letters to finish
-    /// meant the eye read "Swissh" and then, separately, a fragment — so it never landed
+    /// meant the eye read "Swish" and then, separately, a fragment — so it never landed
     /// as one sentence.
     private func flourish(_ text: String) -> some View {
         Text(text)

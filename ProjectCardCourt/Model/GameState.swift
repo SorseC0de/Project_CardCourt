@@ -60,9 +60,9 @@ struct PlayerState: Hashable, Identifiable, Codable {
     /// Torn Achilles: the cards that survived this turn's lock, rolled once per
     /// possession and then left alone.
     var injuryUnlocked: [UUID] = []
-    /// The Zone, if this player has popped one — see `SwisshUp`. One at a time.
-    var swisshUp: ActiveSwisshUp?
-    /// All-Swissh Selection: cards owed on the next make, and shown in the HUD until they
+    /// The Zone, if this player has popped one — see `SwishUp`. One at a time.
+    var swishUp: ActiveSwishUp?
+    /// All-Swish Selection: cards owed on the next make, and shown in the HUD until they
     /// are paid. Survives the round — it is a selection, not a hot streak.
     var drawsOwedOnMake = 0
     var lastMake: Make?
@@ -309,9 +309,6 @@ struct GameState: Codable {
     /// Misdirection: this swing was turned round by the Crossover in front of it, so it
     /// also knocks a card loose on the way past.
     var misdirected = false
-    /// Rookie Official has already traded for this player this possession — the first
-    /// card only, or a pair of Moves would fish the same two out all night.
-    var rookieSwapped: Seat?
     /// From the Logo has reached for the table once already this play — see
     /// `Rules.resolveRetirement`. "And/or" is two reaches, never three.
     var reachedTwice = false
@@ -491,6 +488,13 @@ struct GameState: Codable {
     /// Whistles set down and waiting. Resolved in the order they were armed, so a
     /// Whistle that cancels another Whistle has a defined winner.
     var armedWhistles: [ArmedWhistle] = []
+    /// **Who the crew's posts are laid out from** for the round: the first official out
+    /// at the top of it. Kept when he goes, so a replacement steps onto his post and
+    /// nobody else moves — see `CourtView.refereeCrew`.
+    var crewAnchor: UUID?
+    /// **The official who made the most recent call**, by his place in the crew. Read by
+    /// Behind-the-Back, which sends him off; Officially Infamous names its own caller.
+    var lastCaller: UUID?
     /// Played, but with nobody to land on yet. Attaches to the next ball-holder.
     var pendingClamps: [ActiveClamp] = []
     /// An armed Whistle that let a Clamp resolve and is waiting for it to land, so it can
@@ -568,6 +572,8 @@ struct GameState: Codable {
     var floorEffect: VarenaEffect { currentCourt.varena ?? VarenaEffect() }
     /// What the ball does. A Regulation Ball does nothing.
     var ballEffect: VariaballEffect { currentBall?.variaball ?? VariaballEffect() }
+    /// **As high as base SHOT goes**: the match's ceiling, or Med Ball's under it.
+    var baseShotCeiling: Int { min(rules.shotCeiling, ballEffect.shotCeiling ?? rules.shotCeiling) }
     /// **The most cards a hand may hold.** The match's, unless the floor is stricter.
     var handLimit: Int { min(rules.handLimit, floorEffect.handLimit ?? rules.handLimit) }
 

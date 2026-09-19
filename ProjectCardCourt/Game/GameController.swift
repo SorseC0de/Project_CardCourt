@@ -142,7 +142,7 @@ struct ShotCutscene: Identifiable, Equatable {
     /// Picked once here rather than in the view, which re-evaluates.
     let spoils: String
     /// What the make says, if it says anything beyond the word.
-    let line: SwisshLine
+    let line: SwishLine
     /// Which way a miss caroms off. Rolled per shot so they do not all fly the same way.
     let caromSide: CGFloat
 
@@ -190,7 +190,7 @@ struct ShotCutscene: Identifiable, Equatable {
         self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance)
                                  : ShotDrama.forDunk(miss: missed)
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
-        self.line = SwisshLine.roll()
+        self.line = SwishLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
         self.missCall = ShotCutscene.missCall(chance: chance, dunk: missed)
     }
@@ -234,7 +234,7 @@ struct ShotCutscene: Identifiable, Equatable {
         self.drama = dunk == nil ? ShotDrama.choose(made: made, chance: chance)
                                  : ShotDrama.forDunk(miss: self.dunkMiss)
         self.spoils = ["🪣", "💸", "💰"].randomElement()!
-        self.line = SwisshLine.roll()
+        self.line = SwishLine.roll()
         self.caromSide = Bool.random() ? 1 : -1
         self.missCall = ShotCutscene.missCall(chance: chance, dunk: self.dunkMiss)
     }
@@ -599,6 +599,17 @@ final class GameController {
     private(set) var whistleReveal: WhistleReveal?
     private(set) var flight: DrawFlight?
     private(set) var aiFreeThrow: AIFreeThrow?
+
+    /// **Your own trip to the line, for as long as it lasts** — the attempt you are
+    /// shooting, and, while a result is being shown, the one you have just shot. The gate
+    /// goes to thinking for every result, and reading the scene off the gate alone took
+    /// it down and put it back up between every pair of shots.
+    var localLineTrip: FreeThrowTrip? {
+        if case .awaitingFreeThrow(let trip) = gate { return trip }
+        guard case .thinking = gate, case .freeThrows(let trip) = shown.phase,
+              trip.shooter == GameRules.localSeat else { return nil }
+        return trip
+    }
     /// What the deck is doing. Idle unless something asks it to perform.
     private(set) var deckRoutine: DeckRoutine = .rest
     /// Who the stage is dealing a card to, and a token so the same seat twice still counts
@@ -1100,6 +1111,7 @@ final class GameController {
         revealedBids = nil
         reboundLeap = nil
         flashed = nil
+        aiFreeThrow = nil
         undelivered.removeAll()
         unrevealed.removeAll()
     }
@@ -1453,8 +1465,10 @@ final class GameController {
         }
     }
 
+    /// **A finished game is restarted too**: the loop's first act is to put the final card
+    /// up, and a game that ended while nothing was driving it sat on the floor for good.
     private func restartIfStalled() {
-        guard !isGuest, !isPaused, !state.isOver, working == 0 else { return }
+        guard !isGuest, !isPaused, working == 0 else { return }
         guard case .thinking = gate, let since = wentQuiet else { return }
         guard Date().timeIntervalSince(since) > 8 else { return }
         DevLog.say(.input, "➜ Restarting Input Loop  (\(state.phase.label), "
@@ -1841,7 +1855,10 @@ final class GameController {
     func challenge(_ taking: Bool) {
         guard !isPaused, case .awaitingChallenge(let seat, _) = state.phase else { return }
         DevLog.say(.input, taking ? "challenge the call" : "let the call stand")
-        Task {
+        // **Through the one loop, and back into it.** A stray task here showed the answer
+        // and left nothing to carry the game on — and one that ended on it never got as
+        // far as its final card.
+        drive {
             if taking {
                 challenging = seat
                 camera = CourtCamera(subjects: [.seat(seat)], zoom: Pacing.challengeZoom,
@@ -1851,6 +1868,7 @@ final class GameController {
             await present(Rules.resolveChallenge(taking, state: &state))
             challenging = nil
             camera = nil
+            await run()
         }
     }
 
@@ -2247,7 +2265,6 @@ final class GameController {
             // at the end of the flight pulled the receiver's `caughtAt` away a tenth of a
             // second into the catch, so the sheet never got past its first frames.
             try? await Task.sleep(for: .seconds(PassTiming.flight
-                                                + PassTiming.hold
                                                 + PassTiming.catchSeconds + 0.2))
             practicePass = nil
             await run()
@@ -2466,8 +2483,10 @@ final class GameController {
                 let made = Rules.rollFreeThrow(state: &state)
                 aiFreeThrow = AIFreeThrow(trip: trip, made: made)
                 try? await Task.sleep(for: .seconds(Pacing.freeThrow))
-                aiFreeThrow = nil
+                // **The line stays up for the whole trip.** Taken down before its result
+                // was shown, the scene left and came back between every pair of shots.
                 await present(Rules.resolveFreeThrow(made: made, state: &state))
+                if case .freeThrows = state.phase {} else { aiFreeThrow = nil }
                 continue
             }
             if case .awaitingCounter(let seat, let offered) = state.phase {
@@ -2839,11 +2858,18 @@ final class GameController {
     /// **The id of a call already played out for its challenge**, so it is not played twice.
     private var revealedBeforeChallenge: UUID?
 
+    /// The crew as the rules have it, on the floor.
+    private func releaseCrew() {
+        shown.armedWhistles = state.armedWhistles
+        shown.crewAnchor = state.crewAnchor
+    }
+
     /// The three beats of a call: the man, then the Z card, then the turn.
     private func playCall(_ scene: WhistleReveal) async {
         // Which of the crew it was, by where his card stands in the line — the court lays
-        // the men out in that order, so the index is the man.
-        let slot = state.armedWhistles.firstIndex { $0.id == scene.caller }
+        // the men out in that order, so the index is the man. **The crew the floor is
+        // drawing**, which still has him in it when the call has already sent him off.
+        let slot = shown.armedWhistles.firstIndex { $0.id == scene.caller }
         // **The floor first, and nothing over it.** Play stops, the crew turn to the man
         // making the call, he blows it where he stands and the camera goes to him — all of
         // it readable, because the card is not on top of it yet.
@@ -3131,6 +3157,11 @@ final class GameController {
             if Task.isCancelled { return }
         }
         var caughtUp = false
+        // **The crew stays as it was until whatever changes it has been shown.** Catching
+        // the board up at once sent a round's officials home before the shot that ended
+        // it had gone up — the make given away — and put a Crew Chief's replacement on
+        // the post of the man whose call was still to come.
+        var crewHeld = false
         var sinceTurnover = events.startIndex
         var index = events.startIndex
         while index < events.endIndex {
@@ -3153,7 +3184,14 @@ final class GameController {
                 let heldPhase = shown.phase
                 let heldRound = shown.round
                 let heldClock = shown.shotClock
+                let heldCrew = shown.armedWhistles
+                let heldAnchor = shown.crewAnchor
                 catchUp()
+                if heldCrew != state.armedWhistles {
+                    shown.armedWhistles = heldCrew
+                    shown.crewAnchor = heldAnchor
+                    crewHeld = true
+                }
                 for (seat, tally) in tallies {
                     shown[seat].rebounds = min(tally.rebounds, state[seat].rebounds)
                     shown[seat].assists = min(tally.assists, state[seat].assists)
@@ -3165,6 +3203,16 @@ final class GameController {
                 shown.round = heldRound
                 shown.shotClock = heldClock
                 caughtUp = true
+            }
+            // The round going home, or a man sent off: the crew changes here.
+            if crewHeld {
+                switch event {
+                case .roundEnded, .officialDistracted, .challenged, .crewAssigned:
+                    releaseCrew()
+                    crewHeld = false
+                default:
+                    break
+                }
             }
             var scene = [event]
             switch event {
@@ -3204,6 +3252,7 @@ final class GameController {
                     await announce(.whistle)
                 }
                 await showWhistle(in: [event])
+                if crewHeld { releaseCrew(); crewHeld = false }
             case .drew(let seat, _, let card):
                 await fly(to: seat, over: Pacing.drawFlight, delivering: card)
                 flight = nil
@@ -3263,6 +3312,17 @@ final class GameController {
             case .halftime:
                 // Held until tapped, before its own deal goes out.
                 await callTheHalf(in: [event])
+            case .refereeToss(let seat, let card, let heads, _):
+                coinFlip = CoinFlip(seat: seat, card: card, heads: heads ? 1 : 0, flips: 1)
+                try? await Task.sleep(for: .seconds(CoinFlip.seconds))
+                coinFlip = nil
+            case .clampWavedOff(_, let clamp, let official, let caller):
+                // **Shown as a call**, so the Clamp that never landed and the card drawn
+                // for it have a man to answer for them.
+                await announce(.whistle)
+                await playCall(WhistleReveal(caller: caller, owner: nil, card: official,
+                                             cancelled: clamp.name, cancelledCard: clamp,
+                                             isNew: SeenCards.shared.meet(official.id)))
             case .coinRun(let seat, let card, let heads):
                 // Thrown where it can be seen. It decided something, and it was over
                 // inside a frame — see `CoinFlipView`.
@@ -3323,8 +3383,9 @@ final class GameController {
             // miss is drawn from the same place the make is.
             || (state.ballEffect.layupsShootAsThrees && state.shotType == .layup)
             || state.shotType == .three
-        // Long Ball's layups go up from out there, so they are drawn as the jumper.
-        scene.isLayup = scene.dunk == nil && state.shotType == .layup
+        // Long Ball's layups go up from out there, so they are drawn as the jumper — and
+        // **a three is only ever the jumper**, whatever finish the rules filed it under.
+        scene.isLayup = scene.dunk == nil && !scene.isThree && state.shotType == .layup
             && !state.ballEffect.layupsShootAsThrees
         holdTheScore(in: shot)
         cutscene = scene
