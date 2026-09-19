@@ -732,10 +732,13 @@ final class GameController {
     /// putting one down used to release the other.
     private var holds = 0
 
-    func pause() {
-        guard canPause else { return }
+    /// True when this took a hold, which is the only case its `resume` should give back.
+    @discardableResult
+    func pause() -> Bool {
+        guard canPause else { return false }
         holds += 1
         isPaused = true
+        return true
     }
 
     func resume() {
@@ -1112,6 +1115,9 @@ final class GameController {
         reboundLeap = nil
         flashed = nil
         aiFreeThrow = nil
+        reveal = nil
+        celebratingThree = nil
+        coinFlip = nil
         undelivered.removeAll()
         unrevealed.removeAll()
     }
@@ -1853,7 +1859,10 @@ final class GameController {
     /// Taking one stops everything and goes to the man: the camera closes on him, the
     /// floor holds, and the star opens out of him — and only then does the card come up.
     func challenge(_ taking: Bool) {
-        guard !isPaused, case .awaitingChallenge(let seat, _) = state.phase else { return }
+        guard !isPaused, case .awaitingChallenge(let seat, _) = state.phase,
+              case .awaitingChallenge = gate else { return }
+        // Answered: a second tap during the hold below finds nothing left to answer.
+        gate = .thinking
         DevLog.say(.input, taking ? "challenge the call" : "let the call stand")
         // **Through the one loop, and back into it.** A stray task here showed the answer
         // and left nothing to carry the game on — and one that ended on it never got as
@@ -1864,6 +1873,11 @@ final class GameController {
                 camera = CourtCamera(subjects: [.seat(seat)], zoom: Pacing.challengeZoom,
                                      seconds: Pacing.challengeFrame)
                 try? await Task.sleep(for: .seconds(Pacing.challengeHold))
+                if Task.isCancelled {
+                    challenging = nil
+                    camera = nil
+                    return
+                }
             }
             await present(Rules.resolveChallenge(taking, state: &state))
             challenging = nil
@@ -2903,9 +2917,16 @@ final class GameController {
         // thread of it and the run loop is another, and the loop went on taking turns
         // behind a first sighting the player had not dismissed yet. Never in a live
         // match — `pause` refuses when there is anybody else at the table.
-        pause()
-        defer { resume() }
-        while alive() != nil { try? await Task.sleep(for: .milliseconds(60)) }
+        //
+        // **And it gives up when its task does.** `try?` swallows the cancellation, so a
+        // cancelled sleep returns at once — the wait spun on the main thread for good,
+        // holding the game paused behind it, and every one left behind added to the
+        // heat. A cut-off scene is cleared by whatever replaced it.
+        let held = pause()
+        defer { if held { resume() } }
+        while alive() != nil, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(60))
+        }
     }
 
     /// The beat a player takes before acting — and, on a single-player table, however
@@ -3015,8 +3036,16 @@ final class GameController {
         where points > state.rules.madeShotPoints {
             withheldPoints = (seat, points)
             celebratingThree = seat
-            // Held until the view says the number has landed and then finished.
-            while celebratingThree != nil { try? await Task.sleep(for: .milliseconds(60)) }
+            // Held until the view says the number has landed and then finished — or the
+            // task is gone, which would otherwise spin here for good. See `hold`.
+            while celebratingThree != nil, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(60))
+            }
+            if Task.isCancelled {
+                celebratingThree = nil
+                withheldPoints = nil
+                return
+            }
         }
     }
 

@@ -142,7 +142,7 @@ struct GameView: View {
         // playing behind them. Not the hand's own card detail — that one is a card you
         // are about to play, and freezing the game would refuse the play.
         .onChange(of: holdsTheFloor) { _, holding in
-            holding ? controller.pause() : controller.resume()
+            if holding { controller.pause() } else { controller.resume() }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.75), value: inspecting?.card)
         .background(keyboardCommands)

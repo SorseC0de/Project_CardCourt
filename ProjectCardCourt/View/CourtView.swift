@@ -469,10 +469,13 @@ struct CourtView: View {
             .erased()
             // **The camera.** The floor and everyone on it; the HUD over the court is hung
             // on outside this view and stays put. Clipped only while it is zoomed, so the
-            // floor's usual overhang is left alone.
+            // floor's usual overhang is left alone — **and not for a call**: the HUD has
+            // faded back for it, and clipped at the court's top edge, the zoom sliced every
+            // man it brought up past that line in half across the middle of the screen.
             .scaleEffect(camera?.zoom ?? 1)
             .offset(lensOffset(on: court, in: geo.size))
-            .clipShape(Rectangle().inset(by: camera == nil ? -Lens.unclipped : 0))
+            .clipShape(Rectangle().inset(by: camera == nil || callingRef != nil
+                                         ? -Lens.unclipped : 0))
             .animation(.easeInOut(duration: camera?.seconds ?? CourtCamera.release),
                        value: camera)
             // The throw-in has no `settledAt` of its own, so its landing is timed off the

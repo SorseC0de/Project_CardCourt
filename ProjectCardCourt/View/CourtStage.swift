@@ -179,8 +179,8 @@ struct CourtStage: View {
                 discard.pile.position = discard.ground
                 // Half a lap behind the live pile, so the two do not breathe in step.
                 discard.phase = 0.5
-                deck.sizeAt = { fitted(at: $0, in: geo.size) }
-                discard.sizeAt = { fitted(at: $0, in: geo.size) }
+                deck.sizeAt = Self.sizeRule(in: geo.size, tuning: tuning)
+                discard.sizeAt = Self.sizeRule(in: geo.size, tuning: tuning)
                 place(camera: camera, in: geo.size)
             } update: { content in
                 guard let camera = content.entities
@@ -198,14 +198,14 @@ struct CourtStage: View {
                 deck.ground = floorPoint(deckAt, in: geo.size)
                 // The rule goes with it, so a deck under its own power can size itself
                 // for wherever it is heading — see `DeckStage.sizeAt`.
-                deck.sizeAt = { fitted(at: $0, in: geo.size) }
+                deck.sizeAt = Self.sizeRule(in: geo.size, tuning: tuning)
                 if !deck.travelling { fit(deck, in: geo.size) }
                 // The same for the spent pile, now that it drifts too. Setting its
                 // position outright while `idle` was also writing one left the drift
                 // reading a home point of zero — so the pile flew off to the middle of
                 // the world and only its shadow was left on the floor.
                 discard.ground = floorPoint(discardAt, in: geo.size)
-                discard.sizeAt = { fitted(at: $0, in: geo.size) }
+                discard.sizeAt = Self.sizeRule(in: geo.size, tuning: tuning)
                 if !discard.travelling { fit(discard, in: geo.size) }
             }
             .task(id: deckRoutine) { await deck.perform(deckRoutine) }
@@ -370,15 +370,25 @@ struct CourtStage: View {
     /// deck while the deck is not moving itself, and the whole opening deal is the deck
     /// moving itself — round the table, seat by seat, well forward of where it rests.
     /// See `DeckStage.sizeAt`.
-    private func fitted(at point: SIMD3<Float>, in size: CGSize) -> Float? {
-        measure(at: point, in: size)?.scale
+    /// **A pile's size rule that holds nothing of the view.** It is kept on the pile, and
+    /// the pile is kept by the view — written as a call on the view, the rule held the
+    /// view and its state, the state held the pile, and no court's piles, dealers or
+    /// scene subscriptions were ever let go when a new game replaced it.
+    private static func sizeRule(in size: CGSize,
+                                 tuning: DeckTuning) -> (SIMD3<Float>) -> Float? {
+        { measure(at: $0, in: size, tuning: tuning)?.scale }
+    }
+
+    private func measure(at point: SIMD3<Float>,
+                         in size: CGSize) -> (scale: Float, away: Float, across: Float)? {
+        Self.measure(at: point, in: size, tuning: tuning)
     }
 
     /// The sizing, with the two numbers it was worked out from — which is what the
     /// readout above needs to say whether a wrong size is this arithmetic or something
     /// downstream of it.
-    private func measure(at point: SIMD3<Float>,
-                         in size: CGSize) -> (scale: Float, away: Float, across: Float)? {
+    private static func measure(at point: SIMD3<Float>, in size: CGSize, tuning: DeckTuning)
+    -> (scale: Float, away: Float, across: Float)? {
         let eye = Self.cameraTransform(for: size).translation
         let away = distance(eye, point)
         let aspect = Float(size.width / max(size.height, 1))
