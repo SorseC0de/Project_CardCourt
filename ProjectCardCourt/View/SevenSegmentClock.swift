@@ -28,15 +28,30 @@ struct SevenSegmentDigit: View {
     var unlit: Color = Color.white.opacity(0.12)
 
     var body: some View {
+        ZStack {
+            segments(lit: false)
+            // **Only the lit segments glow**, in their own colour. A separate layer so the
+            // glow falls outside the digit's own box instead of being clipped by it.
+            segments(lit: true)
+                .shadow(color: lit.opacity(Glow.strength), radius: Glow.radius)
+        }
+    }
+
+    private enum Glow {
+        static let radius: CGFloat = 4
+        static let strength: Double = 0.8
+    }
+
+    private func segments(lit showsLit: Bool) -> some View {
         Canvas { context, size in
             let thickness = size.width * 0.14
             // Segments sit in their own rects and stop just short of each other.
             let gap = thickness * 0.09
-            for segment in Segment.allCases {
+            for segment in Segment.allCases where on.contains(segment) == showsLit {
                 let box = rect(segment, in: size, t: thickness, gap: gap)
                 guard box.width > 0, box.height > 0 else { continue }
                 context.fill(hexagon(in: box, horizontal: box.width > box.height),
-                             with: .color(on.contains(segment) ? lit : unlit))
+                             with: .color(showsLit ? lit : unlit))
             }
         }
     }

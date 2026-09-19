@@ -23,7 +23,11 @@ enum Theme {
 
     static let panel        = Color(red: 0.11, green: 0.12, blue: 0.15)
     static let panelRaised  = Color(red: 0.16, green: 0.17, blue: 0.21)
-    static let ink          = Color(red: 0.93, green: 0.93, blue: 0.95)
+    /// True white. Every HUD, scoreboard and UI word is written in it.
+    static let ink          = Color.white
+    /// **The main scene's ground**: true black, under the status bar, the scoreboard and
+    /// the court, which fades into it at the horizon.
+    static let sceneGround  = Color.black
     static let inkDim       = Color(red: 0.58, green: 0.60, blue: 0.66)
     static let ball         = Color(red: 0.90, green: 0.45, blue: 0.13)
     static let live         = Color(red: 0.36, green: 0.85, blue: 0.52)

@@ -98,10 +98,9 @@ struct ScoreboardView: View {
         }
         .padding(.horizontal, board.gap * 2.5)
         .padding(.vertical, board.gap * 2.0)
-        // **The screen's own ground, not the menus' navy.** The board is a band between
-        // the status bar and the log, both of which stand on `Theme.panel`; a navy strip
-        // between two grey ones read as a third thing wedged in. The rows do the work.
-        .background(Theme.panel)
+        // **The screen's own ground, not the menus' navy** — the black the status bar and
+        // the court stand on, so the rows do the work.
+        .background(Theme.sceneGround)
     }
 
     /// What the columns are. Small caps in the rim's own grey, so the labels read as part
@@ -118,7 +117,7 @@ struct ScoreboardView: View {
                           tracking: board.label * 0.12)
                 .frame(width: board.score, alignment: .trailing)
         }
-        .foregroundStyle(Chrome.edge)
+        .foregroundStyle(.white)
     }
 
     private func row(_ player: PlayerState) -> some View {
@@ -134,7 +133,9 @@ struct ScoreboardView: View {
         let headScale = isCalledOut ? 3.0 : 2.0
 
         return HStack(spacing: 0) {
-            HStack(spacing: board.gap * 2.0) {
+            // Room between the head and the number: the head's sprite runs a little past
+            // its circle on the right, and the two were touching.
+            HStack(spacing: board.gap * 3.5) {
                 // The seat, as a square rather than a dot: everything else with an edge
                 // in this game is a rounded rectangle, and a circle read as a bullet.
                 //

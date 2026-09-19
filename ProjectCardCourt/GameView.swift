@@ -242,7 +242,7 @@ struct GameView: View {
     /// Erased where it joins the body — z 0 to 9.5. See `body`.
     private var ground: AnyView {
         AnyView(ZStack {
-                Theme.panel.ignoresSafeArea()
+                Theme.sceneGround.ignoresSafeArea()
 
                 // The court runs to the bottom of the screen; the bag sits straight on it.
                 // Only the court art runs under the home indicator. Everything you touch
@@ -1041,14 +1041,14 @@ struct GameView: View {
             HStack(spacing: 8) {
                 SmallCapsText(text: "Half \(controller.shown.half)",
                               font: Chrome.display, size: 15, tracking: 0.6)
-                    .foregroundStyle(CardPalette.gray)
+                    .foregroundStyle(.white)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.top, 2)
         .padding(.bottom, 8)
-        .background(Theme.panel))
+        .background(Theme.sceneGround))
     }
 
     /// Stopped, and what can be done about it.
@@ -1159,7 +1159,7 @@ struct GameView: View {
             SevenSegmentClock(value: clock)
             Text("SHOT CLOCK")
                 .font(.system(size: 7, weight: .bold)).tracking(1.3)
-                .foregroundStyle(Theme.inkDim)
+                .foregroundStyle(.white)
         }
         .animation(.easeOut(duration: 0.25), value: clock)
         .onChange(of: controller.shown.shotClock) { _, now in
