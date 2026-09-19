@@ -42,16 +42,17 @@ struct TravelMeter: View {
     private func pip(_ index: Int) -> some View {
         let spent = index < played
         let beyond = limit.map { index >= $0 } ?? false
-        // Each pip keeps the shape of the dash it stands in for — its own width to height —
-        // at the row's height.
-        let wide = Self.height * Dash.width / Dash.height
-        return RoundedRectangle(cornerRadius: wide * Dash.corner, style: .continuous)
+        // **Long, not tall**: a dash runs the way the arrow does. The drawing's two numbers,
+        // laid along the row rather than up it — and sat on the arrow's shaft.
+        let thick = Self.height * Dash.width / Dash.height
+        return RoundedRectangle(cornerRadius: thick * Dash.corner, style: .continuous)
             .fill(spent ? CardPalette.gold : PixelPalette.deepTeal)
             .overlay {
-                RoundedRectangle(cornerRadius: wide * Dash.corner, style: .continuous)
+                RoundedRectangle(cornerRadius: thick * Dash.corner, style: .continuous)
                     .strokeBorder(CardPalette.teal, lineWidth: Dash.stroke)
             }
-            .frame(width: wide, height: Self.height)
+            .frame(width: Self.height, height: thick)
+            .offset(y: Self.height * (Dash.shaftCentre - 0.5))
             .opacity(beyond ? Dash.gone : 1)
     }
 
@@ -65,6 +66,9 @@ struct TravelMeter: View {
         static let gap: CGFloat = 0.045
         static let aspect: CGFloat = 705.3375 / 448.5802
         static let corner: CGFloat = 0.3
+        /// Where the arrow's shaft runs, as a share of the drawing's height from the top —
+        /// measured off `Move_meter.svg`. The dashes sit on its line.
+        static let shaftCentre: CGFloat = 0.646
         static let stroke: CGFloat = 1
         /// A slot an official has taken away.
         static let gone: Double = 0.3

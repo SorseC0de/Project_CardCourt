@@ -87,6 +87,19 @@ final class DealTuning {
     var endAngle: Double = -90
 }
 
+/// **How far out each row of referees stands**, while it is being eyeballed. Freeze into
+/// `Perspective` once it lands.
+@Observable
+final class RefereeTuning {
+    static let shared = RefereeTuning()
+
+    /// The far pair, up the wings: a share of the floor's half-width at their depth.
+    var farSpread: CGFloat = 0.88
+    /// The near pair beside South: how far in from the screen's edge, in points. Nought
+    /// is as far out as they go with the whole of them still on screen.
+    var nearInset: CGFloat = 0
+}
+
 @Observable
 final class InboundTextTuning {
     static let shared = InboundTextTuning()
@@ -137,6 +150,8 @@ struct DebugActionsView: View {
     @AppStorage("bench.open") private var isOpen = true
     @AppStorage("bench.cuts") private var showCuts = false
     @AppStorage("bench.deck") private var showDeck = false
+    @AppStorage("bench.refs") private var showRefs = false
+    @State private var refs = RefereeTuning.shared
     /// The one HUD arrangement that is a setting rather than a measurement.
     @AppStorage(DeckReadout.setting) private var deckReadout = DeckReadout.over
 
@@ -167,6 +182,7 @@ struct DebugActionsView: View {
             HStack(spacing: 4) {
                 action(showCuts ? "cuts ▾" : "cuts ▸") { showCuts.toggle() }
                 action(showDeck ? "deck ▾" : "deck ▸") { showDeck.toggle() }
+                action(showRefs ? "refs ▾" : "refs ▸") { showRefs.toggle() }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -211,6 +227,22 @@ struct DebugActionsView: View {
                                set: { dunks.overTheRim = CGFloat(($0).rounded()) }),
                        -10...10)
                     .frame(width: 150)
+            }
+            if showRefs {
+                HStack(spacing: 4) {
+                    action("reset") { refs.farSpread = 0.88; refs.nearInset = 0 }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    slider("far spread",
+                           Binding(get: { Double(refs.farSpread) },
+                                   set: { refs.farSpread = CGFloat($0) }),
+                           0...1.2)
+                    slider("near inset",
+                           Binding(get: { Double(refs.nearInset) },
+                                   set: { refs.nearInset = CGFloat($0.rounded()) }),
+                           0...200)
+                }
+                .frame(width: 150)
             }
             if showDeck {
                 HStack(spacing: 4) {

@@ -259,16 +259,20 @@ struct CourtGeometry {
     }
 
     /// **Where a referee's feet are.** The wings stand on the floor's own lateral; the two
-    /// beside South stand as far out as the screen allows, their whole frame still on it.
+    /// beside South stand as far out as the screen allows, their whole frame still on it,
+    /// less whatever inset they are tuned to — see `RefereeTuning`.
+    @MainActor
     func footing(of post: RefereePost) -> CGPoint {
         let depth = post.depth
+        let side: CGFloat = post.isLeft ? -1 : 1
         guard post.isSouth else {
-            return CGPoint(x: centreX + halfWidth(at: depth) * post.lateral, y: y(at: depth))
+            let out = halfWidth(at: depth) * RefereeTuning.shared.farSpread
+            return CGPoint(x: centreX + side * out, y: y(at: depth))
         }
         let halfFrame = Sprite.refereeRunN.frameSize * Theme.Figure.playerScale
             * scale(at: depth) / 2
-        let out = size.width / 2 - halfFrame
-        return CGPoint(x: centreX + (post.isLeft ? -out : out), y: y(at: depth))
+        let out = size.width / 2 - halfFrame - RefereeTuning.shared.nearInset
+        return CGPoint(x: centreX + side * out, y: y(at: depth))
     }
 
     func scale(of seat: Seat, inbounding thrower: Seat? = nil) -> CGFloat {
