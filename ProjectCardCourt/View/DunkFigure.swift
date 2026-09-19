@@ -19,6 +19,8 @@ struct DunkFigure: View {
     /// company is whether he arrives, how far past he carries, and whether the iron gets
     /// a say. See `DunkMiss`.
     var miss: DunkMiss?
+    /// Off, he stands on the first cell of the gather — a bench between takes.
+    var isRunning = true
     var scale: CGFloat = Theme.Figure.playerScale
     /// Called as he reaches the last couple of cells. **Every dunk sheet is drawn holding
     /// a ball from the first cell of the wind-up**, so the scene's own ball has to stay
@@ -111,7 +113,10 @@ struct DunkFigure: View {
             // together instead of one of the three.
             .offset(x: drifted * scale,
                     y: (-travel * risen + sunk + pulled) * scale)
-            .task { await throwItDown() }
+            .task {
+                guard isRunning else { return }
+                await throwItDown()
+            }
     }
 
     private func throwItDown() async {

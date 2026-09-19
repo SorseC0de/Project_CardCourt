@@ -5,6 +5,9 @@ struct ShotCutsceneView: View {
     /// The first armed Whistle, whose referee watches from beside the basket. Nil with
     /// none armed.
     var referee: ArmedWhistle? = nil
+    /// **Stood at its first frame, waiting** — a scene bench between takes. Nothing runs
+    /// until a new scene is made with this off. See `SceneBenchStage`.
+    var holdsAtStart = false
 
     /// **How far off the basket stands.** The free throw is the near mark and keeps the
     /// whole ring; a jumper is taken from further out than that, and a three from further
@@ -351,7 +354,8 @@ struct ShotCutsceneView: View {
                                 // trip — gather, climb, arrive — and it replaces the jumper
                                 // rather than dressing it up. See `DunkFigure`.
                                 DunkFigure(seat: scene.shooter, dunk: dunk,
-                                           miss: scene.dunkMiss, onBallLoose: {
+                                           miss: scene.dunkMiss, isRunning: !holdsAtStart,
+                                           onBallLoose: {
                                     // **Out first, then away.** Both were raised in the same
                                     // tick, so the ball was created already at the end of its
                                     // trip: no bounce off the iron ever played, because there
@@ -414,7 +418,8 @@ struct ShotCutsceneView: View {
                                     }
                                 })
                             } else if scene.isLayup {
-                                LayupFigure(seat: scene.shooter, approachSeconds: approachSeconds)
+                                LayupFigure(seat: scene.shooter, approachSeconds: approachSeconds,
+                                            isRunning: !holdsAtStart)
                             } else {
                                 PlayerFigure(seat: scene.shooter, sprite: .shoot,
                                              playsOnce: true, fps: shootFPS,
@@ -516,14 +521,17 @@ struct ShotCutsceneView: View {
             // sheet was cut off.
             .task {
                 // A layup has no follow-through to turn round from.
-                guard scene.signature != .none, !scene.isLayup else { return }
+                guard scene.signature != .none, !scene.isLayup, !holdsAtStart else { return }
                 let turnsAt = scene.signature == .understood
                     ? Double(Sprite.shoot.frames) / shootFPS
                     : releaseDelay
                 try? await Task.sleep(for: .seconds(turnsAt / max(0.1, tuning.tempo)))
                 facingYou = true
             }
-            .task { await run(in: HoopStage.size) }
+            .task {
+                guard !holdsAtStart else { return }
+                await run(in: HoopStage.size)
+            }
         }
     }
 

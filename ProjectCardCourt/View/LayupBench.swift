@@ -1,11 +1,11 @@
 import SwiftUI
 
 #if DEBUG
-/// **The layup, run in over and over, with the dials under it.** Like `DunkBench`: the
-/// real shot scene, driven from here, so what is judged is the thing the game plays.
+/// **The layup, run in over and over, with the dials under it.** The real shot scene on
+/// its own stage — see `SceneBenchStage` — so a take starts the moment it is asked for.
 struct LayupBench: View {
     @State private var tune = LayupTuning.shared
-    @State private var controller = GameController()
+    @State private var replay = SceneReplay(Self.scene(defenders: 2, made: true))
     @State private var open = true
     @State private var defenders = 2
     @State private var made = true
@@ -13,15 +13,25 @@ struct LayupBench: View {
     private let rates: [Double] = [4, 7.5, 10, 12, 15, 20, 30]
 
     var body: some View {
-        GameView(controller: controller)
+        SceneBenchStage(replay: replay)
             .overlay(alignment: .bottom) { panel }
+            .onChange(of: defenders) { replay.stage(Self.scene(defenders: defenders, made: made)) }
+            .onChange(of: made) { replay.stage(Self.scene(defenders: defenders, made: made)) }
+    }
+
+    private static func scene(defenders: Int, made: Bool) -> ShotCutscene {
+        var scene = ShotCutscene(shooter: GameRules.localSeat,
+                                 chance: Int(ShotTuning.shared.debugChance),
+                                 made: made, defenders: defenders)
+        scene.isLayup = true
+        return scene
     }
 
     private var panel: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button {
-                    controller.debugLayup(defenders: defenders, made: made)
+                    replay.play(Self.scene(defenders: defenders, made: made))
                 } label: {
                     Text("RUN IT IN")
                         .font(.system(size: 11, weight: .black)).tracking(0.8)

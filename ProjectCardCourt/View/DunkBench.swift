@@ -298,21 +298,31 @@ final class DunkTuning {
 /// is being judged is whether he *arrives* on the beat the ball does.
 struct DunkBench: View {
     @State private var tune = DunkTuning.shared
-    @State private var controller = GameController()
+    @State private var replay = SceneReplay(Self.scene(DunkTuning.shared.showing,
+                                                       miss: DunkTuning.shared.missing))
     @State private var open = true
 
     private let rates: [Double] = [4, 7.5, 10, 12, 15, 20, 30]
 
+    /// The real shot scene on its own stage — see `SceneBenchStage` — so a take starts
+    /// the moment it is asked for.
     var body: some View {
-        GameView(controller: controller)
+        SceneBenchStage(replay: replay)
             .overlay(alignment: .bottom) { panel }
+            .onChange(of: tune.showing) { replay.stage(Self.scene(tune.showing, miss: tune.missing)) }
+            .onChange(of: tune.missing) { replay.stage(Self.scene(tune.showing, miss: tune.missing)) }
+    }
+
+    private static func scene(_ dunk: Dunk, miss: DunkMiss?) -> ShotCutscene {
+        ShotCutscene(shooter: GameRules.localSeat, chance: Int(ShotTuning.shared.debugChance),
+                     made: miss == nil, defenders: 0, dunk: dunk, dunkMiss: miss)
     }
 
     private var panel: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button {
-                    controller.debugDunk(tune.showing, miss: tune.missing)
+                    replay.play(Self.scene(tune.showing, miss: tune.missing))
                 } label: {
                     Text(tune.missing == nil ? "THROW IT DOWN" : "BRICK IT")
                         .font(.system(size: 11, weight: .black)).tracking(0.8)

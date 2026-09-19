@@ -11,6 +11,8 @@ struct LayupFigure: View {
     let seat: Seat
     /// How long the run in takes. The scene moves him over exactly this long.
     let approachSeconds: Double
+    /// Off, he stands dribbling where he starts — a bench between takes.
+    var isRunning = true
     var scale: CGFloat = Theme.Figure.playerScale
 
     @Environment(\.ballInPlay) private var ballInPlay
@@ -33,7 +35,10 @@ struct LayupFigure: View {
         }
         .paletteSwap(PlayerLook.shared.kit(for: seat) + BallInPlay.sprite(for: ballInPlay))
         .offset(y: -lifted * scale)
-        .task { await runIn() }
+        .task {
+            guard isRunning else { return }
+            await runIn()
+        }
     }
 
     private func runIn() async {
@@ -69,7 +74,7 @@ final class LayupTuning {
 
     // The run in.
     /// How big he starts, against the jumper's size where he stands.
-    var startScale: CGFloat = 1
+    var startScale: CGFloat = 1.25
     /// How long the run in to the rim takes.
     var approachSeconds: Double = 1.0
     /// How small he is by the time he reaches the rim.
@@ -78,30 +83,30 @@ final class LayupTuning {
     /// stands this far to the left of his line and his run bends this far out to the right
     /// of it on the way past them. Points.
     var wallAside: CGFloat = 90
-    var aroundX: CGFloat = 70
+    var aroundX: CGFloat = 120
     /// **When he goes behind the defenders**, as a share of the run: nought is at once,
     /// one is as he arrives.
-    var behindAt: Double = 0.5
+    var behindAt: Double = 0.15
 
     // The layup.
     /// How far off the floor he goes from the layup's first cell, in art pixels.
-    var rise: CGFloat = 3
+    var rise: CGFloat = 0
     /// The rate the layup's four cells play at.
     var layupFPS: Double = 10
     /// How long the last cell is held before he comes down.
-    var hang: Double = 0.2
+    var hang: Double = 0.15
     /// Where he lands, in art pixels below where he took off. Negative lands him higher.
-    var landY: CGFloat = 0
+    var landY: CGFloat = 26
 
     // Where he lets go.
     /// Where the ball is in his hand on the cell before it goes, in art pixels from the
     /// frame's centre.
-    var handX: CGFloat = 8
+    var handX: CGFloat = 0
     var handY: CGFloat = -11
     /// **Where his hand is when he lets go**, against the ring, in points: right of it —
     /// the layup is right-handed and goes up leftward — and under it.
-    var offRim: CGFloat = 40
-    var underRim: CGFloat = 10
+    var offRim: CGFloat = 77.63
+    var underRim: CGFloat = 43
 
     // The ball.
     /// How long the ball is up. A layup is laid in, not lofted.
