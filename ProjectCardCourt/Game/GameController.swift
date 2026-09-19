@@ -2286,14 +2286,19 @@ final class GameController {
 
     /// Runs one in on demand: open, then round two defenders, turn about.
     func debugLayup() {
+        debugLayupGuarded.toggle()
+        debugLayup(defenders: debugLayupGuarded ? 2 : 0, made: true)
+    }
+
+    /// Runs one in with the defenders and outcome given — see `LayupBench`.
+    func debugLayup(defenders: Int, made: Bool) {
         // The bench cannot start a game on a device that is not running one.
         guard !isGuest else { return }
-        debugLayupGuarded.toggle()
         loop?.cancel()
         drive {
             var scene = ShotCutscene(shooter: GameRules.localSeat,
                                      chance: Int(ShotTuning.shared.debugChance),
-                                     made: true, defenders: debugLayupGuarded ? 2 : 0)
+                                     made: made, defenders: defenders)
             scene.isLayup = true
             cutscene = scene
             try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))

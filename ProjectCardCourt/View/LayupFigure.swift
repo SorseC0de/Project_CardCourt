@@ -11,8 +11,6 @@ struct LayupFigure: View {
     let seat: Seat
     /// How long the run in takes. The scene moves him over exactly this long.
     let approachSeconds: Double
-    /// The rate the layup plays at — the jumper's, so a Lethal Shooter's is quicker here too.
-    let fps: Double
     var scale: CGFloat = Theme.Figure.playerScale
 
     @Environment(\.ballInPlay) private var ballInPlay
@@ -42,14 +40,15 @@ struct LayupFigure: View {
         try? await Task.sleep(for: .seconds(approachSeconds))
         if Task.isCancelled { return }
         // Up off the floor on the first cell, and he stays up for all of them.
+        let tune = LayupTuning.shared
         showing = .layup
-        lifted = LayupStyle.rise
+        lifted = tune.rise
         for step in 0..<Sprite.layup.frames {
             cell = step
-            try? await Task.sleep(for: .seconds(1 / fps))
+            try? await Task.sleep(for: .seconds(1 / tune.layupFPS))
             if Task.isCancelled { return }
         }
-        try? await Task.sleep(for: .seconds(LayupStyle.hang))
+        try? await Task.sleep(for: .seconds(tune.hang))
         if Task.isCancelled { return }
         // Down, onto the landing a short dunk comes down on.
         lifted = 0
@@ -62,29 +61,78 @@ struct LayupFigure: View {
     }
 }
 
-/// The layup's numbers.
-enum LayupStyle {
-    /// How far off the floor he goes on the layup, in art pixels.
-    static let rise: CGFloat = 3
-    /// How long the last cell is held before he comes down.
-    static let hang: Double = 0.2
+/// **The layup's numbers, while they are being tuned** — see `LayupBench`. Freeze the
+/// printed answer into the defaults here once it lands.
+@Observable
+final class LayupTuning {
+    static let shared = LayupTuning()
+
+    // The run in.
     /// How long the run in to the rim takes.
-    static let approachSeconds: Double = 1.0
+    var approachSeconds: Double = 1.0
+    /// How small he is by the time he reaches the rim.
+    var arrivesAt: CGFloat = 0.5
+    /// **Round the defenders.** A right-handed layup comes in from the right, so the wall
+    /// stands this far to the left of his line and his run bends this far out to the right
+    /// of it on the way past them. Points.
+    var wallAside: CGFloat = 90
+    var aroundX: CGFloat = 70
+
+    // The layup.
+    /// How far off the floor he goes from the layup's first cell, in art pixels.
+    var rise: CGFloat = 3
+    /// The rate the layup's four cells play at.
+    var layupFPS: Double = 10
+    /// How long the last cell is held before he comes down.
+    var hang: Double = 0.2
+
+    // Where he lets go.
+    /// Where the ball is in his hand on the cell before it goes, in art pixels from the
+    /// frame's centre.
+    var handX: CGFloat = 8
+    var handY: CGFloat = -11
+    /// **Where his hand is when he lets go**, against the ring, in points: right of it —
+    /// the layup is right-handed and goes up leftward — and under it.
+    var offRim: CGFloat = 40
+    var underRim: CGFloat = 10
+
+    // The ball.
+    /// How long the ball is up. A layup is laid in, not lofted.
+    var flightSeconds: Double = 0.35
+    /// How high over the ring the ball's short arc peaks, as a share of the scene.
+    var arc: CGFloat = 0.06
+
     /// The cell the ball leaves his hand on: the last of the four has nothing in it.
     static let releaseCell = 3
-    /// How small he is by the time he reaches the rim, like a dunk arriving there.
-    static let arrivesAt: CGFloat = 0.5
-    /// Where the ball is in his hand on the cell before it goes, in art pixels from the
-    /// frame's centre — measured off the sheet.
-    static let hand = CGPoint(x: 8, y: -11)
-    /// How far under the ring his hand is when he lets go, in points.
-    static let underRim: CGFloat = 10
-    /// How long the ball is up. A layup is laid in, not lofted.
-    static let flightSeconds: Double = 0.35
-    /// How high over the ring the ball's short arc peaks, as a share of the scene.
-    static let arc: CGFloat = 0.06
-    /// **Round the defenders.** The wall stands this far to the right of his line, and his
-    /// run bends this far out to the left of it on the way past them.
-    static let wallAside: CGFloat = 90
-    static let aroundX: CGFloat = 70
+
+    func reset() {
+        let fresh = LayupTuning()
+        approachSeconds = fresh.approachSeconds; arrivesAt = fresh.arrivesAt
+        wallAside = fresh.wallAside; aroundX = fresh.aroundX
+        rise = fresh.rise; layupFPS = fresh.layupFPS; hang = fresh.hang
+        handX = fresh.handX; handY = fresh.handY
+        offRim = fresh.offRim; underRim = fresh.underRim
+        flightSeconds = fresh.flightSeconds; arc = fresh.arc
+    }
+
+    /// The whole set as the defaults above, for pasting back in.
+    var source: String {
+        func g(_ value: CGFloat) -> String { String(format: "%.2f", Double(value)) }
+        func t(_ value: Double) -> String { String(format: "%.2f", value) }
+        return """
+        var approachSeconds: Double = \(t(approachSeconds))
+        var arrivesAt: CGFloat = \(g(arrivesAt))
+        var wallAside: CGFloat = \(g(wallAside))
+        var aroundX: CGFloat = \(g(aroundX))
+        var rise: CGFloat = \(g(rise))
+        var layupFPS: Double = \(t(layupFPS))
+        var hang: Double = \(t(hang))
+        var handX: CGFloat = \(g(handX))
+        var handY: CGFloat = \(g(handY))
+        var offRim: CGFloat = \(g(offRim))
+        var underRim: CGFloat = \(g(underRim))
+        var flightSeconds: Double = \(t(flightSeconds))
+        var arc: CGFloat = \(g(arc))
+        """
+    }
 }
