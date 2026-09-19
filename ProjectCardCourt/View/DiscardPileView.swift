@@ -152,10 +152,16 @@ struct LogBrowserView: View {
                 .onTapGesture(perform: onDismiss)
 
             VStack(spacing: 10) {
+                Text("LOG")
+                    .font(.system(size: 12, weight: .black)).tracking(1.6)
+                    .foregroundStyle(Theme.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+
+                LogView(lines: lines, showsBackground: false)
+                    .frame(maxHeight: .infinity)
+
                 HStack {
-                    Text("LOG")
-                        .font(.system(size: 12, weight: .black)).tracking(1.6)
-                        .foregroundStyle(Theme.ink)
                     Spacer()
                     Button(action: onDismiss) {
                         Image(systemName: "xmark.circle.fill")
@@ -164,9 +170,6 @@ struct LogBrowserView: View {
                     }
                 }
                 .padding(.horizontal, 18)
-
-                LogView(lines: lines, showsBackground: false)
-                    .frame(maxHeight: .infinity)
             }
             .padding(.vertical, 16)
             .frame(maxWidth: 360, maxHeight: 520)

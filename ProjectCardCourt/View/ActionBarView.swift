@@ -16,6 +16,10 @@ struct ActionBarView: View {
     var onExchange: () -> Void = {}
     /// Off in a lesson, which teaches the cards and never the shot.
     var allowsShooting = true
+    /// The log and the pause, either end of the shot row. Nil in a lesson, which leaves
+    /// by its own button.
+    var onOpenLog: (() -> Void)?
+    var onPause: (() -> Void)?
     @Environment(\.floorIsHidden) private var floorIsHidden
 
     private var state: GameState { controller.shown }
@@ -125,14 +129,7 @@ struct ActionBarView: View {
                     if canExchange { sideButton("EXCHANGE", run: onExchange) }
                 }
             }
-            // **Up for every possession of yours, whether or not anything can go.** A Zone
-            // that forbids shooting greys all three rather than taking the capsule away.
-            if case .awaitingMove = controller.gate, allowsShooting {
-                HStack(spacing: 8) {
-                    shootButton
-                    if canBorrow { borrowButton }
-                }
-            }
+            bottomRow
             prompt
         }
         .padding(.horizontal, 10)
@@ -245,6 +242,11 @@ struct ActionBarView: View {
         static let word: CGFloat = 19
         static let figure: CGFloat = 14
         static let ball: CGFloat = 22
+        /// **Each finish gets the same room**: what is left of the capsule after the ball
+        /// and the two seams, in thirds. Left to the stack, a longer word took more.
+        static var segment: CGFloat {
+            (capsule - ballInset - ball - ballGap - 2 * seam) / 3
+        }
         static let drop: CGFloat = 2
         /// The pill's own drop, deeper than its lettering's.
         static let pillDrop: CGFloat = 4
@@ -376,7 +378,8 @@ struct ActionBarView: View {
                             radius: 0, x: Act.drop, y: Act.drop)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: Act.segment)
+                    .frame(maxHeight: .infinity)
                     .background {
                         if open {
                             // **Lit when the shot is special** — Project Stars' Start
@@ -434,6 +437,62 @@ struct ActionBarView: View {
     /// Varsitile: something in Retirement to exchange for.
     private var canExchange: Bool {
         !Rules.exchangeOptions(state, for: GameRules.localSeat).isEmpty
+    }
+
+    /// **The bottom row: the log, the shot, the pause.** The shot is up for every
+    /// possession of yours, whether or not anything can go — a Zone that forbids shooting
+    /// greys all three rather than taking the capsule away.
+    private var bottomRow: AnyView {
+        AnyView(HStack(spacing: 8) {
+            if let onOpenLog { logButton(onOpenLog) }
+            Spacer(minLength: 0)
+            if case .awaitingMove = controller.gate, allowsShooting {
+                shootButton
+                if canBorrow { borrowButton }
+            }
+            Spacer(minLength: 0)
+            if let onPause { pauseButton(onPause) }
+        })
+    }
+
+    /// **Opens the log.** The pause button's twin: somewhere to step out of the game and
+    /// look, not a play — and it says what it is.
+    private func logButton(_ open: @escaping () -> Void) -> some View {
+        Button(action: open) {
+            HStack(spacing: 5) {
+                Image(systemName: "text.alignleft")
+                Text("LOG").tracking(1)
+            }
+            .font(.system(size: 12, weight: .black))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .frame(height: 27)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(CardPalette.blue))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(.white, lineWidth: 1.5))
+            .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Game log")
+    }
+
+    private func pauseButton(_ pause: @escaping () -> Void) -> some View {
+        Button(action: pause) {
+            Image(systemName: "pause.fill")
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 27, height: 27)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(CardPalette.blue))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(.white, lineWidth: 1.5))
+                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Pause")
     }
 
     /// A white pill beside the shot, for a thing the floor lets you do that is not a card.

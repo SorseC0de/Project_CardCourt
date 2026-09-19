@@ -2427,7 +2427,11 @@ enum Rules {
             // any of the three.
             return special.dunkKind ?? Dunk.allCases[roll % Dunk.allCases.count]
         }
+        // **The button says what it is.** Only a Dunk is ever finished at the rim; the
+        // man's position only picks which of the plain two he throws down.
+        guard state.shotType == .dunk else { return nil }
         return Dunk.ordinary(for: state[seat].position, roll: roll)
+            ?? (roll.isMultiple(of: 2) ? .oneHand : .reverse)
     }
 
     /// - Parameter card: what put this shot up, when something did.
@@ -2504,10 +2508,9 @@ enum Rules {
         // **Settled here, once.** Which finish this is has to be in the state everybody
         // is told about, or four devices would each roll their own and watch four
         // different dunks. Nothing about the scoring reads it.
-        // Whatever put it up, or — for a plain shot — whatever was last played.
-        let played = card ?? state.lastPlayThisPossession.flatMap { CardLibrary.byID[$0] }
+        // Whatever card put it up; a plain shot is read off the button that was pressed.
         // Gravi-Gym: nothing is finished at the rim.
-        state.dunking = state.floorEffect.barsDunks ? nil : dunk(for: seat, card: played, state: &state)
+        state.dunking = state.floorEffect.barsDunks ? nil : dunk(for: seat, card: card, state: &state)
         if state.dunking != nil { state[seat].dunks += 1 }
         state.shotsThisRound += 1
         state.mustShootFirst = nil

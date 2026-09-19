@@ -67,10 +67,9 @@ struct CourtView: View {
     var showingClamps = false
     /// A tap on somebody who is not a legal target: read them instead of passing to them.
     var onInspectPlayer: (Seat) -> Void = { _ in }
-    /// A tap on a referee, carrying the man who was tapped. There is one sheet for the
-    /// whole crew, so most of the time which one he was does not matter — but a card that
-    /// names an official does, and it is the same gesture either way.
-    var onTapReferee: (UUID) -> Void = { _ in }
+    /// A tap on a referee: the man who was tapped, and where on screen, so his card can
+    /// rise from him.
+    var onTapReferee: (UUID, CGPoint) -> Void = { _, _ in }
     /// What the camera is framing — see `CourtCamera`. Nil is the whole floor.
     var camera: CourtCamera?
     /// The last pass thrown — see `GameController.passThrow`.
@@ -584,7 +583,7 @@ struct CourtView: View {
             guard refereeCrew.indices.contains(place) else { return middle }
             let post = refereeCrew[place].post
             let scale = court.scale(at: post.depth)
-            return CGPoint(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,
+            return CGPoint(x: court.footing(of: post).x,
                            y: court.y(at: post.depth) - Theme.Figure.height * scale / 2)
         }
     }
@@ -1038,7 +1037,8 @@ struct CourtView: View {
             switch self {
             case .player(let seat): return Perspective.depth(of: seat.slot(viewedFrom: viewer))
             case .deck:             return Perspective.deckDepth
-            case .referee(let call): return call.post.depth
+            // The wing referees stand behind everybody, whatever their depth says.
+            case .referee(let call): return call.post.isSouth ? call.post.depth : 0
             }
         }
 
@@ -1071,6 +1071,7 @@ struct CourtView: View {
             let turned = { if case .turned = duty { return true }; return false }()
             RefereeFigure(duty: duty,
                           runSheet: post.runSheet,
+                          lookSheet: post.lookSheet,
                           mirrored: false,
                           phase: post.phase,
                           tone: look.refereeTone(for: called.id),
@@ -1093,10 +1094,10 @@ struct CourtView: View {
                         .offset(y: -Referee.name * nameScale)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { onTapReferee(called.id) }
+                .onTapGesture(coordinateSpace: .global) { onTapReferee(called.id, $0) }
                 .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .top)
-                .position(x: court.centreX + court.halfWidth(at: post.depth) * post.lateral,
+                .position(x: court.footing(of: post).x,
                           y: court.y(at: post.depth) - nodeHeight / 2
                              + Perspective.footDrop(at: court.scale(at: post.depth)))
                 // Referees do not walk on. They are there or they are not.

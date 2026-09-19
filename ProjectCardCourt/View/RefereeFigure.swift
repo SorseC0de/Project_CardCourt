@@ -51,6 +51,8 @@ struct RefereeFigure: View {
     /// **The sheet he runs on, which is his post's** — see `RefereePost.runSheet`. Drawn
     /// facing the right way already, so nothing turns him round.
     var runSheet: Sprite = .refereeRunN
+    /// The glance toward the play he cuts to while running — see `RefereePost.lookSheet`.
+    var lookSheet: Sprite?
     /// Kept for the few poses still drawn one way only. Running never uses it now.
     var mirrored = false
     /// His own offset into the sprite clock, so two referees do not jog in step.
@@ -82,6 +84,10 @@ struct RefereeFigure: View {
     /// decision reads as waiting rather than fidgeting.
     private static let waitingLook = [0, 1, 0, 2]
 
+    /// **How often a running referee glances into the game**: one pass of the look sheet
+    /// every this many seconds, and the plain run the rest of the time.
+    private static let glanceEvery: TimeInterval = 3
+
     var body: some View {
         ZStack(alignment: .bottom) {
             SpriteShadow(scale: scale)
@@ -92,7 +98,9 @@ struct RefereeFigure: View {
                                 scale: scale,
                                 fps: Theme.Figure.playerFPS,
                                 isPlaying: duty == .working && !frozen,
-                                restFrame: restFrame(at: tick.date), phase: phase)
+                                restFrame: restFrame(at: tick.date),
+                                alternate: duty == .working ? lookSheet : nil,
+                                alternateEvery: Self.glanceEvery, phase: phase)
                     .scaleEffect(x: mirrored && duty != .working ? -1 : 1)
                     .offset(x: shake.x * scale, y: shake.y * scale)
             }

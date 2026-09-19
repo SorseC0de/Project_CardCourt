@@ -305,7 +305,14 @@ struct GameView: View {
                                       onBonus: { bonusOf = (card: $0, at: $1) },
                                       onHandOff: { handingOff = true },
                                       onExchange: { controller.exchange() },
-                                      allowsShooting: tutorial == nil)
+                                      allowsShooting: tutorial == nil,
+                                      onOpenLog: tutorial == nil ? {
+                                          withAnimation(.easeOut(duration: 0.2)) { readingLog = true }
+                                      } : nil,
+                                      onPause: tutorial == nil ? {
+                                          controller.pause()
+                                          withAnimation(.easeOut(duration: 0.2)) { paused = true }
+                                      } : nil)
                     }
                     // Out of the way rather than washed over. Two translucent sheets meeting
                     // multiply, and the seam where the hand's met the court's was a black
@@ -1010,7 +1017,7 @@ struct GameView: View {
                   showingClamps: readingAClamp,
                   // A lesson is about the cards; nobody on the floor opens.
                   onInspectPlayer: { seat in if tutorial == nil { open(.player(seat)) } },
-                  onTapReferee: { tapReferee($0) },
+                  onTapReferee: { tapReferee($0, at: $1) },
                   camera: controller.camera,
                   passThrow: controller.passThrow,
                   refereeThrow: controller.refereeThrow))
@@ -1092,11 +1099,6 @@ struct GameView: View {
                 SmallCapsText(text: "Half \(controller.shown.half)",
                               font: Chrome.display, size: 15, tracking: 0.6)
                     .foregroundStyle(CardPalette.gray)
-                // A lesson leaves by its own button.
-                if tutorial == nil {
-                    logButton
-                    pauseButton
-                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -1104,49 +1106,6 @@ struct GameView: View {
         .padding(.top, 2)
         .padding(.bottom, 8)
         .background(Theme.panel))
-    }
-
-    /// **The only way out of a game.** Louder than the two readings beside it, because it
-    /// is the one thing on the bar that does something rather than saying something.
-    /// **Opens the log.** Styled as the pause button's twin, because the two are the same
-    /// kind of thing: somewhere to step out of the game and look, not a play.
-    private var logButton: some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.2)) { readingLog = true }
-        } label: {
-            Image(systemName: "text.alignleft")
-                .font(.system(size: 12, weight: .black))
-                .foregroundStyle(.white)
-                .frame(width: 27, height: 27)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(CardPalette.blue))
-                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(.white, lineWidth: 1.5))
-                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Game log")
-    }
-
-    private var pauseButton: some View {
-        Button {
-            controller.pause()
-            withAnimation(.easeOut(duration: 0.2)) { paused = true }
-        } label: {
-            Image(systemName: "pause.fill")
-                .font(.system(size: 12, weight: .black))
-                .foregroundStyle(.white)
-                .frame(width: 27, height: 27)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(CardPalette.blue))
-                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(.white, lineWidth: 1.5))
-                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Pause")
     }
 
     /// Stopped, and what can be done about it.
@@ -1647,13 +1606,15 @@ struct GameView: View {
     }
 
     /// **A tap on one of the crew.** While a card is naming an official he is the answer;
-    /// every other time the crew is something you read, so it opens their sheet.
-    private func tapReferee(_ id: UUID) {
+    /// every other time it presents his card.
+    private func tapReferee(_ id: UUID, at point: CGPoint) {
         if case .awaitingRetirement = controller.gate {
             controller.choose(retiring: .official(id))
             return
         }
-        open(.referees)
+        guard let whistle = controller.shown.armedWhistles.first(where: { $0.id == id })
+        else { return }
+        inspecting = (card: whistle.card.descriptor, from: point)
     }
 
     /// **A stable name for something in play**, so the sheet's rows keep their identity as

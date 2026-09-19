@@ -63,7 +63,7 @@ struct InboundTuningBench: View {
         tune.topX = 0; tune.topY = 270
         tune.bottomX = 0; tune.bottomY = 320
         tune.ballX = 14; tune.ballY = 14
-        tune.throwerX = 0
+        tune.throwerX = -120
     }
 
     private func text(_ path: ReferenceWritableKeyPath<InboundTextTuning, CGFloat>) -> Binding<Double> {

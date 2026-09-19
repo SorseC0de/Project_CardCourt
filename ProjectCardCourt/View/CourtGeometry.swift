@@ -49,7 +49,7 @@ enum Perspective {
     }
 
     /// How far off centre East and West stand, as a share of the floor's half-width there.
-    static let flankSpread: CGFloat = 0.74
+    static let flankSpread: CGFloat = 0.64
     /// Where the referee stands when a Whistle is armed — on the sideline, outside the
     /// flank players.
     /// How far a figure is dropped below its footing, as a share of its own height. The
@@ -75,7 +75,7 @@ enum Perspective {
 
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.
-    static let refereeLateral: CGFloat = 0.98
+    static let refereeLateral: CGFloat = 0.88
     /// How far up the floor he stands from the player he is posted beside.
     ///
     /// Was 0.06, which put the near pair close enough to the flank players to read as
@@ -94,11 +94,9 @@ enum Perspective {
         let far = depth(of: .north) - refereeUpcourt
         return (wing + far) / 2
     }
-    /// **The two new posts either side of South**, a step nearer the camera than he
-    /// stands and out toward the sidelines. Not the user's numbers — placed by eye, and
-    /// named so they can be moved.
-    static let refereeSouthStep: CGFloat = 0.02
-    static let refereeSouthLateral: CGFloat = 0.35
+    /// **The two posts either side of South**, a step nearer the camera than he stands
+    /// and as far out as the screen allows — see `CourtGeometry.footing(of:)`.
+    static let refereeSouthStep: CGFloat = 0.06
 
     /// **Where a player throws it in from.** It used to borrow the far referee posts'
     /// depth, which tied the sideline to posts that no longer exist.
@@ -147,22 +145,20 @@ enum RefereePost: CaseIterable {
                 : Perspective.refereeWingDepth
     }
 
+    /// Which side of the floor, and how far out. The south pair are placed against the
+    /// screen's edge instead — see `CourtGeometry.footing(of:)` — so for them this only
+    /// says they stand outside the wings, which is who the crew turns toward on a call.
     var lateral: CGFloat {
-        let out = isSouth ? Perspective.refereeSouthLateral : Perspective.refereeLateral
-        return out * (isLeft ? -1 : 1)
+        (isSouth ? 1 : Perspective.refereeLateral) * (isLeft ? -1 : 1)
     }
 
-    /// **The sheet he runs on — never mirrored.** The wings face up the floor, away from
-    /// the players. The south-east one looks north-west and the south-west one north-east,
-    /// both in toward the court. Each sheet is drawn facing that way already, which is what
-    /// fixes the refs who ran backwards: they were one left-facing sheet, flipped.
-    var runSheet: Sprite {
-        switch self {
-        case .rightWing, .leftWing: return .refereeRunN
-        case .southEast:            return .refereeRunNW
-        case .southWest:            return .refereeRunNE
-        }
-    }
+    /// **The sheet he runs on — never mirrored.** Every post runs facing up the floor.
+    var runSheet: Sprite { .refereeRunN }
+
+    /// **And the one he glances into the game on**, often: the left-hand posts look
+    /// north-east and the right-hand ones north-west, both in toward the play. The same
+    /// run cycle with the head turned, so the cut never breaks his stride.
+    var lookSheet: Sprite { isLeft ? .refereeRunNE : .refereeRunNW }
 
     /// The post on the other side *and* the other end of the floor.
     var opposite: RefereePost {
@@ -260,6 +256,19 @@ struct CourtGeometry {
         case .east:          return CGPoint(x: centreX + half, y: y(at: depth))
         case .west:          return CGPoint(x: centreX - half, y: y(at: depth))
         }
+    }
+
+    /// **Where a referee's feet are.** The wings stand on the floor's own lateral; the two
+    /// beside South stand as far out as the screen allows, their whole frame still on it.
+    func footing(of post: RefereePost) -> CGPoint {
+        let depth = post.depth
+        guard post.isSouth else {
+            return CGPoint(x: centreX + halfWidth(at: depth) * post.lateral, y: y(at: depth))
+        }
+        let halfFrame = Sprite.refereeRunN.frameSize * Theme.Figure.playerScale
+            * scale(at: depth) / 2
+        let out = size.width / 2 - halfFrame
+        return CGPoint(x: centreX + (post.isLeft ? -out : out), y: y(at: depth))
     }
 
     func scale(of seat: Seat, inbounding thrower: Seat? = nil) -> CGFloat {

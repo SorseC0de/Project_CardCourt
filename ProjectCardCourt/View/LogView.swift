@@ -6,10 +6,10 @@ struct LogView: View {
     /// Off for the overlay style, where the log is decoration rather than a control.
     var isInteractive = true
 
-    /// The end of the log, and the room under the newest line that keeps it out of the
-    /// fade. Scrolled to rather than padded — see the body.
+    /// The end of the log, scrolled to rather than padded — see the body. The fade is at
+    /// the top now, over the oldest lines, so the newest needs no room to clear it.
     private static let foot = "log-foot"
-    private static let footRoom: CGFloat = 42
+    private static let footRoom: CGFloat = 6
 
     @State private var contentHeight: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
@@ -73,7 +73,7 @@ struct LogView: View {
                 }
             }
             .mask(alignment: .bottom) {
-                LinearGradient(colors: [.clear, CardPalette.black], startPoint: .bottom, endPoint: .top)
+                LinearGradient(colors: [.clear, CardPalette.black], startPoint: .top, endPoint: .bottom)
                     .allowsHitTesting(false)
             }
             .overlay(alignment: .topTrailing) {

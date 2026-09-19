@@ -103,7 +103,8 @@ final class InboundTextTuning {
 
     /// How far the thrower stands from the middle of the floor. The other seats do not
     /// move — they line up by depth instead, which is `Perspective.inboundLine`.
-    var throwerX: CGFloat = 0
+    /// North-west of North, rather than straight up from him.
+    var throwerX: CGFloat = -120
 }
 
 #if DEBUG

@@ -207,7 +207,7 @@ struct StatusHUDView: View {
     /// already read rather than the reading itself. Tapping opens them at a size that can
     /// be read.
     private var crew: some View {
-        HStack(spacing: refereeSide * 0.10) {
+        HStack(spacing: refereeSide * Crew.gap) {
             ForEach(state.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
                               displayWidth: refereeSide * Crew.share,
@@ -234,5 +234,7 @@ struct StatusHUDView: View {
         /// **Against the referee icon that stood here**, which is itself smaller than the
         /// ball. Three cards in the space one icon had, so the row does not grow.
         static let share: CGFloat = 0.62
+        /// The room between two of them, as a share of the icon's side.
+        static let gap: CGFloat = 0.30
     }
 }
