@@ -1879,6 +1879,18 @@ final class GameController {
         gate = .awaitingTarget(card: CardLibrary.freeAgent, choices: hands)
     }
 
+    /// **Taken back**: a card asking who before it was played goes back to being a card.
+    func cancelAim() {
+        guard !isPaused else { return }
+        guard case .awaitingTarget = gate, Rules.canCancelAim(shown) else { return }
+        if sendUp(.cancelAim) { return }
+        loop?.cancel()
+        drive {
+            await present(Rules.cancelAim(state: &state))
+            await run()
+        }
+    }
+
     func choose(target: Seat) {
         guard !isPaused else { return }
         guard case .awaitingTarget = gate else { return }
@@ -2498,8 +2510,14 @@ final class GameController {
                 let worth = Rules.sensibleTargets(choices, for: state.pendingActor ?? seat,
                                                   in: state)
                 var pick = worth.max { state[$0].bag.count < state[$1].bag.count } ?? worth[0]
-                if case .target(let said)? = await decision(from: seat), choices.contains(said) {
-                    pick = said
+                let said = await decision(from: seat)
+                if case .cancelAim? = said, Rules.canCancelAim(state) {
+                    if Task.isCancelled { return }
+                    await present(Rules.cancelAim(state: &state))
+                    continue
+                }
+                if case .target(let named)? = said, choices.contains(named) {
+                    pick = named
                 } else if !Table.shared.isRemote(seat) {
                     gate = .thinking
                     await think()

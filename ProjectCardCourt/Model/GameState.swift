@@ -298,6 +298,14 @@ struct GameState: Codable {
     /// The Clamp whose target is being asked for, so the answer knows to assign rather
     /// than to rotate a beaten defender — the other thing a Clamp and a target mean.
     var assigningClamp: Card.ID?
+    /// **A card asking who before it is played** — a Pass to a chosen man, a Cut. Nothing
+    /// has happened yet while this is set, so the question can be cancelled outright.
+    var aimingCard: Card.ID?
+    /// The answer, waiting for that card to be played with it.
+    var aimedCard: Card.ID?
+    var aimedTarget: Seat?
+    /// And carried through the play itself, until the pass or the Cut spends it.
+    var currentAim: Seat?
     /// Misdirection: this swing was turned round by the Crossover in front of it, so it
     /// also knocks a card loose on the way past.
     var misdirected = false

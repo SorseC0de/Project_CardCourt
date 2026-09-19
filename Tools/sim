@@ -27,7 +27,9 @@ if [[ ! -x "$BIN" || -n "$newest" ]]; then
   # Net, minus the Game Center half — that one needs GameKit and a device to talk to.
   net=("$ROOT/ProjectCardCourt/Net"/*.swift(N))
   net=("${(@)net:#*GameCenterMatch.swift}")
-  swiftc -O -o "$BIN" \
+  # HARNESS: the rules' test settings stay on here, as they are in a debug app build —
+  # the seeded tests are written against the local seat having the ball first.
+  swiftc -O -D HARNESS -o "$BIN" \
     "$ROOT/ProjectCardCourt/Model"/*.swift \
     "$ROOT/ProjectCardCourt/GameRules.swift" \
     "$ROOT/ProjectCardCourt/Game/AIPolicy.swift" \

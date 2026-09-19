@@ -1600,6 +1600,7 @@ struct GameView: View {
         case .awaitingNaming:  controller.choose(naming: nil)
         case .awaitingRetirement: controller.choose(retiring: nil)
         case .awaitingRetiredPick: controller.choose(retiredPick: nil)
+        case .awaitingTarget: controller.cancelAim()
         case .awaitingClampsNamed: controller.choose(selling: nil)
         default: break
         }

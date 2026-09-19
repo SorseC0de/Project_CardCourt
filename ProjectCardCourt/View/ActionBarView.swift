@@ -450,6 +450,10 @@ struct ActionBarView: View {
                 shootButton
                 if canBorrow { borrowButton }
             }
+            // **A card asking who can be taken back**, from the middle of the row.
+            if case .awaitingTarget = controller.gate, Rules.canCancelAim(state) {
+                sideButton("CANCEL") { controller.cancelAim() }
+            }
             Spacer(minLength: 0)
             if let onPause { pauseButton(onPause) }
         })

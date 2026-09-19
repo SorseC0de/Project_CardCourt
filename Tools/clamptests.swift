@@ -224,3 +224,28 @@ func retirementTests() {
                    "Varsitile: an Intangible exchanged for one in Retirement")
     }
 }
+
+func aimTests() {
+    print("Aiming")
+    do {
+        var (state, seat, cards) = openPossession(seed: 331, cards: [CardLibrary.bulletPass])
+        let shot = state.shot
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        var asked = false
+        if case .awaitingTarget = state.phase { asked = true }
+        Check.that(asked && state[seat].bag.contains { $0.id == cards[0].id } && state.shot == shot,
+                   "a Pass to a chosen man asks who before anything is played")
+        Rules.cancelAim(state: &state)
+        var back = false
+        if case .possession(let holder) = state.phase { back = holder == seat }
+        Check.that(back && state[seat].bag.contains { $0.id == cards[0].id },
+                   "and cancelling leaves the card in the Bag, nothing done")
+    }
+    do {
+        var (state, seat, cards) = openPossession(seed: 332, cards: [CardLibrary.bulletPass])
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Rules.resolveTarget(seat.across, state: &state)
+        while case .awaitingCounter = state.phase { Rules.resolveCounter(false, state: &state) }
+        Check.that(state.ball == seat.across, "and answering plays it at the man named")
+    }
+}

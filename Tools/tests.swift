@@ -1647,14 +1647,15 @@ func runTests() {
             state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
         }
         var events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        // Assigning the Clamps is the card's "You may"; this test says yes.
-        if case .awaitingOption(_, .assignClamps) = state.phase {
-            events += Rules.resolveOption(true, state: &state)
-        } else {
-            Check.that(false, "Kick-Out with Clamps on you asks whether to Assign them")
-        }
+        // **Who first, now** — the card asks for its man before it is played — and then
+        // its "You may", which this test says yes to.
         if case .awaitingTarget(_, _, let choices) = state.phase, let receiver = choices.first {
             events += Rules.resolveTarget(receiver, state: &state)
+            if case .awaitingOption(_, .assignClamps) = state.phase {
+                events += Rules.resolveOption(true, state: &state)
+            } else {
+                Check.that(false, "Kick-Out with Clamps on you asks whether to Assign them")
+            }
             while case .awaitingCounter = state.phase {
                 events += Rules.resolveCounter(false, state: &state)
             }
@@ -1826,6 +1827,7 @@ func runTests() {
     clampTests()
     cutTests()
     retirementTests()
+    aimTests()
     slotTestsTwo()
     alleyOopTests()
 

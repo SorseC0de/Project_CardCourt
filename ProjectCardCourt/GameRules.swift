@@ -15,7 +15,12 @@ enum GameRules {
     /// How long a played card is held in the middle of the screen.
     static let playedCardSeconds = 2.5
 
-    /// Forces the opening inbound to a seat instead of rolling for it. nil plays normally.
-    /// Point it at whoever is being tested.
+    /// **Who the ball goes to first.** In a debug build, always the local seat, so the
+    /// player being tested has it; in a release build, nobody — the rules roll for it.
+    /// Either way the rotation runs clockwise from there, round by round.
+    #if DEBUG || HARNESS
     static let debugFirstInbounder: Seat? = .south
+    #else
+    static let debugFirstInbounder: Seat? = nil
+    #endif
 }

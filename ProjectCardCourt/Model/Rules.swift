@@ -1379,6 +1379,21 @@ enum Rules {
                                               choices: choices)
                 return []
             }
+            // **A card that names a man asks for him first** — a Pass to a chosen player, a
+            // Cut. Asked before anything happens, so it can be cancelled with nothing to
+            // undo. Only the player's own question: Floor General's is asked where it
+            // always was.
+            if state.aimedCard != cardID, state.aimingCard == nil,
+               asker(instead: seat, in: state) == seat,
+               let choices = aimChoices(state[seat].bag[index].descriptor, by: seat),
+               legalMoves(state, for: seat).contains(.play(cardID)) {
+                guard !choices.isEmpty else { return [] }
+                state.aimingCard = cardID
+                state.pendingActor = seat
+                state.phase = .awaitingTarget(seat: seat, card: state[seat].bag[index].descriptor,
+                                              choices: choices)
+                return []
+            }
             // **The rules are the rules here, not only in the hand that draws them.**
             // `legalMoves` is what bars a card — a Clamp holding it down, Triple Threat
             // closing the book on Moves, a Lob owing a shot — and this took any card in
@@ -1703,16 +1718,23 @@ enum Rules {
         // Somebody has to name the man. Floor General names him for everybody,
         // which is the whole of what it does — so if it is on the floor, the ask
         // goes to them instead.
+        var named: Seat?
         if target == .choice || target == .leftOrRight {
-            state.pendingPlay = descriptor
-            state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
-                                          card: descriptor,
-                                          choices: passChoices(target, from: seat,
-                                                               othersOnly: descriptor.passesToOthersOnly))
-            state.pendingActor = seat
-            return true
+            // Named already, before the card was played — see `aimingCard`.
+            if let aim = state.currentAim {
+                state.currentAim = nil
+                named = aim
+            } else {
+                state.pendingPlay = descriptor
+                state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                              card: descriptor,
+                                              choices: passChoices(target, from: seat,
+                                                                   othersOnly: descriptor.passesToOthersOnly))
+                state.pendingActor = seat
+                return true
+            }
         }
-        guard let receiver = resolve(target, from: seat, state: state) else {
+        guard let receiver = named ?? resolve(target, from: seat, state: state) else {
             // Behind-the-Back with nobody behind: a live-ball turnover.
             state[seat].turnovers += 1
             events.append(.failedReturn(seat: seat))
@@ -1737,6 +1759,21 @@ enum Rules {
 
         completePass(descriptor, from: seat, to: receiver, state: &state, events: &events)
         return false
+    }
+
+    /// **A Cut with its man known.** L-Cut's "You may" is asked before the ball goes.
+    private static func aimCut(_ descriptor: CardDescriptor, by actor: Seat, at target: Seat,
+                               state: inout GameState, events: inout [GameEvent]) {
+        let choices = retirementChoices(descriptor, by: actor, in: state)
+        if !choices.isEmpty {
+            state.cutReceiver = target
+            state.pendingPlay = descriptor
+            state.pendingActor = actor
+            state.phase = .awaitingRetirement(seat: asker(instead: actor, in: state),
+                                              card: descriptor, choices: choices)
+            return
+        }
+        cutPass(descriptor, from: actor, to: target, state: &state, events: &events)
     }
 
     /// **The ball and the defenders, to the man named.** A pass in every way but the card.
@@ -1958,18 +1995,17 @@ enum Rules {
             return played
         }
 
-        // **A Cut, with its man named.** L-Cut's "You may" is asked before the ball goes.
+        // **A card aimed before it was played**: now it is played, at him.
+        if let aiming = state.aimingCard {
+            state.aimingCard = nil
+            state.aimedCard = aiming
+            state.aimedTarget = target
+            return apply(.play(aiming), by: actor, to: &state)
+        }
+
+        // **A Cut, with its man named.**
         if descriptor.cut != nil {
-            let choices = retirementChoices(descriptor, by: actor, in: state)
-            if !choices.isEmpty {
-                state.cutReceiver = target
-                state.pendingPlay = descriptor
-                state.pendingActor = actor
-                state.phase = .awaitingRetirement(seat: asker(instead: actor, in: state),
-                                                  card: descriptor, choices: choices)
-                return events
-            }
-            cutPass(descriptor, from: actor, to: target, state: &state, events: &events)
+            aimCut(descriptor, by: actor, at: target, state: &state, events: &events)
             settleHands(state: &state, events: &events)
             return events
         }
@@ -2788,6 +2824,10 @@ enum Rules {
             return
         }
         let card = state[seat].bag.remove(at: index)
+        // Named before it was played — carried through the play until it is spent.
+        state.currentAim = state.aimedCard == card.id ? state.aimedTarget : nil
+        state.aimedCard = nil
+        state.aimedTarget = nil
         // The play has landed; whatever was kept quiet for it is free again.
         state.callsAnswered = []
         let descriptor = card.descriptor
@@ -3166,6 +3206,11 @@ enum Rules {
             state.lastPlayWasCombo = false
             state.movesThisPossession += 1
             guard case .possession(let holder) = state.phase, holder == seat else { return }
+            if let aim = state.currentAim {
+                state.currentAim = nil
+                aimCut(descriptor, by: seat, at: aim, state: &state, events: &events)
+                return
+            }
             state.pendingPlay = descriptor
             state.pendingActor = seat
             state.phase = .awaitingTarget(seat: asker(instead: seat, in: state), card: descriptor,
@@ -3763,6 +3808,9 @@ enum Rules {
                                         state: inout GameState, events: inout [GameEvent]) {
         state.ball = seat
         state.callsAnswered = []
+        state.currentAim = nil
+        state.aimedCard = nil
+        state.aimedTarget = nil
         state.lastPlayThisPossession = nil
         state.lastPlayWasCombo = false
         state.movesThisPossession = 0
@@ -4186,6 +4234,34 @@ enum Rules {
     /// `CardDescriptor.passesToOthersOnly`. Left-or-right is geometry and never includes
     /// him. What happens when he does name himself is `completePass`'s business: it is
     /// Traveling, unless he moves at his own pace.
+    /// **Who a card may be aimed at before it is played**, or nil for a card that does not
+    /// name anybody. See `aimingCard`.
+    static func aimChoices(_ descriptor: CardDescriptor, by seat: Seat) -> [Seat]? {
+        if descriptor.cut != nil { return Seat.allCases.filter { $0 != seat } }
+        guard let target = descriptor.passTarget, target == .choice || target == .leftOrRight
+        else { return nil }
+        return passChoices(target, from: seat, othersOnly: descriptor.passesToOthersOnly)
+    }
+
+    /// Whether the question standing is a card asking who, before it has been played —
+    /// the one kind of question that can simply be taken back.
+    static func canCancelAim(_ state: GameState) -> Bool {
+        guard case .awaitingTarget = state.phase else { return false }
+        return state.aimingCard != nil || state.assigningClamp != nil
+    }
+
+    /// **Taken back.** The card goes back to being a card in the hand; nothing it would
+    /// have done has happened.
+    @discardableResult
+    static func cancelAim(state: inout GameState) -> [GameEvent] {
+        guard canCancelAim(state), let actor = state.pendingActor else { return [] }
+        state.aimingCard = nil
+        state.assigningClamp = nil
+        state.pendingActor = nil
+        state.phase = .possession(holder: actor)
+        return []
+    }
+
     static func passChoices(_ target: PassTarget, from seat: Seat,
                             othersOnly: Bool = false) -> [Seat] {
         switch target {
@@ -5294,6 +5370,10 @@ enum Rules {
 
         // Nobody to give it back to: the pass cannot happen, only the turnover.
         if descriptor.passTarget == .backToPasser, state.lastPasser == nil { return true }
+
+        // **A Cut with nobody guarding you** is dead whoever has the ball — dimmed the
+        // whole time, not only while it is your possession.
+        if descriptor.cut != nil, state[seat].clamps.isEmpty { return true }
 
         // Its whole effect is a SHOT change, and SHOT is already pinned where it would
         // push it — a debuff at the floor, or a boost at the ceiling.
