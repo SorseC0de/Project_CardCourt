@@ -60,6 +60,9 @@ struct SpriteAnimation: View {
     /// `Alternates.rarely` for how often, and `rolls` for why it is not simply random.
     var alternateRare: Sprite?
     var alternateEvery: TimeInterval = 5
+    /// Turns the cut-away round, and only the cut-away — a referee who looks back over
+    /// the other shoulder without his run being flipped.
+    var mirrorsAlternate = false
     /// This sprite's own offset into the clock, so four players do not run — or glance —
     /// in unison.
     var phase: TimeInterval = 0
@@ -92,6 +95,7 @@ struct SpriteAnimation: View {
                 .offset(y: -CGFloat(index) * side)
                 .frame(width: side, height: side, alignment: .top)
                 .clipped()
+                .scaleEffect(x: mirrorsAlternate && showing != sprite ? -1 : 1)
                 .overlay(alignment: .topLeading) {
                     if let face {
                         // Dressed by whoever is dressing the body: a figure on the floor

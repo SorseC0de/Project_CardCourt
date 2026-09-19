@@ -155,10 +155,23 @@ enum RefereePost: CaseIterable {
     /// **The sheet he runs on — never mirrored.** Every post runs facing up the floor.
     var runSheet: Sprite { .refereeRunN }
 
-    /// **And the one he glances into the game on**, often: the left-hand posts look
-    /// north-east and the right-hand ones north-west, both in toward the play. The same
-    /// run cycle with the head turned, so the cut never breaks his stride.
-    var lookSheet: Sprite { isLeft ? .refereeRunNE : .refereeRunNW }
+    /// **And the one he glances into the game on**, often. The pair beside South look
+    /// up into it — north-east from the left, north-west from the right. The wings are
+    /// upcourt of most of the play, so they **look back** at it, over the shoulder nearer
+    /// the middle: `Referee_Run_Look` is drawn over the left one, which is the right-hand
+    /// wing's, and the left-hand wing's is the same turned round — see `mirrorsLook`. Every
+    /// one is the same run cycle with the head turned, so the cut never breaks his stride.
+    var lookSheet: Sprite {
+        switch self {
+        case .southWest: return .refereeRunNE
+        case .southEast: return .refereeRunNW
+        case .rightWing, .leftWing: return .refereeRunLook
+        }
+    }
+
+    /// Whether the look back is turned round: the left-hand wing looks over his right
+    /// shoulder, toward the middle. Only the glance is flipped, never the run.
+    var mirrorsLook: Bool { self == .leftWing }
 
     /// The post on the other side *and* the other end of the floor.
     var opposite: RefereePost {

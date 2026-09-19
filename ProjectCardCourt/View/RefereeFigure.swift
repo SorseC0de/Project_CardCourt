@@ -53,6 +53,8 @@ struct RefereeFigure: View {
     var runSheet: Sprite = .refereeRunN
     /// The glance toward the play he cuts to while running — see `RefereePost.lookSheet`.
     var lookSheet: Sprite?
+    /// The glance turned round — see `RefereePost.mirrorsLook`.
+    var mirrorsLook = false
     /// Kept for the few poses still drawn one way only. Running never uses it now.
     var mirrored = false
     /// His own offset into the sprite clock, so two referees do not jog in step.
@@ -100,7 +102,8 @@ struct RefereeFigure: View {
                                 isPlaying: duty == .working && !frozen,
                                 restFrame: restFrame(at: tick.date),
                                 alternate: duty == .working ? lookSheet : nil,
-                                alternateEvery: Self.glanceEvery, phase: phase)
+                                alternateEvery: Self.glanceEvery,
+                                mirrorsAlternate: mirrorsLook, phase: phase)
                     .scaleEffect(x: mirrored && duty != .working ? -1 : 1)
                     .offset(x: shake.x * scale, y: shake.y * scale)
             }

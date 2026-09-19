@@ -1072,6 +1072,7 @@ struct CourtView: View {
             RefereeFigure(duty: duty,
                           runSheet: post.runSheet,
                           lookSheet: post.lookSheet,
+                          mirrorsLook: post.mirrorsLook,
                           mirrored: false,
                           phase: post.phase,
                           tone: look.refereeTone(for: called.id),
