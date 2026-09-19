@@ -27,6 +27,9 @@ struct PlayerFigure: View {
     /// Clamps already on this player, shown above their head while a Clamp is being read.
     /// Nil the rest of the time — a running count of nothing on four heads is clutter.
     var clampCount: Int?
+    /// How much higher than usual what is hung over his head rides, in the figure's own
+    /// points — room under it for the name the court puts over his head.
+    var badgeLift: CGFloat = 0
     /// Cards in this player's bag, shown above their head.
     var handCount: Int?
     /// Overrides what they are doing. The cutscenes use it to make someone shoot.
@@ -374,7 +377,7 @@ struct PlayerFigure: View {
                             .foregroundStyle(CardPalette.red)
                             .shadow(color: CardPalette.purple, radius: 0, x: 4, y: 4)
                             .contentTransition(.numericText())
-                            .offset(y: -5 - Bag.side)
+                            .offset(y: -5 - Bag.side - badgeLift)
                             .transition(.scale.combined(with: .opacity))
                     }
                     if let handCount {
@@ -404,7 +407,7 @@ struct PlayerFigure: View {
                         // the bag's falls across the number.
                         .compositingGroup()
                         .shadow(color: tint, radius: 0, x: 4, y: 4)
-                        .offset(y: -5)
+                        .offset(y: -5 - badgeLift)
                     }
                     if let marker {
                         MarkerTriangle()
@@ -415,7 +418,7 @@ struct PlayerFigure: View {
                         // Lifted by half of what it grew, so the bigger wedge keeps
                         // the air it had over his head rather than reaching down
                         // into it.
-                        .offset(y: Wedge.lift + hop)
+                        .offset(y: Wedge.lift + hop - badgeLift)
                     }
                     }
                     .opacity(warp > 0 ? 0 : 1)

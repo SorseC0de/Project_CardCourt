@@ -72,7 +72,7 @@ everyone plays under.
 Sequence:
 
 1. The main deck and the officials deck are both shuffled at the start of the game.
-2. Hands of five are dealt.
+2. Hands of four are dealt — the draw at the top of a possession makes five, the hand limit.
 3. The top three officials cards are turned face-up. Those are the rules for the round.
 
 Each round the three current refs go to the bottom of the officials deck, the deck is

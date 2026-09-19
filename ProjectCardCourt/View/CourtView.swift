@@ -84,20 +84,15 @@ struct CourtView: View {
     /// `CardLayout.nameTracking` to fit a fixed width; this one is read at a distance
     /// over a busy floor, so it wants the opposite — bigger, and opened up.
     private enum NamePlate {
+        /// The old plate's size, kept only for the room it took — see `node`.
         static let size: CGFloat = 26
-        /// A share of the size, so the two stay in step.
         static let tracking: CGFloat = 0.04
-
-        // Where it sits, as shares of a figure's height.
-
-        /// Raheem stands at the back, where a name under his feet is covered by whoever
-        /// is nearest the camera — so his goes out beside him instead.
-        static let farX: CGFloat = 0.42
-        static let farLift: CGFloat = 0.55
-        /// How far over his own head the left flank's name rides — see `wearsNameHigh`.
-        static let highLift: CGFloat = 0.72
-        /// The other three sit closer under their own feet.
-        static let drop: CGFloat = 0.02
+        /// Where the name's foot sits, in the figure's own points from the top of his
+        /// frame: just over the crown of his head.
+        static let overHead: CGFloat = (SpriteMetrics.headOrigin.y - 1)
+            * Theme.Figure.playerScale - 2
+        /// How much higher the hand count rides, to leave the name room under it.
+        static let badgeLift: CGFloat = 12
     }
 
     /// Who the court draws as holding the ball.
@@ -987,19 +982,6 @@ struct CourtView: View {
     /// for his own throw-ins — every other one drew him twice.
     private func isInbounding(_ seat: Seat) -> Bool { thrower == seat }
 
-    /// The seat furthest from the camera, whose label the nearest player sits over.
-    private func isFarSeat(_ seat: Seat) -> Bool {
-        seat.slot(viewedFrom: viewer) == .north
-    }
-
-    /// Whether this seat's name is worn over the head rather than under the feet.
-    ///
-    /// The left flank stands where the Intangible plates are, and a plate under his feet
-    /// lands on top of them. Over the head is the only clear air he has.
-    private func wearsNameHigh(_ seat: Seat) -> Bool {
-        seat.slot(viewedFrom: viewer) == .west
-    }
-
     /// The wedge means "you can pick this one". During an inbound the inbounder is the
     /// single seat you cannot pass to, so they wear nothing at all — marking them would
     /// point at the one illegal target on the floor.
@@ -1141,11 +1123,6 @@ struct CourtView: View {
 
     // MARK: - Players
 
-    /// Undoes the row's own scaling and puts the flanks' back on.
-    private func nameScale(_ seat: Seat, on court: CourtGeometry) -> CGFloat {
-        court.scale(at: Perspective.inboundLine) / court.scale(of: seat, inbounding: thrower)
-    }
-
     private func node(_ seat: Seat, on court: CourtGeometry) -> AnyView {
         AnyView(Group {
             let selectable = selectableSeats.contains(seat)
@@ -1160,6 +1137,7 @@ struct CourtView: View {
                         && state.phase.actingSeat != seat,
                     marker: marker(for: seat, selectable: selectable),
                     clampCount: showingClamps ? state[seat].clamps.count : nil,
+                    badgeLift: NamePlate.badgeLift,
                     handCount: state[seat].bag.count { !undelivered.contains($0.id) },
                     // Set and waiting for it, like everybody else during an inbound — and
                     // turned to watch whoever is throwing it, rather than facing whichever
@@ -1201,35 +1179,33 @@ struct CourtView: View {
                     warp: isAway(seat) ? 1 : 0,
                     warpSeed: warpSeed)
                     .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
-                HStack(spacing: NamePlate.size * 0.18) {
-                    PlayerNameText(seat: seat, size: NamePlate.size,
-                                   tracking: NamePlate.tracking)
-                    // Whoever has it, said twice: the sprite is dribbling one and this is the
-                    // same fact at a glance, without having to find the pixel in his hands.
-                    if holder == seat {
-                        BallView(diameter: NamePlate.size * 0.8)
-                            .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                            .transition(.scale.combined(with: .opacity))
+                    // **His name, over his head and under his hand count** — small, in the
+                    // referees' style, and the same size wherever he stands: the row's own
+                    // scale is divided back out.
+                    .overlay(alignment: .top) {
+                        HStack(spacing: 3) {
+                            FloorName(text: seat.playerName)
+                            // Whoever has it, said twice: the sprite is dribbling one and
+                            // this is the same fact at a glance.
+                            if holder == seat {
+                                BallView(diameter: FloorName.size)
+                                    .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                        .animation(.easeOut(duration: 0.2), value: holder == seat)
+                        .scaleEffect(1 / court.scale(of: seat, inbounding: thrower), anchor: .bottom)
+                        .frame(height: NamePlate.overHead, alignment: .bottom)
+                        // The name goes with him, whole — it is a label, not a body.
+                        .opacity(isAway(seat) ? 0 : 1)
+                        .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
                     }
-                }
-                    .animation(.easeOut(duration: 0.2), value: holder == seat)
-                    // The name goes with him, whole — it is a label, not a body.
-                    .opacity(isAway(seat) ? 0 : 1)
-                    .animation(.easeInOut(duration: Court.warp), value: isAway(seat))
+                // **The room the old name plate took, kept.** Every player's feet were
+                // placed on the floor with it under them, so taking it away would drop all
+                // four by its height.
+                PlayerNameText(seat: seat, size: NamePlate.size, tracking: NamePlate.tracking)
                     .fixedSize()
-                    // The node is scaled by its row, which sized Raheem's name to the horizon
-                    // and blew the human's up. A name is a label rather than a thing standing
-                    // on the floor, so it is scaled back out to the one size the flanks read
-                    // at — the middle of the three, and the only one nobody had to squint at.
-                    .scaleEffect(nameScale(seat, on: court), anchor: .bottom)
-                    // Pulled up through the sheet's empty rows, or it sits a long way under
-                    // the feet at this scale.
-                    .offset(x: isFarSeat(seat) ? Theme.Figure.height * NamePlate.farX : 0,
-                            y: -Theme.Figure.height
-                                * (Theme.Figure.spriteFootPadding
-                                   + (isFarSeat(seat) ? NamePlate.farLift
-                                      : wearsNameHigh(seat) ? NamePlate.highLift
-                                      : -NamePlate.drop)))
+                    .hidden()
             }
             .contentShape(Rectangle())
             .overlay(alignment: .top) {
