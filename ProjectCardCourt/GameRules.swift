@@ -18,9 +18,4 @@ enum GameRules {
     /// Forces the opening inbound to a seat instead of rolling for it. nil plays normally.
     /// Point it at whoever is being tested.
     static let debugFirstInbounder: Seat? = .south
-
-    /// **Who a referee throws it in to at the top of a round.** The rule is a random
-    /// player; while the game is being developed it is always the local seat, so the
-    /// player being tested gets the ball. nil plays the rule.
-    static let debugRefereeInboundsTo: Seat? = .south
 }

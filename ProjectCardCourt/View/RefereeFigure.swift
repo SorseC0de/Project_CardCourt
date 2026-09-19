@@ -69,12 +69,10 @@ struct RefereeFigure: View {
 
     /// The rattle on a call.
     ///
-    /// **Whole pixels, and more of them than a vibration.** The pose is already doing
-    /// something ridiculous, so a polite one-pixel tremble undersells it — this is a man
-    /// blowing a whistle hard enough to move himself. The two axes run at different rates
-    /// so it never settles into a clean back-and-forth.
+    /// **Whole pixels: one each way.** Two side to side was too much. The two axes run at
+    /// different rates so it never settles into a clean back-and-forth.
     private enum Rattle {
-        static let side: CGFloat = 2
+        static let side: CGFloat = 1
         static let hop: CGFloat = 1
         /// Both divide the refresh, and neither divides the other.
         static let sideFPS: Double = 20

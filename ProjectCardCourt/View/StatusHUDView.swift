@@ -9,15 +9,24 @@ struct DeckGlyph: View {
     /// Cell 0 is the deck standing on edge — portrait, and the default. Cell 1 is the
     /// same deck lying down, which only the `over` readout wants.
     var cell: Int = 0
+    /// **Which deck.** The main deck is the first column; the officials deck, in its
+    /// stripes, is the second.
+    var deck: Which = .main
     var side: CGFloat
+
+    enum Which: Int { case main, officials }
+
+    /// The sheet's columns: one per deck.
+    static let columns = 2
 
     var body: some View {
         Image("Deck")
             .interpolation(.none)
             .resizable()
-            .frame(width: side, height: side * CGFloat(DeckReadout.cells))
-            .offset(y: -CGFloat(cell) * side)
-            .frame(width: side, height: side, alignment: .top)
+            .frame(width: side * CGFloat(Self.columns),
+                   height: side * CGFloat(DeckReadout.cells))
+            .offset(x: -CGFloat(deck.rawValue) * side, y: -CGFloat(cell) * side)
+            .frame(width: side, height: side, alignment: .topLeading)
             .clipped()
     }
 }
@@ -145,11 +154,10 @@ struct StatusHUDView: View {
         .animation(.spring(response: 0.32, dampingFraction: 0.7), value: state.freeRebound)
     }
 
-    /// **The officials deck, counted the way the main deck is** — the same drawing, with
-    /// a card-black drop under the number. The deck art stands in until the officials
-    /// deck has a sprite of its own.
+    /// **The officials deck, counted the way the main deck is** — its own striped deck,
+    /// with a card-black drop under the number.
     private var officialsRemaining: some View {
-        DeckGlyph(cell: readout.cell, side: readout.side)
+        DeckGlyph(cell: readout.cell, deck: .officials, side: readout.side)
             .rotationEffect(.degrees(readout.rotation))
             .overlay {
                 Text("\(state.officials.count)")

@@ -247,17 +247,17 @@ enum Rules {
         Set(state[seat].clamps.flatMap { $0.card.clamp?.blocksShotTypes ?? [] })
     }
 
-    /// Whether this seat already has a defender of their own out on somebody.
-    /// **Who a Clamp may be put on.** Anybody else with room for another defender. Gravity
-    /// makes it one man — "All Clamps must target you" — whoever is playing it.
+    /// **Who a Clamp may be put on.** Anybody with room for another defender — yourself
+    /// included, for what a Clamp on you sets up: a Cut, a Pump Fake, a Flop. Gravity makes
+    /// it one man — "All Clamps must target you" — whoever is playing it.
     static func clampTargets(for seat: Seat, in state: GameState) -> [Seat] {
         if let magnet = gravityHolder(in: state) {
             return state[magnet].clamps.count < state.rules.clampSlots ? [magnet] : []
         }
-        return Seat.allCases.filter {
-            $0 != seat && state[$0].clamps.count < state.rules.clampSlots
-        }
+        return Seat.allCases.filter { state[$0].clamps.count < state.rules.clampSlots }
     }
+
+    /// Whether this seat already has a defender of their own out on somebody.
 
     static func alreadyGuarding(_ seat: Seat, in state: GameState) -> Bool {
         if state.pendingClamps.contains(where: { $0.from == seat }) { return true }
@@ -3665,8 +3665,9 @@ enum Rules {
         // whoever happened to hold it last. With no crew out — a match that fields none —
         // it falls back to the player, as it always did.
         if let official = state.armedWhistles.first?.id {
-            let to = GameRules.debugRefereeInboundsTo ?? state.pick(from: Seat.allCases)
-            state.phase = .refereeInbound(official: official, to: to)
+            // **To each player in turn**, round by round — the rotation the inbound has
+            // always gone round, clockwise, from whoever opened the game.
+            state.phase = .refereeInbound(official: official, to: state.inbounder)
         } else {
             state.phase = .inbound(inbounder: state.inbounder)
         }
@@ -4203,7 +4204,9 @@ enum Rules {
     /// harness's have to make the same judgement.
     static func sensibleTargets(_ choices: [Seat], for actor: Seat,
                                 in state: GameState) -> [Seat] {
-        guard !has(actor, in: state, { $0.ignoresViolations }) else { return choices }
+        // A Clamp on yourself is a play the AI does not know how to make yet.
+        guard !has(actor, in: state, { $0.ignoresViolations }) || state.assigningClamp != nil
+        else { return choices }
         let others = choices.filter { $0 != actor }
         return others.isEmpty ? choices : others
     }

@@ -270,7 +270,8 @@ struct CourtView: View {
                                               to: share(discardPoint(on: court), in: geo.size),
                                               seconds: Pacing.spendFlight)
                                },
-                               frozen: frozen,
+                               // The piles stand still for an inbound with everyone else.
+                               frozen: frozen || isStill,
                                hidden: floorIsHidden)
                 }
 
@@ -912,7 +913,10 @@ struct CourtView: View {
     /// yours, so an opponent's used to go from a running court straight to a ball in the
     /// air; the phase says it a whole presentation early, so the floor set up behind the
     /// scenes that were still playing. The controller says when.
-    private var isStill: Bool { throwing != nil || inbounding != nil || callingRef != nil }
+    /// A referee's throw-in holds the floor exactly as a player's does.
+    private var isStill: Bool {
+        throwing != nil || inbounding != nil || callingRef != nil || refereeThrow != nil
+    }
 
     /// Whether the play is actually running, which is what the moving scenery asks.
     ///
@@ -1055,7 +1059,10 @@ struct CourtView: View {
                           runSheet: post.runSheet,
                           lookSheet: post.lookSheet,
                           mirrorsLook: post.mirrorsLook,
-                          mirrored: false,
+                          // **The call faces the court.** It is drawn facing right, so a
+                          // man calling from the right-hand side is turned round to it.
+                          // The turned poses already say which way they look.
+                          mirrored: duty == .calling && !post.isLeft,
                           phase: post.phase,
                           tone: look.refereeTone(for: called.id),
                           frozen: frozen)

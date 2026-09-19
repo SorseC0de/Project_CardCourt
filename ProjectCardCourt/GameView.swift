@@ -927,9 +927,10 @@ struct GameView: View {
                   spend: controller.spend,
                   // Nothing on the floor moves while something else has the screen.
                   // **Held still only when the screen is taken away from him.** Reading a
-                  // card is not that: the game is still on, and a referee who stops
-                  // moving every time somebody looks at their hand reads as a bug.
-                  frozen: dim > 0 || onFloor != nil,
+                  // card is not that, and neither is picking a man off the floor: the game
+                  // is still on, and a referee or a pile that stops every time somebody
+                  // looks at their hand or aims a card reads as a bug.
+                  frozen: (dim > 0 && !floorIsTheQuestion) || onFloor != nil,
                   // The crew's two moments. He is stood behind whatever is on screen for
                   // both, which is the point — the floor is what the call is about.
                   callingRef: controller.callOnFloor,
