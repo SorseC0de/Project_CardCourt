@@ -94,9 +94,6 @@ enum Perspective {
         let far = depth(of: .north) - refereeUpcourt
         return (wing + far) / 2
     }
-    /// **The two posts either side of South**, a step nearer the camera than he stands
-    /// and as far out as the screen allows — see `CourtGeometry.footing(of:)`.
-    static let refereeSouthStep: CGFloat = 0.06
 
     /// **Where a player throws it in from.** It used to borrow the far referee posts'
     /// depth, which tied the sideline to posts that no longer exist.
@@ -141,7 +138,9 @@ enum RefereePost: CaseIterable {
     var isSouth: Bool { self == .southEast || self == .southWest }
 
     var depth: CGFloat {
-        isSouth ? Perspective.depth(of: .south) + Perspective.refereeSouthStep
+        // The pair beside South, a step nearer the camera than he stands — see
+        // `RefereeTuning.nearStep`.
+        isSouth ? Perspective.depth(of: .south) + RefereeTuning.shared.nearStep
                 : Perspective.refereeWingDepth
     }
 
@@ -283,9 +282,15 @@ struct CourtGeometry {
             return CGPoint(x: centreX + side * out, y: y(at: depth))
         }
         let halfFrame = Sprite.refereeRunN.frameSize * Theme.Figure.playerScale
-            * scale(at: depth) / 2
+            * scale(of: post) / 2
         let out = size.width / 2 - halfFrame - RefereeTuning.shared.nearInset
         return CGPoint(x: centreX + side * out, y: y(at: depth))
+    }
+
+    /// How big a referee is drawn: his depth's scale, and the near pair's own size on top.
+    @MainActor
+    func scale(of post: RefereePost) -> CGFloat {
+        scale(at: post.depth) * (post.isSouth ? RefereeTuning.shared.nearScale : 1)
     }
 
     func scale(of seat: Seat, inbounding thrower: Seat? = nil) -> CGFloat {

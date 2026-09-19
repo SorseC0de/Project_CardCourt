@@ -99,6 +99,10 @@ final class RefereeTuning {
     /// is as far out as they go with the whole of them still on screen; below it they go
     /// part way off it.
     var nearInset: CGFloat = 0
+    /// How far nearer the camera than South they stand, as floor depth.
+    var nearStep: CGFloat = 0.10
+    /// How big they are drawn against what their depth alone would make them.
+    var nearScale: CGFloat = 1.1
 }
 
 @Observable
@@ -231,7 +235,10 @@ struct DebugActionsView: View {
             }
             if showRefs {
                 HStack(spacing: 4) {
-                    action("reset") { refs.farSpread = 0.75; refs.nearInset = 0 }
+                    action("reset") {
+                        refs.farSpread = 0.75; refs.nearInset = 0
+                        refs.nearStep = 0.10; refs.nearScale = 1.1
+                    }
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     slider("far spread",
@@ -242,6 +249,14 @@ struct DebugActionsView: View {
                            Binding(get: { Double(refs.nearInset) },
                                    set: { refs.nearInset = CGFloat($0.rounded()) }),
                            -200...200)
+                    slider("near y",
+                           Binding(get: { Double(refs.nearStep) },
+                                   set: { refs.nearStep = CGFloat($0) }),
+                           0...0.4)
+                    slider("near size",
+                           Binding(get: { Double(refs.nearScale) },
+                                   set: { refs.nearScale = CGFloat($0) }),
+                           0.5...1.6)
                 }
                 .frame(width: 150)
             }

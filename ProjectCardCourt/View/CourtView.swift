@@ -582,7 +582,7 @@ struct CourtView: View {
         case .referee(let place):
             guard refereeCrew.indices.contains(place) else { return middle }
             let post = refereeCrew[place].post
-            let scale = court.scale(at: post.depth)
+            let scale = court.scale(of: post)
             return CGPoint(x: court.footing(of: post).x,
                            y: court.y(at: post.depth) - Theme.Figure.height * scale / 2)
         }
@@ -1063,7 +1063,7 @@ struct CourtView: View {
             // **His name is drawn at its own size wherever he stands.** The node is scaled
             // by his depth, so the label divides that back out and comes out at exactly
             // `Referee.name` points — the same on every post and every phone.
-            let nameScale = 1 / court.scale(at: post.depth)
+            let nameScale = 1 / court.scale(of: post)
             // The sheet faces the right-hand touchline and the left-hand posts turn him
             // round. **A turned pose faces the caller instead**, and the sheet already
             // says which way, so it is never mirrored on top of that.
@@ -1096,11 +1096,11 @@ struct CourtView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(coordinateSpace: .global) { onTapReferee(called.id, $0) }
-                .scaleEffect(court.scale(at: post.depth), anchor: .bottom)
+                .scaleEffect(court.scale(of: post), anchor: .bottom)
                 .frame(width: Theme.Figure.height, height: nodeHeight, alignment: .top)
                 .position(x: court.footing(of: post).x,
                           y: court.y(at: post.depth) - nodeHeight / 2
-                             + Perspective.footDrop(at: court.scale(at: post.depth)))
+                             + Perspective.footDrop(at: court.scale(of: post)))
                 // Referees do not walk on. They are there or they are not.
                 .transition(.columnWarp())
         case .deck:
