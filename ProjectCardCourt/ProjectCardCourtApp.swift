@@ -80,6 +80,28 @@ struct RootView: View {
         screen = .front
     }
 
+#if DEBUG
+    /// **`-profileShots`: straight into a game, and a shot scene every few seconds** — the
+    /// jumper, the layup and a dunk in turn — so a profiler has a steady load to record.
+    private func profileShots() async {
+        // After the front screen has drawn: dealing inside the very first frame never
+        // let that frame finish.
+        try? await Task.sleep(for: .seconds(3))
+        deal()
+        try? await Task.sleep(for: .seconds(4))
+        var turn = 0
+        while !Task.isCancelled {
+            switch turn % 3 {
+            case 0: game?.debugShot()
+            case 1: game?.debugLayup(defenders: 2, made: true)
+            default: game?.debugDunk(.reverse)
+            }
+            turn += 1
+            try? await Task.sleep(for: .seconds(Pacing.cutscene + 3))
+        }
+    }
+#endif
+
     var body: some View {
         ZStack {
             switch screen {
@@ -129,6 +151,12 @@ struct RootView: View {
                     .transition(.opacity)
             }
         }
+#if DEBUG
+        .task {
+            guard ProcessInfo.processInfo.arguments.contains("-profileShots") else { return }
+            await profileShots()
+        }
+#endif
         .animation(.easeInOut(duration: 0.25), value: screen)
 #if DEBUG
         // The switches that have to be reachable before a match, since the bench itself

@@ -220,6 +220,10 @@ struct GameView: View {
         AnyView(ZStack {
             ground
                 .environment(\.floorIsHidden, floorIsCovered && floorAsleep)
+                // **Not drawn at all under an opaque scene.** Asleep, it still animated and
+                // composited every frame behind something covering all of it — measured,
+                // it was near half of what a shot scene cost.
+                .opacity(floorIsCovered && floorAsleep ? 0 : 1)
                 .zIndex(0)
             floorSheets.zIndex(1)
             prompts.zIndex(2)
@@ -742,7 +746,8 @@ struct GameView: View {
                     HStack {
                         Spacer()
                         VStack(alignment: .trailing, spacing: 3) {
-                            FrameRateView()
+                            FrameRateView(showing: controller.cutscene == nil ? "floor"
+                                          : floorAsleep ? "scene (floor asleep)" : "scene")
                             // Only while there is a match to be wrong about.
                             if controller.match != nil {
                                 NetReadout(controller: controller)

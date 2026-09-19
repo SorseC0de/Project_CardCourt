@@ -15,12 +15,15 @@ import SwiftUI
 /// changes, the binding does not, and the redraw comes from the `TimelineView` that is
 /// already ticking.
 struct FrameRateView: View {
+    /// What is on screen, logged beside each second's reading — see `DevLog.Tag.frames`.
+    var showing = ""
 
     @State private var window = FrameWindow()
 
     var body: some View {
         TimelineView(.animation) { timeline in
             let rate = window.record(timeline.date)
+            let _ = window.logEverySecond(rate, showing: showing, at: timeline.date)
 
             Text(rate > 0 ? "\(Int(rate.rounded())) FPS" : "— FPS")
                 .font(.system(size: 11, weight: .heavy, design: .monospaced))
@@ -67,6 +70,18 @@ private final class FrameWindow {
         intervals.append(elapsed)
         if intervals.count > capacity { intervals.removeFirst() }
         return average
+    }
+
+    @ObservationIgnored private var logged: Date?
+    private static let profiling = ProcessInfo.processInfo.arguments.contains("-profileShots")
+
+    /// Once a second, into the unified log — only on a `-profileShots` run.
+    func logEverySecond(_ rate: Double, showing: String, at now: Date) {
+        guard Self.profiling, now.timeIntervalSince(logged ?? .distantPast) >= 1 else { return }
+        logged = now
+        // The unified log rather than the console: it survives the app being killed, so a
+        // profiling run can be read back with `log show`.
+        NSLog("VBFRAMES %d fps  %@", Int(rate.rounded()), showing)
     }
 
     private var average: Double {

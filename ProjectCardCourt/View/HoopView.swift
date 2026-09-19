@@ -99,7 +99,9 @@ struct NetView: View {
     private var rimHeight: CGFloat { width * 0.27 }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        // Still until something goes through it: a net at rest is drawn once, not sixty
+        // times a second.
+        TimelineView(.animation(paused: struckAt == nil)) { timeline in
             Canvas { context, size in
                 let now = timeline.date
                 let energy = energy(at: now)
@@ -206,12 +208,14 @@ struct HoopBackdrop: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 5)
                     .fill(Color.white.opacity(0.10))
+                // **The glow only while it is lit.** A clear shadow is still a blur, drawn
+                // every frame the net under it moves.
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(light ?? Color.white.opacity(0.75), lineWidth: 2.5)
-                    .shadow(color: light ?? .clear, radius: 10)
+                    .shadow(color: light ?? .clear, radius: light == nil ? 0 : 10)
                 Rectangle()
                     .stroke(light ?? Color.white.opacity(0.85), lineWidth: 2)
-                    .shadow(color: light ?? .clear, radius: 10)
+                    .shadow(color: light ?? .clear, radius: light == nil ? 0 : 10)
                     .frame(width: width * 0.40, height: width * 0.30)
                     .offset(y: width * 0.12)
             }

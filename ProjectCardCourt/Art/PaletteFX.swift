@@ -26,9 +26,24 @@ extension View {
     ///
     /// A `colorEffect`, so it runs on the GPU as part of drawing — no second sheet, no
     /// recoloured copies to keep in step with the original.
+    ///
+    /// **The table is built once per set of swaps.** Every sprite on screen is redrawn
+    /// on its own clock, and pulling each colour apart through `UIColor` every time was
+    /// work done fifteen times a second per figure for an answer that never changes.
     func paletteSwap(_ swaps: [PaletteSwap]) -> some View {
+        colorEffect(ShaderLibrary.paletteSwap(.floatArray(PaletteTable.flat(swaps))))
+    }
+}
+
+/// The shader's argument for a set of swaps, remembered.
+enum PaletteTable {
+    nonisolated(unsafe) private static var cache: [[PaletteSwap]: [Float]] = [:]
+
+    static func flat(_ swaps: [PaletteSwap]) -> [Float] {
+        if let known = cache[swaps] { return known }
         let flat = swaps.flatMap { $0.from.shaderComponents + $0.to.shaderComponents }
-        return colorEffect(ShaderLibrary.paletteSwap(.floatArray(flat)))
+        cache[swaps] = flat
+        return flat
     }
 }
 
