@@ -2,6 +2,26 @@
 
 Things agreed on but not built. Newest at the top.
 
+## Rename every animation, alphabetically — with the next revisions
+
+**Not before.** Do this the next time revisions are handed over, not on its own.
+
+Rename all the animation sheets to one scheme, **owner first, then the action**, and keep
+them ordered alphabetically (the `Sprite` enum, the asset catalog, `_Graphic Assets`).
+The user's example:
+
+- Player_Dunk
+- Player_Dribble
+- Player_Shoot
+- Ref_Call
+- Ref_Look
+- Ref_Run
+
+So `Referee_*` becomes `Ref_*`, and the mixed casing (`Player_land_back`,
+`Player_dunk_1hand`, `Referee_Run_Look_N`) is evened out. Every rename has to carry the
+baked eye table's keys (`MarkTable.baked` is keyed by sheet name) and the imageset folder
+names with it.
+
 ## The SHOT walkback, with the card text audit
 
 Lower priority than getting the new cards right. Walk every SHOT +X% card and take 10% off
