@@ -249,3 +249,28 @@ func aimTests() {
         Check.that(state.ball == seat.across, "and answering plays it at the man named")
     }
 }
+
+func randomnessTests() {
+    print("The roll")
+    // A plain three at 10%, over and over from fresh games: the make rate has to land
+    // near 10%, or the dice are wrong.
+    var makes = 0
+    let tries = 2000
+    for seed in 1...UInt64(tries) {
+        var (state, seat, _) = openPossession(seed: 5000 + seed, cards: [])
+        state[seat].intangibles = []
+        state[seat].clamps = []
+        state.ballCard = nil
+        state.shot = 10
+        let events = Rules.apply(.shootAs(.layup), by: seat, to: &state)
+        guard let chance = events.compactMap({ event -> Int? in
+            if case .shotAttempted(_, let chance, _) = event { return chance }
+            return nil
+        }).first, chance == 10 else { continue }
+        if events.contains(where: { if case .shotMade = $0 { return true }; return false }) {
+            makes += 1
+        }
+    }
+    let rate = Double(makes) / Double(tries)
+    Check.that(rate > 0.07 && rate < 0.13, "a 10% shot goes in about one time in ten (\(Int(rate * 100))%)")
+}

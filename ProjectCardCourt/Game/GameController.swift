@@ -2678,6 +2678,10 @@ final class GameController {
                 if let call = state.challengedCall, call.whistle != revealedBeforeChallenge,
                    let scene = WhistleReveal.pending(call, in: state, seen: SeenCards.shared) {
                     revealedBeforeChallenge = call.whistle
+                    // The banner first, as on any call — it used to fire only when the
+                    // call landed, after the call had already been shown.
+                    await announce(.whistle)
+                    if Task.isCancelled { return }
                     await playCall(scene)
                     if Task.isCancelled { return }
                 }
@@ -2892,6 +2896,15 @@ final class GameController {
     /// Holds up whatever was just played, so everyone can read it.
     private func showPlayedCard(in events: [GameEvent]) async {
         guard let card = PlayedCard.first(in: events) else { return }
+        // **A card with a reveal of its own is shown once, by that.** An Intangible put
+        // down plays its reveal scene; flashing it up first as well showed it twice.
+        let revealsItself = events.contains { event in
+            if case .intangibleRevealed(_, let revealed) = event {
+                return revealed.id == card.descriptor.id
+            }
+            return false
+        }
+        guard !revealsItself else { return }
         // **One flash per play.** A card that asks a question resolves in two halves — the
         // card is chosen, then the target is named — and both halves come through here
         // carrying the same play. Cleared by the next move, so two Dimes in a row are two
@@ -3109,6 +3122,14 @@ final class GameController {
         // caused it — a turnover before the round it ended, a round before the shot that
         // won it.
         var heldCardUp = !playedCard
+        // **The card first, before anything it did.** Its draws are dealt before the rules
+        // write down that it was played, so waiting for that line flew the cards in
+        // before the card that drew them had been shown.
+        if !heldCardUp, PlayedCard.first(in: events) != nil {
+            heldCardUp = true
+            await showPlayedCard(in: events)
+            if Task.isCancelled { return }
+        }
         var caughtUp = false
         var sinceTurnover = events.startIndex
         var index = events.startIndex
@@ -3177,8 +3198,11 @@ final class GameController {
                     if Task.isCancelled { return }
                     await spendCard(from: seat)
                 }
-            case .whistleBlew:
-                await announce(.whistle)
+            case .whistleBlew(_, _, _, _, _, let caller):
+                // Once per call: one already shown before its challenge has had its banner.
+                if revealedBeforeChallenge == nil || caller != revealedBeforeChallenge {
+                    await announce(.whistle)
+                }
                 await showWhistle(in: [event])
             case .drew(let seat, _, let card):
                 await fly(to: seat, over: Pacing.drawFlight, delivering: card)

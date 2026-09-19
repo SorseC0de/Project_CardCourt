@@ -242,10 +242,11 @@ enum GameEvent: Hashable, Codable {
                 .joined(separator: " · ")
             let from = breakdown.steps.isEmpty ? "" : "  [\(breakdown.base)% · \(stack)]"
             return "\(seat.playerName) \(seat.verb("pulls", "pull")) up at \(chance)%…\(from)"
-        case .shotMade(let seat, let points, _, let chance):
-            return "GOOD! \(seat.playerName) +\(points) PTS. (\(chance)%)"
-        case .shotMissed(let seat, _, let chance):
-            return "No good. \(seat.playerName) \(seat.verb("misses", "miss")). (\(chance)%)"
+        // The roll with the chance, so a run of makes can be checked from the log.
+        case .shotMade(let seat, let points, let roll, let chance):
+            return "GOOD! \(seat.playerName) +\(points) PTS. (rolled \(roll) on \(chance)%)"
+        case .shotMissed(let seat, let roll, let chance):
+            return "No good. \(seat.playerName) \(seat.verb("misses", "miss")). (rolled \(roll) on \(chance)%)"
         case .handsTraded(let seat, let other):
             return "\(seat.playerName) \(seat.verb("trades", "trade")) Bags with "
                  + "\(other.playerName)"

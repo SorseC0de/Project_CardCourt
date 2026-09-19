@@ -102,6 +102,7 @@ struct GameView: View {
         }
         #endif
         .animation(.easeInOut(duration: 0.2), value: controller.cutscene)
+        .animation(.easeInOut(duration: 0.25), value: controller.callOnFloor)
         .animation(.easeInOut(duration: 0.2), value: controller.turnover)
         .animation(.easeInOut(duration: 0.2), value: controller.reveal)
         // Asleep only once the scene is opaque, and awake the moment it starts to leave.
@@ -249,9 +250,12 @@ struct GameView: View {
                 // stays inside the safe area.
                 VStack(spacing: 0) {
                     statusBar
+                        .opacity(callFade)
                     ScoreboardView(state: controller.shown, withheld: controller.withheldPoints)
                         .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
+                        .opacity(callFade)
                     hudRow
+                        .opacity(callFade)
                         // **Where the name plate hangs from.** Measured rather than added up:
                         // the plate sits under this row, and the row's own top depends on the
                         // scoreboard, whose height depends on how many players there are.
@@ -302,6 +306,7 @@ struct GameView: View {
                     // band across the screen — so the cards step down instead, which also
                     // keeps them off the prompt.
                     .offset(y: isChoosingInbound ? CourtView.Court.handDrop : 0)
+                    .opacity(callFade)
                     .animation(.easeOut(duration: 0.3), value: isChoosingInbound)
                 }
                 // Above the dim while the hand is the question, under it the rest of the time.
@@ -820,6 +825,10 @@ struct GameView: View {
         if case .awaitingFreeThrow = controller.gate { return true }
         return false
     }
+
+    /// **Everything but the floor, faded back while the camera is on a referee making a
+    /// call** — the man and the court are the whole of that moment.
+    private var callFade: Double { controller.callOnFloor != nil ? 0.15 : 1 }
 
     /// A covering scene's 0.2s fade, and a little over.
     private static let floorSleepDelay: Double = 0.3
