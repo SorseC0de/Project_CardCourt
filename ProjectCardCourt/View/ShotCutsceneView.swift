@@ -633,8 +633,10 @@ struct ShotCutsceneView: View {
         let start = figureCentre(in: size)
         let rim = rimPoint(in: size)
         let pixel = Theme.Figure.playerScale * Stage.gather * tune.arrivesAt
+        // **Where he takes off**: under where he lets go by the height of his jump, so the
+        // jump carries his hand up to the release — and brings him back down here.
         let end = CGPoint(x: rim.x + tune.offRim - tune.handX * pixel,
-                          y: rim.y + tune.underRim - tune.handY * pixel)
+                          y: rim.y + tune.underRim - tune.handY * pixel + tune.rise * pixel)
         let arrive = CGSize(width: end.x - start.x, height: end.y - start.y)
         layupScale = tune.startScale
         // Behind the defenders — and the near half of the ring — on his own dial.

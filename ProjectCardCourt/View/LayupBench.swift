@@ -84,13 +84,11 @@ struct LayupBench: View {
                         }
                         heading("the layup")
                         row("rise (px)", String(Int(tune.rise))) {
-                            Slider(value: $tune.rise, in: 0...12, step: 1)
+                            Slider(value: $tune.rise, in: 0...40, step: 1)
                         }
                         rate("layup fps", $tune.layupFPS)
                         time("hang", $tune.hang, 0...0.8)
-                        row("land y (px)", String(Int(tune.landY))) {
-                            Slider(value: $tune.landY, in: -20...40, step: 1)
-                        }
+                        time("fall", $tune.fall, 0.05...0.8)
                         heading("the release")
                         row("hand x", String(Int(tune.handX))) {
                             Slider(value: $tune.handX, in: -16...16, step: 1)

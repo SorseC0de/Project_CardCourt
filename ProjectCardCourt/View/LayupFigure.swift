@@ -47,7 +47,10 @@ struct LayupFigure: View {
         // Up off the floor on the first cell, and he stays up for all of them.
         let tune = LayupTuning.shared
         showing = .layup
-        lifted = tune.rise
+        // **Up from where he took off**, from the first cell, reaching the top as the ball
+        // leaves his hand.
+        let climb = Double(LayupTuning.releaseCell) / tune.layupFPS
+        withAnimation(.easeOut(duration: climb)) { lifted = tune.rise }
         for step in 0..<Sprite.layup.frames {
             cell = step
             try? await Task.sleep(for: .seconds(1 / tune.layupFPS))
@@ -55,8 +58,11 @@ struct LayupFigure: View {
         }
         try? await Task.sleep(for: .seconds(tune.hang))
         if Task.isCancelled { return }
-        // Down, onto the landing a short dunk comes down on.
-        lifted = -tune.landY
+        // **Down to exactly where he took off**, falling rather than snapping, and the
+        // landing a short dunk comes down on once his feet are there.
+        withAnimation(.easeIn(duration: tune.fall)) { lifted = 0 }
+        try? await Task.sleep(for: .seconds(tune.fall))
+        if Task.isCancelled { return }
         showing = .landBack
         for step in 0..<Sprite.landBack.frames {
             cell = step
@@ -89,14 +95,15 @@ final class LayupTuning {
     var behindAt: Double = 0.15
 
     // The layup.
-    /// How far off the floor he goes from the layup's first cell, in art pixels.
-    var rise: CGFloat = 0
+    /// **How high he jumps**, in art pixels: up from where he took off over the cells to
+    /// the release, and back down to the same place after it.
+    var rise: CGFloat = 26
     /// The rate the layup's four cells play at.
     var layupFPS: Double = 10
     /// How long the last cell is held before he comes down.
     var hang: Double = 0.15
-    /// Where he lands, in art pixels below where he took off. Negative lands him higher.
-    var landY: CGFloat = 26
+    /// How long he takes to come back down to where he took off.
+    var fall: Double = 0.25
 
     // Where he lets go.
     /// Where the ball is in his hand on the cell before it goes, in art pixels from the
@@ -122,7 +129,7 @@ final class LayupTuning {
         startScale = fresh.startScale
         approachSeconds = fresh.approachSeconds; arrivesAt = fresh.arrivesAt
         wallAside = fresh.wallAside; aroundX = fresh.aroundX; behindAt = fresh.behindAt
-        rise = fresh.rise; layupFPS = fresh.layupFPS; hang = fresh.hang; landY = fresh.landY
+        rise = fresh.rise; layupFPS = fresh.layupFPS; hang = fresh.hang; fall = fresh.fall
         handX = fresh.handX; handY = fresh.handY
         offRim = fresh.offRim; underRim = fresh.underRim
         flightSeconds = fresh.flightSeconds; arc = fresh.arc
@@ -142,7 +149,7 @@ final class LayupTuning {
         var rise: CGFloat = \(g(rise))
         var layupFPS: Double = \(t(layupFPS))
         var hang: Double = \(t(hang))
-        var landY: CGFloat = \(g(landY))
+        var fall: Double = \(t(fall))
         var handX: CGFloat = \(g(handX))
         var handY: CGFloat = \(g(handY))
         var offRim: CGFloat = \(g(offRim))
