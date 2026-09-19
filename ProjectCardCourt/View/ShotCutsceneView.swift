@@ -121,7 +121,8 @@ struct ShotCutsceneView: View {
     @State private var nameLeaving = false
     /// The layup's run in: how far he has come from where he started, and how small.
     @State private var layupOffset: CGSize = .zero
-    @State private var layupScale: CGFloat = 1
+    /// Nil until the run starts, which is the size he starts at — see `LayupTuning`.
+    @State private var layupScale: CGFloat?
     /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
     @State private var shuffling = false
     /// Raised when the shot animation has run out, on the shots that turn him around.
@@ -422,7 +423,8 @@ struct ShotCutsceneView: View {
                         }
                         .scaleEffect(Stage.gather)
                         // The run in to the rim, in the scene's own points.
-                        .scaleEffect(layupScale)
+                        .scaleEffect(layupScale
+                                     ?? (scene.isLayup ? LayupTuning.shared.startScale : 1))
                         .offset(layupOffset)
                         Text("SHOT \(scene.chance)%")
                             .font(.system(size: 22, weight: .black, design: .rounded))
@@ -626,24 +628,28 @@ struct ShotCutsceneView: View {
         let end = CGPoint(x: rim.x + tune.offRim - tune.handX * pixel,
                           y: rim.y + tune.underRim - tune.handY * pixel)
         let arrive = CGSize(width: end.x - start.x, height: end.y - start.y)
+        layupScale = tune.startScale
+        // Behind the defenders — and the near half of the ring — on his own dial.
+        let behind = approachSeconds * min(max(tune.behindAt, 0), 1)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(behind))
+            dunkBehind = true
+        }
         guard scene.defenders > 0 else {
             withAnimation(.easeInOut(duration: approachSeconds)) {
                 layupOffset = arrive
                 layupScale = tune.arrivesAt
             }
-            dunkBehind = true
             return
         }
         // Out past them on the right, then in to the rim — two legs, so the run bends.
         let half = approachSeconds / 2
         withAnimation(.easeIn(duration: half)) {
             layupOffset = CGSize(width: tune.aroundX, height: arrive.height / 2)
-            layupScale = (1 + tune.arrivesAt) / 2
+            layupScale = (tune.startScale + tune.arrivesAt) / 2
         }
         try? await Task.sleep(for: .seconds(half))
         if Task.isCancelled { return }
-        // Past them now, and upcourt of them.
-        dunkBehind = true
         withAnimation(.easeOut(duration: half)) {
             layupOffset = arrive
             layupScale = tune.arrivesAt

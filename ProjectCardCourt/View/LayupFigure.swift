@@ -51,7 +51,7 @@ struct LayupFigure: View {
         try? await Task.sleep(for: .seconds(tune.hang))
         if Task.isCancelled { return }
         // Down, onto the landing a short dunk comes down on.
-        lifted = 0
+        lifted = -tune.landY
         showing = .landBack
         for step in 0..<Sprite.landBack.frames {
             cell = step
@@ -68,6 +68,8 @@ final class LayupTuning {
     static let shared = LayupTuning()
 
     // The run in.
+    /// How big he starts, against the jumper's size where he stands.
+    var startScale: CGFloat = 1
     /// How long the run in to the rim takes.
     var approachSeconds: Double = 1.0
     /// How small he is by the time he reaches the rim.
@@ -77,6 +79,9 @@ final class LayupTuning {
     /// of it on the way past them. Points.
     var wallAside: CGFloat = 90
     var aroundX: CGFloat = 70
+    /// **When he goes behind the defenders**, as a share of the run: nought is at once,
+    /// one is as he arrives.
+    var behindAt: Double = 0.5
 
     // The layup.
     /// How far off the floor he goes from the layup's first cell, in art pixels.
@@ -85,6 +90,8 @@ final class LayupTuning {
     var layupFPS: Double = 10
     /// How long the last cell is held before he comes down.
     var hang: Double = 0.2
+    /// Where he lands, in art pixels below where he took off. Negative lands him higher.
+    var landY: CGFloat = 0
 
     // Where he lets go.
     /// Where the ball is in his hand on the cell before it goes, in art pixels from the
@@ -107,9 +114,10 @@ final class LayupTuning {
 
     func reset() {
         let fresh = LayupTuning()
+        startScale = fresh.startScale
         approachSeconds = fresh.approachSeconds; arrivesAt = fresh.arrivesAt
-        wallAside = fresh.wallAside; aroundX = fresh.aroundX
-        rise = fresh.rise; layupFPS = fresh.layupFPS; hang = fresh.hang
+        wallAside = fresh.wallAside; aroundX = fresh.aroundX; behindAt = fresh.behindAt
+        rise = fresh.rise; layupFPS = fresh.layupFPS; hang = fresh.hang; landY = fresh.landY
         handX = fresh.handX; handY = fresh.handY
         offRim = fresh.offRim; underRim = fresh.underRim
         flightSeconds = fresh.flightSeconds; arc = fresh.arc
@@ -120,13 +128,16 @@ final class LayupTuning {
         func g(_ value: CGFloat) -> String { String(format: "%.2f", Double(value)) }
         func t(_ value: Double) -> String { String(format: "%.2f", value) }
         return """
+        var startScale: CGFloat = \(g(startScale))
         var approachSeconds: Double = \(t(approachSeconds))
         var arrivesAt: CGFloat = \(g(arrivesAt))
         var wallAside: CGFloat = \(g(wallAside))
         var aroundX: CGFloat = \(g(aroundX))
+        var behindAt: Double = \(t(behindAt))
         var rise: CGFloat = \(g(rise))
         var layupFPS: Double = \(t(layupFPS))
         var hang: Double = \(t(hang))
+        var landY: CGFloat = \(g(landY))
         var handX: CGFloat = \(g(handX))
         var handY: CGFloat = \(g(handY))
         var offRim: CGFloat = \(g(offRim))

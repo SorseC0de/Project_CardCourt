@@ -64,16 +64,23 @@ struct LayupBench: View {
                             }
                         }
                         heading("the run in")
+                        dial("start size", $tune.startScale, 0.3...1.5)
                         time("run", $tune.approachSeconds, 0.2...2.5)
                         dial("arrives at", $tune.arrivesAt, 0.2...1)
                         dial("wall aside", $tune.wallAside, 0...200)
                         dial("around", $tune.aroundX, 0...200)
+                        row("behind at", String(format: "%.2f", tune.behindAt)) {
+                            Slider(value: $tune.behindAt, in: 0...1)
+                        }
                         heading("the layup")
                         row("rise (px)", String(Int(tune.rise))) {
                             Slider(value: $tune.rise, in: 0...12, step: 1)
                         }
                         rate("layup fps", $tune.layupFPS)
                         time("hang", $tune.hang, 0...0.8)
+                        row("land y (px)", String(Int(tune.landY))) {
+                            Slider(value: $tune.landY, in: -20...40, step: 1)
+                        }
                         heading("the release")
                         row("hand x", String(Int(tune.handX))) {
                             Slider(value: $tune.handX, in: -16...16, step: 1)
