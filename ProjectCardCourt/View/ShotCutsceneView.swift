@@ -83,6 +83,10 @@ struct ShotCutsceneView: View {
         static let floor: CGFloat = 132
         /// What the whole figure is blown up by once it is placed.
         static let gather: CGFloat = 1.7
+        /// The SHOT line under him, held to one height so the figure's own centre is known
+        /// exactly — the layup is run from it — and the gap between the two.
+        static let chanceLine: CGFloat = 26
+        static let chanceGap: CGFloat = 8
     }
 
     /// What is drawn over what. **Named, because two of them move**: a man finishing at
@@ -115,6 +119,9 @@ struct ShotCutsceneView: View {
     }
 
     @State private var nameLeaving = false
+    /// The layup's run in: how far he has come from where he started, and how small.
+    @State private var layupOffset: CGSize = .zero
+    @State private var layupScale: CGFloat = 1
     /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
     @State private var shuffling = false
     /// Raised when the shot animation has run out, on the shots that turn him around.
@@ -318,14 +325,15 @@ struct ShotCutsceneView: View {
                                 .repeatForever(autoreverses: true)
                                 .delay(Double(index) * Wall.shuffleStagger),
                                        value: shuffling)
-                            .position(x: stage.width / 2 + Wall.spread * spot.x,
+                            .position(x: stage.width / 2 + Wall.spread * spot.x
+                                         + (scene.isLayup ? LayupStyle.wallAside : 0),
                                       y: stage.height - Wall.base - Wall.lift * spot.back)
                             // A band of their own, so a man climbing past them has somewhere
                             // to be. Level with the ring: a contest happens at it.
                             .zIndex(Depth.wall)
                     }
 
-                    VStack(spacing: 8) {
+                    VStack(spacing: Stage.chanceGap) {
                         // Never mirrored here, whoever is shooting. On the court West faces
                         // the other way; in a cutscene there is no court to face, and one
                         // player turned around reads as a mistake rather than as staging.
@@ -404,6 +412,9 @@ struct ShotCutsceneView: View {
                                         if scene.made { struckAt = Date() }
                                     }
                                 })
+                            } else if scene.isLayup {
+                                LayupFigure(seat: scene.shooter,
+                                            approachSeconds: approachSeconds, fps: shootFPS)
                             } else {
                                 PlayerFigure(seat: scene.shooter, sprite: .shoot,
                                              playsOnce: true, fps: shootFPS,
@@ -411,9 +422,13 @@ struct ShotCutsceneView: View {
                             }
                         }
                         .scaleEffect(Stage.gather)
+                        // The run in to the rim, in the scene's own points.
+                        .scaleEffect(layupScale)
+                        .offset(layupOffset)
                         Text("SHOT \(scene.chance)%")
                             .font(.system(size: 22, weight: .black, design: .rounded))
                             .foregroundStyle(Theme.ink)
+                            .frame(height: Stage.chanceLine)
                     }
                     .position(x: stage.width / 2, y: stageY(in: stage))
                     // **Over the ring, not behind it.** A jumper is downcourt of the rim and
@@ -422,8 +437,8 @@ struct ShotCutsceneView: View {
                     // both. See `DunkFigure.onDepth`.
                     .zIndex(dunkBehind ? Depth.climbing : Depth.shooter)
 
-                    PixelBallView(scale: tuning.ballScale
-                                  + (tuning.ballEndScale - tuning.ballScale) * min(flight, 1))
+                    PixelBallView(scale: ballStartScale
+                                  + (tuning.ballEndScale - ballStartScale) * min(flight, 1))
                         .opacity(scene.dunk == nil && released && !ballGone ? 1 : 0)
                         .animation(released ? .easeOut(duration: 0.25) : nil, value: ballGone)
                         // Spin the ball itself, then place it, then move it. Rotating after
@@ -499,14 +514,15 @@ struct ShotCutsceneView: View {
             // Shooter plays the whole shot first** — turned at the release, the rest of his
             // sheet was cut off.
             .task {
-                guard scene.signature != .none else { return }
+                // A layup has no follow-through to turn round from.
+                guard scene.signature != .none, !scene.isLayup else { return }
                 let turnsAt = scene.signature == .understood
                     ? Double(Sprite.shoot.frames) / shootFPS
                     : releaseDelay
                 try? await Task.sleep(for: .seconds(turnsAt / max(0.1, tuning.tempo)))
                 facingYou = true
             }
-            .task { await run() }
+            .task { await run(in: HoopStage.size) }
         }
     }
 
@@ -559,12 +575,74 @@ struct ShotCutsceneView: View {
     }
 
     private func startPoint(in size: CGSize) -> CGPoint {
-        CGPoint(x: size.width * tuning.startX, y: size.height * tuning.startY)
+        // A layup leaves from his hand, just under the ring.
+        if scene.isLayup {
+            let rim = rimPoint(in: size)
+            return CGPoint(x: rim.x, y: rim.y + LayupStyle.underRim)
+        }
+        return CGPoint(x: size.width * tuning.startX, y: size.height * tuning.startY)
     }
 
     private func controlPoint(in size: CGSize) -> CGPoint {
-        CGPoint(x: size.width * (0.5 + tuning.archX),
-                y: rimPoint(in: size).y - size.height * tuning.archHeight)
+        if scene.isLayup {
+            let rim = rimPoint(in: size)
+            return CGPoint(x: rim.x, y: rim.y - size.height * LayupStyle.arc)
+        }
+        return CGPoint(x: size.width * (0.5 + tuning.archX),
+                       y: rimPoint(in: size).y - size.height * tuning.archHeight)
+    }
+
+    // MARK: - The layup
+
+    /// How big the ball is as it leaves his hands: at the size he is by then, for a layup.
+    private var ballStartScale: CGFloat {
+        scene.isLayup ? tuning.ballScale * LayupStyle.arrivesAt : tuning.ballScale
+    }
+
+    private var approachSeconds: Double { LayupStyle.approachSeconds / max(0.1, tuning.tempo) }
+
+    /// When the ball leaves his hand: the run in, then the layup's cells up to the release.
+    private var layupRelease: Double {
+        approachSeconds + Double(LayupStyle.releaseCell) / shootFPS
+    }
+
+    /// The middle of the figure where it starts, which is where the jumper stands.
+    private func figureCentre(in size: CGSize) -> CGPoint {
+        CGPoint(x: size.width / 2,
+                y: stageY(in: size) - (Stage.chanceGap + Stage.chanceLine) / 2)
+    }
+
+    /// **The run in: round the defenders, and up to the rim.** The ball in his hand ends
+    /// just under the ring, and he ends the size a dunk arrives at.
+    private func runIn(in size: CGSize) async {
+        let start = figureCentre(in: size)
+        let rim = rimPoint(in: size)
+        let pixel = Theme.Figure.playerScale * Stage.gather * LayupStyle.arrivesAt
+        let end = CGPoint(x: rim.x - LayupStyle.hand.x * pixel,
+                          y: rim.y + LayupStyle.underRim - LayupStyle.hand.y * pixel)
+        let arrive = CGSize(width: end.x - start.x, height: end.y - start.y)
+        guard scene.defenders > 0 else {
+            withAnimation(.easeInOut(duration: approachSeconds)) {
+                layupOffset = arrive
+                layupScale = LayupStyle.arrivesAt
+            }
+            dunkBehind = true
+            return
+        }
+        // Out past them on one side, then in to the rim — two legs, so the run bends.
+        let half = approachSeconds / 2
+        withAnimation(.easeIn(duration: half)) {
+            layupOffset = CGSize(width: -LayupStyle.aroundX, height: arrive.height / 2)
+            layupScale = (1 + LayupStyle.arrivesAt) / 2
+        }
+        try? await Task.sleep(for: .seconds(half))
+        if Task.isCancelled { return }
+        // Past them now, and upcourt of them.
+        dunkBehind = true
+        withAnimation(.easeOut(duration: half)) {
+            layupOffset = arrive
+            layupScale = LayupStyle.arrivesAt
+        }
     }
 
     /// Down through the net, or off the iron — up and away at an angle, clear of the
@@ -617,18 +695,22 @@ struct ShotCutsceneView: View {
     /// When the ball leaves his hands: the tuned release, on the clock of the sheet he plays.
     private var releaseDelay: Double { tuning.releaseDelay * Theme.Figure.shootFPS / shootFPS }
 
-    private func run() async {
+    private func run(in size: CGSize) async {
         let tempo = max(0.1, tuning.tempo)
+        if scene.isLayup {
+            Task { @MainActor in await runIn(in: size) }
+        }
         // Its own clock, so the name is not waiting on the ball's business at the rim.
         Task { @MainActor in
             let scene = Pacing.cutscene + self.scene.drama.seconds - Name.lead
             try? await Task.sleep(for: .seconds(max(0.2, scene)))
             nameLeaving = true
         }
-        try? await Task.sleep(for: .seconds(releaseDelay / tempo))
+        try? await Task.sleep(for: .seconds(scene.isLayup ? layupRelease : releaseDelay / tempo))
         released = true
+        let flightSeconds = scene.isLayup ? LayupStyle.flightSeconds : tuning.flightSeconds
         // Linear: easing out here made the ball decelerate into the rim and stall.
-        withAnimation(.linear(duration: tuning.flightSeconds / tempo)) { flight = 1 }
+        withAnimation(.linear(duration: flightSeconds / tempo)) { flight = 1 }
 
         // Fire and forget, so the word keeps its own clock and can land while the ball
         // is still in the air. Awaiting it would just stall everything behind it.
@@ -641,7 +723,7 @@ struct ShotCutsceneView: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) { showResult = true }
         }
 
-        try? await Task.sleep(for: .seconds(tuning.flightSeconds / tempo))
+        try? await Task.sleep(for: .seconds(flightSeconds / tempo))
         await playDrama(tempo: tempo)
 
         // A dunk has already done both of these, off the rim rather than off the ball.

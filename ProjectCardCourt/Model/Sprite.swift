@@ -66,6 +66,9 @@ enum Sprite: String, CaseIterable {
     case defender = "Defender"
     case defenderSwipe = "Defender_Swipe"
     case shoot = "Player_Shoot"
+    /// **The layup**, from behind: the ball goes up on the first three cells and is gone
+    /// on the fourth. Run in to on `dribble` — see `LayupFigure`.
+    case layup = "Player_Layup"
     case sparkleBurst = "SparkleBurst"
     /// Two more of them, so three finishes at the rim do not all throw
     /// the same light — see `DunkStyle.Trip.burst`.
@@ -133,6 +136,7 @@ enum Sprite: String, CaseIterable {
         case .rebound:      return 5
         case .land, .landBack: return 3
         case .dunkPrepare:  return 2
+        case .layup:        return 4
         case .dunkOneHand, .dunkReverse: return 5
         // Nine, counted off the sheet: five going up — he is at the rim on the last of
         // them — and four finishing. It is the long one, which is why it is the only

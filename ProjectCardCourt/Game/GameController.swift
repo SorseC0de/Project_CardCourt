@@ -154,6 +154,8 @@ struct ShotCutscene: Identifiable, Equatable {
     let signature: ShotSignature
     /// Taken from three, which puts the floor further back under the hoop.
     var isThree = false
+    /// **A layup is run in for** — the only shot that is. See `LayupFigure`.
+    var isLayup = false
 
     /// What a miss gets called.
     ///
@@ -2282,6 +2284,25 @@ final class GameController {
         }
     }
 
+    /// Runs one in on demand: open, then round two defenders, turn about.
+    func debugLayup() {
+        // The bench cannot start a game on a device that is not running one.
+        guard !isGuest else { return }
+        debugLayupGuarded.toggle()
+        loop?.cancel()
+        drive {
+            var scene = ShotCutscene(shooter: GameRules.localSeat,
+                                     chance: Int(ShotTuning.shared.debugChance),
+                                     made: true, defenders: debugLayupGuarded ? 2 : 0)
+            scene.isLayup = true
+            cutscene = scene
+            try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
+            cutscene = nil
+            await run()
+        }
+    }
+    private var debugLayupGuarded = false
+
     /// Throws one down on demand, for matching the climb to the sheet. See `DunkBench`.
     ///
     /// A miss makes it a miss: the bench picks which of the three ways it comes apart.
@@ -3254,6 +3275,10 @@ final class GameController {
             // Long Ball: a layup goes up from out there whether it drops or not, so the
             // miss is drawn from the same place the make is.
             || (state.ballEffect.layupsShootAsThrees && state.shotType == .layup)
+            || state.shotType == .three
+        // Long Ball's layups go up from out there, so they are drawn as the jumper.
+        scene.isLayup = scene.dunk == nil && state.shotType == .layup
+            && !state.ballEffect.layupsShootAsThrees
         holdTheScore(in: shot)
         cutscene = scene
         try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))

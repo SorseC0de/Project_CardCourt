@@ -186,6 +186,7 @@ struct DebugActionsView: View {
                     action("clock") { controller.debugTurnover(.shotClock) }
                     action("loose") { controller.debugTurnover(.whistle("Back Court Violation")) }
                     action("shot") { controller.debugShot() }
+                    action("layup") { controller.debugLayup() }
                     // **Throws one and moves on to the next.** The button showed
                     // whichever finish the bench was set to and threw that one forever,
                     // so a placement settled here had been settled against a third of
