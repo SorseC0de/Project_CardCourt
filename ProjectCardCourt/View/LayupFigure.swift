@@ -57,18 +57,18 @@ struct LayupFigure: View {
         // **Up from where he took off**, from the first cell, reaching the top as the ball
         // leaves his hand.
         let climb = Double(LayupTuning.releaseCell) / tune.layupFPS
-        withAnimation(.easeOut(duration: climb)) { lifted = tune.rise }
+        async let up: Void = hop(to: tune.rise, over: climb, easing: .out)
         for step in 0..<Sprite.layup.frames {
             cell = step
             try? await Task.sleep(for: .seconds(1 / tune.layupFPS))
             if Task.isCancelled { return }
         }
+        await up
         try? await Task.sleep(for: .seconds(tune.hang))
         if Task.isCancelled { return }
         // **Down to exactly where he took off**, falling rather than snapping, and the
         // landing a short dunk comes down on once his feet are there.
-        withAnimation(.easeIn(duration: tune.fall)) { lifted = 0 }
-        try? await Task.sleep(for: .seconds(tune.fall))
+        await hop(to: 0, over: tune.fall, easing: .in)
         if Task.isCancelled { return }
         showing = .landBack
         for step in 0..<Sprite.landBack.frames {
@@ -85,6 +85,32 @@ struct LayupFigure: View {
         if Task.isCancelled { return }
         showing = .front
         cell = 0
+    }
+}
+
+extension LayupFigure {
+    enum Easing { case `in`, out }
+
+    /// **A whole art pixel at a time**, on its own clock — the way a dunk sinks. Never a
+    /// SwiftUI animation: the eyes only appear partway up, and a view that joins a tween
+    /// already running is drawn at where it ends, so they sat at the top of the hop
+    /// while he was still on his way there.
+    fileprivate func hop(to target: CGFloat, over seconds: Double, easing: Easing) async {
+        let start = lifted
+        let steps = Int(abs(target - start).rounded())
+        guard steps > 0, seconds > 0 else { lifted = target; return }
+        let way: CGFloat = target > start ? 1 : -1
+        var waited = 0.0
+        for step in 1...steps {
+            let share = Double(step) / Double(steps)
+            // When this pixel is due: quick off the floor and slowing at the top, or
+            // slow off the top and quickening toward the floor.
+            let due = seconds * (easing == .out ? 1 - (1 - share).squareRoot() : share.squareRoot())
+            try? await Task.sleep(for: .seconds(max(0, due - waited)))
+            if Task.isCancelled { return }
+            waited = due
+            lifted = start + way * CGFloat(step)
+        }
     }
 }
 
