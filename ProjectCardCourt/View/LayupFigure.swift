@@ -13,6 +13,8 @@ struct LayupFigure: View {
     let approachSeconds: Double
     /// Off, he stands dribbling where he starts — a bench between takes.
     var isRunning = true
+    /// A miss turns him round to the room once he is down, the way a short dunk does.
+    var made = true
     var scale: CGFloat = Theme.Figure.playerScale
 
     @Environment(\.ballInPlay) private var ballInPlay
@@ -74,6 +76,15 @@ struct LayupFigure: View {
             try? await Task.sleep(for: .seconds(1 / DunkStyle.landFPS))
             if Task.isCancelled { return }
         }
+        guard !made else { return }
+        // Turned to the room: one profile cell between the two, held for a beat, which is
+        // what makes it a turn rather than a swap — see `DunkFigure.comeUpShort`.
+        showing = .right
+        cell = 0
+        try? await Task.sleep(for: .seconds(DunkStyle.turnHold))
+        if Task.isCancelled { return }
+        showing = .front
+        cell = 0
     }
 }
 
@@ -94,14 +105,14 @@ final class LayupTuning {
     /// stands this far to the left of his line and his run bends this far out to the right
     /// of it on the way past them. Points.
     var wallAside: CGFloat = 90
-    var aroundX: CGFloat = 120
+    var aroundX: CGFloat = 150
     /// The defenders' size against the shot scene's usual, and how far up (negative) or
     /// down they stand from their usual place, in points.
     var wallScale: CGFloat = 1
-    var wallY: CGFloat = 0
+    var wallY: CGFloat = -50
     /// **When he goes behind the defenders**, as a share of the run: nought is at once,
     /// one is as he arrives.
-    var behindAt: Double = 0.2
+    var behindAt: Double = 0.25
 
     // The layup.
     /// **How high he jumps**, in art pixels: up from where he took off over the cells to
@@ -117,20 +128,20 @@ final class LayupTuning {
     // Where he lets go.
     /// Where the ball is in his hand on the cell before it goes, in art pixels from the
     /// frame's centre.
-    var handX: CGFloat = 0
-    var handY: CGFloat = -11
+    var handX: CGFloat = -2
+    var handY: CGFloat = -6
     /// **Where he takes off, and lands**, by where his hand is with his feet on the
     /// floor — against the ring, in points: right of it (the layup is right-handed and
     /// goes up leftward) and under it. The hop lifts him from here, so its height never
     /// moves this.
-    var offRim: CGFloat = 80
-    var takeoffY: CGFloat = 128
+    var offRim: CGFloat = 100
+    var takeoffY: CGFloat = 250
 
     // The ball.
     /// How long the ball is up. A layup is laid in, not lofted.
     var flightSeconds: Double = 0.5
     /// How high over the ring the ball's short arc peaks, as a share of the scene.
-    var arc: CGFloat = 0.2
+    var arc: CGFloat = 0.3
 
     /// The cell the ball leaves his hand on: the last of the four has nothing in it.
     static let releaseCell = 3

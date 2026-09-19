@@ -425,7 +425,7 @@ struct ShotCutsceneView: View {
                                 })
                             } else if scene.isLayup {
                                 LayupFigure(seat: scene.shooter, approachSeconds: approachSeconds,
-                                            isRunning: !holdsAtStart)
+                                            isRunning: !holdsAtStart, made: scene.made)
                             } else {
                                 PlayerFigure(seat: scene.shooter, sprite: .shoot,
                                              playsOnce: true, fps: shootFPS,
