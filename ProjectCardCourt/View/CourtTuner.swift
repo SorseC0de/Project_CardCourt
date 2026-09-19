@@ -98,7 +98,7 @@ final class RefereeTuning {
     /// The near pair beside South: how far in from the screen's edge, in points. Nought
     /// is as far out as they go with the whole of them still on screen; below it they go
     /// part way off it.
-    var nearInset: CGFloat = -0.75
+    var nearInset: CGFloat = -75
     /// How far nearer the camera than South they stand, as floor depth.
     var nearStep: CGFloat = 0.15
     /// How big they are drawn against what their depth alone would make them.
@@ -236,7 +236,7 @@ struct DebugActionsView: View {
             if showRefs {
                 HStack(spacing: 4) {
                     action("reset") {
-                        refs.farSpread = 0.75; refs.nearInset = -0.75
+                        refs.farSpread = 0.75; refs.nearInset = -75
                         refs.nearStep = 0.15; refs.nearScale = 1
                     }
                 }
