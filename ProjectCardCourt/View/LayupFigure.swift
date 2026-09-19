@@ -13,7 +13,7 @@ struct LayupFigure: View {
     let approachSeconds: Double
     /// Off, he stands dribbling where he starts — a bench between takes.
     var isRunning = true
-    /// A miss turns him round to the room once he is down, the way a short dunk does.
+    /// A miss turns him round to the room once he is down, by his left.
     var made = true
     var scale: CGFloat = Theme.Figure.playerScale
 
@@ -39,6 +39,10 @@ struct LayupFigure: View {
                                     restFrame: cell, face: PlayerLook.shared.faceOn(seat))
                 }
             }
+            // The miss turns him to his left, which is the side-on sheet turned round — the
+            // standing turn's left, too. It carries only the near eye and no number, so
+            // nothing on it reads backwards.
+            .scaleEffect(x: showing == .right ? -1 : 1)
             .paletteSwap(PlayerLook.shared.kit(for: seat) + BallInPlay.sprite(for: ballInPlay))
             .offset(y: -lifted * scale)
         }
@@ -77,8 +81,9 @@ struct LayupFigure: View {
             if Task.isCancelled { return }
         }
         guard !made else { return }
-        // Turned to the room: one profile cell between the two, held for a beat, which is
-        // what makes it a turn rather than a swap — see `DunkFigure.comeUpShort`.
+        // Turned to the room, by his left: one profile cell between the two, held for a
+        // beat, which is what makes it a turn rather than a swap — see
+        // `DunkFigure.comeUpShort`, which turns the other way.
         showing = .right
         cell = 0
         try? await Task.sleep(for: .seconds(DunkStyle.turnHold))
