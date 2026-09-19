@@ -299,6 +299,13 @@ extension MarkTable {
         "Player_Shoot/8/number": Spot(x: 0, y: -8, shown: true),
         "Player_Shoot/9/number": Spot(x: 0, y: -7, shown: true),
         "Player_Shoot/10/number": Spot(x: 0, y: 0, shown: true),
+        // Player_Layup
+        "Player_Layup/1/far": Spot(x: -5, y: -2, shown: true),
+        "Player_Layup/2/far": Spot(x: -4, y: -3, shown: true),
+        "Player_Layup/3/far": Spot(x: -5, y: -5, shown: true),
+        "Player_Layup/*/number": Spot(x: 1, y: -1, shown: true),
+        "Player_Layup/1/number": Spot(x: 1, y: 0, shown: true),
+        "Player_Layup/3/number": Spot(x: 1, y: -3, shown: true),
         // Player_back
         "Player_back/*/number": Spot(x: 0, y: 0, shown: true),
         // Player_right
