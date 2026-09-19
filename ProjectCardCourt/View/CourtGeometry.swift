@@ -75,7 +75,7 @@ enum Perspective {
 
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.
-    static let refereeLateral: CGFloat = 0.88
+    static let refereeLateral: CGFloat = 0.75
     /// How far up the floor he stands from the player he is posted beside.
     ///
     /// Was 0.06, which put the near pair close enough to the flank players to read as

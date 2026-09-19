@@ -94,9 +94,10 @@ final class RefereeTuning {
     static let shared = RefereeTuning()
 
     /// The far pair, up the wings: a share of the floor's half-width at their depth.
-    var farSpread: CGFloat = 0.88
+    var farSpread: CGFloat = 0.75
     /// The near pair beside South: how far in from the screen's edge, in points. Nought
-    /// is as far out as they go with the whole of them still on screen.
+    /// is as far out as they go with the whole of them still on screen; below it they go
+    /// part way off it.
     var nearInset: CGFloat = 0
 }
 
@@ -230,7 +231,7 @@ struct DebugActionsView: View {
             }
             if showRefs {
                 HStack(spacing: 4) {
-                    action("reset") { refs.farSpread = 0.88; refs.nearInset = 0 }
+                    action("reset") { refs.farSpread = 0.75; refs.nearInset = 0 }
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     slider("far spread",
@@ -240,7 +241,7 @@ struct DebugActionsView: View {
                     slider("near inset",
                            Binding(get: { Double(refs.nearInset) },
                                    set: { refs.nearInset = CGFloat($0.rounded()) }),
-                           0...200)
+                           -200...200)
                 }
                 .frame(width: 150)
             }
