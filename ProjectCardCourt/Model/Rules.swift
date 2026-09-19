@@ -389,7 +389,7 @@ enum Rules {
         // Skyhook: into the Bag, and then the shot it was holding goes up.
         if let taken {
             state.discard.removeAll { $0.id == taken.id }
-            state[actor].bag.append(taken)
+            give(taken, to: actor, by: card, state: &state)
             events.append(.drewFromRetirement(seat: actor, card: taken.descriptor))
         }
         if let descriptor, descriptor.special?.shootsImmediately == true {
@@ -463,7 +463,7 @@ enum Rules {
             var taken = 0
             for card in downloadable(from: state) where taken < wanted {
                 state.discard.removeAll { $0.id == card.id }
-                state[seat].bag.append(card)
+                give(card, to: seat, state: &state)
                 taken += 1
             }
         } else {
@@ -837,8 +837,7 @@ enum Rules {
             state.pendingActor = nil
             state.phase = .possession(holder: actor)
             if taken {
-                let hand = state[actor].bag
-                state[actor].bag.removeAll()
+                let hand = emptyBag(of: actor, state: &state)
                 state.discard.append(contentsOf: hand)
                 events.append(.discardedForShot(seat: actor, card: descriptor, count: hand.count))
                 // **The hand buys an official, and a full hand buys the shot.** Three
@@ -963,7 +962,7 @@ enum Rules {
             return events
         }
 
-        state[seat].bag.removeAll { $0.id == card.id }
+        take(card.id, from: seat, state: &state)
         state.discard.append(card)
         events.append(.movePlayed(seat: seat, card: card.descriptor, shot: loggedShot(state)))
         if card.descriptor.clearsOut {
@@ -1830,7 +1829,7 @@ enum Rules {
         if takesBall, let ball = state.ballCard {
             setBall(nil, by: seat, state: &state, events: &events)
             state.discard.removeAll { $0.id == ball.id }
-            state[seat].bag.append(ball)
+            give(ball, to: seat, state: &state)
             events.append(.ballChanged(card: nil))
         }
         // No-Look: a coin as it goes. Heads is a card for the passer.
@@ -1887,8 +1886,9 @@ enum Rules {
         // Hand Ball: the hands swap with the ball.
         if state.ballEffect.swapsHandsOnPass {
             let passing = state[seat].bag
-            state[seat].bag = state[receiver].bag
-            state[receiver].bag = passing
+            let ball = state.currentBall ?? CardLibrary.variaball
+            give(state[receiver].bag, to: seat, by: ball, state: &state)
+            give(passing, to: receiver, by: ball, state: &state)
             events.append(.handsTraded(seat: seat, with: receiver))
         }
         // Kick-Out: whoever was guarding the passer follows the ball, and bites again when the
@@ -2114,14 +2114,14 @@ enum Rules {
     private static func borrow(from owner: Seat, by seat: Seat,
                                state: inout GameState) -> [GameEvent] {
         guard !state[owner].bag.isEmpty else { return [] }
-        state[owner].bag = state.shuffled(state[owner].bag)
-        let taken = state[owner].bag.removeFirst()
+        give(state.shuffled(state[owner].bag), to: owner, by: CardLibrary.freeAgent, state: &state)
+        guard let taken = take(at: 0, from: owner, state: &state) else { return [] }
         // Lent into his hands so the ordinary play path can run, and put back after.
-        state[seat].bag.append(taken)
+        give(taken, to: seat, by: CardLibrary.freeAgent, state: &state)
         var events = apply(.play(taken.id), by: seat, to: &state)
-        state[seat].bag.removeAll { $0.id == taken.id }
+        take(taken.id, from: seat, state: &state)
         state.discard.removeAll { $0.id == taken.id }
-        state[owner].bag.append(taken)
+        give(taken, to: owner, by: CardLibrary.freeAgent, state: &state)
         events.append(.drew(seat: owner, card: taken.descriptor, id: taken.id))
         return events
     }
@@ -2138,7 +2138,9 @@ enum Rules {
             let onward = clockwise ? other.left : other.right
             bags[onward] = state[other].bag
         }
-        for (owner, cards) in bags { state[owner].bag = cards }
+        for (owner, cards) in bags {
+            give(cards, to: owner, by: CardLibrary.carouselCourt, state: &state)
+        }
         if let ball = state.ball {
             let onward = clockwise ? ball.left : ball.right
             state.ball = onward
@@ -2210,9 +2212,8 @@ enum Rules {
             events.append(.intangibleDisplaced(seat: victim, card: lost))
             clockCatchesUp(victim, state: &state, events: &events)
         case .position(let slot):
-            guard state[victim].bag.indices.contains(slot) else { return events }
-            spend([state[victim].bag.remove(at: slot)], from: victim,
-                  state: &state, events: &events)
+            guard let taken = take(at: slot, from: victim, state: &state) else { return events }
+            spend([taken], from: victim, state: &state, events: &events)
         }
         settleHands(state: &state, events: &events)
         return events
@@ -2272,12 +2273,12 @@ enum Rules {
             state.phase = .possession(holder: state.ball ?? actor)
             return events
         }
-        let taken = state[victim].bag.remove(at: index)
+        guard let taken = take(at: index, from: victim, state: &state) else { return events }
         state.pendingPlay = nil
         state.pendingActor = nil
 
         if let onward = state.stealTravelsTo {
-            state[onward].bag.append(taken)
+            give(taken, to: onward, by: descriptor, state: &state)
             state.stealTravelsTo = nil
             state.phase = .possession(holder: state.ball ?? actor)
             settleHands(state: &state, events: &events)
@@ -2308,8 +2309,7 @@ enum Rules {
         var events: [GameEvent] = []
 
         let chosen = Set(ids.prefix(count))
-        let spent = state[seat].bag.filter { chosen.contains($0.id) }
-        state[seat].bag.removeAll { chosen.contains($0.id) }
+        let spent = take(chosen, from: seat, state: &state)
         state.discard.append(contentsOf: spent)
 
         // Short of the toll — an absent player, or a hand that emptied — is made up at
@@ -2339,8 +2339,7 @@ enum Rules {
         var events: [GameEvent] = []
 
         let chosen = Set(ids.prefix(legalDiscardForShot(state, for: seat).upperBound))
-        let spent = state[seat].bag.filter { chosen.contains($0.id) }
-        state[seat].bag.removeAll { chosen.contains($0.id) }
+        let spent = take(chosen, from: seat, state: &state)
         state.discard.append(contentsOf: spent)
 
         // What the cards bought, and only for the shot they bought it for. Feeding a
@@ -2388,8 +2387,7 @@ enum Rules {
         var counts: [Seat: Int] = [:]
         for seat in Seat.allCases {
             let ids = Set(bids[seat] ?? [])
-            let discarded = state[seat].bag.filter { ids.contains($0.id) }
-            state[seat].bag.removeAll { ids.contains($0.id) }
+            let discarded = take(ids, from: seat, state: &state)
             state.discard.append(contentsOf: discarded)
             // Roswell Reach: what he put in, plus the reach. Nought stays nought —
             // a man who did not go up for it is not on the board at all.
@@ -2836,10 +2834,10 @@ enum Rules {
         // **Found again, after the call.** A call that lets the play stand can still
         // take cards off the same hand — a Flagrant II takes two — so the position the
         // card was at before the whistle is not the position it is at now.
-        guard let index = state[seat].bag.firstIndex(where: { $0.id == cardID }) else {
+        guard let index = state[seat].bag.firstIndex(where: { $0.id == cardID }),
+              let card = take(at: index, from: seat, state: &state) else {
             return
         }
-        let card = state[seat].bag.remove(at: index)
         // Named before it was played — carried through the play until it is spent.
         state.currentAim = state.aimedCard == card.id ? state.aimedTarget : nil
         state.aimedCard = nil
@@ -2905,7 +2903,7 @@ enum Rules {
         if descriptor.whistle?.trigger == nil, !kept, !takesASlot, !footLocks {
             state.discard.append(card)
         } else if kept || footLocks {
-            state[seat].bag.insert(card, at: min(index, state[seat].bag.count))
+            give(card, to: seat, at: index, state: &state)
             if footLocks { state.footLocked.append(card.id) }
         }
         // Tick-Tock Tile: the tick is paid once the card has done what it does.
@@ -3481,7 +3479,7 @@ enum Rules {
             // did what it said and the *clock* is the offence, so the play stands and the
             // ball goes out.
             if effect.cancelsCard {
-                state[seat].bag.removeAll { $0.id == card.id }
+                take(card.id, from: seat, state: &state)
                 state.discard.append(card)
             }
             cancelled = card.name
@@ -3511,7 +3509,7 @@ enum Rules {
 
         if effect.recoversTimeout, let owner = whistle.owner,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
-            state[owner].bag.append(state.discard.remove(at: index))
+            give(state.discard.remove(at: index), to: owner, state: &state)
         }
         if effect.stripsIntangibles {
             stripIntangibles(from: offender, state: &state, events: &events)
@@ -3621,7 +3619,7 @@ enum Rules {
                      state: &state, events: &events)
         if effect.recoversTimeout,
            let index = state.discard.firstIndex(where: { $0.descriptor.id == "timeout" }) {
-            state[seat].bag.append(state.discard.remove(at: index))
+            give(state.discard.remove(at: index), to: seat, state: &state)
         }
         // Last, so the fresh clock and the fresh cards are already there when the ball
         // goes back in. A timeout is called and then play restarts, in that order.
@@ -3647,8 +3645,7 @@ enum Rules {
     /// The whole hand, down.
     private static func spendHand(of seat: Seat, state: inout GameState,
                                   events: inout [GameEvent]) {
-        let hand = state[seat].bag
-        state[seat].bag.removeAll()
+        let hand = emptyBag(of: seat, state: &state)
         spend(hand, from: seat, state: &state, events: &events)
     }
 
@@ -3662,7 +3659,7 @@ enum Rules {
                                         events: inout [GameEvent]) {
         guard !state[seat].bag.isEmpty else { return }
         let index = state.roll(0...(state[seat].bag.count - 1))
-        let taken = state[seat].bag.remove(at: index)
+        guard let taken = take(at: index, from: seat, state: &state) else { return }
         state.discard.append(taken)
         events.append(.discarded(seat: seat, cards: [taken.descriptor]))
     }
@@ -4112,7 +4109,9 @@ enum Rules {
             for other in Seat.allCases {
                 bags[clockwise ? other.left : other.right] = state[other].bag
             }
-            for (owner, cards) in bags { state[owner].bag = cards }
+            for (owner, cards) in bags {
+                give(cards, to: owner, by: state.currentCourt, state: &state)
+            }
             events.append(.handsRotated(clockwise: clockwise))
         }
         // Turnstile Tile: the other way from last possession.
@@ -4124,8 +4123,7 @@ enum Rules {
         // Shufflebag Ball: the hand back into the deck, and as many out again.
         if state.ballEffect.reshufflesHandEachPossession, !state[seat].bag.isEmpty {
             let count = state[seat].bag.count
-            state.deck += state[seat].bag
-            state[seat].bag.removeAll()
+            state.deck += emptyBag(of: seat, state: &state)
             state.deck = state.shuffled(state.deck)
             drawTogether([seat], count: count, state: &state, events: &events, opening: true)
         }
@@ -4446,8 +4444,7 @@ enum Rules {
         // deck instead of meeting the same cards again after the break. The deck still
         // comes back off the discard when it finally runs out — see `draw`.
         for seat in Seat.allCases {
-            state.discard.append(contentsOf: state[seat].bag)
-            state[seat].bag.removeAll()
+            state.discard.append(contentsOf: emptyBag(of: seat, state: &state))
         }
         // **Called before it deals.** The half is the moment; the deal is what the half
         // does. Appended after the cards, it read as twenty cards arriving from nowhere
@@ -4906,6 +4903,75 @@ enum Rules {
     ///
     /// A card that draws two draws twice and then deals with both, rather than dealing
     /// with the first before the second is off the deck.
+    // MARK: - Bags
+
+    /// **The one door into a Bag.** Every card that reaches a hand comes through here — a
+    /// draw, a card knocked out of somebody else's, one bought back out of Retirement, a
+    /// Move that stays in the hand to be played again, a whole hand swapped across the
+    /// table. Nothing else may write to one.
+    ///
+    /// It is the only thing that can put a hand over its limit, so it is the only thing
+    /// that has to answer for it — see `trim`. Before this, every card that arrived by
+    /// some other road than a draw simply sat there, and a forced card left a man holding
+    /// six with nothing to say so.
+    static func give(_ card: Card, to seat: Seat, at index: Int? = nil,
+                     by cause: CardDescriptor? = nil, state: inout GameState) {
+        if let index {
+            state[seat].bag.insert(card, at: min(max(0, index), state[seat].bag.count))
+        } else {
+            state[seat].bag.append(card)
+        }
+        trim(seat, by: cause ?? card.descriptor, state: &state)
+    }
+
+    /// A whole Bag at once: a swap, a rotation, a hand shuffled where it stands.
+    static func give(_ cards: [Card], to seat: Seat, by cause: CardDescriptor,
+                     state: inout GameState) {
+        state[seat].bag = cards
+        trim(seat, by: cause, state: &state)
+    }
+
+    /// **The one door out**, by the card's own id. Nil when it was not in there.
+    @discardableResult
+    static func take(_ id: Card.ID, from seat: Seat, state: inout GameState) -> Card? {
+        guard let index = state[seat].bag.firstIndex(where: { $0.id == id }) else { return nil }
+        return state[seat].bag.remove(at: index)
+    }
+
+    /// By where it sits, for a card named by its place in a hand nobody can see.
+    @discardableResult
+    static func take(at index: Int, from seat: Seat, state: inout GameState) -> Card? {
+        guard state[seat].bag.indices.contains(index) else { return nil }
+        return state[seat].bag.remove(at: index)
+    }
+
+    /// Several at once, in the order the Bag held them.
+    @discardableResult
+    static func take(_ ids: Set<Card.ID>, from seat: Seat, state: inout GameState) -> [Card] {
+        let taken = state[seat].bag.filter { ids.contains($0.id) }
+        state[seat].bag.removeAll { ids.contains($0.id) }
+        return taken
+    }
+
+    /// The lot. What comes back is the hand that was there.
+    @discardableResult
+    static func emptyBag(of seat: Seat, state: inout GameState) -> [Card] {
+        let hand = state[seat].bag
+        state[seat].bag.removeAll()
+        return hand
+    }
+
+    /// **A Bag over its limit owes the difference, its owner's pick.** The same question
+    /// a Move that draws three and Retires one asks — see `Step.tax`.
+    ///
+    /// Only a card *given* can put a hand over: a draw into a full one never lands, it is
+    /// paid as SHOT instead — see `draw`.
+    private static func trim(_ seat: Seat, by cause: CardDescriptor, state: inout GameState) {
+        let over = state[seat].bag.count - state.handLimit(for: seat)
+        guard over > 0 else { return }
+        state.owe(.tax(seat: seat, count: over, card: cause))
+    }
+
     private static func drawOnce(_ seat: Seat, state: inout GameState,
                                  events: inout [GameEvent], depth: Int = 0,
                                  opening: Bool = false) {
@@ -5006,7 +5072,7 @@ enum Rules {
             adjustShot(by: paid, state: &state)
             events.append(.drawConverted(seat: seat, card: card.descriptor, shot: paid))
         } else {
-            state[seat].bag.append(card)
+            give(card, to: seat, state: &state)
             events.append(.drew(seat: seat, card: card.descriptor, id: card.id))
             // **The one call that does not wait for the chain.** Discontinued Dribble is
             // called on the draw itself, so it fires here rather than in the queue — and
@@ -5119,8 +5185,7 @@ enum Rules {
             // would be drawing out of a deck the others had not gone into yet.
             let sizes = Seat.allCases.map { ($0, state[$0].bag.count) }
             for (other, _) in sizes {
-                state.deck.append(contentsOf: state[other].bag)
-                state[other].bag.removeAll()
+                state.deck.append(contentsOf: emptyBag(of: other, state: &state))
             }
             state.deck = state.shuffled(state.deck)
             state.drawChain += 1
@@ -5138,8 +5203,9 @@ enum Rules {
             let others = Seat.allCases.filter { $0 != seat }
             let partner = state.pick(from: others)
             let mine = state[seat].bag
-            state[seat].bag = state[partner].bag
-            state[partner].bag = mine
+            let ball = state.currentBall ?? CardLibrary.variaball
+            give(state[partner].bag, to: seat, by: ball, state: &state)
+            give(mine, to: partner, by: ball, state: &state)
             events.append(.handsTraded(seat: seat, with: partner))
         }
         if effect.rotatesHands {
@@ -5356,8 +5422,7 @@ enum Rules {
 
     /// Dumps a seat's whole hand to the discard. Debug only.
     static func discardHand(_ seat: Seat, state: inout GameState) {
-        state.discard.append(contentsOf: state[seat].bag)
-        state[seat].bag.removeAll()
+        state.discard.append(contentsOf: emptyBag(of: seat, state: &state))
     }
 
     /// Puts a seat on the line without waiting to be fouled. Debug and harness only.

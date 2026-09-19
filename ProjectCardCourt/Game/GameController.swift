@@ -109,6 +109,9 @@ struct LogLine: Identifiable {
     let id = UUID()
     let text: String
     let kind: Kind
+    /// **The cards this line names**, so the log can print each in its own type's colour
+    /// — read off the event itself rather than matched against the words.
+    var cards: [CardDescriptor] = []
 }
 
 /// A make with a scene of its own.
@@ -3413,6 +3416,12 @@ final class GameController {
             // miss is drawn from the same place the make is.
             || (state.ballEffect.layupsShootAsThrees && state.shotType == .layup)
             || state.shotType == .three
+            // **Lethal Shooter's is a shooter's shot.** His hundred per cent goes up from
+            // out there whatever finish the rules filed it under.
+            || shot.contains {
+                guard case .shotAttempted(_, _, let breakdown) = $0 else { return false }
+                return breakdown.steps.contains { $0.label == CardLibrary.lethalShooter.name }
+            }
         // Long Ball's layups go up from out there, so they are drawn as the jumper — and
         // **a three is only ever the jumper**, whatever finish the rules filed it under.
         scene.isLayup = scene.dunk == nil && !scene.isThree && state.shotType == .layup
@@ -3474,7 +3483,8 @@ final class GameController {
         // missing from the hand for the rest of the game.
         for case .drew(_, _, let card) in events { undelivered.remove(card) }
         for event in events where event.isLoggable {
-            log.append(LogLine(text: event.logLine, kind: kind(of: event)))
+            log.append(LogLine(text: event.logLine, kind: kind(of: event),
+                               cards: event.cardsNamed))
         }
     }
 

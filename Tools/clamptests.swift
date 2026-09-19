@@ -274,3 +274,28 @@ func randomnessTests() {
     let rate = Double(makes) / Double(tries)
     Check.that(rate > 0.07 && rate < 0.13, "a 10% shot goes in about one time in ten (\(Int(rate * 100))%)")
 }
+
+/// The one door into a Bag, and what a Bag over its limit does about it.
+func bagTests() {
+    print("Bags")
+    do {
+        var (state, seat, cards) = openPossession(seed: 331, cards: [CardLibrary.curlCut])
+        stand(CardLibrary.contest, on: seat, &state)
+        let receiver = seat.left
+        state[receiver].bag = [matchCard(CardLibrary.dribble, state.rules)]
+        // A full Bag, the Cut among it: played (-1), drawn back (+1), and his card on top.
+        let limit = state.handLimit(for: seat)
+        state[seat].bag = [cards[0]]
+            + (1..<limit).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
+        _ = cut(cards[0].id, by: seat, to: receiver, &state)
+        var asked = false
+        if case .awaitingGiveUp(let who, _, let count) = state.phase {
+            asked = who == seat && count == 1
+        }
+        Check.that(asked, "a card forced into a full Bag asks its owner what goes")
+        Check.that(state[seat].bag.count == limit + 1,
+                   "and the Bag holds them all until it is answered")
+        _ = Rules.resolveGiveUp([state[seat].bag[0].id], state: &state)
+        Check.that(state[seat].bag.count == limit, "and comes back to the limit on the answer")
+    }
+}

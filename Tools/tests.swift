@@ -1830,6 +1830,7 @@ func runTests() {
     aimTests()
     randomnessTests()
     crewTests()
+    bagTests()
     slotTestsTwo()
     alleyOopTests()
 

@@ -376,3 +376,20 @@ extension Array where Element == GameEvent {
         contains { if case .shotAttempted = $0 { return true }; return false }
     }
 }
+
+extension GameEvent {
+    /// **Every card this event names**, read off its own payload rather than matched
+    /// against the words of its line — so a new event says which cards it mentions
+    /// without anybody having to tell it. The log prints each in its type's colour.
+    var cardsNamed: [CardDescriptor] {
+        var found: [CardDescriptor] = []
+        func dig(_ value: Any, _ depth: Int) {
+            if let card = value as? CardDescriptor { found.append(card); return }
+            if let cards = value as? [CardDescriptor] { found += cards; return }
+            guard depth < 3 else { return }
+            for child in Mirror(reflecting: value).children { dig(child.value, depth + 1) }
+        }
+        dig(self, 0)
+        return found
+    }
+}

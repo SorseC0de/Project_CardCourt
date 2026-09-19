@@ -6,8 +6,7 @@ struct LogView: View {
     /// Off for the overlay style, where the log is decoration rather than a control.
     var isInteractive = true
 
-    /// The end of the log, scrolled to rather than padded — see the body. The fade is at
-    /// the top now, over the oldest lines, so the newest needs no room to clear it.
+    /// The end of the log, scrolled to rather than padded — see the body.
     private static let foot = "log-foot"
     private static let footRoom: CGFloat = 6
 
@@ -24,7 +23,7 @@ struct LogView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(lines) { line in
-                            Text(line.text)
+                            Text(named(line))
                                 .font(.system(size: 10.5, weight: weight(line.kind), design: .monospaced))
                                 .foregroundStyle(color(line.kind))
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -32,8 +31,7 @@ struct LogView: View {
                         }
                         // **Where the scroll stops, and why it is a view.** As padding
                         // this room sat outside everything the reader could aim at, so
-                        // scrolling to the last line put it on the very edge — the
-                        // faintest part of the fade the room is there to clear. A view
+                        // scrolling to the last line put it hard against the edge. A view
                         // can be scrolled to, so the log ends where its content does.
                         Color.clear
                             .frame(height: Self.footRoom)
@@ -72,10 +70,6 @@ struct LogView: View {
                     }
                 }
             }
-            .mask(alignment: .bottom) {
-                LinearGradient(colors: [.clear, CardPalette.black], startPoint: .top, endPoint: .bottom)
-                    .allowsHitTesting(false)
-            }
             .overlay(alignment: .topTrailing) {
                 if isInteractive && isScrollable { indicator(in: geo.size) }
             }
@@ -101,6 +95,38 @@ struct LogView: View {
                 .animation(.easeOut(duration: 0.15), value: progress)
         }
         .offset(x: -4, y: 4)
+    }
+
+    /// **The cards in a line, printed in their own type's colour and in bold.** The
+    /// names come with the line — see `LogLine.cards` — so nothing here has to guess
+    /// which words are cards.
+    private func named(_ line: LogLine) -> AttributedString {
+        var text = AttributedString(line.text)
+        for card in line.cards where !card.name.isEmpty {
+            var from = text.startIndex
+            while let found = text[from...].range(of: card.name) {
+                text[found].inlinePresentationIntent = .stronglyEmphasized
+                text[found].foregroundColor = Self.ink(for: card.type)
+                from = found.upperBound
+            }
+        }
+        return text
+    }
+
+    /// **A type's colour in the plainest words for it**, which is how the cards name them
+    /// — a Move is green here whatever teal it is printed in.
+    static func ink(for type: CardType) -> Color {
+        switch type {
+        case .pass:               return .blue
+        case .move, .specialMove: return .green
+        case .clamp:              return .red
+        case .whistle:            return .white
+        case .gameBreak:          return .purple
+        case .intangible:         return .yellow
+        case .variaball:          return .orange
+        case .varena:             return .indigo
+        case .injury:             return .brown
+        }
     }
 
     private func color(_ kind: LogLine.Kind) -> Color {
