@@ -54,6 +54,9 @@ struct ShotCutsceneView: View {
         static let base: CGFloat = 196
         /// How much smaller the man at the back is.
         static let shrink: CGFloat = 0.16
+        /// How far down the wall's band the man at the back is drawn — under the men in
+        /// front of him, and still over everything below the band.
+        static let backStep: Double = 0.1
         /// The contest is live, so the wall never quite stands still: a slow lateral
         /// shuffle, each man on his own clock so the three do not sway as one board.
         static let shuffle: CGFloat = 9
@@ -319,7 +322,8 @@ struct ShotCutsceneView: View {
                         DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
                             // Further back stands smaller, which is what stops the middle man
                             // of three reading as a giant behind the other two.
-                            .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back),
+                            .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back)
+                                         * (scene.isLayup ? LayupTuning.shared.wallScale : 1),
                                          anchor: .bottom)
                             // Sliding while the shot is up. Alternating directions and a
                             // stagger apiece, or the wall sways as one piece of scenery.
@@ -331,10 +335,12 @@ struct ShotCutsceneView: View {
                                        value: shuffling)
                             .position(x: stage.width / 2 + Wall.spread * spot.x
                                          - (scene.isLayup ? LayupTuning.shared.wallAside : 0),
-                                      y: stage.height - Wall.base - Wall.lift * spot.back)
+                                      y: stage.height - Wall.base - Wall.lift * spot.back
+                                         + (scene.isLayup ? LayupTuning.shared.wallY : 0))
                             // A band of their own, so a man climbing past them has somewhere
-                            // to be. Level with the ring: a contest happens at it.
-                            .zIndex(Depth.wall)
+                            // to be. Level with the ring: a contest happens at it. **The man
+                            // standing back is drawn behind the others**, inside that band.
+                            .zIndex(Depth.wall - Wall.backStep * Double(spot.back))
                     }
 
                     VStack(spacing: Stage.chanceGap) {
@@ -584,11 +590,14 @@ struct ShotCutsceneView: View {
     }
 
     private func startPoint(in size: CGSize) -> CGPoint {
-        // A layup leaves from his hand, to the right of the ring and under it.
+        // A layup leaves from his hand at the top of his hop: over where he took off by
+        // the height of it.
         if scene.isLayup {
+            let tune = LayupTuning.shared
             let rim = rimPoint(in: size)
-            return CGPoint(x: rim.x + LayupTuning.shared.offRim,
-                           y: rim.y + LayupTuning.shared.underRim)
+            let pixel = Theme.Figure.playerScale * Stage.gather * tune.arrivesAt
+            return CGPoint(x: rim.x + tune.offRim,
+                           y: rim.y + tune.takeoffY - tune.rise * pixel)
         }
         return CGPoint(x: size.width * tuning.startX, y: size.height * tuning.startY)
     }
@@ -633,10 +642,10 @@ struct ShotCutsceneView: View {
         let start = figureCentre(in: size)
         let rim = rimPoint(in: size)
         let pixel = Theme.Figure.playerScale * Stage.gather * tune.arrivesAt
-        // **Where he takes off**: under where he lets go by the height of his jump, so the
-        // jump carries his hand up to the release — and brings him back down here.
+        // **Where he takes off**, and lands: his hand is at the takeoff dial with his
+        // feet on the floor, and the hop carries it up to the release from here.
         let end = CGPoint(x: rim.x + tune.offRim - tune.handX * pixel,
-                          y: rim.y + tune.underRim - tune.handY * pixel + tune.rise * pixel)
+                          y: rim.y + tune.takeoffY - tune.handY * pixel)
         let arrive = CGSize(width: end.x - start.x, height: end.y - start.y)
         layupScale = tune.startScale
         // Behind the defenders — and the near half of the ring — on his own dial.

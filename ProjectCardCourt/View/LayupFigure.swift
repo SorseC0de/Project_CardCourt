@@ -22,19 +22,24 @@ struct LayupFigure: View {
     @State private var lifted: CGFloat = 0
 
     var body: some View {
-        Group {
-            if showing == .dribble {
-                // The run is a loop, played off the wall clock like any other.
-                SpriteAnimation(sprite: .dribble, scale: scale,
-                                fps: Theme.Figure.playerFPS,
-                                face: PlayerLook.shared.faceOn(seat))
-            } else {
-                SpriteAnimation(sprite: showing, scale: scale, isPlaying: false,
-                                restFrame: cell, face: PlayerLook.shared.faceOn(seat))
+        // **The shadow stays on the floor** and shrinks as he leaves it; only he goes up.
+        ZStack(alignment: .bottom) {
+            SpriteShadow(scale: scale,
+                         lift: LayupTuning.shared.rise > 0 ? lifted / LayupTuning.shared.rise : 0)
+            Group {
+                if showing == .dribble {
+                    // The run is a loop, played off the wall clock like any other.
+                    SpriteAnimation(sprite: .dribble, scale: scale,
+                                    fps: Theme.Figure.playerFPS,
+                                    face: PlayerLook.shared.faceOn(seat))
+                } else {
+                    SpriteAnimation(sprite: showing, scale: scale, isPlaying: false,
+                                    restFrame: cell, face: PlayerLook.shared.faceOn(seat))
+                }
             }
+            .paletteSwap(PlayerLook.shared.kit(for: seat) + BallInPlay.sprite(for: ballInPlay))
+            .offset(y: -lifted * scale)
         }
-        .paletteSwap(PlayerLook.shared.kit(for: seat) + BallInPlay.sprite(for: ballInPlay))
-        .offset(y: -lifted * scale)
         .task {
             guard isRunning else { return }
             await runIn()
@@ -80,7 +85,7 @@ final class LayupTuning {
 
     // The run in.
     /// How big he starts, against the jumper's size where he stands.
-    var startScale: CGFloat = 1.25
+    var startScale: CGFloat = 1
     /// How long the run in to the rim takes.
     var approachSeconds: Double = 1.0
     /// How small he is by the time he reaches the rim.
@@ -90,14 +95,18 @@ final class LayupTuning {
     /// of it on the way past them. Points.
     var wallAside: CGFloat = 90
     var aroundX: CGFloat = 120
+    /// The defenders' size against the shot scene's usual, and how far up (negative) or
+    /// down they stand from their usual place, in points.
+    var wallScale: CGFloat = 1
+    var wallY: CGFloat = 0
     /// **When he goes behind the defenders**, as a share of the run: nought is at once,
     /// one is as he arrives.
-    var behindAt: Double = 0.15
+    var behindAt: Double = 0.2
 
     // The layup.
     /// **How high he jumps**, in art pixels: up from where he took off over the cells to
     /// the release, and back down to the same place after it.
-    var rise: CGFloat = 26
+    var rise: CGFloat = 10
     /// The rate the layup's four cells play at.
     var layupFPS: Double = 10
     /// How long the last cell is held before he comes down.
@@ -110,16 +119,18 @@ final class LayupTuning {
     /// frame's centre.
     var handX: CGFloat = 0
     var handY: CGFloat = -11
-    /// **Where his hand is when he lets go**, against the ring, in points: right of it —
-    /// the layup is right-handed and goes up leftward — and under it.
-    var offRim: CGFloat = 77.63
-    var underRim: CGFloat = 43
+    /// **Where he takes off, and lands**, by where his hand is with his feet on the
+    /// floor — against the ring, in points: right of it (the layup is right-handed and
+    /// goes up leftward) and under it. The hop lifts him from here, so its height never
+    /// moves this.
+    var offRim: CGFloat = 80
+    var takeoffY: CGFloat = 128
 
     // The ball.
     /// How long the ball is up. A layup is laid in, not lofted.
-    var flightSeconds: Double = 0.35
+    var flightSeconds: Double = 0.5
     /// How high over the ring the ball's short arc peaks, as a share of the scene.
-    var arc: CGFloat = 0.06
+    var arc: CGFloat = 0.2
 
     /// The cell the ball leaves his hand on: the last of the four has nothing in it.
     static let releaseCell = 3
@@ -131,7 +142,8 @@ final class LayupTuning {
         wallAside = fresh.wallAside; aroundX = fresh.aroundX; behindAt = fresh.behindAt
         rise = fresh.rise; layupFPS = fresh.layupFPS; hang = fresh.hang; fall = fresh.fall
         handX = fresh.handX; handY = fresh.handY
-        offRim = fresh.offRim; underRim = fresh.underRim
+        offRim = fresh.offRim; takeoffY = fresh.takeoffY
+        wallScale = fresh.wallScale; wallY = fresh.wallY
         flightSeconds = fresh.flightSeconds; arc = fresh.arc
     }
 
@@ -153,7 +165,9 @@ final class LayupTuning {
         var handX: CGFloat = \(g(handX))
         var handY: CGFloat = \(g(handY))
         var offRim: CGFloat = \(g(offRim))
-        var underRim: CGFloat = \(g(underRim))
+        var takeoffY: CGFloat = \(g(takeoffY))
+        var wallScale: CGFloat = \(g(wallScale))
+        var wallY: CGFloat = \(g(wallY))
         var flightSeconds: Double = \(t(flightSeconds))
         var arc: CGFloat = \(g(arc))
         """
