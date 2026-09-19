@@ -285,7 +285,7 @@ enum GameEvent: Hashable, Codable {
         case .clampedPossession(let seat, let clamps):
             return "\(seat.playerName) \(seat.verb("opens", "open")) up under \(clamps.count) Clamp\(clamps.count == 1 ? "" : "s")."
         case .halftime:
-            return "— HALFTIME — Bags retired, fresh 5 each."
+            return "— HALFTIME — Bags retired, fresh 4 each."
         case .gameEnded(let winners):
             return winners.count == 1
                 ? "FINAL. \(winners[0].playerName) \(winners[0].verb("wins", "win"))."

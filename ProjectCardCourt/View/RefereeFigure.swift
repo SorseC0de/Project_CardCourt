@@ -88,7 +88,7 @@ struct RefereeFigure: View {
 
     /// **How often a running referee glances into the game**: one pass of the look sheet
     /// every this many seconds, and the plain run the rest of the time.
-    private static let glanceEvery: TimeInterval = 3
+    private static let glanceEvery: TimeInterval = 2
 
     var body: some View {
         ZStack(alignment: .bottom) {

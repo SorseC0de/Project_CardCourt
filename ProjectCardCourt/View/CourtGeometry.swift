@@ -42,9 +42,9 @@ enum Perspective {
         switch seat {
         // Everyone sits in the upper half of the floor: the fanned hand covers the
         // near end, so the bottom of the court is deliberately empty.
-        case .north: return 0.18
-        case .east, .west: return 0.36
-        case .south: return 0.52
+        case .north: return 0.11
+        case .east, .west: return 0.32
+        case .south: return 0.48
         }
     }
 
@@ -76,28 +76,18 @@ enum Perspective {
     /// How far out a referee stands, as a share of the floor's half-width at his depth.
     /// Just past 1 puts him on the paint's outside line rather than in play.
     static let refereeLateral: CGFloat = 0.75
-    /// How far up the floor he stands from the player he is posted beside.
-    ///
-    /// Was 0.06, which put the near pair close enough to the flank players to read as
-    /// standing over them rather than watching from the sideline.
-    static let refereeUpcourt: CGFloat = 0.12
-    /// The near pair stand further up again. They are the two closest to the camera, so
-    /// the same nudge that clears the far pair of North barely moves them off the flanks.
-    static let refereeNearUpcourt: CGFloat = 0.20
+    /// **Where the two wing posts stand**: halfway up to where the old far posts were,
+    /// fixed here rather than worked from the players' depths — the players moved up
+    /// (2026-09-19) and the crew, already placed by eye, stayed where it was.
+    static let refereeWingDepth: CGFloat = 0.11
 
-    /// **Where the two wing posts stand now: halfway up to where the far posts were.**
-    /// The far pair are gone; the user asked for the wings to move "halfway between where
-    /// they stand now and where the far ones were." Worked from the two old depths rather
-    /// than typed, so it moves if either of them does.
-    static var refereeWingDepth: CGFloat {
-        let wing = depth(of: .east) - refereeNearUpcourt
-        let far = depth(of: .north) - refereeUpcourt
-        return (wing + far) / 2
-    }
+    /// **The line the near pair's step is measured from**: where South stood when their
+    /// `RefereeTuning.nearStep` was set, so moving South does not move them.
+    static let refereeNearLine: CGFloat = 0.52
 
-    /// **Where a player throws it in from.** It used to borrow the far referee posts'
-    /// depth, which tied the sideline to posts that no longer exist.
-    static var throwInDepth: CGFloat { depth(of: .north) - refereeUpcourt }
+    /// **Where a player throws it in from**: up the floor from North, north-west of him
+    /// with `InboundTextTuning.throwerX`. The same spot it was before the players moved up.
+    static let throwInDepth: CGFloat = 0.06
 
     /// How wide a card in a pile reads, as a share of the view. The stage sizes the piles
     /// to this and the deck's floor shadow is drawn from it, so the shadow cannot come out
@@ -109,7 +99,7 @@ enum Perspective {
 
     /// Where the draw pile sits: off the centre column, so it never sits on top of
     /// North. Lateral is a share of the floor's half-width at that depth.
-    static let deckDepth: CGFloat = 0.30
+    static let deckDepth: CGFloat = 0.26
     /// Mirrored from the discard, so the two flank the centre line.
     static var deckLateral: CGFloat { -discardLateral }
     /// The discard sits beside the deck, at the same depth.
@@ -140,7 +130,7 @@ enum RefereePost: CaseIterable {
     var depth: CGFloat {
         // The pair beside South, a step nearer the camera than he stands — see
         // `RefereeTuning.nearStep`.
-        isSouth ? Perspective.depth(of: .south) + RefereeTuning.shared.nearStep
+        isSouth ? Perspective.refereeNearLine + RefereeTuning.shared.nearStep
                 : Perspective.refereeWingDepth
     }
 

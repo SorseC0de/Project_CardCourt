@@ -386,6 +386,17 @@ struct CourtView: View {
                     }
                 }
 
+                // **The referee's throw**, the same ball crossing from his hands to the man
+                // he threw it to. His throwing pose is drawn empty-handed.
+                if let refereeThrow, refereeThrow.thrown {
+                    InboundThrow(from: throwOrigin(on: court),
+                                 to: ballPoint(of: refereeThrow.to, on: court, catching: false),
+                                 seconds: Pacing.inboundThrow,
+                                 scale: court.scale(of: refereeThrow.to))
+                        .id(refereeThrow.id)
+                        .zIndex(Layer.prompt)
+                }
+
                 // The throw itself, crossing from the sideline to whoever was chosen.
                 if let throwing, caughtThrow != throwing.id {
                     InboundThrow(from: throwOrigin(on: court),
@@ -727,7 +738,7 @@ struct CourtView: View {
     /// See `boardLeaves`.
     private func hoopPoint(on court: CourtGeometry, in size: CGSize) -> CGPoint {
         CGPoint(x: court.centreX,
-                y: court.horizonY - 18 - size.height * 0.05)
+                y: court.horizonY - 18 - size.height * 0.075)
     }
 
     /// Where the ball comes out of the rim: the rim, and the offset off it.
@@ -770,17 +781,6 @@ struct CourtView: View {
             ballPoint(of: $0, on: court, catching: false, throwing: true)
         } ?? to
         return (from, to)
-    }
-
-    /// One referee per armed Whistle, each at his own post.
-    ///
-    /// Read off the Whistle's own id rather than rolled, so a redraw cannot move a
-    /// referee mid-round — the skin tones re-rolling on every inbound taught that. The
-    /// first byte is the coin flip for the side, the second picks between that side's two
-    /// posts, and anyone finding both taken takes whatever is left.
-    private enum Referee {
-        /// The caller's name over his head. Small — it is an aside, not a plate.
-        static let name: CGFloat = 11
     }
 
     /// A referee on the floor, and the Whistle that called him out.
@@ -1062,7 +1062,7 @@ struct CourtView: View {
             let called = call.whistle
             // **His name is drawn at its own size wherever he stands.** The node is scaled
             // by his depth, so the label divides that back out and comes out at exactly
-            // `Referee.name` points — the same on every post and every phone.
+            // `FloorName.size` points — the same on every post and every phone.
             let nameScale = 1 / court.scale(of: post)
             // The sheet faces the right-hand touchline and the left-hand posts turn him
             // round. **A turned pose faces the caller instead**, and the sheet already
@@ -1077,22 +1077,16 @@ struct CourtView: View {
                           phase: post.phase,
                           tone: look.refereeTone(for: called.id),
                           frozen: frozen)
-                // **What he is watching for**, over his head. Nobody owns a referee any
-                // more — the crew is dealt face-up and everyone plays under it — so the
-                // label says the call rather than whose trap it was.
+                // **What he is watching for, only while he can be picked.** At rest the
+                // crew goes unlabelled — the HUD has their cards — and a card that names
+                // an official is the one time the floor has to say which is which.
                 .overlay(alignment: .top) {
-                    SmallCapsText(text: called.card.name.uppercased(),
-                                  font: "AvenirNextCondensed-Heavy",
-                                  size: Referee.name, scalesWithTextSize: false)
-                        // Lit the same colour a player wears when he is the one being
-                        // named, so "pick one of these" reads the same wherever it is asked.
-                        .foregroundStyle(called.id == ringedOfficial ? CardPalette.gold
-                                         : namedOfficials.contains(called.id) ? Theme.live
-                                         : .white)
-                        .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
-                        .fixedSize()
-                        .scaleEffect(nameScale, anchor: .bottom)
-                        .offset(y: -Referee.name * nameScale)
+                    if namedOfficials.contains(called.id) || called.id == ringedOfficial {
+                        FloorName(text: called.card.name,
+                                  ink: called.id == ringedOfficial ? CardPalette.gold : Theme.live)
+                            .scaleEffect(nameScale, anchor: .bottom)
+                            .offset(y: -FloorName.size * nameScale)
+                    }
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(coordinateSpace: .global) { onTapReferee(called.id, $0) }
@@ -1376,5 +1370,23 @@ private struct FloorSweep: View {
                     sweep = 1
                 }
             }
+    }
+}
+
+/// **A name on the floor**: small condensed caps with a one-point drop, drawn at its own
+/// size wherever the man stands — the caller divides his depth's scale back out. Worn by
+/// the players, and by a referee while a card is asking for one of the crew.
+struct FloorName: View {
+    let text: String
+    var ink: Color = .white
+
+    static let size: CGFloat = 11
+
+    var body: some View {
+        SmallCapsText(text: text.uppercased(), font: "AvenirNextCondensed-Heavy",
+                      size: Self.size, scalesWithTextSize: false)
+            .foregroundStyle(ink)
+            .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
+            .fixedSize()
     }
 }

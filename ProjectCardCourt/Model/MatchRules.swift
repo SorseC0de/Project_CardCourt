@@ -58,7 +58,10 @@ extension MatchRules {
             name: "Classic",
             roundsPerGame: 8,
             roundsPerHalf: 4,
-            startingBagSize: 5,
+            // **Four, so the draw at the top of a possession makes five** — the hand limit
+            // — and nobody starts a turn a card up on the table. Yu-Gi-Oh made the same
+            // change for the player going first.
+            startingBagSize: 4,
             movesPerPossession: 3,
             handLimit: 5,
             overflowShot: 10,
