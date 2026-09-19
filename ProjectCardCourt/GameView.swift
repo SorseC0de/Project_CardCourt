@@ -18,8 +18,6 @@ struct GameView: View {
     @State private var cursor = Cursor()
 
     @State private var paused = false
-    /// Which of the two flank plates is in front — see `debuffPlates`.
-    @State private var injuriesForward = false
     /// The card taken off whichever sheet is up, before it is confirmed.
     ///
     /// **Outside the sheet.** Every "pick one of these" in the game used to hold its own
@@ -283,25 +281,6 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     Spacer()
                     VStack(spacing: 0) {
-                        // Takes the band the log used to sit in, just above the hand.
-                        HStack(alignment: .bottom) {
-                            // **Out of the way while the game is asking for something.** Each
-                            // leaves by its own side, all but an edge — see `Panels.peek`.
-                            // Gone entirely read as a panel that had been taken away; a
-                            // sliver says it is standing just off the screen.
-                            IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
-                                                dormant: controller.dormantIntangibles,
-                                                slots: controller.shown.rules.intangibleSlots,
-                                                onSelect: { inspecting = (card: $0, from: $1) })
-                                .offset(x: standingAside ? -Panels.aside : 0)
-                            Spacer()
-                            debuffPlates
-                                .offset(x: standingAside ? Panels.aside : 0)
-                        }
-                        .padding(.bottom, 4)
-                        // Down a little: the flanks stand right above them.
-                        .offset(y: Panels.drop)
-                        .animation(.easeInOut(duration: 0.28), value: standingAside)
                         ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
@@ -808,43 +787,6 @@ struct GameView: View {
         onFloor != nil || inspecting != nil || browsingDiscard || readingLog
     }
 
-    /// **Clamps and Injuries, one behind the other.**
-    ///
-    /// Two full plates on the same flank would take the whole side of the screen, and an
-    /// Injury is the thing that explains a greyed-out card — Torn Achilles holds a hand
-    /// down and nothing on screen said so. Stacked, the one behind reads as the drop
-    /// under the one in front, and tapping the back one brings it forward.
-    ///
-    /// Only the front plate takes taps on its slots; the back one takes one tap, which is
-    /// the swap.
-    private var debuffPlates: some View {
-        ZStack(alignment: .topLeading) {
-            plate(injuries: !injuriesForward)
-                .offset(x: Panels.stack, y: Panels.stack)
-                .allowsHitTesting(false)
-                .overlay {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .offset(x: Panels.stack, y: Panels.stack)
-                        .onTapGesture {
-                            withAnimation(.easeOut(duration: 0.22)) {
-                                injuriesForward.toggle()
-                            }
-                        }
-                }
-            plate(injuries: injuriesForward)
-        }
-    }
-
-    private func plate(injuries: Bool) -> some View {
-        DebuffSlotsView(cards: injuries ? controller.human.injuries
-                                        : controller.human.clamps.map(\.card),
-                        title: injuries ? "Injuries" : "Clamps",
-                        fill: injuries ? CardPalette.teal : CardPalette.red,
-                        shade: injuries ? CardPalette.darkRed : CardPalette.purple,
-                        onSelect: { inspecting = (card: $0, from: $1) })
-    }
-
     /// Opens a floor sheet, where that is allowed. The hold is the `onChange`'s job.
     private func open(_ inspection: Inspection) {
         guard controller.canInspect else { return }
@@ -852,33 +794,6 @@ struct GameView: View {
     }
 
     private func closeFloor() { onFloor = nil }
-
-    private enum Panels {
-        /// How far a slot panel goes to get out of the way, less the sliver it leaves
-        /// behind. It used to clear the screen entirely, which said the panel was gone
-        /// rather than moved — an edge still showing is a thing you know is coming back.
-        static let aside: CGFloat = 320 - peek
-        /// What is left on screen of a panel that has stood aside.
-        static let peek: CGFloat = 14
-        /// And how far down they sit, out from under the flanks' feet.
-        static let drop: CGFloat = 8
-        /// How far the plate behind shows past the one in front — see `debuffPlates`.
-        /// A drop's worth, because that is what it is standing in for.
-        static let stack: CGFloat = 7
-    }
-
-    /// Whether the floor's own readings should get out of the way: something is being
-    /// asked for out of the hand, and the hand is what the eye needs.
-    /// The panels either side of the hand get out of the way for any question — they are
-    /// never the answer to one.
-    private var standingAside: Bool {
-        switch controller.gate {
-        case .awaitingDiscard, .awaitingGiveUp, .awaitingBid,
-             .awaitingTarget, .awaitingNaming, .awaitingInbound:
-            return true
-        default: return false
-        }
-    }
 
     /// **Which band the question is about**, and so which one is lifted over the wash
     /// rather than washed out with everything else. The cards in front of you when the
@@ -1065,17 +980,40 @@ struct GameView: View {
     /// **The readings, under the scoreboard.** They used to hang in the court's two top
     /// corners, over the floor and over the players standing on it. Up here they sit with
     /// the other numbers, and the court is left to be a court.
+    ///
+    /// **Three columns.** Down the left, the ball and then your own plates — Intangibles,
+    /// and the Clamps on you under them. SHOT and the deck in the middle; the crew and the
+    /// officials deck to the right of them.
     private var hudRow: AnyView {
-        AnyView(HStack(alignment: .top) {
-            floorCorner
-            Spacer(minLength: 8)
+        AnyView(ZStack(alignment: .topLeading) {
             StatusHUDView(state: controller.shown, shot: controller.shownShot,
                           deck: controller.shownDeck,
-                          onInspectReferee: { inspecting = (card: $0, from: $1) })
+                          onInspectReferee: { inspecting = (card: $0, from: $1) },
+                          spread: true)
+                .padding(.horizontal, 14)
+            VStack(alignment: .leading, spacing: Plates.gap) {
+                floorCorner
+                if tutorial == nil {
+                    IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
+                                        dormant: controller.dormantIntangibles,
+                                        slots: controller.shown.rules.intangibleSlots,
+                                        onSelect: { inspecting = (card: $0, from: $1) },
+                                        unit: Plates.unit)
+                    DebuffSlotsView(cards: controller.human.clamps.map(\.card),
+                                    onSelect: { inspecting = (card: $0, from: $1) },
+                                    edge: .leading, unit: Plates.unit)
+                }
+            }
         }
-        .padding(.horizontal, 14)
         .padding(.top, 6)
         .padding(.bottom, 4))
+    }
+
+    /// **Your own plates, the size of a crew card.** A slot is exactly as big as one of
+    /// the officials' cards in the HUD, so the two rows read as one set of cards.
+    private enum Plates {
+        static var unit: CGFloat { StatusHUDView.crewCardWidth() / Well.side.width }
+        static let gap: CGFloat = 14
     }
 
     /// Where that seat sits on the scoreboard, which orders by score.

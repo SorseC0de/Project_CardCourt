@@ -15,12 +15,14 @@ struct IntangibleSlotsView: View {
     var wash: Double = Well.wash
     var sideLip: CGFloat = Well.sideLip
     var topLip: CGFloat = Well.topLip
+    /// The plate's size as one factor — see `SlantPanel.unit`.
+    var unit: CGFloat = 1
 
     var body: some View {
         SlantPanel(title: "Intangibles", fill: CardPalette.blue,
                    shade: CardPalette.gold, titleDrop: CardPalette.blue,
-                   titleSize: titleSize, titleY: titleY, lean: lean) {
-            HStack(spacing: 4) {
+                   titleSize: titleSize, titleY: titleY, lean: lean, unit: unit) {
+            HStack(spacing: 4 * unit) {
                 ForEach(0..<slots, id: \.self) { index in
                     let card = held.indices.contains(index) ? held[index] : nil
                     slot(card)
@@ -46,8 +48,9 @@ struct IntangibleSlotsView: View {
     }
 
     private func slot(_ card: CardDescriptor?) -> some View {
-        SlotWell(tint: CardPalette.blue, card: card, wash: wash,
-                 sideLip: sideLip, topLip: topLip)
+        SlotWell(tint: CardPalette.blue, card: card,
+                 side: CGSize(width: Well.side.width * unit, height: Well.side.height * unit),
+                 wash: wash, sideLip: sideLip, topLip: topLip)
             // A passive that currently pays nothing, drained rather than dimmed.
             .grayscale(card.map { dormant.contains($0.id) } ?? false ? 1 : 0)
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: card)

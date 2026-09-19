@@ -128,26 +128,32 @@ struct SlantPanel<Content: View>: View {
     /// Which side of the screen it comes in from. The rake mirrors with it, so both
     /// plates rake toward the middle rather than both leaning the same way.
     var edge: HorizontalEdge = .leading
+    /// **The whole plate's size, as one factor** — its height, padding, drop, overhang
+    /// and title together, so a smaller plate is the same drawing. The wells inside are
+    /// sized by whoever fills it, with the same factor.
+    var unit: CGFloat = 1
     @ViewBuilder var content: Content
 
+    private var height: CGFloat { Plate.height * unit }
+
     /// How far the top edge is pushed along.
-    private var slant: CGFloat { Plate.height * lean }
+    private var slant: CGFloat { height * lean }
 
     /// Content has to clear the slant on **both** sides, not just the leading one: the
     /// top edge starts inset on the left and the bottom edge ends inset on the right, so
     /// a card padded on one side only hangs off the other corner. Which it did.
-    private var inset: CGFloat { slant + Plate.pad }
+    private var inset: CGFloat { slant + Plate.pad * unit }
 
     /// +1 when it comes in from the left, -1 from the right.
     private var facing: CGFloat { edge == .leading ? 1 : -1 }
 
     var body: some View {
         content
-            .frame(height: Plate.height, alignment: .center)
+            .frame(height: height, alignment: .center)
             // The outer side carries the overhang too, so the plate grows off the screen
             // and the content it holds does not move.
-            .padding(.leading, inset + (edge == .leading ? Plate.overhang : 0))
-            .padding(.trailing, inset + (edge == .trailing ? Plate.overhang : 0))
+            .padding(.leading, inset + (edge == .leading ? Plate.overhang * unit : 0))
+            .padding(.trailing, inset + (edge == .trailing ? Plate.overhang * unit : 0))
             .background {
                 Parallelogram(lean: lean)
                     .fill(fill)
@@ -156,20 +162,21 @@ struct SlantPanel<Content: View>: View {
                     // the one from the right. The drop falls away from the edge the plate
                     // arrived through, so neither one throws its shadow back off screen.
                     .scaleEffect(x: facing, y: 1)
-                    .shadow(color: shade, radius: 0, x: facing * Plate.drop, y: Plate.drop)
+                    .shadow(color: shade, radius: 0, x: facing * Plate.drop * unit,
+                            y: Plate.drop * unit)
             }
             .overlay(alignment: .top) {
                 // Straddling the edge: half the word on the plate and half off it, which
                 // is what stops it reading as a caption sitting inside a box. Nudged by
                 // half the slant toward the end the top edge actually starts at.
-                ActionText(title, size: titleSize, ink: .white, drop: titleDrop)
+                ActionText(title, size: titleSize * unit, ink: .white, drop: titleDrop)
                     .fixedSize()
                     .alignmentGuide(.top) { $0[VerticalAlignment.center] }
-                    .offset(x: facing * slant / 2, y: titleY * titleSize)
+                    .offset(x: facing * slant / 2, y: titleY * titleSize * unit)
             }
             .fixedSize()
             // And out past the edge it came from.
-            .offset(x: -facing * Plate.overhang)
+            .offset(x: -facing * Plate.overhang * unit)
     }
 }
 

@@ -60,9 +60,11 @@ enum DeckReadout: String, CaseIterable {
         case .over:
             // The lying-down cell, so a count sitting on the deck has a face to sit on. Drawn upright — the turn was only ever standing in for a
             // sprite that did not exist yet.
-            return Metrics(x: -4, y: -4, side: 48, textX: 0, textY: -2, number: 14, cell: 1)
+            return Metrics(x: -4, y: -4, side: 48, textX: 0, textY: -2, number: 14, cell: 1,
+                           rotation: 30)
         case .beside:
-            return Metrics(x: -30, y: 2, side: 34, textX: 30, textY: -4, number: 18)
+            return Metrics(x: -30, y: 2, side: 34, textX: 30, textY: -4, number: 18,
+                           rotation: 30)
         }
     }
 
@@ -91,6 +93,10 @@ struct StatusHUDView: View {
     /// the way a passive in the slots does — no sheet of all three in between, since you
     /// tapped the one you wanted to read.
     var onInspectReferee: (CardDescriptor, CGPoint) -> Void = { _, _ in }
+    /// **Spread across the screen** — the main HUD: SHOT and the deck count in the
+    /// middle, the crew and the officials deck to the right of them. Off, it is the one
+    /// row it always was, which is how the rebound scene wears it.
+    var spread = false
 
     /// Which way the count is arranged against the deck. A setting, so it is kept.
     @AppStorage(DeckReadout.setting) private var layout = DeckReadout.beside
@@ -104,6 +110,60 @@ struct StatusHUDView: View {
     private var drop: CGFloat { ballSize * 0.06 }
 
     var body: some View {
+        if spread { spreadOut } else { row }
+    }
+
+    /// **SHOT dead centre, the crew to the right of it.** The deck under SHOT and the
+    /// officials deck under the crew, each the same drawing.
+    private var spreadOut: some View {
+        ZStack(alignment: .top) {
+            VStack(spacing: ballSize * 0.10) {
+                ShotBadgeView(shot: shot ?? state.shot, ballSize: ballSize,
+                              hidden: !state.canReadShot(GameRules.localSeat))
+                    .tutorialTarget(.shotHUD)
+                remaining
+            }
+            HStack(alignment: .top) {
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: ballSize * 0.10) {
+                    HStack(alignment: .center, spacing: ballSize * 0.16) {
+                        if owed > 0 { pending }
+                        if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
+                        if state.whistlesSilenced { silenced }
+                        if !state.armedWhistles.isEmpty { crew }
+                    }
+                    officialsRemaining
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7),
+                   value: state.whistlesSilenced)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7),
+                   value: state.armedWhistles.isEmpty)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7), value: owed)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7), value: state.freeRebound)
+    }
+
+    /// **The officials deck, counted the way the main deck is** — the same drawing, with
+    /// a card-black drop under the number. The deck art stands in until the officials
+    /// deck has a sprite of its own.
+    private var officialsRemaining: some View {
+        DeckGlyph(cell: readout.cell, side: readout.side)
+            .rotationEffect(.degrees(readout.rotation))
+            .overlay {
+                Text("\(state.officials.count)")
+                    .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
+                    .foregroundStyle(.white)
+                    .shadow(color: CardPalette.black, radius: 0, x: Deck.drop, y: Deck.drop)
+                    .contentTransition(.numericText())
+                    .offset(x: readout.textX, y: readout.textY)
+            }
+            .offset(x: readout.x, y: readout.y)
+            .animation(.easeOut(duration: 0.25), value: state.officials.count)
+    }
+
+    private var row: some View {
         // Trailing, so the deck sits under the SHOT badge and neither moves when a
         // referee comes or goes on the left of the row.
         VStack(alignment: .trailing, spacing: ballSize * 0.10) {
@@ -210,7 +270,7 @@ struct StatusHUDView: View {
         HStack(spacing: refereeSide * Crew.gap) {
             ForEach(state.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
-                              displayWidth: refereeSide * Crew.share,
+                              displayWidth: Self.crewCardWidth(ballSize: ballSize),
                               isDormant: whistle.stayed)
                     // Its own tap, reporting where it sits so the card rises from there.
                     .overlay {
@@ -228,6 +288,11 @@ struct StatusHUDView: View {
         }
         .shadow(color: CardPalette.blue, radius: 0, x: drop, y: drop)
         .transition(.scale(scale: 0.5).combined(with: .opacity))
+    }
+
+    /// How wide one of the crew's cards is drawn — the size your own plates' slots match.
+    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat {
+        ballSize * 0.60 * Crew.share
     }
 
     private enum Crew {

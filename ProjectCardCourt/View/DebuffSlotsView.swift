@@ -25,13 +25,18 @@ struct DebuffSlotsView: View {
     var wash: Double = Well.wash
     var sideLip: CGFloat = Well.sideLip
     var topLip: CGFloat = Well.topLip
+    /// Which side it comes in from. The HUD stands it under the Intangibles, so it comes
+    /// in from the left the way they do.
+    var edge: HorizontalEdge = .trailing
+    /// The plate's size as one factor — see `SlantPanel.unit`.
+    var unit: CGFloat = 1
 
     var body: some View {
         SlantPanel(title: title, fill: fill,
                    shade: shade, titleDrop: fill,
                    titleSize: titleSize, titleY: titleY, lean: lean,
-                   edge: .trailing) {
-            HStack(spacing: 4) {
+                   edge: edge, unit: unit) {
+            HStack(spacing: 4 * unit) {
                 ForEach(0..<slots, id: \.self) { index in
                     let card = cards.indices.contains(index) ? cards[index] : nil
                     slot(card)
@@ -57,8 +62,9 @@ struct DebuffSlotsView: View {
     }
 
     private func slot(_ card: CardDescriptor?) -> some View {
-        SlotWell(tint: CardPalette.red, card: card, wash: wash,
-                 sideLip: sideLip, topLip: topLip)
+        SlotWell(tint: CardPalette.red, card: card,
+                 side: CGSize(width: Well.side.width * unit, height: Well.side.height * unit),
+                 wash: wash, sideLip: sideLip, topLip: topLip)
             .animation(.spring(response: 0.35, dampingFraction: 0.72), value: card)
     }
 }
