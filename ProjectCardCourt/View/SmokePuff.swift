@@ -47,14 +47,25 @@ struct SmokePuff: View {
     var at: CGPoint?
 
     @State private var dust = SmokeTuning.shared
+    /// **The puff that has played out.** The clock stopped only while nothing had ever
+    /// raised dust, so after a man's first landing it ticked for the rest of the game,
+    /// drawing nothing.
+    @State private var settled: Date?
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / dust.landFPS,
-                                paused: startedAt == nil)) { timeline in
+                                paused: startedAt == nil || settled == startedAt)) { timeline in
             SmokeCell(since: startedAt.map { timeline.date.timeIntervalSince($0) },
                       scale: scale * dust.landScale,
                       at: at ?? CGPoint(x: dust.landX, y: dust.landY),
                       fps: dust.landFPS, fade: dust.landFade)
+        }
+        .task(id: startedAt) {
+            guard let startedAt else { return }
+            let left = Double(Sprite.smoke.frames) / dust.landFPS
+                - Date().timeIntervalSince(startedAt)
+            if left > 0 { try? await Task.sleep(for: .seconds(left)) }
+            if !Task.isCancelled { settled = startedAt }
         }
     }
 }

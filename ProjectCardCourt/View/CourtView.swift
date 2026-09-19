@@ -236,13 +236,15 @@ struct CourtView: View {
                 // under.
                 PileShadow(width: geo.size.width * Perspective.pileCardShare
                                   * deckTuning.size,
-                           across: geo.size.width)
+                           across: geo.size.width,
+                           paused: pilesStill)
                     .position(deckPoint(on: court))
 
                 PileShadow(width: geo.size.width * Perspective.pileCardShare
                                   * deckTuning.size,
                            across: geo.size.width,
-                           phase: 0.5)
+                           phase: 0.5,
+                           paused: pilesStill)
                     // Nothing is standing there to cast one.
                     .opacity(state.discard.isEmpty ? 0 : 1)
                     .animation(.easeOut(duration: 0.25), value: state.discard.isEmpty)
@@ -960,6 +962,9 @@ struct CourtView: View {
     /// scene, or the court stopped running and they have finished fading out.
     private var sceneryAsleep: Bool { floorIsHidden || (!courtIsRunning && sceneryFaded) }
 
+    /// The piles standing still — the stage's own rule — or nobody able to see them.
+    private var pilesStill: Bool { frozen || isStill || floorIsHidden }
+
     /// What the crew is doing. **The call wins over the shot**: a Whistle during one is
     /// the whole reason anybody is looking at him. Everything that holds the players in a
     /// pose stands him still, which is the same rule the scenery follows.
@@ -1145,7 +1150,7 @@ struct CourtView: View {
             // something being done to this one. The defender himself shows up when they
             // actually shoot — that is when he matters.
             if bound.contains(seat), defenders(on: seat) > 0 {
-                BindLines(height: Theme.Figure.height)
+                BindLines(height: Theme.Figure.height, paused: floorIsHidden)
                     .scaleEffect(scale, anchor: .bottom)
                     .position(x: footing.x,
                               y: footing.y - Theme.Figure.height / 2

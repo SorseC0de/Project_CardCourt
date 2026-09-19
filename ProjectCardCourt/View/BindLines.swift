@@ -11,6 +11,12 @@ import SwiftUI
 struct BindLines: View {
     /// The figure's own height, which everything here is a share of.
     var height: CGFloat
+    /// Held while nobody can see the floor.
+    var paused = false
+
+    /// **Thirty a second.** Two glows a coil, blurred afresh on every frame it draws — at
+    /// the display's full rate that was the dearest thing on a clamped floor.
+    private static let rate: Double = 30
 
     private enum Coil {
         /// How far out from the figure's middle each side sits. Clear of the sprite —
@@ -34,7 +40,7 @@ struct BindLines: View {
         // wore three coils a side and a Contest one — which read as a drawing bug rather
         // than as a number. How many are on him is the cutscene's job to say; this only
         // says that somebody is.
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / Self.rate, paused: paused)) { timeline in
             let phase = timeline.date.timeIntervalSinceReferenceDate / Coil.seconds
             ZStack {
                 ForEach([-1, 1], id: \.self) { side in

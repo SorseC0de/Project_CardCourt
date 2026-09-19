@@ -142,6 +142,9 @@ struct ReboundBench: View {
     @State private var tune = ReboundTuning.shared
     @State private var controller = GameController()
     @State private var open = true
+    /// **Every seat, in turn.** Only South ever went up for it here, so South was the one
+    /// seat whose hands the dials were ever set against.
+    @State private var jumper: Seat = GameRules.localSeat
 
     /// The rates a sheet may play at — see `Theme.Figure`. Stepped rather than dragged,
     /// because everything between them judders.
@@ -156,9 +159,10 @@ struct ReboundBench: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button {
-                    controller.debugRebound()
+                    controller.debugRebound(for: jumper)
+                    jumper = jumper.clockwise
                 } label: {
-                    Text("GO UP FOR IT")
+                    Text("GO UP: \(jumper.playerName.uppercased())")
                         .font(.system(size: 11, weight: .black)).tracking(0.8)
                         .foregroundStyle(.black)
                         .padding(.horizontal, 12).padding(.vertical, 6)

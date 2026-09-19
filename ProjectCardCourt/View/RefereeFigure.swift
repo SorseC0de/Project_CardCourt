@@ -163,6 +163,10 @@ struct SpriteShadow: View {
     /// stays where his feet were.
     private static let blob = UnitPoint(x: 0.5, y: 27.5 / 32)
 
+    /// **One art pixel up from the frame's foot**, which is where it sits under the feet
+    /// rather than a pixel below them.
+    private static let raise: CGFloat = 1
+
     var body: some View {
         Image("PlayerShadow")
             .interpolation(.none)
@@ -170,6 +174,7 @@ struct SpriteShadow: View {
             .frame(width: side, height: side)
             .scaleEffect(gap, anchor: Self.blob)
             .opacity(Self.rest * (1 - Theme.Figure.shadowFadeInAir * lift))
+            .offset(y: -Self.raise * scale)
     }
 }
 

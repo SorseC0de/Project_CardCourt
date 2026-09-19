@@ -338,9 +338,15 @@ struct PileShadow: View {
     var across: CGFloat
     /// Where in the drift the pile it belongs to is. See `DeckDrift.offset`.
     var phase: Double = 0
+    /// **Held where it is** while the piles stand still or nothing can see the floor. It
+    /// ran at the full rate for the whole game, drifting on under a deck that had stopped.
+    var paused = false
+
+    /// A slow breath: thirty a second follows it without a step.
+    private static let rate: Double = 30
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / Self.rate, paused: paused)) { timeline in
             let rise = DeckDrift.rise(at: timeline.date, phase: phase)
             let drift = DeckDrift.offset(at: timeline.date, phase: phase)
             // Smaller and fainter the higher it rides, which is the whole reading.

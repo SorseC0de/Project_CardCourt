@@ -2403,10 +2403,11 @@ final class GameController {
 
     /// Sends the local seat up for a board, for tuning the leap without waiting for a
     /// miss and a bid — see `ReboundBench`.
-    func debugRebound() {
+    /// One board, for whichever seat the bench asks — the local one unless told.
+    func debugRebound(for seat: Seat = GameRules.localSeat) {
         // The bench cannot start a game on a device that is not running one.
         guard !isGuest else { return }
-        reboundLeap = ReboundLeap(seat: GameRules.localSeat)
+        reboundLeap = ReboundLeap(seat: seat)
         Task {
             try? await Task.sleep(for: .seconds(ReboundTiming.run))
             reboundLeap = nil
