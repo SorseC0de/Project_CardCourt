@@ -34,6 +34,13 @@ struct DeckBody: View {
         let toward: SIMD3<Float>
     }
 
+    /// **Waiting on a hand that has not reached for it.** It shrugs every few seconds
+    /// until somebody does.
+    var waiting = false
+
+    /// How often the shrug comes round.
+    private static let shrugEvery: Double = 2.2
+
     /// Owns the slabs, so a routine can be danced across frames without the view
     /// rebuilding underneath it.
     @State private var stage = DeckStage()
@@ -135,7 +142,19 @@ struct DeckBody: View {
             defer { stage.settle() }
             await stage.bow(toward: dealingTo.toward, seconds: Pacing.deckLean)
             guard !Task.isCancelled else { return }
-            await stage.straighten()
+            await stage.straighten(facing: spin * .pi / 180)
+        }
+        // **The shrug, while nobody is taking the card.** `!Task.isCancelled` on both
+        // sides of the sleep: a cancelled sleep returns at once, and a loop that only
+        // checked afterwards would spin the main actor for as long as the game is up.
+        .task(id: waiting) {
+            guard waiting else { return }
+            defer { stage.settle() }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.shrugEvery))
+                guard !Task.isCancelled else { return }
+                await stage.wiggle(around: spin * .pi / 180)
+            }
         }
     }
 

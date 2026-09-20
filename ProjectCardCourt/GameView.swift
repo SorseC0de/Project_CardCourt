@@ -41,7 +41,10 @@ struct GameView: View {
                 // rather than in it: a ball skewed with the card is a ball printed on
                 // it, and this one is meant to look like it is coming out.
                 .overlay {
-                    Image(BallInPlay.vector(for: controller.shown.currentBall))
+                    // **Only when something is in play.** An empty slot is a slot: a
+                    // plain ball standing on it says a Variaball is out there.
+                    if let ball = controller.shown.currentBall {
+                        Image(BallInPlay.vector(for: ball))
                         .resizable()
                         .scaledToFit()
                         .frame(width: SeatPanelsView.cardWidth * ballOverlay.scale)
@@ -50,6 +53,8 @@ struct GameView: View {
                         .allowsHitTesting(false)
                         .animation(.spring(response: 0.35, dampingFraction: 0.7),
                                    value: controller.shown.currentBall?.id)
+                        .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    }
                 }
             Spacer(minLength: 0)
             ForEach(controller.shown.armedWhistles) { whistle in

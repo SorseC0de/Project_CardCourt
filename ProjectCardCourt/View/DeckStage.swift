@@ -417,14 +417,37 @@ final class DeckStage {
     }
 
     /// Straightens up. Stays under its own power — the caller says when it is done.
-    func straighten(seconds: TimeInterval = 0.24) async {
+    ///
+    /// **`facing` is the turn it squares up *to*.** A pile that has been turned about its
+    /// own axis to show two edges at once — which is every pile drawn in its own frame —
+    /// squares up to that turn rather than to nothing, or it comes back face-on and
+    /// stops looking like a stack of cards. See `DeckBody`.
+    func straighten(seconds: TimeInterval = 0.24, facing yaw: Float = 0) async {
         travelling = true
         var square = begin()
-        square.rotation = simd_quatf(angle: 0, axis: [0, 1, 0])
+        square.rotation = simd_quatf(angle: yaw, axis: [0, 1, 0])
         pile.move(to: square, relativeTo: pile.parent,
                   duration: seconds, timingFunction: .easeInOut)
         try? await Task.sleep(for: .seconds(seconds))
     }
+
+    /// **A shrug at whoever is not taking the card.** Two turns and back, about the
+    /// pile's own axis: small enough to read as the deck being impatient rather than as
+    /// something happening to it.
+    func wiggle(around yaw: Float, seconds: TimeInterval = 0.1) async {
+        travelling = true
+        for turn in [yaw + Self.shrug, yaw - Self.shrug, yaw + Self.shrug * 0.4, yaw] {
+            guard !Task.isCancelled else { return }
+            var turned = begin()
+            turned.rotation = simd_quatf(angle: turn, axis: [0, 1, 0])
+            pile.move(to: turned, relativeTo: pile.parent,
+                      duration: seconds, timingFunction: .easeInOut)
+            try? await Task.sleep(for: .seconds(seconds))
+        }
+    }
+
+    /// How far the shrug turns, in radians — about nine degrees.
+    nonisolated static let shrug: Float = 0.16
 
     // MARK: - The repertoire
 

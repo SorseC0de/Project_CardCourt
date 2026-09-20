@@ -101,7 +101,8 @@ struct DeckSlotView: View {
         if render.courtStage {
             DeckBody(layers: DeckStackView.layers(for: remaining),
                      routine: routine,
-                     dealingTo: dealing.map { .init(id: $0.id, toward: toward($0.seat)) })
+                     dealingTo: dealing.map { .init(id: $0.id, toward: toward($0.seat)) },
+                     waiting: waiting)
         } else {
             FlatPile(layers: DeckStackView.layers(for: remaining))
         }
