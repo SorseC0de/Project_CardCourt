@@ -60,7 +60,9 @@ struct SeatPanelsView: View {
         static let rim: CGFloat = 2
         static let gap: CGFloat = 4
         static let pad: CGFloat = 5
-        static let name: CGFloat = 15
+        /// **Small, because the pixel face is wide.** Every letter is the same width and
+        /// there is no condensing it: this is what a long name fits a quarter-screen in.
+        static let name: CGFloat = 9
         static let score: CGFloat = 22
         /// The bag count along the bottom edge of a block.
         static let bag: CGFloat = 17
@@ -116,10 +118,12 @@ struct SeatPanelsView: View {
         let card = across * Panel.card
         return VStack(spacing: Panel.gap) {
             HStack(spacing: 3) {
+                // **No `fixedSize` here.** The pixel face is far wider per letter than
+                // the condensed one, and taking its natural width pushed the whole row
+                // off the side of the screen — a name shrinks to the room it has.
                 StrokedPixelText(text: seat.playerName.uppercased(), size: Panel.name)
-                    .fixedSize()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.5)
+                    .minimumScaleFactor(0.4)
                 Spacer(minLength: 0)
                 // **What he is on**, lettered the way a card's own $[2X] is: the one
                 // figure on the block that is a total rather than a part. Only while the
@@ -157,7 +161,11 @@ struct SeatPanelsView: View {
                     .padding(.bottom, Panel.pad)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // **A quarter of the screen each, whoever is in them.** Sized rather than shared
+        // out: four blocks dividing whatever is left over come out different widths the
+        // moment one of them holds a longer word than the others.
+        .frame(width: across, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.color(for: seat))
         // Whoever's card is being read keeps the light; the rest stand back.
         .saturation(lit == nil || lit == seat ? 1 : 0.35)

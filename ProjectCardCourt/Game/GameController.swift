@@ -74,6 +74,12 @@ enum Pacing {
     /// **How long a referee stands holding it before he throws.** Long enough to read as
     /// him being the one putting it in — the new thing, and the thing to notice.
     static let refereeHold = 1.0
+    /// **The official's entrance**, beat by beat: his card crossing the screen, the hold
+    /// while it is read, the warp that puts him on the floor, and the card going to its
+    /// slot.
+    static let refIntroFlight = 0.55
+    static let refIntroRead = 1.6
+    static let refIntroWarp = 0.5
     /// How long a phase call holds before it takes itself off.
     static let actionCall = 1.4
     /// How long the board holds after a basket.
@@ -1589,6 +1595,9 @@ final class GameController {
             broadcast(openingDraws)
             // The opening deal goes out card by card before anyone can act.
             await flyDraws(in: openingDraws, each: Pacing.dealFlight)
+            // **And now the man in charge.** The hands are out; he comes on before the
+            // ball does — see `introduceTheCrew`.
+            await introduceTheCrew()
             // **Round one is called here or not at all.** Its `roundBegan` is dealt with
             // the opening hand rather than folded out of a possession, so it never
             // reaches `present` — which is where every later round is announced from.
@@ -2999,6 +3008,56 @@ final class GameController {
 
     /// **The id of a call already played out for its challenge**, so it is not played twice.
     private var revealedBeforeChallenge: UUID?
+
+    /// **The official coming out**, and how far through it is.
+    ///
+    /// He is not on the floor when the game opens and neither is his card: the deal
+    /// happens first, then he is introduced — his card crosses from the officials' deck
+    /// to the middle of the screen to be read, he warps onto the floor with the ball, and
+    /// the card goes to its slot. Only then does the throw-in start.
+    enum RefereeIntro: Equatable {
+        /// The card on its way in from the deck in the corner.
+        case arriving
+        /// Held in the middle, being read.
+        case read
+        /// The man himself, warping onto the floor.
+        case takingTheFloor
+        /// And the card, going to the slot it lives in.
+        case toSlot
+    }
+
+    private(set) var refereeIntro: RefereeIntro?
+    /// Whose card is crossing the screen, while one is.
+    private(set) var introducing: CardDescriptor?
+
+    /// Plays the entrance, and leaves the crew on the floor behind it.
+    private func introduceTheCrew() async {
+        guard let man = state.armedWhistles.first?.card.descriptor else { return }
+        introducing = man
+        // Not on the floor until he walks on, whatever the rules already know.
+        shown.armedWhistles = []
+        // The view animates it — the controller has no SwiftUI to reach for.
+        refereeIntro = .arriving
+        try? await Task.sleep(for: .seconds(Pacing.refIntroFlight))
+        guard !Task.isCancelled else { return refereeIntroOver() }
+        refereeIntro = .read
+        try? await Task.sleep(for: .seconds(Pacing.refIntroRead))
+        guard !Task.isCancelled else { return refereeIntroOver() }
+        // **He takes the floor while his card waits.** The man arrives holding the ball;
+        // the card is still in the middle of the screen until he is standing there.
+        refereeIntro = .takingTheFloor
+        releaseCrew()
+        try? await Task.sleep(for: .seconds(Pacing.refIntroWarp))
+        guard !Task.isCancelled else { return refereeIntroOver() }
+        refereeIntro = .toSlot
+        try? await Task.sleep(for: .seconds(Pacing.refIntroFlight))
+        refereeIntroOver()
+    }
+
+    private func refereeIntroOver() {
+        refereeIntro = nil
+        introducing = nil
+    }
 
     /// The crew as the rules have it, on the floor.
     private func releaseCrew() {
