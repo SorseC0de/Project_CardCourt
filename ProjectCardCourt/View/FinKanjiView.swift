@@ -108,18 +108,25 @@ struct FinKanjiView: View {
 
     /// The brush, and where it has got to.
     ///
+    /// **Gone the moment it lands.** The last stroke and the last of the travel are the
+    /// same instant — one number paces both — so it shrinks onto the back of the shirt
+    /// and is not there any more, rather than sitting printed on him for the rest of the
+    /// scene.
+    ///
     /// **Scaled rather than framed.** A sprite sizes itself off its own `scale`, so a
     /// frame around it only changes the box it sits in — the drawing inside stayed
     /// exactly as big, which is a scale dial that does nothing.
-    private func kanji(at t: Double) -> some View {
-        let through = tuning.seconds > 0 ? min(1, t / tuning.seconds) : 1
-        return SpriteAnimation(sprite: .finKanji, scale: scale,
-                               fps: Double(Sprite.finKanji.frames) / max(0.01, tuning.seconds),
-                               playsOnce: true,
-                               startedAt: startedAt)
-            .scaleEffect(mix(tuning.startScale, tuning.endScale, through))
-            .offset(x: mix(tuning.startX, tuning.endX, through) * scale,
-                    y: mix(tuning.startY, tuning.endY, through) * scale)
+    @ViewBuilder private func kanji(at t: Double) -> some View {
+        if t < tuning.seconds {
+            let through = tuning.seconds > 0 ? min(1, t / tuning.seconds) : 1
+            SpriteAnimation(sprite: .finKanji, scale: scale,
+                            fps: Double(Sprite.finKanji.frames) / max(0.01, tuning.seconds),
+                            playsOnce: true,
+                            startedAt: startedAt)
+                .scaleEffect(mix(tuning.startScale, tuning.endScale, through))
+                .offset(x: mix(tuning.startX, tuning.endX, through) * scale,
+                        y: mix(tuning.startY, tuning.endY, through) * scale)
+        }
     }
 
     /// Nought before it starts, one after it has finished, and the line between.
