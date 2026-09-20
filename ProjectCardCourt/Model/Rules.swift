@@ -3342,25 +3342,29 @@ enum Rules {
                 }
             }
             if special.coinRunFlips > 0 {
-                // A fixed number of coins, paying out per head. Every one of them Heads
-                // is a Travel — unless the man cannot be called for one.
-                let flips = special.coinRunFlips
-                var heads = 0
-                for _ in 0..<flips {
-                    if state.roll(0...1) == 1 { heads += 1 }
-                }
-                events.append(.coinRun(seat: seat, card: descriptor, heads: heads))
-                if heads < flips {
-                    adjustShot(by: special.coinRunShot * heads, state: &state)
-                    for _ in 0..<(special.coinRunDraw * heads) {
+                // **One step at a time.** Three coins thrown together and totted up is
+                // one gamble with three outcomes; three coins thrown one after another
+                // is three steps, and a step is a Move like any other — so each one is
+                // counted and each one is checked. A man who walks himself over the line
+                // on the second step never takes the third.
+                for _ in 0..<special.coinRunFlips {
+                    let heads = state.roll(0...1) == 1
+                    events.append(.coinRun(seat: seat, card: descriptor,
+                                           heads: heads ? 1 : 0))
+                    guard heads else { continue }
+                    adjustShot(by: special.coinRunShot, state: &state)
+                    for _ in 0..<special.coinRunDraw {
                         drawOnce(seat, state: &state, events: &events)
                     }
-                    // **Every Heads is a step.** The meter is the Travel line and the
-                    // dunk's gate in one number, so a good Euro Step both risks the call
-                    // and walks you to the rim.
-                    state.movesThisPossession += special.coinRunMoves * heads
-                } else if travel(by: seat, state: &state, events: &events) {
-                    return
+                    // The meter is the Travel line and the dunk's gate in one number, so
+                    // a good Euro Step both risks the call and walks you to the rim.
+                    for _ in 0..<special.coinRunMoves {
+                        state.movesThisPossession += 1
+                        guard state.movesThisPossession > state.moveLimit(for: seat),
+                              travel(by: seat, state: &state, events: &events)
+                        else { continue }
+                        return
+                    }
                 }
             }
             // **2-Hand Jam only asks off a board.** The Retire-any-number half is its

@@ -19,23 +19,30 @@ struct SpectrumFill<Content: View>: View {
     var resting: Color = .white
     @ViewBuilder var content: Content
 
-    @State private var drifted = false
-
     var body: some View {
         content
             .foregroundStyle(resting)
             .overlay {
                 if isLive {
-                    GeometryReader { box in
-                        drift(in: box.size)
+                    // **Off the clock, not off a repeating animation.**
+                    //
+                    // Every blob used to carry a `repeatForever` started by the overlay
+                    // appearing. A repeating animation has no end, and re-attaching one
+                    // to a view SwiftUI has recycled leaves the last still running: a
+                    // scene shown over and over — a made three, say — came back each time
+                    // with every previous showing's field still turning under it, eleven
+                    // blobs and a blur at a time. It never gave any of it back.
+                    //
+                    // A phase read off the wall clock cannot stack. It is one value per
+                    // frame, it stops dead when nothing is drawing it, and it looks the
+                    // same.
+                    TimelineView(.animation) { tick in
+                        GeometryReader { box in
+                            drift(in: box.size, at: tick.date)
+                        }
                     }
                     .mask { content }
                     .allowsHitTesting(false)
-                    // **Started by the overlay arriving, not the content.** The drift is a
-                    // `repeatForever` keyed to `drifted` changing, so a spectrum lit after its
-                    // content appeared found it already true and its blobs stood still.
-                    .onAppear { drifted = true }
-                    .onDisappear { drifted = false }
                 }
             }
     }
@@ -55,7 +62,7 @@ struct SpectrumFill<Content: View>: View {
     /// its centre, so nine of them stacked means the last one drawn wins the middle and
     /// the rest are a rim around it. The mixing *is* the blur. One pass over the whole
     /// field, which is also cheaper than nine gradients.
-    private func drift(in size: CGSize) -> some View {
+    private func drift(in size: CGSize, at now: Date) -> some View {
         ZStack {
             ForEach(0..<Spectrum.blobs, id: \.self) { index in
                 // Scattered rather than stepped, so size does not march along the row in
@@ -79,6 +86,14 @@ struct SpectrumFill<Content: View>: View {
                 let across = unit
                     * (Spectrum.smallest + seed * (Spectrum.largest - Spectrum.smallest))
 
+                // Where this blob is on its own loop: nought to one and back, eased the
+                // way the animation eased it, on a length of its own.
+                let span = Spectrum.period + Double(seed) * Spectrum.spread
+                let turn = now.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: span * 2) / span
+                let swing = turn <= 1 ? turn : 2 - turn
+                let eased = CGFloat(swing * swing * (3 - 2 * swing))
+
                 Circle()
                     .fill(colour)
                     .frame(width: across, height: across)
@@ -87,11 +102,10 @@ struct SpectrumFill<Content: View>: View {
                     // field moving. A conveyor only looks like one if nothing on it is
                     // going the other way.
                     .position(x: size.width / 2
-                              + (drifted ? reach * (0.5 + lane) : -reach * (0.5 + seed)),
+                              + (-reach * (0.5 + seed)
+                                 + eased * (reach * (0.5 + lane) + reach * (0.5 + seed))),
                               y: size.height * (0.15 + 0.7 * lane))
-                    .scaleEffect(drifted ? 1.2 : 0.8)
-                    .animation(.easeInOut(duration: Spectrum.period + seed * Spectrum.spread)
-                        .repeatForever(autoreverses: true), value: drifted)
+                    .scaleEffect(0.8 + 0.4 * eased)
             }
         }
         // **Softened against the field's own height**, so lettering and a button are

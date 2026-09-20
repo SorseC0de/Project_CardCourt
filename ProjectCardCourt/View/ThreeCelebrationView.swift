@@ -136,17 +136,24 @@ struct ThreeCelebrationView: View {
             sparkleAt = nil
         }
         try? await Task.sleep(for: .seconds(Beat.fistHolds))
+        // **A cancelled sleep returns at once.** Without this the whole trip runs to its
+        // end in a single frame the moment the scene is taken away, firing both of its
+        // callbacks from a view nobody is looking at.
+        if Task.isCancelled { return }
         for finger in 1..<4 {
             withAnimation(.spring(response: 0.32, dampingFraction: 0.42)) {
                 arrived[finger] = true
                 counted = finger
             }
             try? await Task.sleep(for: .seconds(Beat.between))
+            if Task.isCancelled { return }
         }
         // Held on three for a beat before it goes to the board.
         try? await Task.sleep(for: .seconds(0.55))
+        if Task.isCancelled { return }
         withAnimation(.easeInOut(duration: 0.5)) { numberFlying = true }
         try? await Task.sleep(for: .seconds(0.5))
+        if Task.isCancelled { return }
         // The score only moves once the number gets there.
         onScoreLands()
 
