@@ -101,7 +101,6 @@ struct PlayerFigure: View {
         case landing
     }
     /// When this catch began. The sheet is counted from here, not from the wall clock.
-    @State private var caughtFrom: Date?
     /// **The last catch that actually played out.** What separates "the ball has landed
     /// and the sheet is about to start" from "he has caught it and is dribbling" — see
     /// `action`.
@@ -349,7 +348,7 @@ struct PlayerFigure: View {
                             // cutscene asks for directly counts from when it appeared.
                             startedAt: leap == .none
                                 ? (throwing?.at
-                                   ?? (action == .catchBall ? (caughtFrom ?? startedAt) : startedAt))
+                                   ?? (action == .catchBall ? (caughtAt ?? startedAt) : startedAt))
                                 : leapFrom,
                             stopAtFrame: leaping ? nil : stopAtFrame,
                             // **The man on the floor has a face.** He never did: the
@@ -444,7 +443,6 @@ struct PlayerFigure: View {
                     guard caughtAt != nil else { return }
                     // Stamped before the sheet swaps in, or the first frame is drawn against
                     // a start time that does not exist yet.
-                    caughtFrom = Date()
                     catching = true
                     // One pass of the catch sheet at its own frame rate.
                     try? await Task.sleep(for: .seconds(Theme.Pass.catchSeconds))
