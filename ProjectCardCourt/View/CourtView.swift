@@ -294,8 +294,14 @@ struct CourtView: View {
 
                 // Hung above the far baseline so the rim clears it rather than
                 // sitting on North's head.
-                FarHoop()
+                FarHoop(width: Court.hoop)
                     .position(hoopPoint(on: court, in: geo.size))
+
+                // **The clock, on the wall over the basket** — where a hall hangs one,
+                // rather than in the bar along the top of the phone.
+                ShotClockBoard(value: state.shotClock, round: state.round)
+                    .position(x: hoopPoint(on: court, in: geo.size).x,
+                              y: hoopPoint(on: court, in: geo.size).y - Court.hoop * Court.clockOver)
 
                 // Drawn here, before the figures, which is the entire point: the players
                 // stand above it without anything being duplicated or measured against a
@@ -846,9 +852,13 @@ struct CourtView: View {
         // relative to him.
         let anchor = state.crewAnchor ?? first.id
         let coin = withUnsafeBytes(of: anchor.uuid) { Array($0.prefix(2)) }
-        let start: RefereePost = coin[0].isMultiple(of: 2)
-            ? (coin[1].isMultiple(of: 2) ? .rightWing : .leftWing)
-            : (coin[1].isMultiple(of: 2) ? .southEast : .southWest)
+        // **One official stands up the right wing**, every round — the floor's own corner
+        // for him, so you always know where to look. Only a crew of several is spread by
+        // the coin.
+        let start: RefereePost = state.armedWhistles.count < 2 ? .rightWing
+            : (coin[0].isMultiple(of: 2)
+               ? (coin[1].isMultiple(of: 2) ? .rightWing : .leftWing)
+               : (coin[1].isMultiple(of: 2) ? .southEast : .southWest))
         return zip(RefereePost.crew(from: start), state.armedWhistles)
             .map { RefereeCall(post: $0.0, whistle: $0.1) }
     }
@@ -875,6 +885,11 @@ struct CourtView: View {
 
 
     enum Court {
+        /// **How wide the far basket is drawn.** Small enough to read as distance and big
+        /// enough to be the thing at the end of the floor.
+        static let hoop: CGFloat = 52
+        /// How far over the ring the clock hangs, in basket widths.
+        static let clockOver: CGFloat = 0.95
         /// How big the ball is as it leaves the rim. It is coming from the horizon, and a
         /// ball that starts at its own size up there is a ball the size of the hoop.
         static let ballFromHoop: CGFloat = 0.01
@@ -1423,6 +1438,41 @@ private struct FloorSweep: View {
                     sweep = 1
                 }
             }
+    }
+}
+
+/// **The shot clock, on the wall over the basket.**
+///
+/// It hung in the bar along the top of the phone, which is nobody's idea of where a shot
+/// clock is. Its own view for the one thing it has to remember: a clock stopped by a call
+/// still reads what it stopped at, and only a new round blanks it.
+struct ShotClockBoard: View {
+    let value: Int?
+    let round: Int
+
+    /// What it read before the stoppage took the number away.
+    @State private var last: Int?
+
+    private static let digit = CGSize(width: 14, height: 28)
+
+    var body: some View {
+        VStack(spacing: 2) {
+            SevenSegmentClock(value: value ?? last, digitSize: Self.digit)
+            Text("SHOT CLOCK")
+                .font(.system(size: 6, weight: .bold)).tracking(1.1)
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(CardPalette.black))
+        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .strokeBorder(.white.opacity(0.25), lineWidth: 1))
+        .animation(.easeOut(duration: 0.25), value: value)
+        .onChange(of: value) { _, now in if let now { last = now } }
+        // A new round starts the clock over, so the memory goes with it.
+        .onChange(of: round) { _, _ in last = nil }
+        .allowsHitTesting(false)
     }
 }
 

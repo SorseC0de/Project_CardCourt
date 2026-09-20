@@ -90,23 +90,34 @@ struct ReboundCutsceneView: View {
 
             // The bids, placed from the centre of the screen rather than from the bottom
             // of whatever happens to be above them.
-            Group {
-                if let revealedBids {
-                    // Revealed shooter-first then clockwise, the order the rule names.
-                    HStack(spacing: 10) {
-                        ForEach(order, id: \.self) { seat in
-                            VStack(spacing: 2) {
-                                PlayerNameText(seat: seat, size: 12)
-                                Text("\(revealedBids[seat] ?? 0)")
-                                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(Theme.ink)
-                                    .frame(width: 26, height: 24)
-                                    .background(RoundedRectangle(cornerRadius: 6)
-                                        .fill(Theme.color(for: seat).opacity(0.85)))
-                            }
+            // **Who is bidding, and what they have to bid with.** The Bag counts are up
+            // from the moment the board goes loose — a board is a guess at what the other
+            // three can afford, and the number is public.
+            HStack(spacing: 10) {
+                ForEach(order, id: \.self) { seat in
+                    VStack(spacing: 2) {
+                        PlayerNameText(seat: seat, size: 12)
+                        HStack(spacing: 2) {
+                            Image("BagIcon")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 13, height: 13)
+                            Text("\(state[seat].bag.count)")
+                                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                .contentTransition(.numericText())
+                        }
+                        .foregroundStyle(Theme.ink)
+                        // Revealed shooter-first then clockwise, the order the rule names.
+                        if let revealedBids {
+                            Text("\(revealedBids[seat] ?? 0)")
+                                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                                .foregroundStyle(Theme.ink)
+                                .frame(width: 26, height: 24)
+                                .background(RoundedRectangle(cornerRadius: 6)
+                                    .fill(Theme.color(for: seat).opacity(0.85)))
+                                .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    .transition(.scale.combined(with: .opacity))
                 }
             }
             .offset(y: Self.bidsY)

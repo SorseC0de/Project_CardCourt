@@ -44,12 +44,12 @@ struct MatchRules: Hashable, Codable {
     /// deck and belongs to nobody; this is how many of them stand out there at once — a
     /// full crew, which a game works up to rather than opening on. See `crewSize(inRound:)`.
     var refereeSlots: Int
-    /// **The crew for a round, which builds as the game goes on.** Nobody is watching the
-    /// first two rounds; one official comes out at round three, and another every second
-    /// round after that, up to the full crew. A game opens as a game of cards and ends as
-    /// one played under officials.
+    /// **The crew for a round: one official.** Three of them called over each other and
+    /// read as a wall of rules rather than as a man watching the game; one is a rule you
+    /// can hold in your head and play around. `refereeSlots` is still what the floor
+    /// holds, which is what a Whistle played from a hand fills up to.
     func crewSize(inRound round: Int) -> Int {
-        min(refereeSlots, max(0, (round - 1) / 2))
+        min(refereeSlots, 1)
     }
 
     /// The officials deck. Shuffled once at the start of the game like the main deck, and

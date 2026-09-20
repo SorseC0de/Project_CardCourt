@@ -48,6 +48,15 @@ struct ScoreboardView: View {
     /// padding either side. The board over the court is glanced at, and every point it
     /// takes is a point off the court.
     var row: CGFloat = 21
+    /// **Collapsed to the totals, and opened by a tap.** Four rows of five columns is a
+    /// table nobody reads mid-possession, so the board over the court is a name and a
+    /// score until you ask it for the rest. The results screen opens with everything out.
+    var collapses = false
+
+    @State private var opened = false
+
+    /// Whether the columns between the name and the score are being shown.
+    private var showsStats: Bool { !collapses || opened }
 
     /// The board's weights, all off the height of one row.
     ///
@@ -101,6 +110,14 @@ struct ScoreboardView: View {
         // **The screen's own ground, not the menus' navy** — the black the status bar and
         // the court stand on, so the rows do the work.
         .background(Theme.sceneGround)
+        // Closed, it is as wide as a name and a score rather than as the screen.
+        .fixedSize(horizontal: !showsStats, vertical: false)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard collapses else { return }
+            withAnimation(.easeOut(duration: 0.2)) { opened.toggle() }
+        }
+        .animation(.easeOut(duration: 0.2), value: showsStats)
     }
 
     /// What the columns are. Small caps in the rim's own grey, so the labels read as part
@@ -108,10 +125,12 @@ struct ScoreboardView: View {
     private var header: some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: board.head, height: 1)
-            ForEach(Self.columns, id: \.self) { column in
-                SmallCapsText(text: column, font: Chrome.display, size: board.label,
-                              tracking: board.label * 0.12)
-                    .frame(maxWidth: .infinity)
+            if showsStats {
+                ForEach(Self.columns, id: \.self) { column in
+                    SmallCapsText(text: column, font: Chrome.display, size: board.label,
+                                  tracking: board.label * 0.12)
+                        .frame(maxWidth: .infinity)
+                }
             }
             SmallCapsText(text: totalLabel, font: Chrome.display, size: board.label,
                           tracking: board.label * 0.12)
@@ -173,7 +192,8 @@ struct ScoreboardView: View {
             }
             .frame(width: board.head, alignment: .leading)
 
-            ForEach(Array(stats(player).enumerated()), id: \.offset) { column, value in
+            ForEach(Array(showsStats ? stats(player).enumerated()
+                          : [].enumerated()), id: \.offset) { column, value in
                 // **White with a hard navy drop, on every row.** Navy ink on a called-out
                 // row was legible and quiet, and the row it sits on is the loudest thing
                 // on the screen — the same pair every saturated fill in this game is
@@ -211,6 +231,18 @@ struct ScoreboardView: View {
                         x: board.drop * 0.75, y: board.drop * 0.75)
                 .frame(width: board.score, alignment: .trailing)
                 .contentTransition(.numericText())
+                // Closed, the score is where the points are — so a three still flies to
+                // the cell it changes. See `PointsCells`.
+                .background {
+                    if !showsStats {
+                        GeometryReader { geo in
+                            let box = geo.frame(in: .named(Chrome.screen))
+                            Color.clear.preference(
+                                key: PointsCells.self,
+                                value: [player.seat: CGPoint(x: box.midX, y: box.midY)])
+                        }
+                    }
+                }
         }
         .padding(.horizontal, board.gap * 2.0)
         .frame(height: board.row)

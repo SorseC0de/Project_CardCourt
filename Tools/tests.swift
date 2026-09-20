@@ -1406,18 +1406,12 @@ func runTests() {
     }
 
     do {
-        // **Nobody sets a referee down.** The crew is dealt face-up off the officials
-        // deck, belonging to nobody — and it builds: an empty floor to begin with, a full
-        // crew by the seventh round. See `MatchRules.crewSize(inRound:)`.
+        // **Nobody sets a referee down.** One official is dealt face-up off the officials
+        // deck at the top of every round, belonging to nobody — see
+        // `MatchRules.crewSize(inRound:)`.
         var (state, _) = Rules.newGame(seed: 51, rules: .standard)
         let seat = state.inbounder
-        Check.that(state.armedWhistles.isEmpty, "nobody works the first round")
-        var toSeven: [GameEvent] = []
-        while state.round < 7, !state.isOver {
-            Rules.testEndRound(state: &state, events: &toSeven)
-        }
-        Check.that(state.armedWhistles.count == state.rules.refereeSlots,
-                   "a full crew works the seventh")
+        Check.that(state.armedWhistles.count == 1, "one official works the round")
         Check.that(state.armedWhistles.allSatisfy { $0.owner == nil },
                    "and belongs to nobody")
         let held = matchCard(CardLibrary.travel, state.rules)
@@ -1429,9 +1423,9 @@ func runTests() {
         let worked = Set(state.armedWhistles.map(\.card.descriptor.id))
         var rounds: [GameEvent] = []
         Rules.testEndRound(state: &state, events: &rounds)
-        Check.that(state.armedWhistles.count == state.rules.refereeSlots
+        Check.that(state.armedWhistles.count == 1
                    && Set(state.armedWhistles.map(\.card.descriptor.id)) != worked,
-                   "the referees leave when the round does")
+                   "the referee leaves when the round does")
     }
 
     do {

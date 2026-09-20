@@ -1020,7 +1020,7 @@ enum CardLibrary {
     /// from range and pays like it, though it is still a layup to everybody watching. The
     /// opposite of the card that used to sit here — Bench Ball killed the pace.
     static let benchBall = CardDescriptor(
-        id: "bench-ball", name: "Long Ball", type: .variaball,
+        id: "long-ball", name: "Long Ball", type: .variaball,
         effect: "#[Layups] are shot as #[Threes]", numberInDeck: 1,
         variaball: VariaballEffect(layupsShootAsThrees: true))
     /// **The ball that gets the officials looking at it** instead of at the floor. The
@@ -1106,7 +1106,7 @@ enum CardLibrary {
         effect: "25% chance a shot attempt is a turnover instead", numberInDeck: 1,
         variaball: VariaballEffect(turnoverChance: 25))
     static let makeOrTakeBall = CardDescriptor(
-        id: "make-or-take-ball", name: "Foul Ball", type: .variaball,
+        id: "foul-ball", name: "Foul Ball", type: .variaball,
         effect: "Take 1 #[FT] after missing a shot attempt.", numberInDeck: 1,
         variaball: VariaballEffect(freeThrowsOnMiss: 1))
     static let heroBall = CardDescriptor(

@@ -253,7 +253,8 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     statusBar
                         .opacity(callFade)
-                    ScoreboardView(state: controller.shown, withheld: controller.withheldPoints)
+                    ScoreboardView(state: controller.shown, withheld: controller.withheldPoints,
+                                   collapses: true)
                         .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                         .opacity(callFade)
                     hudRow
@@ -1060,8 +1061,6 @@ struct GameView: View {
                 .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            shotClock
-
             HStack(spacing: 8) {
                 SmallCapsText(text: "Half \(controller.shown.half)",
                               font: Chrome.display, size: 15, tracking: 0.6)
@@ -1177,21 +1176,6 @@ struct GameView: View {
     /// only waiting.
     @State private var lastClock: Int?
 
-    private var shotClock: AnyView {
-        let clock = controller.shown.shotClock ?? lastClock
-        return AnyView(VStack(spacing: 3) {
-            SevenSegmentClock(value: clock)
-            Text("SHOT CLOCK")
-                .font(.system(size: 7, weight: .bold)).tracking(1.3)
-                .foregroundStyle(.white)
-        }
-        .animation(.easeOut(duration: 0.25), value: clock)
-        .onChange(of: controller.shown.shotClock) { _, now in
-            if let now { lastClock = now }
-        }
-        // A new round starts the clock over, so the memory goes with it.
-        .onChange(of: controller.shown.round) { _, _ in lastClock = nil })
-    }
 
     private var finalCard: some View {
         let winners = Rules.winners(of: controller.shown)

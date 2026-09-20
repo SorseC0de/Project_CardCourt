@@ -3823,7 +3823,22 @@ enum Rules {
         var assigned: [CardDescriptor] = []
         for _ in 0..<slots {
             guard !state.officials.isEmpty else { break }
-            let card = state.officials.removeLast()
+            var card = state.officials.removeLast()
+            // **The Crew Chief is drawn past for now.** What he does is spend the man who
+            // made a call, and with one official out there that is the crew leaving every
+            // time anybody is called for anything. He goes to the bottom and the next man
+            // comes out; he wants an effect of his own before he works again.
+            var passed = 0
+            while card.descriptor.id == CardLibrary.crewChief.id,
+                  !state.officials.isEmpty, passed < state.officials.count {
+                state.officials.insert(card, at: 0)
+                card = state.officials.removeLast()
+                passed += 1
+            }
+            guard card.descriptor.id != CardLibrary.crewChief.id else {
+                state.officials.insert(card, at: 0)
+                break
+            }
             state.armedWhistles.append(ArmedWhistle(owner: nil, card: card))
             assigned.append(card.descriptor)
         }

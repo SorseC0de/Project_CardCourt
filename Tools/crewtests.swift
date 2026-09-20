@@ -7,18 +7,21 @@ func crewTests() {
     // see is the crew.
     let plainMove = CardLibrary.drive
     do {
-        // The crew builds: nobody for the first two rounds, and one more every second.
-        // The officials deck is Standard's; Classic fields no crew at all.
+        // One official, every round, and never the Crew Chief while he has no effect of
+        // his own. The officials deck is Standard's; Classic fields no crew at all.
         var (state, _) = Rules.newGame(seed: 410, rules: .standard)
-        var out: [Int: Int] = [:]
+        var sizes: Set<Int> = []
+        var chief = false
         var events: [GameEvent] = []
         while state.round <= state.rules.roundsPerGame, !state.isOver {
-            out[state.round] = state.armedWhistles.count
+            sizes.insert(state.armedWhistles.count)
+            chief = chief || state.armedWhistles.contains {
+                $0.card.descriptor.id == CardLibrary.crewChief.id
+            }
             Rules.testEndRound(state: &state, events: &events)
         }
-        Check.that(out[1] == 0 && out[2] == 0 && out[3] == 1 && out[4] == 1
-                   && out[5] == 2 && out[6] == 2 && out[7] == 3 && out[8] == 3,
-                   "the crew builds: none, one from round 3, two from 5, three from 7")
+        Check.that(sizes == [1], "one official works every round")
+        Check.that(!chief, "and the Crew Chief is drawn past")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 401, cards: [plainMove])

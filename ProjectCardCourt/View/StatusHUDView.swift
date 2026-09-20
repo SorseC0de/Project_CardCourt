@@ -141,7 +141,8 @@ struct StatusHUDView: View {
                         if state.whistlesSilenced { silenced }
                         if !state.armedWhistles.isEmpty { crew }
                     }
-                    HStack(alignment: .center, spacing: ballSize * Deck.pair) {
+                    // The main deck over the officials', one under the other.
+                    VStack(alignment: .trailing, spacing: ballSize * Deck.pair) {
                         remaining
                         officialsRemaining
                     }
