@@ -2587,6 +2587,10 @@ final class GameController {
                 refereeThrow?.thrown = true
                 try? await Task.sleep(for: .seconds(Pacing.inboundThrow))
                 if Task.isCancelled { return }
+                // **It arrives.** The referee's throw is a third way a ball reaches a
+                // player and it had no arrival of its own, so the man it was thrown to
+                // stood in his receiver pose with the ball resting on him.
+                caught = Catch(seat: to, at: Date())
                 await present(Rules.completeRefereeInbound(state: &state))
                 refereeThrow = nil
                 continue

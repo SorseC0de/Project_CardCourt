@@ -377,7 +377,7 @@ struct DebugActionsView: View {
                 HStack(spacing: 4) {
                     action("pass") { controller.debugPass(to: Self.targets[target]) }
                     action("reset") {
-                        pass.flight = 0.26; pass.throwRate = 15; pass.catchRate = 20
+                        pass.flight = 0.333; pass.throwRate = 15; pass.catchRate = 20
                         pass.inbound = 0.5
                     }
                 }

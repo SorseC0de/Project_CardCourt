@@ -15,7 +15,7 @@ final class PassTuning: @unchecked Sendable {
     static let shared = PassTuning()
 
     /// How long the ball is in the air.
-    var flight: Double = 0.26
+    var flight: Double = 0.333
     /// How fast the throw sheet plays. Its first cell is him still holding the ball, so
     /// this also sets how long the ball waits in his hands before it leaves.
     var throwRate: Double = 15
