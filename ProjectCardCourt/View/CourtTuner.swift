@@ -129,6 +129,38 @@ final class InboundTextTuning {
     var throwerX: CGFloat = -120
 }
 
+/// **The fan of cards in your own hand**, while its three readings are being eyeballed:
+/// how far it sits down over the ball, how far apart the cards stand, and how big they
+/// are drawn. Freeze into `FannedBagView.Hand` and `ActionBarView.Act` once they land.
+@Observable
+@MainActor
+final class HandTuning {
+    static let shared = HandTuning()
+
+    /// How far the hand comes down over the rows under it, in points. Bigger sinks it
+    /// further onto the ball.
+    var lift: CGFloat = 44
+    /// What is left showing of the card underneath, as a share of a card's width.
+    var spacing: CGFloat = 0.74
+    /// Multiplies the card's drawn width, and the room the fan stands in with it.
+    var scale: CGFloat = 1
+}
+
+/// **The wedges over the ball** — the Moves left, and the three finishes they become —
+/// while their size and their seams are being eyeballed. Freeze into `ShootDomeView.Dome`
+/// once they land.
+@Observable
+@MainActor
+final class MoveArcTuning {
+    static let shared = MoveArcTuning()
+
+    /// Multiplies a wedge as a whole: both how thick the band is and how far round the
+    /// ball's shoulder the three of them run.
+    var scale: CGFloat = 1
+    /// The seam between two wedges, in degrees.
+    var spacing: Double = 3
+}
+
 #if DEBUG
 
 /// Debug actions, tucked under the log on the left.
@@ -161,6 +193,10 @@ struct DebugActionsView: View {
     @AppStorage("bench.deck") private var showDeck = false
     @AppStorage("bench.refs") private var showRefs = false
     @State private var refs = RefereeTuning.shared
+    @AppStorage("bench.hand") private var showHand = false
+    /// The hand's own three readings, and the wedges standing over the ball beside it.
+    @State private var hand = HandTuning.shared
+    @State private var arc = MoveArcTuning.shared
     /// The one HUD arrangement that is a setting rather than a measurement.
     @AppStorage(DeckReadout.setting) private var deckReadout = DeckReadout.over
 
@@ -192,6 +228,7 @@ struct DebugActionsView: View {
                 action(showCuts ? "cuts ▾" : "cuts ▸") { showCuts.toggle() }
                 action(showDeck ? "deck ▾" : "deck ▸") { showDeck.toggle() }
                 action(showRefs ? "refs ▾" : "refs ▸") { showRefs.toggle() }
+                action(showHand ? "hand ▾" : "hand ▸") { showHand.toggle() }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -269,6 +306,36 @@ struct DebugActionsView: View {
                            Binding(get: { Double(refs.nearScale) },
                                    set: { refs.nearScale = CGFloat($0) }),
                            0.5...1.6)
+                }
+                .frame(width: 150)
+            }
+            if showHand {
+                HStack(spacing: 4) {
+                    action("reset") {
+                        hand.lift = 44; hand.spacing = 0.74; hand.scale = 1
+                        arc.scale = 1; arc.spacing = 3
+                    }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    slider("hand y",
+                           Binding(get: { Double(hand.lift) },
+                                   set: { hand.lift = CGFloat($0) }),
+                           -40...140)
+                    slider("hand spacing",
+                           Binding(get: { Double(hand.spacing) },
+                                   set: { hand.spacing = CGFloat($0) }),
+                           0.2...1.2)
+                    slider("hand size",
+                           Binding(get: { Double(hand.scale) },
+                                   set: { hand.scale = CGFloat($0) }),
+                           0.5...1.8)
+                    slider("wedge size",
+                           Binding(get: { Double(arc.scale) },
+                                   set: { arc.scale = CGFloat($0) }),
+                           0.4...1.8)
+                    slider("wedge seam",
+                           Binding(get: { arc.spacing }, set: { arc.spacing = $0 }),
+                           0...20)
                 }
                 .frame(width: 150)
             }

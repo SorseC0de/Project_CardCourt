@@ -31,6 +31,8 @@ struct ActionBarView: View {
     var onOpenLog: (() -> Void)?
     var onPause: (() -> Void)?
     @Environment(\.floorIsHidden) private var floorIsHidden
+    /// How far the hand sits down over the ball — see `HandTuning`.
+    @State private var handTuning = HandTuning.shared
 
     private var state: GameState { controller.shown }
     /// What the table has seen arrive, not what the rules have dealt — see
@@ -123,7 +125,7 @@ struct ActionBarView: View {
                           onCommit: commit)
                 // **Down onto the ball.** The fan's own arc is the ball's, so the two
                 // only read as one object if the hand is sitting on it.
-                .padding(.bottom, -Act.handSink)
+                .padding(.bottom, -handTuning.lift)
             asking
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
             if case .awaitingDiscard = controller.gate { confirmDiscard }
@@ -248,9 +250,8 @@ struct ActionBarView: View {
         @MainActor static var handCurve: CGFloat {
             dome(Chrome.screenWidth) / 2 + 200
         }
-        /// How far the hand comes down over the rows under it, onto the ball. Further now
-        /// that the card toggle has gone up under the blocks it changes.
-        static let handSink: CGFloat = 44
+        /// How far the hand comes down over the rows under it lives on the hand's own
+        /// dial now, beside its spacing and its size — see `HandTuning`.
         static let width: CGFloat = 190
         static let height: CGFloat = 42
         /// The word, in the game's own lettering. The figure beside it is not — a

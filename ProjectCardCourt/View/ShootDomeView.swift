@@ -94,6 +94,9 @@ struct ShootDomeView: View {
     var width: CGFloat = 260
 
     @Environment(\.ballInPlay) private var ballInPlay
+    /// How big the wedges are drawn and how wide their seams run, while that is being
+    /// eyeballed — see `MoveArcTuning`.
+    @State private var tuning = MoveArcTuning.shared
     /// Green on the way up, red on the way down, for a beat.
     @State private var flash: Color?
 
@@ -103,9 +106,9 @@ struct ShootDomeView: View {
         /// The arc over it: how thick, and the air between it and the ball.
         static let arc: CGFloat = 0.19
         static let gap: CGFloat = 0.02
-        /// How far round the ball's shoulder the arc runs, and the seam between segments.
+        /// How far round the ball's shoulder the arc runs. The seam between two of them
+        /// is the dial's — see `MoveArcTuning`.
         static let span: Double = 150
-        static let seam: Double = 3
         /// What stands on a segment, as shares of the arc's own thickness: the mark that
         /// leads it, and the word that follows the mark round.
         static let mark: CGFloat = 0.95
@@ -115,7 +118,7 @@ struct ShootDomeView: View {
         static let number: CGFloat = 0.20
         /// The per-cent sign never matches the digits — see `ModeCardStyle.digitStandout`.
         static let sign: CGFloat = 0.5
-        static let word: CGFloat = 0.06
+        static let word: CGFloat = 0.09
         static let wordGap: CGFloat = 0.025
         /// How far down the ball's own face the reading sits, as a share of its width.
         static let reading: CGFloat = 0.035
@@ -126,7 +129,11 @@ struct ShootDomeView: View {
     private static let finishes: [ShotType] = [.layup, .dunk, .three]
 
     private var radius: CGFloat { width / 2 }
-    private var arcThickness: CGFloat { width * Dome.arc }
+    private var arcThickness: CGFloat { width * Dome.arc * tuning.scale }
+    /// How far round the ball's shoulder the three wedges run, and the seam between two
+    /// of them. A wedge grows as one object: thicker and wider together.
+    private var span: Double { Dome.span * Double(tuning.scale) }
+    private var seam: Double { tuning.spacing }
     private var arcGap: CGFloat { width * Dome.gap }
     /// The band this view takes: the arc, the air under it, and the ball's own third.
     private var height: CGFloat { arcThickness + arcGap + width * Dome.shown }
@@ -178,7 +185,7 @@ struct ShootDomeView: View {
             // The reading, on the part of it that is on screen: the ball's own top third.
             // The word stands beside the number rather than over it, in the plain heavy
             // type every other button on this bar is lettered in.
-            HStack(alignment: .firstTextBaseline, spacing: width * Dome.wordGap) {
+            HStack(alignment: .center, spacing: width * Dome.wordGap) {
                 Text("SHOOT")
                     .font(.system(size: width * Dome.word, weight: .heavy, design: .rounded))
                     .tracking(width * Dome.word * 0.06)
@@ -216,10 +223,10 @@ struct ShootDomeView: View {
 
     /// One segment: a Move the possession has, or a finish it could take.
     private func slice(_ index: Int, finish: ShotType) -> some View {
-        let step = Dome.span / Double(max(1, Self.finishes.count))
-        let start = -90 - Dome.span / 2 + Double(index) * step
-        let from = Angle(degrees: start + Dome.seam / 2)
-        let to = Angle(degrees: start + step - Dome.seam / 2)
+        let step = span / Double(max(1, Self.finishes.count))
+        let start = -90 - span / 2 + Double(index) * step
+        let from = Angle(degrees: start + seam / 2)
+        let to = Angle(degrees: start + step - seam / 2)
         let shape = ArcSlice(centre: centre, inner: radius + arcGap,
                              outer: radius + arcGap + arcThickness, from: from, to: to)
         let live = offered.contains(finish)
@@ -247,9 +254,9 @@ struct ShootDomeView: View {
     /// Pressed, it is the finish's mark and its name, both following the curve they are
     /// standing on.
     @ViewBuilder private func label(_ index: Int, finish: ShotType, live: Bool) -> some View {
-        let step = Dome.span / Double(max(1, Self.finishes.count))
-        let from = -90 - Dome.span / 2 + Double(index) * step + Dome.seam / 2
-        let to = from + step - Dome.seam
+        let step = span / Double(max(1, Self.finishes.count))
+        let from = -90 - span / 2 + Double(index) * step + seam / 2
+        let to = from + step - seam
         let reach = radius + arcGap + arcThickness / 2
         let markSide = arcThickness * Dome.mark
         // How much of the arc the mark takes, in degrees at this radius.

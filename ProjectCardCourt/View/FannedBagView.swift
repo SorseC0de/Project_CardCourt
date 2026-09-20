@@ -72,6 +72,9 @@ struct FannedBagView: View {
     /// every screen after it.
     @GestureState private var dragging: Card.ID?
     @GestureState private var drag: CGSize = .zero
+    /// The hand's three readings — how far it sits down over the ball, how far apart the
+    /// cards stand, and how big they are drawn — while they are being eyeballed.
+    @State private var tuning = HandTuning.shared
     @State private var refused: Card.ID?
     @State private var refusal: CGFloat = 0
 
@@ -95,7 +98,10 @@ struct FannedBagView: View {
 
     /// How far apart two cards stand along the row, before the curve bends them round.
     /// A share of a card's width: what is left showing of the one underneath.
-    private var step: CGFloat { Hand.card * Hand.spacing }
+    private var step: CGFloat { cardWidth * tuning.spacing }
+    /// How wide a card is drawn, and the room the fan needs for it.
+    private var cardWidth: CGFloat { Hand.card * tuning.scale }
+    private var room: CGFloat { Hand.room * tuning.scale }
 
     var body: some View {
         ZStack {
@@ -104,7 +110,7 @@ struct FannedBagView: View {
                 let lifted = dragging == card.id
                 let expanded = detail?.id == card.id && dragging == nil
 
-                CardFrontView(descriptor: card.descriptor, displayWidth: Hand.card,
+                CardFrontView(descriptor: card.descriptor, displayWidth: cardWidth,
                               expanded: expanded,
                               isDormant: dormant.contains(card.id),
                               onKeyword: onKeyword,
@@ -121,13 +127,13 @@ struct FannedBagView: View {
                         let out = !marked && barred.contains(card.id)
                         if let tint = marked ? Theme.danger.opacity(0.33)
                                              : (out ? Hand.barredWash : wash) {
-                            RoundedRectangle(cornerRadius: Hand.card * CardLayout.cornerFraction,
+                            RoundedRectangle(cornerRadius: cardWidth * CardLayout.cornerFraction,
                                              style: .continuous)
                                 .fill(tint)
                                 .overlay {
                                     if marked {
                                         RoundedRectangle(
-                                            cornerRadius: Hand.card * CardLayout.cornerFraction,
+                                            cornerRadius: cardWidth * CardLayout.cornerFraction,
                                             style: .continuous)
                                             .stroke(Theme.danger, lineWidth: 2.5)
                                     }
@@ -152,7 +158,7 @@ struct FannedBagView: View {
                     .opacity(justPlayed.contains(card.id) ? 0 : 1)
                     .allowsHitTesting(!justPlayed.contains(card.id))
                     .padRing(ringed == card.id && !justPlayed.contains(card.id),
-                             corner: Hand.card * CardLayout.cornerFraction)
+                             corner: cardWidth * CardLayout.cornerFraction)
                     // Outside the ring, so a lesson's enlargement grows the ring with the card.
                     .tutorialTarget(.handCard(card.descriptor.id))
                     .modifier(ShakeEffect(progress: refused == card.id ? refusal : 0))
@@ -189,7 +195,7 @@ struct FannedBagView: View {
                     .animation(.spring(response: 0.34, dampingFraction: 0.78), value: cards.count)
             }
         }
-        .frame(height: Hand.room)
+        .frame(height: room)
         .background {
             GeometryReader { box in
                 Color.clear.preference(key: HandMidline.self,
