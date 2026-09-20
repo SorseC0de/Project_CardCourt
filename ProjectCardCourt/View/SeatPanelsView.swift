@@ -18,6 +18,11 @@ struct SeatPanelsView: View {
     /// Points already in the state but not yet shown — a three still flying to the board.
     var withheld: (seat: Seat, amount: Int)?
     var showing: Showing = .intangibles
+    /// **The cards are down while a card is being read**, since the words of that card
+    /// are standing over them — see `GameView`.
+    var hidesCards = false
+    /// Whose card is being read, if it is anybody's: the others go back while it is up.
+    var lit: Seat?
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     /// **Whether the lines are out.** All four or none: comparing them is the whole
@@ -29,8 +34,8 @@ struct SeatPanelsView: View {
         static let rim: CGFloat = 2
         static let gap: CGFloat = 4
         static let pad: CGFloat = 5
-        static let name: CGFloat = 12
-        static let score: CGFloat = 17
+        static let name: CGFloat = 15
+        static let score: CGFloat = 22
         /// The card in a block, as a share of the block's own width.
         static let card: CGFloat = 0.82
         /// The sum a block opens into.
@@ -44,23 +49,26 @@ struct SeatPanelsView: View {
     private var order: [Seat] { GameRules.localSeat.clockwiseOrderFromHere }
 
     var body: some View {
-        GeometryReader { geo in
-            let across = geo.size.width / CGFloat(order.count)
-            HStack(spacing: 0) {
-                ForEach(order, id: \.self) { seat in
-                    panel(seat, across: across)
-                }
+        HStack(spacing: 0) {
+            ForEach(order, id: \.self) { seat in
+                panel(seat, across: across)
             }
         }
         .frame(height: height)
     }
 
+    /// **One block's width, off the screen's own.** Measured rather than read from a
+    /// container: the block's height is worked out from it, and a reader that answers
+    /// only after layout left the row the wrong height — which is what let the blocks
+    /// hang over the card under them.
+    private var across: CGFloat { Chrome.screenWidth / CGFloat(order.count) }
+
     /// A block's own height: the line of type, the card under it, and the padding.
     private var height: CGFloat {
-        Panel.pad * 2 + Panel.score + Panel.gap + cardHeight
+        Panel.pad * 2 + Panel.score * 1.2 + Panel.gap + cardHeight
     }
 
-    private var cardWidth: CGFloat { 84 * Panel.card }
+    private var cardWidth: CGFloat { across * Panel.card }
     private var cardHeight: CGFloat { cardWidth / CardMetrics.aspect }
 
     private func panel(_ seat: Seat, across: CGFloat) -> some View {
@@ -90,11 +98,15 @@ struct SeatPanelsView: View {
             .foregroundStyle(.white)
             .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
 
-            slot(for: seat, width: card)
+            if !hidesCards { slot(for: seat, width: card) }
+            Spacer(minLength: 0)
         }
         .padding(Panel.pad)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.color(for: seat))
+        // Whoever's card is being read keeps the light; the rest stand back.
+        .saturation(lit == nil || lit == seat ? 1 : 0.35)
+        .opacity(lit == nil || lit == seat ? 1 : 0.55)
         // Your own block is the one wearing the white edge, as your own row did.
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -172,6 +184,9 @@ struct SeatPanelsView: View {
                     .contentTransition(.numericText())
             }
         }
+        // Black under every figure, which is what makes a light number on a seat's own
+        // colour readable — the drop the names already wear.
+        .shadow(color: CardPalette.black, radius: 0, x: 1.5, y: 1.5)
         .padding(.horizontal, Panel.pad + 1)
         .padding(.vertical, Panel.pad)
         .background(Theme.color(for: seat))

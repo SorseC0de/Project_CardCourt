@@ -311,7 +311,7 @@ struct StatusHUDView: View {
     /// One official works the round and everybody plays under him, so his card is printed
     /// where it stands rather than tapped open — and the words are a share of the card's
     /// own width, so the card has to be this big for them to be worth printing.
-    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 104 }
+    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 88 }
 
     /// **And its words, bigger than the card's own share.** A card's printing is a share
     /// of its width, and the width that makes an official's words readable is a card that

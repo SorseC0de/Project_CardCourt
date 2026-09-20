@@ -374,9 +374,9 @@ struct ActionBarView: View {
             ZStack(alignment: .bottom) {
                 HStack(alignment: .bottom, spacing: 0) {
                     VStack(alignment: .leading, spacing: 6) {
+                        if let onSwapSeatCards { swapButton(onSwapSeatCards) }
                         if let onOpenLog { logButton(onOpenLog) }
                         if let onNames { namesButton(onNames) }
-                        if let onSwapSeatCards { swapButton(onSwapSeatCards) }
                     }
                     .frame(width: across * Act.side, alignment: .leading)
                     Spacer(minLength: 0)

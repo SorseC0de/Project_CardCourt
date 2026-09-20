@@ -74,17 +74,17 @@ struct FannedBagView: View {
         static let card: CGFloat = 68
         /// The room the fan stands in, at the same tenth off.
         static let room: CGFloat = 119
+        /// How far apart two cards stand, as a share of a card's width.
+        static let spacing: CGFloat = 0.58
         /// How far a chosen card stands out of the fan.
         static let chosenLift: CGFloat = 26
         /// What a card the rules will not take right now wears.
         static let barredWash = CardPalette.black.opacity(0.55)
     }
 
-    private var arc: (spread: Double, radius: CGFloat) {
-        let count = max(cards.count, 1)
-        // Tighten as the hand grows, so twelve cards do not wrap into a circle.
-        return (min(46, Double(count) * 7), curve)
-    }
+    /// How far apart two cards stand along the row, before the curve bends them round.
+    /// A share of a card's width: what is left showing of the one underneath.
+    private var step: CGFloat { Hand.card * Hand.spacing }
 
     var body: some View {
         ZStack {
@@ -205,15 +205,16 @@ struct FannedBagView: View {
         }
     }
 
-    /// Position on the arc. One card sits dead centre rather than off at an angle.
+    /// **Where a card stands: spaced along the row, then laid on the curve.**
+    ///
+    /// The spacing is the reading — how much of each card you can see — so it is set in
+    /// points and the curve is what the row is *bent* round, rather than the two being
+    /// one angle that decides both. Bending it by angle alone bunched the hand up the
+    /// moment the curve tightened onto the ball.
     private func placement(_ index: Int) -> (x: CGFloat, y: CGFloat, angle: Double) {
         guard cards.count > 1 else { return (0, 0, 0) }
-        let (spread, radius) = arc
-        let t = Double(index) / Double(cards.count - 1) - 0.5
-        let angle = spread * t
-        let radians = angle * .pi / 180
-        return (radius * CGFloat(sin(radians)),
-                radius * CGFloat(1 - cos(radians)),
-                angle)
+        let x = (CGFloat(index) - CGFloat(cards.count - 1) / 2) * step
+        let radians = asin(Double(min(1, max(-1, x / curve))))
+        return (x, curve - sqrt(max(0, curve * curve - x * x)), radians * 180 / .pi)
     }
 }

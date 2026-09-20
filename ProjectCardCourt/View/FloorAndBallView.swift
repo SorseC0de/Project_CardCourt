@@ -36,7 +36,6 @@ struct FloorAndBallView: View {
             } else if alwaysShowsBall {
                 empty
             }
-            FloorName(text: "Ball")
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.72), value: state.currentCourt.id)
         .animation(.spring(response: 0.35, dampingFraction: 0.72), value: state.currentBall?.id)

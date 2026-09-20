@@ -60,6 +60,18 @@ struct GameView: View {
     /// raised off the HUD or the floor — see `CardTextPanel`.
     private var reading: CardDescriptor? { detail?.descriptor ?? inspecting?.card }
 
+    /// **Whose card is being read**, when it is standing on somebody. A card off a block
+    /// is that player's; one out of your own hand is yours; anything else belongs to the
+    /// table and leaves all four blocks lit.
+    private var readingOwner: Seat? {
+        guard let reading else { return nil }
+        if detail != nil { return GameRules.localSeat }
+        return Seat.allCases.first { seat in
+            controller.shown[seat].intangibles.contains { $0.id == reading.id }
+                || controller.shown[seat].clamps.contains { $0.card.id == reading.id }
+        }
+    }
+
     /// Held: every name on the floor — see `ActionBarView`'s hold button.
     @State private var showingNames = false
     /// **The shoot ball's rays.** Here rather than in the bar, because a press anywhere
@@ -292,19 +304,21 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     statusBar
                         .opacity(callFade)
-                    // **Four seats across the top, and the card being read in their
-                    // place.** The panels are what the table is; the words of a card are
-                    // what you are deciding on, and both want the same room.
-                    Group {
+                    // **Four blocks across the top, and a card's words over them.** The
+                    // names and the totals stay up: what a card says is read against who
+                    // is where, and the block it belongs to is the one left lit.
+                    ZStack(alignment: .bottom) {
+                        SeatPanelsView(state: controller.shown,
+                                       withheld: controller.withheldPoints,
+                                       showing: seatCards,
+                                       hidesCards: reading != nil,
+                                       lit: readingOwner,
+                                       onSelect: { inspecting = (card: $0, from: $1) })
+                            .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                         if let reading {
                             CardTextPanel(card: reading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            SeatPanelsView(state: controller.shown,
-                                           withheld: controller.withheldPoints,
-                                           showing: seatCards,
-                                           onSelect: { inspecting = (card: $0, from: $1) })
-                                .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
+                                .padding(.horizontal, 6)
+                                .padding(.bottom, 4)
                         }
                     }
                     .padding(.horizontal, 12)

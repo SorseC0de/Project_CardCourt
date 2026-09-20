@@ -99,12 +99,15 @@ struct ShootDomeView: View {
         /// leads it, and the word that follows the mark round.
         static let mark: CGFloat = 0.95
         static let letter: CGFloat = 0.46
-        /// The number on the ball, and the word lapped over it.
-        static let number: CGFloat = 0.27
+        /// The number on the ball, and the word beside it. **Both inside the third that
+        /// is above the screen's edge** — the reading sat where half a ball used to show.
+        static let number: CGFloat = 0.20
         /// The per-cent sign never matches the digits — see `ModeCardStyle.digitStandout`.
         static let sign: CGFloat = 0.5
-        static let word: CGFloat = 0.075
-        static let wordGap: CGFloat = 0.03
+        static let word: CGFloat = 0.06
+        static let wordGap: CGFloat = 0.025
+        /// How far down the ball's own face the reading sits, as a share of its width.
+        static let reading: CGFloat = 0.035
         static let greyed: Double = 0.45
     }
 
@@ -171,7 +174,7 @@ struct ShootDomeView: View {
                 .foregroundStyle(flash ?? .white)
             }
             .shadow(color: .black, radius: 0, x: 3, y: 3)
-            .offset(y: width * Dome.shown * 0.34)
+            .offset(y: width * Dome.reading)
         }
         .frame(width: width, height: width)
         // Only the part of it that is on screen answers a press.
