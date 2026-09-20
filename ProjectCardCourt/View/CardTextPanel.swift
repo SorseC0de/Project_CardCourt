@@ -18,13 +18,39 @@ struct CardTextPanel: View {
         static let label: CGFloat = 11
         static let gap: CGFloat = 5
         static let corner: CGFloat = 8
+        /// The band's own padding, above and below — what the card beside the words is
+        /// fitted into.
+        static let pad: CGFloat = 6
         /// How far the words may shrink to fit the band they are given.
         static let shrink: CGFloat = 0.7
     }
 
     private var face: CardFace { CardFace(of: card) }
 
+    /// **The card itself, beside its words.** Sized to the band rather than to the blocks'
+    /// own cards: the panel sits in the same room those stood in, less its padding.
+    @MainActor private var cardWidth: CGFloat {
+        (SeatPanelsView.readingBand - Panel.pad * 2) * CardMetrics.aspect
+    }
+
     var body: some View {
+        HStack(alignment: .top, spacing: Panel.gap * 2) {
+            CardFrontView(descriptor: card, displayWidth: cardWidth)
+                .shadow(color: .black.opacity(0.45), radius: 3, y: 2)
+            words
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, Panel.pad)
+        .background(Theme.panel)
+        .overlay(alignment: .top) {
+            Rectangle().fill(CardSkin.of(face).ring).frame(height: 2)
+        }
+        .transition(.opacity)
+        .allowsHitTesting(false)
+    }
+
+    private var words: some View {
         VStack(alignment: .leading, spacing: Panel.gap) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 SmallCapsText(text: card.name, font: Chrome.display, size: Panel.name,
@@ -51,14 +77,6 @@ struct CardTextPanel: View {
         }
         // **Whatever room it is given**: the band under the names, edge to edge.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Theme.panel)
-        .overlay(alignment: .top) {
-            Rectangle().fill(CardSkin.of(face).ring).frame(height: 2)
-        }
-        .transition(.opacity)
-        .allowsHitTesting(false)
     }
 
     /// One of the two extra clauses, under its own heading.

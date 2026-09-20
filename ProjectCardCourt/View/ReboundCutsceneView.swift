@@ -25,6 +25,10 @@ struct ReboundCutsceneView: View {
 
     /// How far the title and ball ride above centre.
     private static let lift: CGFloat = 44
+    /// **What a bidder is drawn at**: his head, his name, and what he has to bid with.
+    private static let head: CGFloat = 4
+    private static let name: CGFloat = 17
+    private static let count: CGFloat = 18
     /// Where the bids sit, measured from centre rather than from the ball — which is the
     /// whole point of them being a separate layer.
     ///
@@ -93,17 +97,22 @@ struct ReboundCutsceneView: View {
             // **Who is bidding, and what they have to bid with.** The Bag counts are up
             // from the moment the board goes loose — a board is a guess at what the other
             // three can afford, and the number is public.
-            HStack(spacing: 10) {
+            HStack(spacing: 14) {
                 ForEach(order, id: \.self) { seat in
                     VStack(spacing: 2) {
-                        PlayerNameText(seat: seat, size: 12)
-                        HStack(spacing: 2) {
+                        // **Who it is, before what he is called.** A face reads across the
+                        // scene at a glance where four names in a row do not.
+                        SpriteAnimation(sprite: .heads, scale: Self.head, isPlaying: false,
+                                        restFrame: PlayerLook.shared.face(for: seat))
+                            .paletteSwap(PlayerLook.shared.skin(for: seat))
+                        PlayerNameText(seat: seat, size: Self.name)
+                        HStack(spacing: 3) {
                             Image("BagIcon")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 13, height: 13)
+                                .frame(width: Self.count, height: Self.count)
                             Text("\(state[seat].bag.count)")
-                                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                .font(.system(size: Self.count, weight: .heavy, design: .rounded))
                                 .contentTransition(.numericText())
                         }
                         .foregroundStyle(Theme.ink)

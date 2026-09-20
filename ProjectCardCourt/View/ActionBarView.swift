@@ -9,8 +9,6 @@ struct ActionBarView: View {
     var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
-    /// The ball in play, raised to be read — it stands beside the one you shoot with.
-    var onInspectBall: (CardDescriptor, CGPoint) -> Void = { _, _ in }
     /// **The circle the hand is fanned on**, measured off the ball under it — see
     /// `BallCentre`. Nil until the floor has been laid out once.
     var handCurve: CGFloat?
@@ -75,6 +73,19 @@ struct ActionBarView: View {
         return Set(bag.map(\.id).filter { !allowed.contains($0) })
     }
 
+    /// **Whether the bar is carrying a question of its own** — a bid, a discard, a
+    /// hand-off, a cancel. Those rows stand between the hand and the ball, so the hand
+    /// gives back the room it had sunk into.
+    private var barIsAsking: Bool {
+        switch controller.gate {
+        case .awaitingBid: return controller.revealedBids == nil
+        case .awaitingDiscard, .awaitingGiveUp: return true
+        case .awaitingTarget: return Rules.canCancelAim(state)
+        case .awaitingMove: return canHandOff || canExchange
+        default: return false
+        }
+    }
+
     /// The court is asking who to throw to, so the hand is not the question.
     private var isChoosingInbound: Bool {
         if case .awaitingInbound = controller.gate { return true }
@@ -125,7 +136,10 @@ struct ActionBarView: View {
                           onCommit: commit)
                 // **Down onto the ball.** The fan's own arc is the ball's, so the two
                 // only read as one object if the hand is sitting on it.
-                .padding(.bottom, -handTuning.lift)
+                // **Only when there is nothing under it to land on.** The sink is a
+                // negative padding, so whatever follows the hand rides up into it — and
+                // a rebound's own button and prompt came up into the cards.
+                .padding(.bottom, -(barIsAsking ? 0 : handTuning.lift))
             asking
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
             if case .awaitingDiscard = controller.gate { confirmDiscard }
@@ -381,12 +395,11 @@ struct ActionBarView: View {
                     }
                     .frame(width: across * Act.side, alignment: .leading)
                     Spacer(minLength: 0)
-                    // What everybody is playing with, beside the ball you shoot with, and
-                    // the way out of the game over the top of it.
+                    // The way out of the game. What everybody is playing with used to
+                    // stand under it; that card is up under the blocks now, opposite the
+                    // official's — see `GameView.crewCard`.
                     VStack(alignment: .trailing, spacing: 6) {
                         if let onPause { pauseButton(onPause) }
-                        FloorAndBallView(state: controller.shown, alwaysShowsBall: true,
-                                         onSelect: onInspectBall)
                     }
                     .frame(width: across * Act.side, alignment: .trailing)
                 }

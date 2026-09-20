@@ -12,9 +12,12 @@ struct FloorAndBallView: View {
     /// still the ball everybody is playing with, and a slot that empties says the game
     /// has stopped having one.
     var alwaysShowsBall = false
+    /// How wide the card is drawn. It stands opposite the official's card under the
+    /// blocks, at that card's own size.
+    var width: CGFloat = Layout.card
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
-    private enum Layout {
+    enum Layout {
         /// **Its own size, and a small one.** It stands in the quarter beside the ball you
         /// shoot with, and anything taller than that band pushes the ball off the floor.
         static let card: CGFloat = 54
@@ -45,15 +48,15 @@ struct FloorAndBallView: View {
     /// stands here is the shape of the one that would: a Variaball with nothing printed
     /// on it, cut out of the screen and dashed round.
     private var empty: some View {
-        let corner = Layout.card * CardLayout.cornerFraction
+        let corner = width * CardLayout.cornerFraction
         return RoundedRectangle(cornerRadius: corner, style: .continuous)
             .strokeBorder(CardPalette.cloud.opacity(0.7),
                           style: StrokeStyle(lineWidth: Layout.dash, dash: [Layout.dash * 2,
                                                                             Layout.dash * 1.4]))
-            .frame(width: Layout.card, height: Layout.card / CardMetrics.aspect)
+            .frame(width: width, height: width / CardMetrics.aspect)
             .overlay {
                 SmallCapsText(text: "Variaball", font: Chrome.display,
-                              size: Layout.card * 0.15, tracking: 0.4)
+                              size: width * 0.15, tracking: 0.4)
                     .foregroundStyle(CardPalette.cloud.opacity(0.7))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -63,7 +66,7 @@ struct FloorAndBallView: View {
 
     private func slot(_ card: CardDescriptor, note: String?) -> some View {
         VStack(spacing: 2) {
-            CardFrontView(descriptor: card, displayWidth: Layout.card)
+            CardFrontView(descriptor: card, displayWidth: width)
                 .shadow(color: .black.opacity(0.45), radius: 3, y: 2)
                 .overlay {
                     GeometryReader { geo in

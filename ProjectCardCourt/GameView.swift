@@ -26,20 +26,19 @@ struct GameView: View {
     /// A mechanic somebody pressed on a card they were reading, and what it means.
     @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
-    /// **The crew, under the blocks**, with the card toggle at the other end of the same
-    /// row. One card, big enough to read where it stands, and tapped to raise it like any
-    /// other; the toggle stands directly under the blocks it changes.
+    /// **The row under the blocks**: what everybody is playing with on one side, the
+    /// official working the round on the other, and the card toggle centred between them.
+    /// Both cards are drawn at the size the blocks' own cards are, so the three rows read
+    /// as one board.
     private var crewCard: AnyView {
         AnyView(HStack(alignment: .top, spacing: 8) {
-            SeatCardsToggle(showing: seatCards) {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    seatCards = seatCards == .intangibles ? .clamps : .intangibles
-                }
-            }
+            FloorAndBallView(state: controller.shown, alwaysShowsBall: true,
+                             width: SeatPanelsView.cardWidth,
+                             onSelect: { inspecting = (card: $0, from: $1) })
             Spacer(minLength: 0)
             ForEach(controller.shown.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
-                              displayWidth: StatusHUDView.crewCardWidth(),
+                              displayWidth: SeatPanelsView.cardWidth,
                               expanded: true,
                               textScale: StatusHUDView.crewTextScale,
                               isDormant: whistle.stayed)
@@ -54,6 +53,14 @@ struct GameView: View {
                                 }
                         }
                     }
+            }
+        }
+        // Centred in the row rather than hung off one end of it.
+        .overlay {
+            SeatCardsToggle(showing: seatCards) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    seatCards = seatCards == .intangibles ? .clamps : .intangibles
+                }
             }
         }
         .padding(.top, 6)
@@ -362,7 +369,14 @@ struct GameView: View {
                             } action: { hudBottom = $0 }
                         }
                     }
+                    // **The floor goes back while a card's words are up.** The wash
+                    // belongs to this band alone: the blocks, the row under them and the
+                    // hand are all part of reading a card, and stay lit.
                     stage
+                        .overlay {
+                            DimLayer(on: reading != nil, amount: Theme.dimBrowser,
+                                     full: false)
+                        }
                 }
                 .ignoresSafeArea(edges: .bottom)
                 // Lifted over the wash while the floor is what is being asked for, the way
@@ -391,7 +405,6 @@ struct GameView: View {
                         ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
-                                      onInspectBall: { inspecting = (card: $0, from: $1) },
                                       handCurve: handCurve,
                                       onNames: { showingNames = $0 },
                                       shootOpen: $shootOpen,
