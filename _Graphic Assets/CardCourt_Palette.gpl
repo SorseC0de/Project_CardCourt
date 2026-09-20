@@ -1,0 +1,31 @@
+GIMP Palette
+#Palette Name: CardCourt
+#Description: Variaball's card palette. The first colour is repeated so index 0 can be spent on transparency in indexed mode.
+#Colors: 27
+0	0	0	True Black
+0	0	0	True Black
+255	255	255	White
+28	50	97	Navy
+20	124	193	Blue
+249	162	47	Gold
+245	84	38	Orange
+228	25	95	Red
+148	24	71	Dark Red
+105	14	62	Maroon
+145	156	184	Gray
+47	49	67	Black
+137	215	237	Light Blue
+29	97	158	Dark Blue
+227	240	248	Cloud
+196	194	209	Steel
+250	138	11	Tangerine
+230	183	146	Tan
+188	128	81	Brown
+27	140	133	Teal
+49	82	99	Cobalt
+30	158	74	Green
+211	75	210	Magenta
+76	83	231	Azure
+164	95	255	Purple
+97	72	101	Plum
+138	86	111	Blood
