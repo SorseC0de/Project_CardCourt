@@ -141,7 +141,7 @@ struct GameView: View {
     /// else on the screen is what puts them away.
     @State private var shootOpen = false
     /// Which card the blocks along the top are showing — swapped from the bottom row.
-    @State private var seatCards: SeatPanelsView.Showing = .score
+    @State private var seatCards: SeatPanelsView.Showing = .intangibles
     /// The ball standing out of its own card — see `BallOverlayTuning`.
     @State private var ballOverlay = BallOverlayTuning.shared
     /// **The two ends of the hand's arc**, measured off the screen itself: the middle of

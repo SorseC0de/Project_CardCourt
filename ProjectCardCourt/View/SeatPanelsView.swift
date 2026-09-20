@@ -50,10 +50,12 @@ struct SeatPanelsView: View {
     var undelivered: Set<UUID> = []
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
-    /// **Whether the lines are out.** All four or none: comparing them is the whole
-    /// reason to look, and one column at a time is four presses to do it. The toggle
-    /// under the blocks owns it — Score *is* the sum, not a figure beside a name.
-    private var opened: Bool { showing == .score }
+    /// **A block turned on its own.** Pressing one walks that player through the three;
+    /// the toggle under them overrides the lot and puts them back in step, which is what
+    /// makes comparing them one press rather than four.
+    @State private var turned: [Seat: Showing] = [:]
+
+    private func showing(for seat: Seat) -> Showing { turned[seat] ?? showing }
 
     private enum Panel {
         static let corner: CGFloat = 9
@@ -88,6 +90,9 @@ struct SeatPanelsView: View {
             }
         }
         .frame(height: height)
+        // **The toggle wins.** Whatever anybody turned on their own goes back in step
+        // the moment the button under them says what everybody is showing.
+        .onChange(of: showing) { turned.removeAll() }
     }
 
     /// **One block's width, off the screen's own.** Measured rather than read from a
@@ -126,14 +131,10 @@ struct SeatPanelsView: View {
                     .minimumScaleFactor(0.4)
                 Spacer(minLength: 0)
                 // **What he is on**, lettered the way a card's own $[2X] is: the one
-                // figure on the block that is a total rather than a part. Only while the
-                // blocks are showing it — a card and a total do not share the corner.
-                // **Always there, and sometimes seen.** The cell it stands in is where
-                // points fly to, so it is hidden rather than removed — a figure with no
-                // width is a target with no place. Out while a card is up, since a card
-                // and a total were sharing the corner.
+                // figure on the block that is a total rather than a part. Beside his
+                // name whatever the block is showing — it is the answer the board is
+                // for, and the column under it is the working.
                 TwoXMark(size: Panel.score, text: "\(shownScore(seat))")
-                    .opacity(opened ? 1 : 0)
                     // **Where the points are**, for anything flying to the board — see
                     // `PointsCells`.
                     .background {
@@ -147,8 +148,25 @@ struct SeatPanelsView: View {
             }
             .foregroundStyle(.white)
 
-            if !hidesCards { slot(for: seat, width: card) }
+            if !hidesCards {
+                if showing(for: seat) == .score {
+                    // **Over the slot, not under the block.** The column is what that
+                    // space is for while it is up; the placeholder belongs to the cards.
+                    sum(seat)
+                        .frame(width: card, height: card / CardMetrics.aspect)
+                } else {
+                    slot(for: seat, width: card)
+                }
+            }
             Spacer(minLength: 0)
+        }
+        .contentShape(Rectangle())
+        // One press walks this block through the three. The toggle underneath puts them
+        // all back in step — see `SeatCardsToggle`.
+        .onTapGesture {
+            withAnimation(.easeOut(duration: 0.18)) {
+                turned[seat] = showing(for: seat).next
+            }
         }
         .padding(Panel.pad)
         // **How many cards he is holding**, along the bottom edge of his own block. It
@@ -176,22 +194,12 @@ struct SeatPanelsView: View {
                 .fill(mine ? .white : .clear)
                 .frame(height: Panel.rim)
         }
-        // **Opened downward**, over the floor rather than pushing it: the overlay's top
-        // is pinned to the block's bottom edge.
-        .overlay(alignment: .bottom) {
-            if opened {
-                sum(seat)
-                    .alignmentGuide(VerticalAlignment.bottom) { $0[.top] }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .zIndex(opened ? 1 : 0)
     }
 
     /// The one card this block is showing, or the space it would stand in.
     @ViewBuilder private func slot(for seat: Seat, width: CGFloat) -> some View {
         let card: CardDescriptor? = {
-            switch showing {
+            switch showing(for: seat) {
             case .intangibles: return state[seat].intangibles.first
             case .clamps:      return state[seat].clamps.first?.card
             case .score:       return nil
@@ -218,7 +226,7 @@ struct SeatPanelsView: View {
                 // **What would stand here**, printed almost out of sight: an empty slot
                 // that says what kind of empty it is.
                 .overlay {
-                    if let mark = showing.emptyMark {
+                    if let mark = showing(for: seat).emptyMark {
                         Image(mark)
                             .resizable()
                             .scaledToFit()
@@ -244,36 +252,35 @@ struct SeatPanelsView: View {
                     // reads as two.
                     StrokedPixelText(text: (row.taken ? "-" + row.label : row.label).uppercased(),
                                      size: Panel.statLabel,
-                                     ink: row.taken ? Panel.taken : .white,
+                                     ink: row.taken ? Panel.taken : .black,
                                      edge: .black, outlined: false)
                         .fixedSize()
                     Spacer(minLength: 0)
                     // Each figure cut out in the pixel face, like every other number
                     // being counted rather than written — see `StrokedPixelText`.
                     StrokedPixelText(text: "\(row.value)", size: Panel.stat,
-                                     ink: row.taken ? Panel.taken : .white,
+                                     ink: row.taken ? Panel.taken : .black,
                                      edge: .black, outlined: false)
                         .fixedSize()
                 }
             }
+            // The line a sum is drawn under, in the same ink as the figures over it.
             Rectangle()
-                .fill(.white)
+                .fill(.black)
                 .frame(height: 1.5)
                 .padding(.top, 1)
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
                 StrokedPixelText(text: "\(shownScore(seat))", size: Panel.stat + 3,
-                                 edge: .black, outlined: false)
+                                 ink: .black, edge: .black, outlined: false)
                     .fixedSize()
             }
         }
+        // **It stands where the card stands**, so it needs no ground of its own and no
+        // edge to close it: it was a panel dropping out of the block and is part of it
+        // now.
         .padding(.horizontal, Panel.pad + 1)
         .padding(.vertical, Panel.pad)
-        .background(Theme.color(for: seat))
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(CardPalette.navy).frame(height: 1)
-        }
-
     }
 
     /// What a line is made of, in the order it is added up. Turnovers come off it, which
