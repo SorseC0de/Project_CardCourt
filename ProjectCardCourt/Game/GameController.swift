@@ -74,6 +74,9 @@ enum Pacing {
     /// **How long a referee stands holding it before he throws.** Long enough to read as
     /// him being the one putting it in — the new thing, and the thing to notice.
     static let refereeHold = 1.0
+    /// How long an opponent's challenge stands on screen: long enough to read the card,
+    /// see the lantern come on and know who did it.
+    static let challengeWatched = 2.2
     /// **The official's entrance**, beat by beat: his card crossing the screen, the hold
     /// while it is read, the warp that puts him on the floor, and the card going to its
     /// slot.
@@ -2886,6 +2889,15 @@ final class GameController {
                     await think()
                 }
                 if Task.isCancelled { return }
+                // **Shown the way yours is.** The card, the green, the lantern coming on
+                // — the whole scene, with the decision already made.
+                if taking, let call = state.challengedCall,
+                   let whistle = state.armedWhistles.first(where: { $0.id == call.whistle }) {
+                    challengeWatched = (seat, whistle.card.descriptor)
+                    try? await Task.sleep(for: .seconds(Pacing.challengeWatched))
+                    challengeWatched = nil
+                    if Task.isCancelled { return }
+                }
                 await present(Rules.resolveChallenge(taking, state: &state))
                 continue
             }
@@ -3032,6 +3044,13 @@ final class GameController {
 
     /// **The id of a call already played out for its challenge**, so it is not played twice.
     private var revealedBeforeChallenge: UUID?
+
+    /// **Somebody else throwing a call out**, while it is being shown.
+    ///
+    /// A player challenging is the same event whoever does it, and an opponent doing it
+    /// off screen read as the official dismissing himself for no reason — see
+    /// `ChallengeView`.
+    private(set) var challengeWatched: (seat: Seat, card: CardDescriptor)?
 
     /// **The official coming out**, and how far through it is.
     ///

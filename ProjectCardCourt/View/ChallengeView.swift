@@ -12,29 +12,50 @@ struct ChallengeView: View {
     let card: CardDescriptor
     /// False once his one is spent, which leaves the question unanswerable.
     var available = true
+    /// **Somebody else's challenge, watched rather than answered.** A player throwing a
+    /// call out is the same event whoever does it, and an opponent doing it off screen
+    /// read as the official dismissing himself. Set to the man taking it: the question
+    /// becomes a statement, the buttons go, and the lantern lights on its own.
+    var challenger: Seat?
     var onChallenge: () -> Void = {}
     var onDecline: () -> Void = {}
 
     private let width: CGFloat = 210
     private var corner: CGFloat { width * CardLayout.cornerFraction }
 
-    @State private var pulsing = false
-    @State private var streaking = false
     /// Set the instant he says yes, which is what lights the lantern and turns the streaks.
     @State private var lit = false
+    /// **One clock for the pulse and the streaks**, rather than two repeating animations.
+    /// A `repeatForever` has no end, and a scene shown over and over leaves the last one
+    /// still running under the next — see `SpectrumFill`.
+    @State private var since = Date()
+
+    private var pulsing: Bool { true }
 
     var body: some View {
-        ZStack {
+        TimelineView(.animation) { tick in
+            let beat = tick.date.timeIntervalSince(since)
+            body(at: beat)
+        }
+    }
+
+    private func body(at beat: TimeInterval) -> some View {
+        // Nought to one and back on its own length, eased, for the lantern's breath.
+        let swell = abs(((beat / Pulse.seconds).truncatingRemainder(dividingBy: 2)) - 1)
+        let streaking = (beat / Streak.seconds).truncatingRemainder(dividingBy: 1)
+        return ZStack {
             DimLayer(on: true, amount: Theme.dimBrowser)
             Color.clear.contentShape(Rectangle()).ignoresSafeArea()
-                .onTapGesture(perform: onDecline)
+                .onTapGesture { if challenger == nil { onDecline() } }
 
             VStack(spacing: 18) {
-                ActionText(runs: [.init("CHALLENGE IT?",
+                ActionText(runs: [.init(challenger.map { "\($0.playerName.uppercased()) CHALLENGES" }
+                                        ?? "CHALLENGE IT?",
                                         ink: lit ? Green.bright : Green.dark,
                                         drop: Green.deep)],
                            size: 30)
-                back
+                back(streaking: streaking, swell: swell)
+                if challenger == nil {
                 HStack(spacing: 12) {
                     ChunkyButton(title: "CHALLENGE", fill: Green.deep,
                                  stroke: Green.deep, shade: CardPalette.cobalt,
@@ -51,28 +72,29 @@ struct ChallengeView: View {
                                  stroke: CardPalette.gray, shade: CardPalette.cobalt,
                                  size: 16, run: onDecline)
                 }
+                }
             }
         }
+        // **Lit on its own when it is being watched.** Somebody else has already decided;
+        // the light is the announcement rather than the answer.
         .task {
-            withAnimation(.easeInOut(duration: Pulse.seconds).repeatForever(autoreverses: true)) {
-                pulsing = true
-            }
-            withAnimation(.linear(duration: Streak.seconds).repeatForever(autoreverses: false)) {
-                streaking = true
-            }
+            guard challenger != nil else { return }
+            try? await Task.sleep(for: .seconds(Light.watched))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: Light.seconds)) { lit = true }
         }
         .transition(.opacity)
     }
 
     /// The Z card, with green running across it.
-    private var back: some View {
+    private func back(streaking: Double, swell: Double) -> some View {
         Image("CardBackFull")
             .resizable()
             .scaledToFit()
             .frame(width: width)
-            .overlay { streaks }
+            .overlay { streaks(at: streaking) }
             .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-            .overlay { emblem }
+            .overlay { emblem(swell: swell) }
             .shadow(color: .black.opacity(0.6), radius: 20, y: 10)
             .contentShape(Rectangle())
 
@@ -80,7 +102,7 @@ struct ChallengeView: View {
 
     /// **Streaks, not a wash.** Thin bars running across the back on the diagonal, so the
     /// card reads as something being looked at again rather than something lit up.
-    private var streaks: some View {
+    private func streaks(at through: Double) -> some View {
         GeometryReader { box in
             let span = box.size.width + box.size.height
             HStack(spacing: span * Streak.gap) {
@@ -94,7 +116,8 @@ struct ChallengeView: View {
             }
             .frame(width: span, height: span)
             .rotationEffect(.degrees(Streak.lean))
-            .offset(x: streaking ? span * Streak.travel : -span * Streak.travel)
+            .offset(x: -span * Streak.travel
+                    + span * Streak.travel * 2 * CGFloat(through))
             .opacity(Streak.strength)
             .blendMode(.screen)
             .position(x: box.size.width / 2, y: box.size.height / 2)
@@ -103,15 +126,16 @@ struct ChallengeView: View {
     }
 
     /// Lit while he has it, and breathing so it reads as offered rather than printed.
-    private var emblem: some View {
+    private func emblem(swell: Double) -> some View {
         Image(lit ? "challenge_lit" : "challenge_unlit")
             .resizable()
             .scaledToFit()
             .frame(width: width * Emblem.share)
             // Only a lit lantern glows, and only a lit one breathes.
             .shadow(color: Green.bright.opacity(lit ? Emblem.glow : 0),
-                    radius: lit && pulsing ? Emblem.far : Emblem.near)
-            .scaleEffect(lit && pulsing ? Emblem.swell : 1)
+                    radius: lit ? Emblem.near + (Emblem.far - Emblem.near) * swell
+                                : Emblem.near)
+            .scaleEffect(lit ? 1 + (Emblem.swell - 1) * swell : 1)
     }
 
     /// **The scene's own green.** Nothing else in the game uses it, which is what makes a
@@ -146,9 +170,12 @@ struct ChallengeView: View {
         static let seconds: Double = 0.9
     }
 
-    private enum Light {
+    enum Light {
         /// How long the lantern takes to come on, and how long before the scene follows.
         static let seconds: Double = 0.35
+        /// **Watched rather than answered**: how long the card stands there before the
+        /// lantern lights on its own, so the scene reads as a decision being taken.
+        static let watched: Double = 0.7
         /// A spent challenge leaves the button there, faded, rather than removing it.
         static let spent: Double = 0.35
     }

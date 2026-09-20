@@ -827,6 +827,11 @@ struct GameView: View {
                         .transition(.opacity)
                         .zIndex(11)
                 }
+                // Somebody else's, watched rather than answered.
+                if let watched = controller.challengeWatched {
+                    ChallengeView(card: watched.card, challenger: watched.seat)
+                        .zIndex(14)
+                }
                 if case .awaitingChallenge(let card) = controller.gate {
                     ChallengeView(card: card,
                                   available: !controller.shown[GameRules.localSeat].challenged,
