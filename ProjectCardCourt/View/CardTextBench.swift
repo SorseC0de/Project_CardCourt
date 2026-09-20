@@ -514,7 +514,7 @@ final class CardTextTuning {
     /// **How far the $[2X] mark sits below the line it is set in**, as a share of the
     /// text's size. Its own dial: it is a picture in a line of type, and nothing else
     /// about the type moves it.
-    var markDrop: CGFloat = 0.3
+    var markDrop: CGFloat = 0.5
     var weight = CardTextStyle.weight
 
     /// **Which theme the deck is printed in.** A debug switch until it is a setting —

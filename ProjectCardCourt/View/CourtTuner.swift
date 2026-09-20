@@ -171,19 +171,19 @@ final class ReboundSceneTuning {
 
     /// "Crashing the Glass" and the line under it.
     var titleScale: CGFloat = 1
-    var titleY: CGFloat = 0
+    var titleY: CGFloat = -72
     /// The button the bid is placed with.
     var buttonScale: CGFloat = 1
-    var buttonY: CGFloat = 0
+    var buttonY: CGFloat = 110
     /// The cards it is placed out of.
     var handScale: CGFloat = 1
-    var handY: CGFloat = 0
+    var handY: CGFloat = 140
     /// Heads, names and Bag counts.
-    var bidsScale: CGFloat = 1
-    var bidsY: CGFloat = 0
+    var bidsScale: CGFloat = 0.7
+    var bidsY: CGFloat = -95
     /// The ball itself — or Monster Ball's prize, which stands where it does.
     var ballScale: CGFloat = 1
-    var ballY: CGFloat = 0
+    var ballY: CGFloat = -1.5
 }
 
 /// **The wedges over the ball** — the Moves left, and the three finishes they become —
@@ -411,11 +411,11 @@ struct DebugActionsView: View {
             if showBoard {
                 HStack(spacing: 4) {
                     action("reset") {
-                        board.titleScale = 1; board.titleY = 0
-                        board.ballScale = 1; board.ballY = 0
-                        board.buttonScale = 1; board.buttonY = 0
-                        board.handScale = 1; board.handY = 0
-                        board.bidsScale = 1; board.bidsY = 0
+                        board.titleScale = 1; board.titleY = -72
+                        board.ballScale = 1; board.ballY = -1.5
+                        board.buttonScale = 1; board.buttonY = 110
+                        board.handScale = 1; board.handY = 140
+                        board.bidsScale = 0.7; board.bidsY = -95
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
