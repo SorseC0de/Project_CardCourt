@@ -154,10 +154,11 @@ final class BallOverlayTuning {
     static let shared = BallOverlayTuning()
 
     /// A share of the card's own width.
-    var scale: CGFloat = 0.38
-    /// Where it sits on the card, in points from its middle.
+    var scale: CGFloat = 0.5
+    /// Where it sits on the card, in points from its middle. It rides high on the card,
+    /// clear of the words.
     var x: CGFloat = 0
-    var y: CGFloat = 0
+    var y: CGFloat = -15
 }
 
 /// **The wedges over the ball** — the Moves left, and the three finishes they become —
@@ -330,7 +331,7 @@ struct DebugActionsView: View {
                     action("reset") {
                         hand.lift = 75; hand.spacing = 0.75; hand.scale = 1
                         arc.scale = 0.9; arc.spacing = 3
-                        overlay.scale = 0.38; overlay.x = 0; overlay.y = 0
+                        overlay.scale = 0.5; overlay.x = 0; overlay.y = -15
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
