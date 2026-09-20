@@ -52,8 +52,13 @@ struct MoveSlotsView: View {
         .animation(.easeOut(duration: 0.25), value: played)
     }
 
-    /// One Move: the subject the cards are printed with, on a rounded slab. Spent, it
-    /// takes the plate's own drop; still there, it sits in the quiet the empty wells wear.
+    /// How big the shoe is drawn against its slab. Over one: it stands on the slab and
+    /// hangs off it, rather than sitting inside it like a card in a well.
+    private static let icon: CGFloat = 1.35
+
+    /// One Move: the subject the cards are printed with, standing on a rounded slab.
+    /// Spent, it takes the plate's own drop; still there, it sits in the quiet the empty
+    /// wells wear.
     private func slot(spent: Bool) -> some View {
         let corner = side.width * CardLayout.cornerFraction
         return ZStack {
@@ -62,14 +67,19 @@ struct MoveSlotsView: View {
             RoundedRectangle(cornerRadius: corner)
                 .strokeBorder(spent ? CardPalette.navy : CardPalette.green.opacity(0.6),
                               lineWidth: max(1, 1.5 * unit))
+        }
+        .frame(width: side.width, height: side.height)
+        // Over the slab rather than inside it, so it can hang off the edges.
+        .overlay {
             Image("TypeMoveFront")
                 .resizable()
                 .scaledToFit()
-                .padding(side.width * 0.16)
+                .frame(width: side.width * Self.icon, height: side.height * Self.icon)
                 .foregroundStyle(spent ? CardPalette.navy : CardPalette.green)
                 .opacity(spent ? 1 : 0.55)
+                .shadow(color: CardPalette.black.opacity(spent ? 0.4 : 0), radius: 0,
+                        x: 1.5 * unit, y: 1.5 * unit)
         }
-        .frame(width: side.width, height: side.height)
     }
 }
 

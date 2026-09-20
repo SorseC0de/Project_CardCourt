@@ -129,9 +129,6 @@ struct StatusHUDView: View {
     /// side by side — the main one and the officials', each the same drawing.
     private var spreadOut: some View {
         ZStack(alignment: .top) {
-            ShotBadgeView(shot: shownShot, ballSize: ballSize,
-                          hidden: !state.canReadShot(GameRules.localSeat))
-                .tutorialTarget(.shotHUD)
             HStack(alignment: .top) {
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: ballSize * 0.10) {

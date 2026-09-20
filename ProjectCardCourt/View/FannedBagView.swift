@@ -64,6 +64,12 @@ struct FannedBagView: View {
     private let commitThreshold: CGFloat = 95
 
     private enum Hand {
+        /// **How wide a card in the hand is drawn.** A tenth off what it was: the words
+        /// are read off the panel beside the board now, so a card here is a picture of
+        /// which card it is rather than something to read — see `CardTextPanel`.
+        static let card: CGFloat = 68
+        /// The room the fan stands in, at the same tenth off.
+        static let room: CGFloat = 119
         /// How far a chosen card stands out of the fan.
         static let chosenLift: CGFloat = 26
         /// What a card the rules will not take right now wears.
@@ -83,7 +89,7 @@ struct FannedBagView: View {
                 let lifted = dragging == card.id
                 let expanded = detail?.id == card.id && dragging == nil
 
-                CardFrontView(descriptor: card.descriptor, displayWidth: 76,
+                CardFrontView(descriptor: card.descriptor, displayWidth: Hand.card,
                               expanded: expanded,
                               isDormant: dormant.contains(card.id),
                               onKeyword: onKeyword,
@@ -100,13 +106,13 @@ struct FannedBagView: View {
                         let out = !marked && barred.contains(card.id)
                         if let tint = marked ? Theme.danger.opacity(0.33)
                                              : (out ? Hand.barredWash : wash) {
-                            RoundedRectangle(cornerRadius: 76 * CardLayout.cornerFraction,
+                            RoundedRectangle(cornerRadius: Hand.card * CardLayout.cornerFraction,
                                              style: .continuous)
                                 .fill(tint)
                                 .overlay {
                                     if marked {
                                         RoundedRectangle(
-                                            cornerRadius: 76 * CardLayout.cornerFraction,
+                                            cornerRadius: Hand.card * CardLayout.cornerFraction,
                                             style: .continuous)
                                             .stroke(Theme.danger, lineWidth: 2.5)
                                     }
@@ -131,7 +137,7 @@ struct FannedBagView: View {
                     .opacity(justPlayed.contains(card.id) ? 0 : 1)
                     .allowsHitTesting(!justPlayed.contains(card.id))
                     .padRing(ringed == card.id && !justPlayed.contains(card.id),
-                             corner: 76 * CardLayout.cornerFraction)
+                             corner: Hand.card * CardLayout.cornerFraction)
                     // Outside the ring, so a lesson's enlargement grows the ring with the card.
                     .tutorialTarget(.handCard(card.descriptor.id))
                     .modifier(ShakeEffect(progress: refused == card.id ? refusal : 0))
@@ -168,7 +174,7 @@ struct FannedBagView: View {
                     .animation(.spring(response: 0.34, dampingFraction: 0.78), value: cards.count)
             }
         }
-        .frame(height: 132)
+        .frame(height: Hand.room)
     }
 
     private func tap(_ card: Card) {

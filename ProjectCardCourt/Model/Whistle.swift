@@ -148,9 +148,10 @@ struct WhistleEffect: Hashable, Codable {
     /// was fouled**, and he is the one shooting — so unlike every other Whistle here, the
     /// offender is the beneficiary.
     var freeThrowsToOffender = 0
-    /// Cancels the Clamps that were reducing the shooter's SHOT, and pays them what the
-    /// shot they were taking was worth.
-    var clearsShotDebuffClamps = false
+    /// **Waves the defenders off the man it was called for.** Goaltending is called on a
+    /// shot taken over a Clamp and says *cancel it* — the defender goes to Retirement with
+    /// the call. Nothing wore this before, and the Clamp stood on through the whistle.
+    var wavesOffClamps = false
     var awardsShotValueToOffender = false
     /// Only fires when the man shooting is actually being held down. A Whistle with a
     /// condition rather than only a trigger — see `Rules.interceptor`.

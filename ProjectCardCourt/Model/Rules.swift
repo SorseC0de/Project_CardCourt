@@ -3593,9 +3593,12 @@ enum Rules {
             tickClock(by: card.descriptor.clockDelta, holder: seat,
                       state: &state, events: &events)
         }
-        if effect.clearsShotDebuffClamps {
-            let cleared = state[offender].clamps.filter { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
-            state[offender].clamps.removeAll { ($0.card.clamp?.shotDebuff ?? 0) != 0 }
+        if effect.wavesOffClamps, !state[offender].clamps.isEmpty {
+            let cleared = state[offender].clamps
+            state[offender].clamps.removeAll()
+            // **To the pile, like any other spent card.** The old branch dropped them,
+            // which took the cards out of the game.
+            state.discard.append(contentsOf: cleared.map { Card($0.card) })
             if let first = cleared.first {
                 events.append(.clampVoided(seat: offender, card: first.card,
                                            count: cleared.count))

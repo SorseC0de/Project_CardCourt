@@ -11,6 +11,9 @@ struct ActionBarView: View {
     var onInspectReferees: () -> Void = {}
     /// Held down: every name on the floor, for as long as it is held.
     var onNames: ((Bool) -> Void)?
+    /// **Whether the shoot ball has its rays out.** The screen owns it: a press anywhere
+    /// else puts them away — see `GameView`.
+    @Binding var shootOpen: Bool
     var onCombo: (CardDescriptor) -> Void = { _ in }
     var onBonus: (CardDescriptor, CGPoint) -> Void = { _, _ in }
     /// Traderous Tarmac and Varsitile open their own sheets, which the screen owns.
@@ -216,32 +219,12 @@ struct ActionBarView: View {
     private enum Act {
         static let width: CGFloat = 190
         static let height: CGFloat = 42
-        /// **Two of the old buttons wide.** With all three showing, each was a third of
-        /// `width` plus 18, with six between them — so this is exactly the room two of
-        /// them took, and the three finishes fold into it.
-        static let capsule: CGFloat = 2 * (width / 3 + 18) + 6
-        /// The ball at the head of the capsule, and the room either side of it.
-        static let ballInset: CGFloat = 10
-        static let ballGap: CGFloat = 6
-        /// The word in each segment — smaller than the old lone button's, since three
-        /// share the room one used to have.
-        static let segmentWord: CGFloat = 12
-        /// The seam between segments, and the white edge round the whole capsule.
-        static let seam: CGFloat = 1.5
-        static let capsuleStroke: CGFloat = 1.5
-        /// How much of the word a greyed segment keeps.
-        static let greyedInk: Double = 0.45
         /// The word, in the game's own lettering. The figure beside it is not — a
         /// percentage squeezed through `minimumScaleFactor` comes out unreadable, and it
         /// is a reading rather than a call.
         static let word: CGFloat = 19
         static let figure: CGFloat = 14
         static let ball: CGFloat = 22
-        /// **Each finish gets the same room**: what is left of the capsule after the ball
-        /// and the two seams, in thirds. Left to the stack, a longer word took more.
-        static var segment: CGFloat {
-            (capsule - ballInset - ball - ballGap - 2 * seam) / 3
-        }
         static let drop: CGFloat = 2
         /// The pill's own drop, deeper than its lettering's.
         static let pillDrop: CGFloat = 4
@@ -260,16 +243,6 @@ struct ActionBarView: View {
         static let wordGap: CGFloat = 0.5
         /// The second button is three quarters of the first, at the same height.
         static let secondShare: CGFloat = 0.75
-
-        /// **The pill each finish wears.** Orange is the shot that is always there;
-        /// the two that have to be earned say so by not being it.
-        static func pill(for finish: ShotType) -> Color {
-            switch finish {
-            case .layup: return CardPalette.orange
-            case .dunk:  return CardPalette.red
-            case .three: return CardPalette.gold
-            }
-        }
     }
 
     /// Orange, dropped in red; everything standing on it dropped in blue.
@@ -311,88 +284,14 @@ struct ActionBarView: View {
                     CardFrontView(descriptor: armed, displayWidth: Act.armedCard)
                         .transition(.scale.combined(with: .opacity))
                 }
-                shootPill
+                ShootControl(shot: controller.shownShot,
+                             hidden: !state.canReadShot(GameRules.localSeat),
+                             offered: Set(finishes),
+                             open: $shootOpen,
+                             ringed: ringed,
+                             onShoot: { controller.shoot(as: $0) })
             }
             .animation(.spring(response: 0.32, dampingFraction: 0.7), value: armed)
-        })
-    }
-
-    /// **One capsule, three segments, all of them always there.** The ball leads, then a
-    /// layup, a dunk and a three. A finish that is not on offer is greyed in place rather
-    /// than taken away, so the shape of the choice never changes under your thumb and you
-    /// can see what you are working toward.
-    ///
-    /// **Three fixed slots, never a `ForEach`.** Each segment's `SpectrumFill` has `@State`
-    /// of its own, and a list whose members come and go hands one child's state box to
-    /// another — a crash rather than a glitch. They never come and go now, but they stay
-    /// fixed so nothing can reintroduce it.
-    private var shootPill: AnyView {
-        AnyView(Group {
-            HStack(spacing: 0) {
-                Image("BallVector")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: Act.ball)
-                    .shadow(color: CardPalette.blue, radius: 0, x: Act.drop, y: Act.drop)
-                    .padding(.leading, Act.ballInset)
-                    .padding(.trailing, Act.ballGap)
-                finishPill(.layup)
-                segmentRule
-                finishPill(.dunk)
-                segmentRule
-                finishPill(.three)
-            }
-            .frame(width: Act.capsule, height: Act.height)
-            .background(Capsule().fill(CardPalette.orange))
-            .clipShape(Capsule())
-            .overlay(Capsule().strokeBorder(.white, lineWidth: Act.capsuleStroke))
-            .background(Capsule().fill(CardPalette.blue)
-                .offset(x: Act.pillDrop, y: Act.pillDrop))
-        })
-    }
-
-    /// The seam between two segments.
-    private var segmentRule: some View {
-        Rectangle()
-            .fill(CardPalette.blue.opacity(0.6))
-            .frame(width: Act.seam)
-    }
-
-    /// **One segment.** On offer, it is the finish's own colour — lit when the shot is
-    /// special. Off offer, it is greyed where it stands and cannot be pressed.
-    private func finishPill(_ finish: ShotType) -> AnyView {
-        AnyView(Group {
-            let open = finishes.contains(finish)
-            return Button { controller.shoot(as: finish) } label: {
-                // Plain type, not `ActionText`, with the same drop as the ball beside it.
-                Text(finish.name.uppercased())
-                    .font(.system(size: Act.segmentWord, weight: .heavy, design: .rounded))
-                    .tracking(Act.wordGap)
-                    .foregroundStyle(open ? .white : Color.white.opacity(Act.greyedInk))
-                    .shadow(color: CardPalette.blue.opacity(open ? 1 : 0),
-                            radius: 0, x: Act.drop, y: Act.drop)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .frame(width: Act.segment)
-                    .frame(maxHeight: .infinity)
-                    .background {
-                        if open {
-                            // **Lit when the shot is special** — Project Stars' Start
-                            // button, which is what this game reaches for when something
-                            // is *ready* rather than merely available. See `SpectrumFill`.
-                            // No `fill`: a filled shape ignores `foregroundStyle`.
-                            SpectrumFill(isLive: armed != nil && !floorIsHidden,
-                                         resting: Act.pill(for: finish)) {
-                                Rectangle()
-                            }
-                        } else {
-                            Rectangle().fill(CardPalette.gray)
-                        }
-                    }
-            }
-            .buttonStyle(.plain)
-            .disabled(!open)
-            .padRing(ringed == .finish(finish), corner: Act.height / 2)
         })
     }
 

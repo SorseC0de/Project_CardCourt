@@ -431,6 +431,7 @@ enum CardLibrary {
         effect: "Shooting over a ~[Clamp]: #[Cancel] it. Take the points. End round",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotAttempt, endsRound: true,
+                               wavesOffClamps: true,
                                awardsShotValueToOffender: true,
                                requiresShotOverClamp: true))
 

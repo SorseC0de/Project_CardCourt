@@ -31,6 +31,21 @@ func crewTests() {
                    "Traffic Cop's coin is thrown where it can be seen, heads or tails")
     }
     do {
+        // Goaltending: shooting over a defender cancels *him*.
+        var (state, seat, _) = openPossession(seed: 411, cards: [])
+        state.armedWhistles = [ArmedWhistle(owner: nil,
+                                            card: matchCard(CardLibrary.goaltending, state.rules))]
+        var clamp = ActiveClamp(card: CardLibrary.contest, from: seat.left)
+        clamp.bitten = true
+        state[seat].clamps = [clamp]
+        let events = Rules.apply(.shootAs(.layup), by: seat, to: &state)
+        Check.that(events.contains { if case .clampVoided = $0 { return true }; return false }
+                   && state[seat].clamps.isEmpty,
+                   "Goaltending waves the defender off with the call")
+        Check.that(state.discard.contains { $0.descriptor.id == CardLibrary.contest.id },
+                   "and he goes to Retirement rather than out of the game")
+    }
+    do {
         var (state, seat, cards) = openPossession(seed: 402, cards: [CardLibrary.contest])
         state.armedWhistles = [ArmedWhistle(owner: nil,
                                             card: matchCard(CardLibrary.retiringOfficial, state.rules))]

@@ -26,8 +26,15 @@ struct GameView: View {
     /// A mechanic somebody pressed on a card they were reading, and what it means.
     @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
+    /// **What the reading panel is set to**: the card raised out of your hand, or one
+    /// raised off the HUD or the floor — see `CardTextPanel`.
+    private var reading: CardDescriptor? { detail?.descriptor ?? inspecting?.card }
+
     /// Held: every name on the floor — see `ActionBarView`'s hold button.
     @State private var showingNames = false
+    /// **The shoot ball's rays.** Here rather than in the bar, because a press anywhere
+    /// else on the screen is what puts them away.
+    @State private var shootOpen = false
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -253,10 +260,22 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     statusBar
                         .opacity(callFade)
-                    ScoreboardView(state: controller.shown, withheld: controller.withheldPoints,
-                                   collapses: true)
-                        .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
-                        .opacity(callFade)
+                    // **The board on the left, and the card being read beside it.** A
+                    // closed board is a name and a score, which leaves the rest of the
+                    // row for the words of whatever card is in your hand.
+                    HStack(alignment: .top, spacing: 10) {
+                        ScoreboardView(state: controller.shown, withheld: controller.withheldPoints,
+                                       collapses: true)
+                            .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
+                        if let reading {
+                            CardTextPanel(card: reading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.trailing, 12)
+                    .animation(.easeOut(duration: 0.18), value: reading)
+                    .opacity(callFade)
                     hudRow
                         .opacity(callFade)
                         // **Where the name plate hangs from.** Measured rather than added up:
@@ -276,13 +295,20 @@ struct GameView: View {
                 // the hand's own band is when the question is about cards.
                 .zIndex(floorIsTheQuestion ? 9.5 : 0)
 
-                // Anywhere off the raised card puts it back down. Only present while one is
-                // up, so it never swallows a tap on the court.
-                if detail != nil || inspecting != nil {
+                // Anywhere off the raised card puts it back down, and the same press
+                // folds the shoot ball's rays away. Only present while one of them is up,
+                // so it never swallows a tap on the court.
+                if detail != nil || inspecting != nil || shootOpen {
                     Color.clear
                         .contentShape(Rectangle())
                         .ignoresSafeArea()
-                        .onTapGesture { detail = nil; inspecting = nil }
+                        .onTapGesture {
+                            detail = nil
+                            inspecting = nil
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.72)) {
+                                shootOpen = false
+                            }
+                        }
                 }
 
                 VStack(spacing: 0) {
@@ -292,6 +318,7 @@ struct GameView: View {
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
                                       onNames: { showingNames = $0 },
+                                      shootOpen: $shootOpen,
                                       onCombo: { comboOf = $0 },
                                       onBonus: { bonusOf = (card: $0, at: $1) },
                                       onHandOff: { handingOff = true },
