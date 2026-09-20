@@ -405,6 +405,7 @@ struct ActionBarView: View {
                         if let onPause { pauseButton(onPause) }
                         DeckSlotView(remaining: controller.shownDeck,
                                      waiting: controller.deckWaiting,
+                                     owed: controller.deckOwed,
                                      dealing: controller.dealingNow,
                                      routine: controller.deckRoutine,
                                      width: Act.deck) { controller.takeFromDeck() }

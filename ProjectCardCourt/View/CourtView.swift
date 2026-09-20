@@ -35,6 +35,8 @@ struct CourtView: View {
     var onOpenDiscard: (CGRect) -> Void = { _ in }
     /// Where the deck is standing, in the screen's own space — see `DeckPoint`.
     var deckAt: CGPoint?
+    /// And the spent pile beside it — see `DiscardPoint`.
+    var discardAt: CGPoint?
     var onSelect: (Seat) -> Void
     /// **Which button stands for which man**, while the game is asking which of them.
     /// The pad's own glyph for each face button, over the head of the man it names — see
@@ -73,7 +75,6 @@ struct CourtView: View {
     /// True while a Clamp is being read, which is when who is already clamped matters.
     var showingClamps = false
     /// A tap on somebody who is not a legal target: read them instead of passing to them.
-    var onInspectPlayer: (Seat) -> Void = { _ in }
     /// A tap on a referee: the man who was tapped, and where on screen, so his card can
     /// rise from him.
     var onTapReferee: (UUID, CGPoint) -> Void = { _, _ in }
@@ -241,25 +242,16 @@ struct CourtView: View {
                 // Between the floor and the stage. The 3D piles are a layer of their
                 // own, so a shadow drawn alongside them would land on top instead of
                 // under.
-                PileShadow(width: geo.size.width * Perspective.pileCardShare
-                                  * deckTuning.size,
-                           across: geo.size.width,
-                           phase: 0.5,
-                           paused: pilesStill)
-                    // Nothing is standing there to cast one.
-                    .opacity(state.discard.isEmpty ? 0 : 1)
-                    .animation(.easeOut(duration: 0.25), value: state.discard.isEmpty)
-                    .position(discardPoint(on: court))
-
                 // One scene for the whole floor. Everything on it is placed from the same
                 // court points the sprites use, so the two cannot disagree.
                 if render.courtStage {
                     CourtStage(deckAt: share(deckOrigin(on: court, in: geo), in: geo.size),
-                               discardAt: share(discardPoint(on: court), in: geo.size),
+                               discardAt: share(discardOrigin(on: court, in: geo),
+                                                in: geo.size),
                                // Nothing to draw: the pile is in the bar.
                                deckLayers: 0,
-                               discardLayers: state.discard.isEmpty ? 0
-                                   : DeckStackView.layers(for: state.discard.count),
+                               // Nothing to draw: the spent pile is in the bar too.
+                               discardLayers: 0,
                                deckRoutine: deckRoutine,
                                flight: deal.map { deal in
                                    CardFlight(id: deal.id,
@@ -282,7 +274,8 @@ struct CourtView: View {
                                    CardFlight(id: spent.id,
                                               from: share(court.footing(of: spent.seat),
                                                           in: geo.size),
-                                              to: share(discardPoint(on: court), in: geo.size),
+                                              to: share(discardOrigin(on: court, in: geo),
+                                                        in: geo.size),
                                               seconds: Pacing.spendFlight)
                                },
                                // The piles stand still for an inbound with everyone else.
@@ -325,10 +318,10 @@ struct CourtView: View {
                 ForEach(CourtItem.inDepthOrder(viewedFrom: viewer, referees: floorCrew),
                         id: \.self) { item in
                     place(item, on: court, in: geo.size)
-                        // People come up over the dim; the piles stay under it. Equal
-                        // numbers keep their declaration order, so the far-to-near sort
-                        // still decides who overlaps whom.
-                        .zIndex(isStill && item.isPerson ? Layer.people : Layer.stage)
+                        // Everybody comes up over the dim. Equal numbers keep their
+                        // declaration order, so the far-to-near sort still decides who
+                        // overlaps whom.
+                        .zIndex(isStill ? Layer.people : Layer.stage)
                 }
                 .animation(.spring(response: 0.4, dampingFraction: 0.7),
                            value: floorCrew)
@@ -718,6 +711,14 @@ struct CourtView: View {
         pilePoint(lateral: Perspective.discardLateral, on: court)
     }
 
+    /// **Where a spent card is going.** The pile is up in the bar beside the deck, so
+    /// this is that mark's own middle brought into the court's space — see `DiscardPoint`.
+    private func discardOrigin(on court: CourtGeometry, in geo: GeometryProxy) -> CGPoint {
+        guard let discardAt else { return discardPoint(on: court) }
+        let floor = geo.frame(in: .named(Chrome.screen))
+        return CGPoint(x: discardAt.x - floor.minX, y: discardAt.y - floor.minY)
+    }
+
     /// Where a pile stands, nudged by the bench. Both renderers come through here, which
     /// is the only reason the flat pile and the staged one land on the same spot.
     private func pilePoint(lateral: CGFloat, on court: CourtGeometry) -> CGPoint {
@@ -1100,7 +1101,11 @@ struct CourtView: View {
     }
 
     private func marker(for seat: Seat, selectable: Bool) -> Color? {
+        // A question being asked always marks who it is about.
         if selectable { return seat == ringed ? CardPalette.gold : Theme.live }
+        // **Who has the ball goes up with the names.** It is the same kind of label, and
+        // a mark hanging over somebody's head all game is a mark nobody reads.
+        guard showingNames else { return nil }
         if case .inbound = state.phase { return nil }
         return state.phase.actingSeat == seat ? .white : nil
     }
@@ -1113,19 +1118,18 @@ struct CourtView: View {
 
     // MARK: - Depth ordering
 
-    /// Everything that stands on the floor, so one sort covers players and the deck.
+    /// Everybody who stands on the floor, in one sort.
+    ///
+    /// **The furniture has left it.** Both piles are up in the bar now — the deck because
+    /// your own cards come off it by hand, and the discard because it is read there — so
+    /// what is left on the floor is people.
     private enum CourtItem: Hashable {
         case player(Seat)
-        case deck
         case referee(RefereeCall)
-
-        /// A player or a referee, rather than the furniture.
-        var isPerson: Bool { if case .deck = self { return false }; return true }
 
         func depth(viewedFrom viewer: Seat) -> CGFloat {
             switch self {
             case .player(let seat): return Perspective.depth(of: seat.slot(viewedFrom: viewer))
-            case .deck:             return Perspective.deckDepth
             // The wing referees stand behind everybody, whatever their depth says.
             case .referee(let call): return call.post.isSouth ? call.post.depth : 0
             }
@@ -1133,8 +1137,7 @@ struct CourtView: View {
 
         static func inDepthOrder(viewedFrom viewer: Seat,
                                  referees: [RefereeCall]) -> [CourtItem] {
-            (Seat.allCases.map(CourtItem.player) + [.deck]
-                + referees.map(CourtItem.referee))
+            (Seat.allCases.map(CourtItem.player) + referees.map(CourtItem.referee))
                 .sorted { $0.depth(viewedFrom: viewer) < $1.depth(viewedFrom: viewer) }
         }
     }
@@ -1204,24 +1207,6 @@ struct CourtView: View {
                              + Perspective.footDrop(at: court.scale(of: post)))
                 // Referees do not walk on. They are there or they are not.
                 .transition(.columnWarp())
-        case .deck:
-            let depth = Perspective.deckDepth
-            let width = Self.pileWidth * deckTuning.size
-            // **The draw pile is not on the floor any more** — it is down in the bar,
-            // where a thumb can reach it, because your own cards come off it by hand.
-            // See `DeckSlotView`. The discard stays: nothing is ever asked of it.
-            DiscardPileView(count: state.discard.count, width: width,
-                            showsPile: !render.courtStage)
-                .scaleEffect(court.scale(at: depth), anchor: .bottom)
-                .contentShape(Rectangle())
-                .overlay {
-                    GeometryReader { pile in
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture { onOpenDiscard(pile.frame(in: .global)) }
-                    }
-                }
-                .position(discardPoint(on: court))
         case .player(let seat):
             let footing = court.footing(of: seat, inbounding: thrower)
             let scale = court.scale(of: seat, inbounding: thrower)
@@ -1353,7 +1338,9 @@ struct CourtView: View {
             // shape went on taking taps meant for whoever is standing behind it, answering
             // them with an inspection of the man who had left.
             .allowsHitTesting(!isAway(seat))
-            .onTapGesture { selectable ? onSelect(seat) : onInspectPlayer(seat) }
+            // **Only when he is being asked for.** What there is to know about a player
+            // is on his own block along the top — see `SeatPanelsView`.
+            .onTapGesture { if selectable { onSelect(seat) } }
             // The button that names him, over his head where the wedge is. Only ever while
             // the question is up, and only ever for a pad.
             .overlay(alignment: .top) {

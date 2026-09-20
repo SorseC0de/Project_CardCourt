@@ -9,6 +9,15 @@ struct DeckPoint: PreferenceKey {
     }
 }
 
+/// **And where the spent pile is standing.** A card given up flies to the mark in the
+/// bar now, since there is no pile on the floor to land on.
+struct DiscardPoint: PreferenceKey {
+    static let defaultValue: CGPoint? = nil
+    static func reduce(value: inout CGPoint?, nextValue: () -> CGPoint?) {
+        value = nextValue() ?? value
+    }
+}
+
 /// **The deck, in reach.**
 ///
 /// It stood out on the floor with the discard, which is where a deck sits on a table and
@@ -22,6 +31,8 @@ struct DeckSlotView: View {
     let remaining: Int
     /// The game is holding a card at the top of the pile until you take it.
     var waiting: Bool
+    /// How many it still owes you, counting the one it is holding.
+    var owed: Int = 0
     /// The card on its way to somebody, so the pile can turn and nod toward them.
     var dealing: (seat: Seat, id: UUID)?
     /// What the deck is being asked to do — a shuffle, a landing. It came with the pile
@@ -36,6 +47,8 @@ struct DeckSlotView: View {
         /// How far above the pile the arrow's point sits.
         static let arrow: CGFloat = 38
         static let arrowWidth: CGFloat = 30
+        /// The count standing on the pile, as a share of the pile's own width.
+        static let count: CGFloat = 0.34
         /// How far out the man it is dealing to stands, in the deck's own metres. Only
         /// the direction is read, so this is any distance that is not nothing.
         static let reach: Float = 0.2
@@ -57,6 +70,13 @@ struct DeckSlotView: View {
             // The footprint answers the press, not the slabs drawn inside it.
             .contentShape(Rectangle())
             .onTapGesture(perform: onTake)
+            // **What it still owes you**, lettered the way a card's own $[2X] is.
+            .overlay {
+                if waiting, owed > 1 {
+                    TwoXMark(size: width * Slot.count, text: "\(owed)")
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
             .overlay(alignment: .top) {
                 if waiting {
                     DrawArrow(width: Slot.arrowWidth)
@@ -72,6 +92,7 @@ struct DeckSlotView: View {
                 }
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: waiting)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: owed)
     }
 
     /// **The pile itself.** The deck a player watches is the drawn one; the flat stack is

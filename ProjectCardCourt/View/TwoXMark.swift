@@ -7,6 +7,10 @@ import SwiftUI
 /// `CardText`, which asks for it wherever a card writes `$[2X]`.
 struct TwoXMark: View {
     let size: CGFloat
+    /// **What is lettered in it.** "2X" on a card; the deck in the bar wears the number
+    /// of cards it still owes you in the same hand, since it is the same kind of fact —
+    /// a small figure that has to read over whatever it is standing on.
+    var text: String = "2X"
 
     /// How far under the baseline the picture sits, as a share of the text size, so it
     /// centres on the letters beside it rather than standing on their feet.
@@ -38,7 +42,7 @@ struct TwoXMark: View {
     }
 
     private var letters: Text {
-        Text("2X").font(.custom(Layout.face, size: size))
+        Text(text).font(.custom(Layout.face, size: size))
     }
 
     /// A thick outline: the letters in black, nudged round a ring.

@@ -703,6 +703,10 @@ final class GameController {
     /// opens with come off the deck when you take them, which is a tap on the pile — see
     /// `DeckSlotView`. Nobody else's draws wait: an opponent takes his own cards.
     private(set) var deckWaiting = false
+    /// **How many cards the pile still owes you**, of the batch it is handing over. An
+    /// opening hand is four presses, and a press that says nothing about how many are
+    /// left is a press you make wondering whether the game has stopped.
+    private(set) var deckOwed = 0
     /// Answered by the tap. Cleared as the wait begins, so a press made while the game
     /// was busy is not a press banked against the next draw.
     private var deckTaken = false
@@ -1734,6 +1738,7 @@ final class GameController {
         // already sitting in front of you before a single card had flown, and taking
         // them off the deck was watching cards arrive somewhere they already were.
         for case .drew(_, _, let card, _) in events { undelivered.insert(card) }
+        deckOwed = Self.owed(in: events)
         for case .drew(let seat, _, let card, let opening) in events {
             await fly(to: seat, over: duration, delivering: card, opening: opening)
             if Task.isCancelled { return }
@@ -1746,6 +1751,14 @@ final class GameController {
         spend = (seat, UUID())
         try? await Task.sleep(for: .seconds(Pacing.spendFlight))
         spend = nil
+    }
+
+    /// How many of a batch's draws are yours to take off the pile by hand.
+    private static func owed(in events: [GameEvent]) -> Int {
+        events.reduce(into: 0) { total, event in
+            if case .drew(let seat, _, _, let opening) = event,
+               opening, seat == GameRules.localSeat { total += 1 }
+        }
     }
 
     /// **Holds until the pile is tapped.** Only ever your own, and only the draws you
@@ -1776,7 +1789,10 @@ final class GameController {
 
     private func fly(to seat: Seat, over duration: Double, delivering card: UUID? = nil,
                      opening: Bool = false) async {
-        if opening, seat == GameRules.localSeat { await waitForTheDeck() }
+        if opening, seat == GameRules.localSeat {
+            await waitForTheDeck()
+            deckOwed = max(0, deckOwed - 1)
+        }
         // Counted off as it leaves, not when the rules dealt it.
         if shownDeck > 0 { shownDeck -= 1 }
         flightDuration = duration
@@ -3199,6 +3215,7 @@ final class GameController {
         // Marked before a single scene plays: the rules dealt these on the way in, and the
         // hand must not have them until their flight says so.
         for case .drew(_, _, let card, _) in events { undelivered.insert(card) }
+        deckOwed = Self.owed(in: events)
         for case .shotAttempted(_, let chance, _) in events { lastChance = chance }
         for case .intangibleRevealed(let seat, _) in events {
             unrevealed[seat, default: 0] += 1

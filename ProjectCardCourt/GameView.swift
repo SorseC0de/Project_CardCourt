@@ -122,6 +122,8 @@ struct GameView: View {
     @State private var handMidline: CGFloat?
     /// Where the deck is standing, so a drawn card can fly off it — see `DeckPoint`.
     @State private var deckAt: CGPoint?
+    /// And the spent pile, which is where a card given up is going.
+    @State private var discardAt: CGPoint?
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -348,6 +350,7 @@ struct GameView: View {
                 // stays inside the safe area.
                 VStack(spacing: 0) {
                     statusBar
+                        .onPreferenceChange(DiscardPoint.self) { discardAt = $0 }
                         .opacity(callFade)
                     // **Four blocks across the top, and a card's words over them.** The
                     // names and the totals stay up: what a card says is read against who
@@ -531,9 +534,6 @@ struct GameView: View {
                 if let onFloor {
                     Group {
                         switch onFloor {
-                        case .player(let seat):
-                            PlayerInspectView(state: controller.shown, seat: seat,
-                                              onDismiss: closeFloor)
                         case .referees:
                             RefereeInspectView(state: controller.shown, onDismiss: closeFloor)
                         }
@@ -1077,6 +1077,7 @@ struct GameView: View {
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = $0 },
                   deckAt: deckAt,
+                  discardAt: discardAt,
                   onSelect: select,
                   faces: padGlyphs,
                   ringed: pad.isAttached && padFaces == nil ? cursor.seat : nil,
@@ -1100,7 +1101,6 @@ struct GameView: View {
                   shooting: controller.cutscene != nil,
                   showingClamps: readingAClamp,
                   // A lesson is about the cards; nobody on the floor opens.
-                  onInspectPlayer: { seat in if tutorial == nil { open(.player(seat)) } },
                   onTapReferee: { tapReferee($0, at: $1) },
                   camera: controller.camera,
                   passThrow: controller.passThrow,
@@ -1589,7 +1589,6 @@ struct GameView: View {
     private func look(at spot: PadSpot?) {
         switch spot {
         case .card(let id): detail = focused(id)
-        case .seat(let seat): if tutorial == nil { onFloor = .player(seat) }
         default: break
         }
     }

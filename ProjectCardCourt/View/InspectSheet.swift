@@ -1,16 +1,14 @@
 import SwiftUI
 
 /// What a tap on the floor opens.
+///
+/// **A player is not one of them any more.** What there was to know about him — his
+/// score, his line, the card standing on him, the size of his hand — is all on his own
+/// block along the top of the screen, which is where it is read.
 enum Inspection: Equatable, Identifiable {
-    case player(Seat)
     case referees
 
-    var id: String {
-        switch self {
-        case .player(let seat): return "player-\(seat.rawValue)"
-        case .referees:         return "referees"
-        }
-    }
+    var id: String { "referees" }
 }
 
 /// The frame both floor popovers are built in.

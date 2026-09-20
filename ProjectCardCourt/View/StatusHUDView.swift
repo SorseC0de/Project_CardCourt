@@ -138,7 +138,10 @@ struct StatusHUDView: View {
             // What is left to draw and what has already been spent, together at the head
             // of the bar — the two halves of one pile. The officials' deck keeps the far
             // end to itself.
-            HStack(alignment: .center, spacing: ballSize * Deck.pair) {
+            // The two halves of one pile, close enough together to read as a pair —
+            // the room between the two *decks* is what `Deck.pair` is for, and it left a
+            // hole here that looked like the spacer.
+            HStack(alignment: .center, spacing: ballSize * 0.16) {
                 remaining
                 discarded
             }
@@ -247,10 +250,24 @@ struct StatusHUDView: View {
                 .shadow(color: CardPalette.black, radius: 0, x: Deck.drop, y: Deck.drop)
                 .contentTransition(.numericText())
         }
+        // **What makes it the spent pile at a glance.** Two piles of cards side by side
+        // are two piles of cards; the cross is the whole difference.
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "xmark")
+                .font(.system(size: readout.number * Deck.cross, weight: .black))
+                .foregroundStyle(.white)
+                .padding(readout.number * 0.12)
+                .background(Circle().fill(CardPalette.red))
+                .overlay(Circle().strokeBorder(CardPalette.black, lineWidth: 1.5))
+                .offset(x: readout.number * 0.3, y: -readout.number * 0.3)
+        }
         .contentShape(Rectangle())
         .background {
             GeometryReader { box in
+                let screen = box.frame(in: .named(Chrome.screen))
                 Color.clear
+                    .preference(key: DiscardPoint.self,
+                                value: CGPoint(x: screen.midX, y: screen.midY))
                     .onAppear { discardFrame = box.frame(in: .global) }
                     .onChange(of: box.frame(in: .global)) { _, now in discardFrame = now }
             }
@@ -263,6 +280,8 @@ struct StatusHUDView: View {
         static let drop: CGFloat = 3
         /// The spent pile's own mark, against the deck glyph beside it.
         static let discard: CGFloat = 0.78
+        /// The cross on it, against the count it is standing beside.
+        static let cross: CGFloat = 0.42
         /// **The turned deck, drawn up and left of its count** by this much: turned, the
         /// sheet sat low and to the right of the number it carries.
         static let tilt: CGFloat = 4
