@@ -316,9 +316,11 @@ struct GameView: View {
                                        onSelect: { inspecting = (card: $0, from: $1) })
                             .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                         if let reading {
+                            // Edge to edge, and exactly the band the blocks' cards were
+                            // standing in — see `SeatPanelsView.readingBand`.
                             CardTextPanel(card: reading)
-                                .padding(.horizontal, 6)
-                                .padding(.bottom, 4)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: SeatPanelsView.readingBand)
                         }
                     }
                     .padding(.horizontal, 12)

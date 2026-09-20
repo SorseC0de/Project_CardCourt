@@ -18,6 +18,8 @@ struct CardTextPanel: View {
         static let label: CGFloat = 11
         static let gap: CGFloat = 5
         static let corner: CGFloat = 8
+        /// How far the words may shrink to fit the band they are given.
+        static let shrink: CGFloat = 0.7
     }
 
     private var face: CardFace { CardFace(of: card) }
@@ -37,21 +39,24 @@ struct CardTextPanel: View {
             .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
 
             CardText(text: card.effect, font: CardFont.name(tuning.weight),
-                     size: Panel.text, lineHeight: 1.05, maxLines: 12,
+                     size: Panel.text, lineHeight: 1.05, maxLines: 8,
+                     minScale: Panel.shrink,
                      ink: .white, highlight: tuning.highlight, face: face)
 
             if let bonus = card.bonus { clause("Bonus", bonus) }
             if let combo = card.combo {
                 clause(Combo.involving(card).first?.name ?? "Combo", combo)
             }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // **Whatever room it is given**: the band under the names, edge to edge.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: Panel.corner, style: .continuous)
-            .fill(Theme.panel))
-        .overlay(RoundedRectangle(cornerRadius: Panel.corner, style: .continuous)
-            .strokeBorder(CardSkin.of(face).ring, lineWidth: 2))
+        .padding(.vertical, 6)
+        .background(Theme.panel)
+        .overlay(alignment: .top) {
+            Rectangle().fill(CardSkin.of(face).ring).frame(height: 2)
+        }
         .transition(.opacity)
         .allowsHitTesting(false)
     }

@@ -61,15 +61,24 @@ struct SeatPanelsView: View {
     /// container: the block's height is worked out from it, and a reader that answers
     /// only after layout left the row the wrong height — which is what let the blocks
     /// hang over the card under them.
-    private var across: CGFloat { Chrome.screenWidth / CGFloat(order.count) }
+    private var across: CGFloat { Self.blockWidth }
+    private var height: CGFloat { Self.height }
+    private var cardWidth: CGFloat { Self.cardWidth }
+    private var cardHeight: CGFloat { Self.cardHeight }
+
+    @MainActor static var blockWidth: CGFloat { Chrome.screenWidth / CGFloat(Seat.allCases.count) }
+    @MainActor static var cardWidth: CGFloat { blockWidth * Panel.card }
+    @MainActor static var cardHeight: CGFloat { cardWidth / CardMetrics.aspect }
 
     /// A block's own height: the line of type, the card under it, and the padding.
-    private var height: CGFloat {
+    @MainActor static var height: CGFloat {
         Panel.pad * 2 + Panel.score * 1.2 + Panel.gap + cardHeight
     }
 
-    private var cardWidth: CGFloat { across * Panel.card }
-    private var cardHeight: CGFloat { cardWidth / CardMetrics.aspect }
+    /// **The band under the name row**, which is where a card's words stand while one is
+    /// being read: it begins under the names and ends where the blocks do, so what it
+    /// covers is exactly what the blocks' own cards were standing in.
+    @MainActor static var readingBand: CGFloat { Panel.gap + cardHeight + Panel.pad }
 
     private func panel(_ seat: Seat, across: CGFloat) -> some View {
         let mine = seat == GameRules.localSeat
