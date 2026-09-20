@@ -631,7 +631,15 @@ struct CourtView: View {
     /// a wind-up late, and the man the ball is *going* to is already its holder by then:
     /// that gap is a receiver dribbling a ball nobody has thrown yet.
     private func ballIsComing(to seat: Seat) -> Bool {
-        guard holder == seat, caught?.seat != seat else { return false }
+        guard holder == seat else { return false }
+        // **Has he caught *this* one?** The stamp is never cleared — it names the man and
+        // the moment — so "he is named in it" is not the question: a second pass to the
+        // same man read his last catch as this one and had him dribbling from the throw.
+        // Only a catch stamped since this ball was thrown means he has it.
+        let thrown = [settledAt, thrownBy?.at].compactMap { $0 }.max()
+        if let caught, caught.seat == seat, let thrown, caught.at >= thrown { return false }
+        // A throw-in carries no time of its own, so its catch is the only end of it.
+        if let caught, caught.seat == seat, throwing?.to == seat { return false }
         return ballInFlight || passer != nil || throwing?.to == seat
     }
 
