@@ -130,8 +130,8 @@ struct StatusHUDView: View {
     /// enough to be read where they stand rather than tapped open to be.
     private var spreadOut: some View {
         HStack(alignment: .center, spacing: ballSize * 0.24) {
-            // The main deck over the officials', one under the other.
-            VStack(alignment: .trailing, spacing: ballSize * Deck.pair) {
+            // The main deck and the officials', side by side in the bar.
+            HStack(alignment: .center, spacing: ballSize * Deck.pair) {
                 remaining
                 officialsRemaining
             }
@@ -139,7 +139,6 @@ struct StatusHUDView: View {
                 if owed > 0 { pending }
                 if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
                 if state.whistlesSilenced { silenced }
-                if !state.armedWhistles.isEmpty { crew }
             }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
@@ -306,12 +305,12 @@ struct StatusHUDView: View {
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 
-    /// How wide one of the crew's cards is drawn.
+    /// **How wide the working official's card is drawn: the size it is read at.**
     ///
-    /// **Readable where it stands.** One official works the round and everybody plays
-    /// under him, so his card is printed at the size a card is read at rather than at the
-    /// size of a reminder that something is being watched for.
-    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 78 }
+    /// One official works the round and everybody plays under him, so his card is printed
+    /// where it stands rather than tapped open — and the words are a share of the card's
+    /// own width, so the card has to be this big for them to be worth printing.
+    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 140 }
 
     private enum Crew {
         /// **Against the referee icon that stood here**, which is itself smaller than the

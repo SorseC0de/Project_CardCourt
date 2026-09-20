@@ -227,10 +227,10 @@ struct ActionBarView: View {
     // MARK: - Buttons
 
     private enum Act {
-        /// **The ball, two thirds of the way across the screen**, and the sixth either
-        /// side of it that the furniture stands in.
-        static let domeShare: CGFloat = 0.66
-        static let side: CGFloat = 0.165
+        /// **The ball, half the way across the screen**, and the quarter either side of
+        /// it that the furniture stands in.
+        static let domeShare: CGFloat = 0.50
+        static let side: CGFloat = 0.25
         static func dome(_ across: CGFloat) -> CGFloat { across * domeShare }
         /// The band it takes: the arc, its air, and the third of the ball on screen. A
         /// phone's width, since the row is laid out before the reader knows the screen's.
@@ -369,7 +369,8 @@ struct ActionBarView: View {
                     .frame(width: across * Act.side, alignment: .leading)
                     Spacer(minLength: 0)
                     // What everybody is playing with, beside the ball you shoot with.
-                    FloorAndBallView(state: controller.shown, onSelect: onInspectBall)
+                    FloorAndBallView(state: controller.shown, alwaysShowsBall: true,
+                                     onSelect: onInspectBall)
                         .frame(width: across * Act.side, alignment: .trailing)
                 }
 

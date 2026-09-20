@@ -62,8 +62,10 @@ struct ShootDomeView: View {
         static let seam: Double = 4
         /// The number on the ball, and the word lapped over it.
         static let number: CGFloat = 0.27
+        /// The per-cent sign never matches the digits — see `ModeCardStyle.digitStandout`.
+        static let sign: CGFloat = 0.5
         static let word: CGFloat = 0.075
-        static let overlap: CGFloat = 0.34
+        static let wordGap: CGFloat = 0.03
         static let greyed: Double = 0.45
     }
 
@@ -89,6 +91,10 @@ struct ShootDomeView: View {
     var body: some View {
         ZStack(alignment: .top) {
             ball
+                // **Placed by its middle**, which is a long way under the screen's edge:
+                // laid out from the top of the band instead, the whole band showed — the
+                // arc's height and the air under it on top of the ball's own third.
+                .position(centre)
             ForEach(Array(Self.finishes.enumerated()), id: \.offset) { index, finish in
                 slice(index, finish: finish)
             }
@@ -109,20 +115,27 @@ struct ShootDomeView: View {
                 .frame(width: width, height: width)
                 .drawingGroup()
                 .shadow(color: CardPalette.blue, radius: 0, x: 3, y: 3)
-            // The reading, on the part of it that is on screen.
-            ZStack(alignment: .top) {
-                Text(hidden ? "??" : "\(shot)")
-                    .font(.custom(Chrome.display, size: width * Dome.number))
-                    .contentTransition(.numericText())
-                    .foregroundStyle(flash ?? .white)
-                    .shadow(color: .black, radius: 0, x: 4, y: 4)
-                ActionText("Shoot", size: width * Dome.word, ink: .white,
-                           drop: CardPalette.blue, taper: 0, tracking: 0.08)
-                    .offset(y: -width * Dome.word * Dome.overlap)
+            // The reading, on the part of it that is on screen: the ball's own top third.
+            // The word stands beside the number rather than over it, in the plain heavy
+            // type every other button on this bar is lettered in.
+            HStack(alignment: .firstTextBaseline, spacing: width * Dome.wordGap) {
+                Text("SHOOT")
+                    .font(.system(size: width * Dome.word, weight: .heavy, design: .rounded))
+                    .tracking(width * Dome.word * 0.06)
+                    .foregroundStyle(.white)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Text(hidden ? "??" : "\(shot)")
+                        .font(.custom(Chrome.display, size: width * Dome.number))
+                        .contentTransition(.numericText())
+                    Text(hidden ? "" : "%")
+                        .font(.custom(Chrome.display, size: width * Dome.number * Dome.sign))
+                }
+                .foregroundStyle(flash ?? .white)
             }
-            .offset(y: width * Dome.shown * 0.42)
+            .shadow(color: .black, radius: 0, x: 3, y: 3)
+            .offset(y: width * Dome.shown * 0.34)
         }
-        .frame(width: width, height: height, alignment: .top)
+        .frame(width: width, height: width)
         // Only the part of it that is on screen answers a press.
         .contentShape(Rectangle())
         .onTapGesture {

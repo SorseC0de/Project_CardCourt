@@ -26,6 +26,33 @@ struct GameView: View {
     /// A mechanic somebody pressed on a card they were reading, and what it means.
     @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
+    /// **The crew, under the blocks.** One card, big enough to read where it stands, and
+    /// tapped to raise it like any other.
+    private var crewCard: AnyView {
+        AnyView(HStack(spacing: 8) {
+            ForEach(controller.shown.armedWhistles) { whistle in
+                CardFrontView(descriptor: whistle.card.descriptor,
+                              displayWidth: StatusHUDView.crewCardWidth(),
+                              expanded: true,
+                              isDormant: whistle.stayed)
+                    .overlay {
+                        GeometryReader { card in
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    let box = card.frame(in: .global)
+                                    inspecting = (card: whistle.card.descriptor,
+                                                  from: CGPoint(x: box.midX, y: box.midY))
+                                }
+                        }
+                    }
+            }
+        }
+        .padding(.top, 6)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7),
+                   value: controller.shown.armedWhistles))
+    }
+
     /// **What the reading panel is set to**: the card raised out of your hand, or one
     /// raised off the HUD or the floor — see `CardTextPanel`.
     private var reading: CardDescriptor? { detail?.descriptor ?? inspecting?.card }
@@ -280,6 +307,11 @@ struct GameView: View {
                     .padding(.horizontal, 12)
                     .animation(.easeOut(duration: 0.18), value: reading)
                     .opacity(callFade)
+
+                    // **The official working the round, under the blocks**, printed at
+                    // the size his card is read at — everybody is playing under it.
+                    crewCard
+                        .opacity(callFade)
                     // **Where the name plate hangs from.** Measured rather than added up:
                     // the floor's own top depends on the rows above it, which depend on
                     // how many players there are.
