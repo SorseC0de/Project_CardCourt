@@ -10,6 +10,17 @@ struct LogView: View {
     private static let foot = "log-foot"
     private static let footRoom: CGFloat = 6
 
+    /// **How many lines are actually drawn.**
+    ///
+    /// A game writes about four hundred of them and every one was a laid-out row in a
+    /// stack that is rebuilt whenever anything here changes — so the log cost more the
+    /// longer a game ran and never gave it back. The tail is the part anybody reads; the
+    /// rest is kept on the controller, where a replay can still have it.
+    private static let window = 80
+
+    /// The tail, which is what is drawn.
+    private var shown: ArraySlice<LogLine> { lines.suffix(Self.window) }
+
     @State private var contentHeight: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var viewportHeight: CGFloat = 0
@@ -22,7 +33,7 @@ struct LogView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
-                        ForEach(lines) { line in
+                        ForEach(shown) { line in
                             Text(named(line))
                                 .font(.system(size: 10.5, weight: weight(line.kind), design: .monospaced))
                                 .foregroundStyle(color(line.kind))
@@ -41,15 +52,22 @@ struct LogView: View {
                     .padding(.trailing, isInteractive ? 6 : 0)
                     .padding(.top, 6)
                     .background {
-                        // Preferences do not survive the ScrollView here, so read the
-                        // geometry directly and publish it after layout settles.
-                        GeometryReader { content in
-                            let height = content.size.height
-                            let offset = -content.frame(in: .named("log")).minY
-                            Color.clear
-                                .onAppear { contentHeight = height; scrollOffset = offset }
-                                .onChange(of: height) { contentHeight = height }
-                                .onChange(of: offset) { scrollOffset = offset }
+                        // **Only while somebody can scroll it.** Preferences do not
+                        // survive the ScrollView here, so the geometry is read directly
+                        // and published — and publishing it is a state change, which
+                        // rebuilds every row above. The overlay log cannot be scrolled
+                        // and has no indicator, so it reads nothing at all; the readable
+                        // one rounds to whole points so a settling scroll stops writing.
+                        if isInteractive {
+                            GeometryReader { content in
+                                let height = content.size.height
+                                let offset = (-content.frame(in: .named("log")).minY)
+                                    .rounded()
+                                Color.clear
+                                    .onAppear { contentHeight = height; scrollOffset = offset }
+                                    .onChange(of: height) { contentHeight = height }
+                                    .onChange(of: offset) { scrollOffset = offset }
+                            }
                         }
                     }
                 }

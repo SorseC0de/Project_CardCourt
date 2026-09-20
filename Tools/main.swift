@@ -233,6 +233,7 @@ if args.contains("--refs") {
     var armed = 0, refocused = 0, clampsSet = 0, reinbounds = 0, shotPct = 0
     var forcedShots = 0, shootDecisions = 0, handSize = 0
     var ftTrips = 0, ftAttempts = 0, ftMade = 0
+    var logged = 0
     var blew: [String: Int] = [:]
     let preset: MatchRules = args.contains("--standard") ? .standard : .classic
     print("pool: \(preset.name) — \(preset.cardPool.reduce(0) { $0 + $1.numberInDeck }) cards")
@@ -240,6 +241,7 @@ if args.contains("--refs") {
         var (state, _) = Rules.newGame(seed: seed, rules: preset)
         var ai = AITable(seed: seed)
         var guardCounter = 0
+        var gameLog = 0
         while !state.isOver && guardCounter < 5000 {
             guardCounter += 1
             if case .awaitingDiscard(let who, _, _) = state.phase {
@@ -276,6 +278,8 @@ if args.contains("--refs") {
                 }
                 happened = Rules.apply(m, by: seat, to: &state)
             }
+            logged += happened.filter(\.isLoggable).count
+            gameLog += happened.filter(\.isLoggable).count
             for e in happened {
                 if case .shotAttempted = e { shots += 1 }
                 if case .shotMade = e { makes += 1 }
@@ -298,6 +302,7 @@ if args.contains("--refs") {
     }
     let n = 500.0
     print("500 games — unfinished: \(stuck)")
+    print("log lines: \(logged / 500) per game")
     print(String(format: "per game: PTS %.2f  AST %.2f  REB %.2f  TOV %.2f", Double(pts)/n, Double(ast)/n, Double(reb)/n, Double(tov)/n))
     print(String(format: "shots %.2f/game, made %.1f%%", Double(shots)/n, 100*Double(makes)/Double(max(shots,1))))
     print("move cards played/game: " + moves.sorted { $0.key < $1.key }
