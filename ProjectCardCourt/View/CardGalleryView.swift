@@ -10,6 +10,9 @@ struct CardGalleryView: View {
 
     @State private var type: CardType = .pass
     @State private var raised: CardDescriptor?
+    /// The two a raised card can open — see `CardFrontView`'s COMBO and BONUS.
+    @State private var comboOf: CardDescriptor?
+    @State private var bonusOf: (card: CardDescriptor, at: CGPoint)?
 
     private enum Sheet {
         static let card: CGFloat = 96
@@ -56,9 +59,25 @@ struct CardGalleryView: View {
                     .contentShape(Rectangle())
                     .ignoresSafeArea()
                     .onTapGesture { self.raised = nil }
-                CardFrontView(descriptor: raised, displayWidth: 240, expanded: true)
+                CardFrontView(descriptor: raised, displayWidth: 240, expanded: true,
+                              onCombo: { comboOf = raised },
+                              onBonus: { bonusOf = (card: raised, at: $0) })
                     .shadow(color: .black.opacity(0.55), radius: 22, y: 12)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+
+            // **What the two buttons on a raised card open**, the same pair the floor
+            // opens: the combos this card finishes, and the lines its bonus prints.
+            if let comboOf {
+                ComboView(card: comboOf) { self.comboOf = nil }
+                    .transition(.opacity)
+                    .zIndex(9)
+            }
+            if let bonusOf {
+                BonusBubble(lines: bonusOf.card.bonusLines, anchor: bonusOf.at) {
+                    self.bonusOf = nil
+                }
+                .zIndex(9)
             }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: raised)

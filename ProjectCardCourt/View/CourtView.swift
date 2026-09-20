@@ -44,6 +44,11 @@ struct CourtView: View {
     var ringed: Seat?
     /// The official the pad's ring is on, while a card is naming one.
     var ringedOfficial: UUID?
+    /// **A card being read, large.** Any official who would speak up about it wears a
+    /// watching eye while it is up — see `Rules.wouldCall`.
+    var judged: CardDescriptor?
+    /// Names over heads, for as long as the button is held.
+    var showingNames = false
     /// Cards dealt but not yet landed — see `GameController.undelivered`. A bag count
     /// that ticks up before the card arrives is the same instant draw in miniature.
     var undelivered: Set<UUID> = []
@@ -802,6 +807,21 @@ struct CourtView: View {
         let whistle: ArmedWhistle
         /// Stood just outside whoever else is on his post — see `floorCrew`.
         var outside = false
+
+        /// **The man and where he stands, and nothing about what he has done.** This is
+        /// the floor's identity for him — see the `ForEach` — and it carried the whole
+        /// Whistle, so the moment he made a call and was marked as having stayed, the
+        /// figure was a different one: he warped off his post and back onto it, which
+        /// reads as the crew changing in the middle of a round.
+        static func == (a: Self, b: Self) -> Bool {
+            a.post == b.post && a.whistle.id == b.whistle.id && a.outside == b.outside
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(post)
+            hasher.combine(whistle.id)
+            hasher.combine(outside)
+        }
     }
 
     /// **The crew on the floor while one of them throws it in.** The throw-in spot is
@@ -1104,12 +1124,26 @@ struct CourtView: View {
                 // crew goes unlabelled — the HUD has their cards — and a card that names
                 // an official is the one time the floor has to say which is which.
                 .overlay(alignment: .top) {
-                    if namedOfficials.contains(called.id) || called.id == ringedOfficial {
-                        FloorName(text: called.card.name,
-                                  ink: called.id == ringedOfficial ? CardPalette.gold : Theme.live)
-                            .scaleEffect(nameScale, anchor: .bottom)
-                            .offset(y: -FloorName.size * nameScale)
+                    let named = namedOfficials.contains(called.id) || called.id == ringedOfficial
+                    VStack(spacing: 1) {
+                        // **He is watching for the card you are reading.** Only while it
+                        // is up, and only on the men it would actually bring out.
+                        if let judged, Rules.wouldCall(called, on: judged,
+                                                       by: GameRules.localSeat, in: state) {
+                            Image(systemName: "eye.trianglebadge.exclamationmark.fill")
+                                .font(.system(size: FloorName.size, weight: .bold))
+                                .foregroundStyle(CardPalette.red)
+                                .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
+                        }
+                        if named || showingNames {
+                            FloorName(text: called.card.name,
+                                      ink: named ? (called.id == ringedOfficial
+                                                    ? CardPalette.gold : Theme.live)
+                                                 : .white)
+                        }
                     }
+                    .scaleEffect(nameScale, anchor: .bottom)
+                    .offset(y: -FloorName.size * nameScale)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture(coordinateSpace: .global) { onTapReferee(called.id, $0) }
@@ -1227,7 +1261,7 @@ struct CourtView: View {
                     // scale is divided back out.
                     .overlay(alignment: .top) {
                         HStack(spacing: 3) {
-                            FloorName(text: seat.playerName)
+                            if showingNames { FloorName(text: seat.playerName) }
                             // Whoever has it, said twice: the sprite is dribbling one and
                             // this is the same fact at a glance.
                             if holder == seat {

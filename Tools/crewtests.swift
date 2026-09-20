@@ -79,6 +79,15 @@ func crewTests() {
                    "and a call on somebody else costs nobody")
     }
     do {
+        var (state, seat, _) = openPossession(seed: 409, cards: [])
+        let cop = ArmedWhistle(owner: nil, card: matchCard(CardLibrary.travel, state.rules))
+        state.armedWhistles = [cop]
+        Check.that(Rules.wouldCall(cop, on: plainMove, by: seat, in: state),
+                   "the floor can say a Traffic Cop is watching for the Move you are reading")
+        Check.that(!Rules.wouldCall(cop, on: CardLibrary.bulletPass, by: seat, in: state),
+                   "and that he has nothing to say about a Pass")
+    }
+    do {
         var (state, seat, cards) = openPossession(seed: 408, cards: [plainMove])
         state.armedWhistles = [ArmedWhistle(owner: nil,
                                             card: matchCard(CardLibrary.rookieOfficial, state.rules))]

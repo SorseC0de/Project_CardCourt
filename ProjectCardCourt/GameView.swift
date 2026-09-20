@@ -26,6 +26,8 @@ struct GameView: View {
     /// A mechanic somebody pressed on a card they were reading, and what it means.
     @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
+    /// Held: every name on the floor — see `ActionBarView`'s hold button.
+    @State private var showingNames = false
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -288,6 +290,7 @@ struct GameView: View {
                         ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
+                                      onNames: { showingNames = $0 },
                                       onCombo: { comboOf = $0 },
                                       onBonus: { bonusOf = (card: $0, at: $1) },
                                       onHandOff: { handingOff = true },
@@ -938,6 +941,10 @@ struct GameView: View {
                   faces: padGlyphs,
                   ringed: pad.isAttached && padFaces == nil ? cursor.seat : nil,
                   ringedOfficial: pad.isAttached ? cursor.official : nil,
+                  // The card being read, large, and whether the floor is saying who
+                  // everybody is right now.
+                  judged: inspecting?.card ?? detail?.descriptor,
+                  showingNames: showingNames,
                   undelivered: controller.undelivered,
                   bound: controller.boundSeats,
                   spend: controller.spend,

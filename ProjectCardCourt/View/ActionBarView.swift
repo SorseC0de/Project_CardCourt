@@ -9,6 +9,8 @@ struct ActionBarView: View {
     var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
+    /// Held down: every name on the floor, for as long as it is held.
+    var onNames: ((Bool) -> Void)?
     var onCombo: (CardDescriptor) -> Void = { _ in }
     var onBonus: (CardDescriptor, CGPoint) -> Void = { _, _ in }
     /// Traderous Tarmac and Varsitile open their own sheets, which the screen owns.
@@ -445,6 +447,7 @@ struct ActionBarView: View {
     private var bottomRow: AnyView {
         AnyView(HStack(spacing: 8) {
             if let onOpenLog { logButton(onOpenLog) }
+            if let onNames { namesButton(onNames) }
             Spacer(minLength: 0)
             if case .awaitingMove = controller.gate, allowsShooting {
                 shootButton
@@ -480,6 +483,26 @@ struct ActionBarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Game log")
+    }
+
+    /// **Held, not tapped.** The floor goes unlabelled so the game can be looked at;
+    /// holding this says who everybody is for as long as you want it said.
+    private func namesButton(_ show: @escaping (Bool) -> Void) -> some View {
+        Image(systemName: "person.text.rectangle.fill")
+            .font(.system(size: 12, weight: .black))
+            .foregroundStyle(.white)
+            .frame(width: 27, height: 27)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(CardPalette.blue))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(.white, lineWidth: 1.5))
+            .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+            .contentShape(Rectangle())
+            // A press rather than a tap: `onChanged` fires the moment a finger lands.
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { _ in show(true) }
+                .onEnded { _ in show(false) })
+            .accessibilityLabel("Hold for names")
     }
 
     private func pauseButton(_ pause: @escaping () -> Void) -> some View {

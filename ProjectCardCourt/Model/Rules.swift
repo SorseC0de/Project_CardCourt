@@ -640,6 +640,19 @@ enum Rules {
         _ = source
     }
 
+    /// **Officials off the floor for the rest of the round**, and to the bottom of the Ref
+    /// deck like any other retired one — never into the players' pile, where a Ref card
+    /// would come round again in somebody's hand.
+    private static func dismiss(_ leaving: [UUID], state: inout GameState,
+                                events: inout [GameEvent]) {
+        guard !leaving.isEmpty else { return }
+        for id in leaving {
+            guard let at = state.armedWhistles.firstIndex(where: { $0.id == id }) else { continue }
+            sendOff(at, state: &state, events: &events)
+        }
+        events.append(.whistlesDismissed)
+    }
+
     /// One named official sent off for his call, if he is still on the floor.
     private static func retireCaller(_ caller: UUID, by seat: Seat,
                                      state: inout GameState, events: inout [GameEvent]) {
@@ -1076,10 +1089,8 @@ enum Rules {
         if let replaced = state.courtCard { state.discard.append(replaced) }
         // Policeum's referees were only staying because of the floor.
         if leaving.refereesStay {
-            let stayed = state.armedWhistles.filter(\.stayed)
-            state.armedWhistles.removeAll(where: \.stayed)
-            state.discard.append(contentsOf: stayed.map(\.card))
-            if !stayed.isEmpty { events.append(.whistlesDismissed) }
+            dismiss(state.armedWhistles.filter(\.stayed).map(\.id),
+                    state: &state, events: &events)
         }
         state.courtCard = card
         state.carouselClockwise = nil
@@ -2701,6 +2712,24 @@ enum Rules {
             ? speaking : nil
     }
 
+    /// **Whether this official would speak up about this card**, played by this man as
+    /// the floor stands — the question the floor asks while a card is being read, so the
+    /// crew can say which of them is watching for it. A coin-toss call counts: what it
+    /// says is that he is watching, not that he will certainly call.
+    ///
+    /// A card that takes a shot is read as the shot as well as the play: the three
+    /// officials who watch a finish are watching for what the card does, not for the card.
+    static func wouldCall(_ whistle: ArmedWhistle, on card: CardDescriptor, by seat: Seat,
+                          in state: GameState) -> Bool {
+        guard !state.whistlesSilenced, card.special?.ignoresRefs != true else { return false }
+        if let finish = card.special?.shotType ?? (card.isThree ? .three : nil) {
+            var shooting = state
+            shooting.shotType = finish
+            if passes(whistle, .shoot(seat: seat), in: shooting) { return true }
+        }
+        return passes(whistle, .playCard(seat: seat, card: Card(card)), in: state)
+    }
+
     /// **Whether this official has anything to say about this play.**
     ///
     /// A referee calls as often as his condition is met, all round — they stand for the
@@ -4081,8 +4110,7 @@ enum Rules {
         let floor = state.floorEffect
         // Clearcoat Court: everything standing, gone.
         if floor.wipesEachPossession {
-            state.discard.append(contentsOf: state.armedWhistles.map(\.card))
-            state.armedWhistles.removeAll()
+            dismiss(state.armedWhistles.map(\.id), state: &state, events: &events)
             for other in Seat.allCases {
                 state[other].clamps.removeAll()
                 healInjuries(of: other, state: &state)
@@ -5174,10 +5202,8 @@ enum Rules {
                     state[other].injuryUnlocked = []
                 }
             }
-            if effect.clearsReferees, !state.armedWhistles.isEmpty {
-                state.discard.append(contentsOf: state.armedWhistles.map(\.card))
-                state.armedWhistles.removeAll()
-                events.append(.whistlesDismissed)
+            if effect.clearsReferees {
+                dismiss(state.armedWhistles.map(\.id), state: &state, events: &events)
             }
         }
         if effect.everyoneRedraws {
@@ -5252,11 +5278,7 @@ enum Rules {
             state.whistlesSilenced = true
             // Anything that silences Whistles clears the armed one too — the referee
             // leaves the floor rather than standing there unable to call anything.
-            if !state.armedWhistles.isEmpty {
-                state.discard.append(contentsOf: state.armedWhistles.map(\.card))
-                state.armedWhistles.removeAll()
-                events.append(.whistlesDismissed)
-            }
+            dismiss(state.armedWhistles.map(\.id), state: &state, events: &events)
         }
         // Nobody fouled them, so nobody owes them the ball back afterwards.
         if effect.freeThrows > 0 {

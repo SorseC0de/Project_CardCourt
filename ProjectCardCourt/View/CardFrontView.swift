@@ -173,13 +173,15 @@ struct CardFrontView: View {
             // of this card rather than as two buttons the app put on top of it.
             return VStack(spacing: size * 0.4) {
                 if !combos.isEmpty {
+                    // True white on both, whatever the card's own plate is lettered in:
+                    // these are buttons printed on a card, not part of its printing.
                     extrasCapsule("COMBO", size: size, fill: skin.plate,
-                                  drop: namePlateShadow, ink: skin.nameBottom) { onCombo?() }
+                                  drop: namePlateShadow, ink: .white) { onCombo?() }
                 }
                 if !descriptor.bonusLines.isEmpty {
                     extrasCapsule("BONUS", size: size, fill: skin.plate,
                                   drop: namePlateShadow,
-                                  ink: skin.nameBottom) {}
+                                  ink: .white) {}
                         // Where it is on screen, so the bubble hangs off the button itself.
                         .overlay {
                             if let onBonus {
