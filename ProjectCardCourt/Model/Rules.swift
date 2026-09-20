@@ -1106,7 +1106,14 @@ enum Rules {
         events.append(.movePlayed(seat: seat, card: card.descriptor, shot: loggedShot(state)))
         state.lastPlayThisPossession = card.descriptor.id
         state.lastPlayWasCombo = false
-        state.movesThisPossession += 1
+        // **A ball is not a Move.** Playing one is an action — it is a card out of your
+        // hand and it takes the possession's attention — but the meter counts Moves, and
+        // it is also the Travel line and the dunk's gate. Changing the ball you play with
+        // is not a step toward the rim, and it was lighting one and walking you into a
+        // violation for it.
+        if card.descriptor.variaball == nil, card.descriptor.varena == nil {
+            state.movesThisPossession += 1
+        }
         // An Intangible, played by hand: into its slot now, one a possession.
         if card.descriptor.intangible != nil {
             state.playedIntangibleThisPossession = true
