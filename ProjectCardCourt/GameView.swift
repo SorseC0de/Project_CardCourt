@@ -441,6 +441,11 @@ struct GameView: View {
                             DimLayer(on: reading != nil, amount: Theme.dimBrowser,
                                      full: false)
                         }
+                        // **He warps on.** The crew changing is a controller's doing and
+                        // a controller has no springs, so the floor is told to animate
+                        // the arrival from here — see `CourtView`'s column warp.
+                        .animation(.easeInOut(duration: CourtView.Court.warp),
+                                   value: controller.shown.armedWhistles)
                 }
                 .ignoresSafeArea(edges: .bottom)
                 // Lifted over the wash while the floor is what is being asked for, the way

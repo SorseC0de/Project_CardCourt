@@ -1586,6 +1586,10 @@ final class GameController {
             // its view when it goes out never sees it — it ends up holding a hand it did
             // not watch arrive, with a log that starts in the middle.
             await waitForTheTable()
+            // **Nobody is officiating yet.** He comes out after the deal, and the board
+            // is dealt by the rules before a frame is drawn — so he is taken off it here
+            // rather than in the middle of his own entrance.
+            shown.armedWhistles = []
             DevLog.say(.input, "begin: dealing \(openingDraws.count) cards out")
             // Told to the other devices before it is shown here, so the cards fly on
             // every screen rather than only on the one running the rules.
@@ -1829,11 +1833,15 @@ final class GameController {
         // Counted off as it leaves, not when the rules dealt it.
         if shownDeck > 0 { shownDeck -= 1 }
         flightDuration = duration
-        // **Flat, because the pile is not on the floor any more.** The staged throw is
-        // drawn inside the court's own scene, and the deck it would come from now stands
-        // below that scene entirely — so a card thrown from it started outside the shot
-        // and was never seen. The court draws this one.
-        flight = DrawFlight(seat: seat)
+        // **The pile throws it when there is a pile.** `stageDeal` was only ever set by
+        // the bench, so every real draw took the flat path and the deck stood still
+        // through all of it — the lean, the bow and the card growing on its way over
+        // were written for a throw nothing was asking for.
+        if RenderDebug.shared.courtStage {
+            stageDeal = (seat, UUID())
+        } else {
+            flight = DrawFlight(seat: seat)
+        }
         // The flight, and a little more — not exactly it, since waiting the same number
         // to the millisecond means the next draw arrives on the last frame of the last
         // one and cancels it there. The pile's own turn is not in this: it happens

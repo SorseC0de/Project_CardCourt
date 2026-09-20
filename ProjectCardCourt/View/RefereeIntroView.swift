@@ -48,10 +48,17 @@ struct RefereeIntroView: View {
 
     var body: some View {
         GeometryReader { screen in
+            // **Both ends are measured on the screen**, and this view is not the screen:
+            // its own origin is wherever the band it sits in begins. Brought into this
+            // view's space, or the card flies from a corner nobody pressed.
+            let mine = screen.frame(in: .named(Chrome.screen))
+            let here = { (spot: CGPoint) in
+                CGPoint(x: spot.x - mine.minX, y: spot.y - mine.minY)
+            }
             let middle = CGPoint(x: screen.size.width / 2,
                                  y: screen.size.height * Trip.readY)
-            let deck = from ?? CGPoint(x: screen.size.width - 40, y: 60)
-            let home = slot ?? middle
+            let deck = from.map(here) ?? CGPoint(x: screen.size.width - 40, y: 60)
+            let home = slot.map(here) ?? middle
             let travelling = phase == .toSlot
             CardFrontView(descriptor: card,
                           displayWidth: travelling ? SeatPanelsView.cardWidth

@@ -248,7 +248,7 @@ struct CourtView: View {
                 // One scene for the whole floor. Everything on it is placed from the same
                 // court points the sprites use, so the two cannot disagree.
                 if render.courtStage {
-                    CourtStage(deckAt: share(deckOrigin(on: court, in: geo), in: geo.size),
+                    CourtStage(deckAt: deckShare(on: court, in: geo),
                                discardAt: share(discardOrigin(on: court, in: geo),
                                                 in: geo.size),
                                // Nothing to draw: the pile is in the bar.
@@ -258,8 +258,7 @@ struct CourtView: View {
                                deckRoutine: deckRoutine,
                                flight: deal.map { deal in
                                    CardFlight(id: deal.id,
-                                              from: share(deckOrigin(on: court, in: geo),
-                                                          in: geo.size),
+                                              from: deckShare(on: court, in: geo),
                                               to: share(court.footing(of: deal.seat), in: geo.size),
                                               // **The same number the controller waits.**
                                               // It was taking the default and flying for
@@ -714,6 +713,18 @@ struct CourtView: View {
     /// is that slot's own middle brought into the court's space — see `DeckPoint`. Only
     /// if the floor has been laid out beside it: until then, the spot the pile used to
     /// stand on.
+    /// **The deck's point, kept inside the scene.**
+    ///
+    /// The stage draws in its own frame and the pile stands below that frame now, so a
+    /// card thrown from where the deck actually is starts outside the shot: it was
+    /// invisible in 3D, and flat when it was forced onto the other renderer. Clamped to
+    /// the stage's own edge, it comes up from the bottom of the floor — which is where
+    /// the deck is, as far as the court can see.
+    private func deckShare(on court: CourtGeometry, in geo: GeometryProxy) -> CGPoint {
+        let raw = share(deckOrigin(on: court, in: geo), in: geo.size)
+        return CGPoint(x: min(max(raw.x, 0.04), 0.96), y: min(max(raw.y, 0.04), 0.96))
+    }
+
     private func deckOrigin(on court: CourtGeometry, in geo: GeometryProxy) -> CGPoint {
         guard let deckAt else {
             return CGPoint(x: court.centreX
