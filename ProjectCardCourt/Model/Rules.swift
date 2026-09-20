@@ -1119,24 +1119,45 @@ enum Rules {
     /// whether he was working or not. The floor reads this to pick the scene.
     static let travelCall = "Travel"
 
+    /// **What the clock is called when it takes the ball off somebody.** The floor has a
+    /// scene of its own for it — he catches it and the shot closes in on his hands — and
+    /// that scene is chosen by this name.
+    static let shotClockCall = "Shot Clock"
+
+    /// **Called for carrying it**, wherever the carrying happened.
+    ///
+    /// Three places had a reason to call one — a fourth Move, a pass to yourself, three
+    /// Heads on a Euro Step — and each had its own copy of who is exempt, what it is
+    /// called and what happens next. They were already out of step: two of them had
+    /// never heard of Med Ball. One owner, and every site asks it.
+    ///
+    /// Returns whether the call was actually made, since a site that travels usually has
+    /// nothing left to do afterwards.
+    @discardableResult
+    static func travel(by seat: Seat, state: inout GameState,
+                       events: inout [GameEvent]) -> Bool {
+        // Med Ball: a Move card never travels. Moves At Own Pace: he is never called.
+        guard !state.ballEffect.ignoresTravel,
+              !has(seat, in: state, { $0.ignoresViolations }) else { return false }
+        state[seat].turnovers += 1
+        events.append(.turnover(seat, cause: travelCall))
+        stoppage(state: &state, events: &events)
+        // **A turnover is not the end of a period.** Only the clock reaching nought ends
+        // one — a dead ball goes back in like any other, to anybody but him.
+        reinbound(by: seat, barring: seat, state: &state, events: &events)
+        return true
+    }
+
     private static func countMove(_ descriptor: CardDescriptor, by seat: Seat,
                                   state: inout GameState, events: inout [GameEvent]) {
         guard descriptor.isMove else { return }
         state.movesThisPossession += 1
         guard state.movesThisPossession > state.moveLimit(for: seat) else { return }
-        // Med Ball: a Move card never travels, whatever the bar says.
-        guard !state.ballEffect.ignoresTravel else { return }
         // **Going up is not a step.** A Special Move that shoots *is* the finish those
         // Moves were spent getting to, so taking it as the last of them is not carrying
         // the ball — it is what carrying it was for.
         guard descriptor.special?.shootsImmediately != true else { return }
-        // Moves At Own Pace: he cannot be called for it.
-        guard !has(seat, in: state, { $0.ignoresViolations }) else { return }
-        state[seat].turnovers += 1
-        events.append(.turnover(seat, cause: travelCall))
-        stoppage(state: &state, events: &events)
-        // The quarter runs on — only the clock reaching nought ends one.
-        reinbound(by: seat, state: &state, events: &events)
+        travel(by: seat, state: &state, events: &events)
     }
 
     private static func playOntoItsSlot(_ card: Card, by seat: Seat, state: inout GameState,
@@ -1996,13 +2017,7 @@ enum Rules {
         // draws, the clock runs, the SHOT the card added stands. Unless it is Traveling,
         // which it is for everybody but the man who moves at his own pace, and which is
         // called before the possession opens rather than after he has been dealt into it.
-        if receiver == seat, !has(seat, in: state, { $0.ignoresViolations }) {
-            state[seat].turnovers += 1
-            events.append(.turnover(seat, cause: travelCall))
-            stoppage(state: &state, events: &events)
-            // **A turnover is not the end of a period.** Only the clock reaching
-            // nought ends one — a dead ball goes back in like any other.
-            reinbound(by: seat, barring: seat, state: &state, events: &events)
+        if receiver == seat, travel(by: seat, state: &state, events: &events) {
             return
         }
         // Hand Ball: the hands swap with the ball.
@@ -3334,14 +3349,7 @@ enum Rules {
                     // dunk's gate in one number, so a good Euro Step both risks the call
                     // and walks you to the rim.
                     state.movesThisPossession += special.coinRunMoves * heads
-                } else if !has(seat, in: state, { $0.ignoresViolations }),
-                          !state.ballEffect.ignoresTravel {
-                    // Med Ball: a Move never travels, and every one of them Heads is
-                    // still a Move. One word for the call — see `travelCall`.
-                    state[seat].turnovers += 1
-                    events.append(.turnover(seat, cause: travelCall))
-                    stoppage(state: &state, events: &events)
-                    reinbound(by: seat, state: &state, events: &events)
+                } else if travel(by: seat, state: &state, events: &events) {
                     return
                 }
             }
@@ -4408,7 +4416,7 @@ enum Rules {
         // Own Pace holds off the call, not the end of the period.
         if state.ball == holder, !has(holder, in: state, { $0.ignoresViolations }) {
             state[holder].turnovers += 1
-            events.append(.turnover(holder, cause: CardLibrary.shotClockViolation.name))
+            events.append(.turnover(holder, cause: shotClockCall))
         }
         stoppage(state: &state, events: &events)
         endRound(state: &state, events: &events)

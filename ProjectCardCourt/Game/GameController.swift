@@ -352,6 +352,11 @@ struct TurnoverCutscene: Identifiable, Equatable {
         // official, so it arrives as a plain reason and is turned back into the call the
         // floor knows how to play — see `TravelCutsceneView`.
         if case .named(Rules.travelCall) = kind { kind = .whistle("Travel") }
+        // **And the clock has the one it was written for**, where he catches it and the
+        // shot closes in on his hands. It used to arrive with no reason at all, so it
+        // fell through to this by default; now that the man holding it is charged, it
+        // arrives named like any other call and has to be sent back.
+        if case .named(Rules.shotClockCall) = kind { kind = .shotClock }
         self.kind = kind
         // Whoever last threw it decides which side it comes in from; with nobody to read,
         // either side is as true as the other.
