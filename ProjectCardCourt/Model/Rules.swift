@@ -1104,9 +1104,26 @@ enum Rules {
     /// **Only Moves are Moves.** The meter is the Travel line and the dunk's gate, not a
     /// count of actions — so a ball, a floor or an Intangible going onto its slot is not
     /// one, however much of your possession it takes. Every card play asks here.
-    private static func countMove(_ descriptor: CardDescriptor, state: inout GameState) {
+    ///
+    /// **And the bar is a line, not a decoration.** A possession holds three Moves; the
+    /// one past them is a travel, which is what the bar was for — it was drawn and
+    /// counted and never enforced.
+    private static func countMove(_ descriptor: CardDescriptor, by seat: Seat,
+                                  state: inout GameState, events: inout [GameEvent]) {
         guard descriptor.isMove else { return }
         state.movesThisPossession += 1
+        guard state.movesThisPossession > state.moveLimit(for: seat) else { return }
+        // **Going up is not a step.** A Special Move that shoots *is* the finish those
+        // Moves were spent getting to, so taking it as the last of them is not carrying
+        // the ball — it is what carrying it was for.
+        guard descriptor.special?.shootsImmediately != true else { return }
+        // Moves At Own Pace: he cannot be called for it.
+        guard !has(seat, in: state, { $0.ignoresViolations }) else { return }
+        state[seat].turnovers += 1
+        events.append(.turnover(seat, cause: CardLibrary.travel.name))
+        stoppage(state: &state, events: &events)
+        // The quarter runs on — only the clock reaching nought ends one.
+        reinbound(by: seat, state: &state, events: &events)
     }
 
     private static func playOntoItsSlot(_ card: Card, by seat: Seat, state: inout GameState,
@@ -2180,7 +2197,7 @@ enum Rules {
         }
         events.append(.movePlayed(seat: actor, card: descriptor, shot: loggedShot(state)))
         state.lastPlayThisPossession = descriptor.id
-        countMove(descriptor, state: &state)
+        countMove(descriptor, by: actor, state: &state, events: &events)
         settleHands(state: &state, events: &events)
         return events
     }
@@ -2376,7 +2393,7 @@ enum Rules {
         state.phase = .possession(holder: actor)
         events.append(.movePlayed(seat: actor, card: descriptor, shot: loggedShot(state)))
         state.lastPlayThisPossession = descriptor.id
-        countMove(descriptor, state: &state)
+        countMove(descriptor, by: actor, state: &state, events: &events)
         settleHands(state: &state, events: &events)
         return events
     }
@@ -2884,7 +2901,7 @@ enum Rules {
         guard !state[target].bag.isEmpty else {
             events.append(.movePlayed(seat: actor, card: descriptor, shot: loggedShot(state)))
             state.lastPlayThisPossession = descriptor.id
-            countMove(descriptor, state: &state)
+            countMove(descriptor, by: actor, state: &state, events: &events)
             return
         }
         state.pendingPlay = descriptor
@@ -3338,7 +3355,7 @@ enum Rules {
             } else {
                 events.append(.movePlayed(seat: seat, card: descriptor, shot: loggedShot(state)))
                 state.lastPlayThisPossession = descriptor.id
-                countMove(descriptor, state: &state)
+                countMove(descriptor, by: seat, state: &state, events: &events)
                 _ = askForRetirement(descriptor, by: seat, state: &state)
             }
         } else if let effect = descriptor.whistle {
@@ -3370,7 +3387,7 @@ enum Rules {
             events.append(.movePlayed(seat: seat, card: descriptor, shot: loggedShot(state)))
             state.lastPlayThisPossession = descriptor.id
             state.lastPlayWasCombo = false
-            countMove(descriptor, state: &state)
+            countMove(descriptor, by: seat, state: &state, events: &events)
             guard case .possession(let holder) = state.phase, holder == seat else { return }
             if let aim = state.currentAim {
                 state.currentAim = nil
@@ -3429,7 +3446,7 @@ enum Rules {
             events.append(.movePlayed(seat: seat, card: descriptor, shot: loggedShot(state)))
             state.lastPlayThisPossession = descriptor.id
             state.lastPlayWasCombo = false
-            countMove(descriptor, state: &state)
+            countMove(descriptor, by: seat, state: &state, events: &events)
             clearOut(from: seat, state: &state, events: &events)
         } else if descriptor.targetDiscards > 0 {
             // Named before it was played, where the man playing it does the naming —
@@ -3463,7 +3480,7 @@ enum Rules {
             }
             state.lastPlayThisPossession = descriptor.id
             state.lastPlayWasCombo = comboArmed
-            countMove(descriptor, state: &state)
+            countMove(descriptor, by: seat, state: &state, events: &events)
             // A Move card keeps the ball, so the seat acts again unless its own
             // clock cost runs the possession out.
             // Ball Pounder: every Dribble also runs the clock down. One tick, so a clock the

@@ -510,6 +510,39 @@ func runTests() {
                    "and it opens like any other possession — he draws")
     }
 
+    print("The Move bar")
+    do {
+        // **The bar is a line.** Three to a possession; the fourth is carrying the ball.
+        var (state, seat, cards) = openPossession(seed: 610, cards: [CardLibrary.dribble])
+        state.movesThisPossession = state.moveLimit(for: seat)
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(events.contains { if case .turnover(let who, let cause) = $0 {
+                                         return who == seat && cause == CardLibrary.travel.name }
+                                     return false },
+                   "a fourth Move is a travel")
+    }
+    do {
+        // And going up is not a step: the finish is what those Moves were spent reaching.
+        var (state, seat, cards) = openPossession(seed: 611, cards: [CardLibrary.slamDunk])
+        state.movesThisPossession = state.moveLimit(for: seat)
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(!events.contains { if case .turnover(_, let cause) = $0 {
+                                          return cause == CardLibrary.travel.name }
+                                      return false },
+                   "a Special Move that shoots is not")
+    }
+    do {
+        // He cannot be called for it, which is the half of his card that still works.
+        var (state, seat, cards) = openPossession(seed: 612, cards: [CardLibrary.dribble])
+        state[seat].intangibles.append(CardLibrary.movesAtOwnPace)
+        state.movesThisPossession = state.moveLimit(for: seat)
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(!events.contains { if case .turnover(_, let cause) = $0 {
+                                          return cause == CardLibrary.travel.name }
+                                      return false },
+                   "and Moves At Own Pace walks")
+    }
+
     print("Moves At Own Pace")
     do {
         var (state, seat, _) = openPossession(seed: 84, cards: [])
