@@ -1347,8 +1347,7 @@ struct GameView: View {
                         // over him a stroke at a time and settles on his back — see
                         // `FinKanjiView`.
                         if pose == .fierce {
-                            FinKanjiView(pose: pose, kit: kit, seat: seat,
-                                         scale: Winner.portraitScale, run: winnerPose)
+                            FinKanjiView(pose: pose, kit: kit, seat: seat, run: winnerPose)
                         } else {
                             HooperPortrait(pose: pose, kit: kit, seat: seat)
                                 .scaleEffect(Winner.portraitScale, anchor: .bottom)

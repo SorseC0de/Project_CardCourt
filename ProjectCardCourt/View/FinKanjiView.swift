@@ -41,13 +41,18 @@ struct FinKanjiView: View {
     var pose: Kit.Pose = .fierce
     var kit: HooperKit?
     var seat: Seat = GameRules.localSeat
-    var scale: CGFloat = Winner.portraitScale
+    /// **Big.** The results card stands its men at a reading size; this is a scene, and
+    /// he is the whole of it.
+    var scale: CGFloat = FinKanjiView.playerScale
     /// Restart the whole thing by handing this a new value.
     var run: Int = 0
 
     @State private var tuning = FinTuning.shared
     /// Nil until it starts, so nothing is drawn mid-air on the first frame.
     @State private var startedAt: Date?
+
+    /// How big the man stands in the scene.
+    static let playerScale: CGFloat = 5
 
     private enum Mark {
         /// The kanji's own cell, in art pixels — twice a player's.
@@ -59,7 +64,9 @@ struct FinKanjiView: View {
         // scale and the colour — and they have to agree about where they are.
         TimelineView(.animation) { tick in
             let t = elapsed(at: tick.date)
-            ZStack(alignment: .center) {
+            // **He stands on the floor of the scene**, rather than hanging in the middle
+            // of it: a portrait sizes itself and a centred stack left him floating.
+            ZStack(alignment: .bottom) {
                 man(at: t)
                 kanji(at: t)
             }
@@ -93,14 +100,17 @@ struct FinKanjiView: View {
     }
 
     /// The brush, and where it has got to.
+    ///
+    /// **Scaled rather than framed.** A sprite sizes itself off its own `scale`, so a
+    /// frame around it only changes the box it sits in — the drawing inside stayed
+    /// exactly as big, which is a scale dial that does nothing.
     private func kanji(at t: Double) -> some View {
         let through = tuning.seconds > 0 ? min(1, t / tuning.seconds) : 1
-        let size = Mark.cell * scale * mix(tuning.startScale, tuning.endScale, through)
         return SpriteAnimation(sprite: .finKanji, scale: scale,
                                fps: Double(Sprite.finKanji.frames) / max(0.01, tuning.seconds),
                                playsOnce: true,
                                startedAt: startedAt)
-            .frame(width: size, height: size)
+            .scaleEffect(mix(tuning.startScale, tuning.endScale, through))
             .offset(x: mix(tuning.startX, tuning.endX, through) * scale,
                     y: mix(tuning.startY, tuning.endY, through) * scale)
     }
@@ -129,7 +139,7 @@ struct FinKanjiBench: View {
                 Color.black
                 FinKanjiView(run: run)
             }
-            .frame(height: 260)
+            .frame(maxHeight: .infinity)
 
             Button("replay") { run += 1 }
                 .buttonStyle(.borderedProminent)
