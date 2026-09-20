@@ -1085,7 +1085,13 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var shotEffect: Int? {
         switch type {
         case .pass, .move, .specialMove:
-            if let override = special?.shotOverride { return override }
+            // **A conditional override is a bonus, not the card's number.** Slam Dunk is
+            // a +25% card that *becomes* a hundred on a good look, and the badge was
+            // printing the hundred — the figure it reaches under a condition printed in
+            // its bonus line, in place of the one it always gives.
+            if let override = special?.shotOverride, special?.overrideRequiresAtLeast == nil {
+                return override
+            }
             if baseShotDelta != 0 { return baseShotDelta }
             if let per = special?.discardForShotBonus, per != 0 { return per }
             if let per = special?.coinRunShot, per != 0 { return per }
@@ -1102,7 +1108,9 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     }
 
     /// True when the number is a target rather than a change.
-    var setsShot: Bool { special?.shotOverride != nil }
+    var setsShot: Bool {
+        special?.shotOverride != nil && special?.overrideRequiresAtLeast == nil
+    }
 
     /// Drawn with a slash through it — the card says "no" to whatever the icon shows.
     ///
