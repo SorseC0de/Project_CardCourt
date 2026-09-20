@@ -102,6 +102,10 @@ struct PlayerFigure: View {
     }
     /// When this catch began. The sheet is counted from here, not from the wall clock.
     @State private var caughtFrom: Date?
+    /// **The last catch that actually played out.** What separates "the ball has landed
+    /// and the sheet is about to start" from "he has caught it and is dribbling" — see
+    /// `action`.
+    @State private var caughtThrough: Date?
     /// A one-shot sprite counts from here; without it the frame index never advances.
     @State private var startedAt: Date?
     /// Two positions, held a beat each — a hop rather than a glide.
@@ -152,13 +156,7 @@ struct PlayerFigure: View {
     /// otherwise an inbound receiver stands frozen in his waiting cell while the ball
     /// lands in his arms.
     private var pose: Sprite? { catching ? nil : sprite }
-    /// **Held on a cell rather than played.** A man waiting on a pass stands in the run
-    /// sheet's first, which is both feet under him.
-    private var poseFrame: Int? {
-        if catching { return nil }
-        if awaitingBall, sprite == nil { return 0 }
-        return spriteFrame
-    }
+    private var poseFrame: Int? { catching ? nil : spriteFrame }
 
     /// Catching for a beat as the ball arrives, then dribbling; jogging without it.
     private var action: Sprite {
@@ -175,9 +173,14 @@ struct PlayerFigure: View {
         if let throwing { return throwing.sheet }
         if let pose { return pose }
         if catching { return .catchBall }
+        // **Arrived, but the catch has not begun.** The task that starts it is a runloop
+        // behind the ball, and that gap was drawn as a dribble — a few frames of working
+        // a ball he had not caught yet. It also kept him in his inbound pose while the
+        // ball floated by his arm, since the throw lands where a *catching* man's hands
+        // are.
+        if let caughtAt, caughtAt != caughtThrough { return .catchBall }
         // **Waiting on it, not working with it.** The ball is in the air: he has not got
-        // one to dribble, and he had been drawn dribbling an imaginary one until it
-        // arrived. Stood still on the run sheet's first cell — see `poseFrame`.
+        // one to dribble, so he runs to meet it.
         if awaitingBall { return .run }
         guard isHolding else { return .run }
         return .dribble
@@ -439,6 +442,7 @@ struct PlayerFigure: View {
                     // One pass of the catch sheet at its own frame rate.
                     try? await Task.sleep(for: .seconds(Theme.Pass.catchSeconds))
                     catching = false
+                    caughtThrough = caughtAt
                 }
         }
     }
