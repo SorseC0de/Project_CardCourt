@@ -280,6 +280,10 @@ struct RefereeThrow: Identifiable, Equatable {
     let to: Seat
     /// False while he holds it, true from the moment it leaves his hands.
     var thrown = false
+    /// **When it left them.** A catch is only this throw's catch if it was stamped after
+    /// the ball was in the air — the arrival stamp is never cleared, so "he has caught
+    /// something" is not the same question as "he has caught this".
+    var thrownAt: Date?
 }
 
 /// A turnover, played as a beat rather than processed instantly.
@@ -2598,14 +2602,21 @@ final class GameController {
                 try? await Task.sleep(for: .seconds(Pacing.refereeHold))
                 if Task.isCancelled { return }
                 refereeThrow?.thrown = true
+                refereeThrow?.thrownAt = Date()
                 try? await Task.sleep(for: .seconds(Pacing.inboundThrow))
                 if Task.isCancelled { return }
                 // **It arrives.** The referee's throw is a third way a ball reaches a
                 // player and it had no arrival of its own, so the man it was thrown to
                 // stood in his receiver pose with the ball resting on him.
                 caught = Catch(seat: to, at: Date())
-                await present(Rules.completeRefereeInbound(state: &state))
+                // **And the throw is over.** It used to be cleared after the whole of the
+                // possession had been presented — the draw included — so the thrown ball
+                // hung in his hands until somebody took a card off the deck, and he
+                // snapped out of his receiver pose when it finally went.
+                try? await Task.sleep(for: .seconds(PassTiming.catchSeconds))
                 refereeThrow = nil
+                if Task.isCancelled { return }
+                await present(Rules.completeRefereeInbound(state: &state))
                 continue
             }
             if case .awaitingRebound(let shooter) = state.phase {

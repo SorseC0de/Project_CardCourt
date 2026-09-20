@@ -402,9 +402,14 @@ struct CourtView: View {
 
                 // **The referee's throw**, the same ball crossing from his hands to the man
                 // he threw it to. His throwing pose is drawn empty-handed.
-                if let refereeThrow, refereeThrow.thrown {
+                // **Gone the instant he has it**, the way a pass is: the catch sheet
+                // holds a ball from its first cell, and two in one pair of hands reads as
+                // a mistake. Only a catch stamped since this ball left counts — see
+                // `RefereeThrow.thrownAt`.
+                if let refereeThrow, refereeThrow.thrown,
+                   !hasCaught(refereeThrow.to, since: refereeThrow.thrownAt) {
                     InboundThrow(from: throwOrigin(on: court),
-                                 to: ballPoint(of: refereeThrow.to, on: court, catching: false),
+                                 to: ballPoint(of: refereeThrow.to, on: court, catching: true),
                                  seconds: Pacing.inboundThrow,
                                  scale: court.scale(of: refereeThrow.to))
                         .id(refereeThrow.id)
@@ -1029,7 +1034,21 @@ struct CourtView: View {
         // receiving pose through it; they stand as they do for a rebound instead.
         guard isStill, callingRef == nil else { return false }
         if let throwing, throwing.to == seat, caughtThrow == throwing.id { return false }
+        // **Nor after a referee has thrown it to him.** A player's throw-in has said this
+        // since it was written; the official's never did, so the man it was thrown to
+        // held his receiving stance through the catch and snapped out of it whenever the
+        // floor happened to start moving again.
+        if let refereeThrow, refereeThrow.to == seat,
+           hasCaught(seat, since: refereeThrow.thrownAt) { return false }
         return true
+    }
+
+    /// **Whether this man has caught the ball thrown at that moment.** The arrival stamp
+    /// names who and when and is never cleared — see `GameController.caught` — so the
+    /// time matters as much as the name.
+    private func hasCaught(_ seat: Seat, since thrown: Date?) -> Bool {
+        guard let caught, caught.seat == seat, let thrown else { return false }
+        return caught.at >= thrown
     }
 
     /// Which way to turn to look at the thrower. He stands at one of two posts, so this
