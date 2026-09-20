@@ -522,7 +522,7 @@ func runTests() {
         state.movesThisPossession = state.moveLimit(for: seat)
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(events.contains { if case .turnover(let who, let cause) = $0 {
-                                         return who == seat && cause == CardLibrary.travel.name }
+                                         return who == seat && cause == Rules.travelCall }
                                      return false },
                    "a fourth Move is a travel")
     }
@@ -532,7 +532,7 @@ func runTests() {
         state.movesThisPossession = state.moveLimit(for: seat)
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(!events.contains { if case .turnover(_, let cause) = $0 {
-                                          return cause == CardLibrary.travel.name }
+                                          return cause == Rules.travelCall }
                                       return false },
                    "a Special Move that shoots is not")
     }
@@ -543,9 +543,20 @@ func runTests() {
         state.movesThisPossession = state.moveLimit(for: seat)
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(!events.contains { if case .turnover(_, let cause) = $0 {
-                                          return cause == CardLibrary.travel.name }
+                                          return cause == Rules.travelCall }
                                       return false },
                    "and Moves At Own Pace walks")
+    }
+    do {
+        // Med Ball: a Move card never travels, whatever the bar says.
+        var (state, seat, cards) = openPossession(seed: 613, cards: [CardLibrary.dribble])
+        state.ballCard = Card(CardLibrary.medBall)
+        state.movesThisPossession = state.moveLimit(for: seat)
+        let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that(!events.contains { if case .turnover(_, let cause) = $0 {
+                                          return cause == Rules.travelCall }
+                                      return false },
+                   "and a Med Ball never travels")
     }
 
     print("Moves At Own Pace")

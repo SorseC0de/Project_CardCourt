@@ -1110,11 +1110,18 @@ enum Rules {
     /// **And the bar is a line, not a decoration.** A possession holds three Moves; the
     /// one past them is a travel, which is what the bar was for — it was drawn and
     /// counted and never enforced.
+    /// **What a travel is called.** Not an official's name: the Traffic Cop is a card
+    /// that may not be on the floor at all, and the call was going out under his name
+    /// whether he was working or not. The floor reads this to pick the scene.
+    static let travelCall = "Travel"
+
     private static func countMove(_ descriptor: CardDescriptor, by seat: Seat,
                                   state: inout GameState, events: inout [GameEvent]) {
         guard descriptor.isMove else { return }
         state.movesThisPossession += 1
         guard state.movesThisPossession > state.moveLimit(for: seat) else { return }
+        // Med Ball: a Move card never travels, whatever the bar says.
+        guard !state.ballEffect.ignoresTravel else { return }
         // **Going up is not a step.** A Special Move that shoots *is* the finish those
         // Moves were spent getting to, so taking it as the last of them is not carrying
         // the ball — it is what carrying it was for.
@@ -1122,7 +1129,7 @@ enum Rules {
         // Moves At Own Pace: he cannot be called for it.
         guard !has(seat, in: state, { $0.ignoresViolations }) else { return }
         state[seat].turnovers += 1
-        events.append(.turnover(seat, cause: CardLibrary.travel.name))
+        events.append(.turnover(seat, cause: travelCall))
         stoppage(state: &state, events: &events)
         // The quarter runs on — only the clock reaching nought ends one.
         reinbound(by: seat, state: &state, events: &events)
@@ -1987,7 +1994,7 @@ enum Rules {
         // called before the possession opens rather than after he has been dealt into it.
         if receiver == seat, !has(seat, in: state, { $0.ignoresViolations }) {
             state[seat].turnovers += 1
-            events.append(.turnover(seat, cause: CardLibrary.travel.name))
+            events.append(.turnover(seat, cause: travelCall))
             stoppage(state: &state, events: &events)
             // **A turnover is not the end of a period.** Only the clock reaching
             // nought ends one — a dead ball goes back in like any other.

@@ -348,6 +348,10 @@ struct TurnoverCutscene: Identifiable, Equatable {
         // A Whistle or a failed return has already named itself; otherwise the rules'
         // own reason is the name.
         if case .shotClock = kind, let charged { kind = .named(charged) }
+        // **A travel has its own three scenes.** Called by the rules rather than by an
+        // official, so it arrives as a plain reason and is turned back into the call the
+        // floor knows how to play — see `TravelCutsceneView`.
+        if case .named(Rules.travelCall) = kind { kind = .whistle("Travel") }
         self.kind = kind
         // Whoever last threw it decides which side it comes in from; with nobody to read,
         // either side is as true as the other.
