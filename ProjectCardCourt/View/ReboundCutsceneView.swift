@@ -53,6 +53,10 @@ struct ReboundCutsceneView: View {
             // Their own layer, at their own offset, and nothing below can reach them.
             VStack(spacing: 10) {
                 // The same lettering a made shot gets. This is a moment, not a caption.
+                // **The clock stands over it.** A board is played against the same
+                // twenty-four the possession was, and it is the one number a bid is
+                // actually weighed against.
+                ShotClockBoard(value: state.shotClock, round: state.round)
                 SwishTitle(text: prize != nil ? "Monster Ball!"
                                 : (revealedBids == nil ? "Rebound!" : "Crashing the Glass!"),
                             size: 34)
@@ -105,15 +109,21 @@ struct ReboundCutsceneView: View {
             // **Who is bidding, and what they have to bid with.** The Bag counts are up
             // from the moment the board goes loose — a board is a guess at what the other
             // three can afford, and the number is public.
-            HStack(spacing: 14) {
+            // **A list, not a row.** Four men side by side gave every name a quarter of
+            // the screen to fit in; down the left they each get the whole of it, and the
+            // Bag they are bidding out of sits beside the man rather than under him.
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(order, id: \.self) { seat in
-                    VStack(spacing: 2) {
-                        // **Who it is, before what he is called.** A face reads across the
-                        // scene at a glance where four names in a row do not.
-                        SpriteAnimation(sprite: .heads, scale: Self.head, isPlaying: false,
-                                        restFrame: PlayerLook.shared.face(for: seat))
-                            .paletteSwap(PlayerLook.shared.skin(for: seat))
-                        PlayerNameText(seat: seat, size: Self.name)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            // **Who it is, before what he is called.** A face reads
+                            // across the scene at a glance where four names do not.
+                            SpriteAnimation(sprite: .heads, scale: Self.head,
+                                            isPlaying: false,
+                                            restFrame: PlayerLook.shared.face(for: seat))
+                                .paletteSwap(PlayerLook.shared.skin(for: seat))
+                            PlayerNameText(seat: seat, size: Self.name)
+                        }
                         HStack(spacing: 3) {
                             Image("BagIcon")
                                 .resizable()
