@@ -113,6 +113,9 @@ struct CardFrontView: View {
             if let shot = descriptor.shotEffect, footBallShot == nil {
                 shotBadge(shot)
             }
+            // **What beating him costs**, on every Clamp: a bare figure, because they all
+            // say the same thing and only the number differs — see `ClampEffect.clearPrice`.
+            if let price = descriptor.clamp?.clearPrice, !isBlank { clearPrice(price) }
             if isBlank { lockedMarks }
             if hasExtras { extrasButtons }
         }
@@ -811,6 +814,19 @@ struct CardFrontView: View {
                 .frame(width: side)
                 .foregroundStyle(ink)
         })
+    }
+
+    /// **The price on a defender's head.** Lettered the way a card's own $[2X] is, in
+    /// the corner the SHOT badge would take — a Clamp has no SHOT of its own.
+    private func clearPrice(_ price: Int) -> AnyView {
+        AnyView(TwoXMark(size: width * Clear.figure, text: "\(price)")
+            .position(x: width * CardLayout.ballCentreXFraction,
+                      y: height * CardLayout.ballCentreYFraction))
+    }
+
+    private enum Clear {
+        /// The figure, as a share of the card's width.
+        static let figure: CGFloat = 0.26
     }
 
     /// Only on cards that touch SHOT. Hard shadows — zero blur, offset south-east.

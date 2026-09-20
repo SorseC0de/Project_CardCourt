@@ -246,6 +246,18 @@ enum Rules {
         return forced.count == 1 ? forced.first : nil
     }
 
+    /// **What beating your man costs right now**, or nil when there is nobody on you.
+    /// One Clamp a player, so there is never a question of which.
+    static func clearPrice(for seat: Seat, in state: GameState) -> Int? {
+        state[seat].clamps.first?.card.clamp?.clearPrice
+    }
+
+    /// Whether he can be paid off at all: the price has to be in the hand.
+    static func canClearClamp(_ seat: Seat, in state: GameState) -> Bool {
+        guard let price = clearPrice(for: seat, in: state) else { return false }
+        return state[seat].bag.count >= price
+    }
+
     /// **The finishes the Clamps on this seat take away.** Only the ones biting: a
     /// defender outside his band takes nothing away.
     static func clampBlockedShotTypes(on seat: Seat, in state: GameState) -> Set<ShotType> {
@@ -750,6 +762,13 @@ enum Rules {
             if card.clockPerClampNamed != 0 {
                 _ = tickClock(by: card.clockPerClampNamed, holder: actor,
                               state: &state, events: &events)
+            }
+            // **Sold, and beaten.** He bought the fake, so he is not standing there any
+            // more — the whole point of leaving your feet is that he leaves his.
+            if card.clearsOwnClamp, let sold = state[actor].clamps.first(where: { $0.id == id }) {
+                state[actor].clamps.removeAll { $0.id == id }
+                state.discard.append(Card(sold.card))
+                events.append(.clampBeaten(seat: actor, card: sold.card))
             }
             let more = named + [id]
             // Nothing left to name is the same as stopping.
@@ -1564,6 +1583,22 @@ enum Rules {
             let played = apply(.play(cardID), by: seat, to: &state)
             if played.isEmpty { state.sellingOut = false }
             return played
+
+        case .clearClamp(let paying):
+            guard let clamp = state[seat].clamps.first,
+                  let price = clamp.card.clamp?.clearPrice,
+                  paying.count == price,
+                  Set(paying).count == price,
+                  paying.allSatisfy({ id in state[seat].bag.contains { $0.id == id } })
+            else { return [] }
+            // **Locked cards pay.** A lock stops you playing a card, not spending it —
+            // otherwise the Teams could price you out of getting rid of them.
+            let spent = take(Set(paying), from: seat, state: &state)
+            state.discard.append(contentsOf: spent)
+            state[seat].clamps.removeAll { $0.id == clamp.id }
+            state.discard.append(Card(clamp.card))
+            events.append(.clampBeaten(seat: seat, card: clamp.card))
+            settleHands(state: &state, events: &events)
 
         case .handOffClamp(let clampID, let target):
             guard handOffTargets(state, for: seat).contains(target),
@@ -3183,9 +3218,15 @@ enum Rules {
                state.passesThisRound >= special.passesRequired {
                 adjustShot(by: special.shotPerPassesThisRound, state: &state)
             }
-            let override = special.shotOverride
+            var override = special.shotOverride
                 ?? (tipIn ? special.shotOverrideAfterRebound : nil)
                 ?? (wideOpen ? special.shotOverrideOnceAllHaveHadBall : nil)
+            // **Dagger Three walks back off the clock.** A hundred at 01, and five less
+            // for every second above it: taken early it is worse than standing there.
+            if let walk = special.overrideWalksBack, let printed = override {
+                let clock = state.shotClock ?? state.shotClockLength
+                override = printed + max(0, clock - walk.from) * walk.amount
+            }
             if let override {
                 state.pendingShotOverride = ShotOverride(
                     label: descriptor.name, amount: Double(override),
@@ -4666,8 +4707,14 @@ enum Rules {
     static func settleClamps(state: inout GameState, events: inout [GameEvent]) {
         // Nobody to guard. Quiet, and no payoff: you did not beat him, he left.
         for seat in Seat.allCases where state.ball != seat {
+            // **Only the ones with nothing left to do.** A standing defender is an
+            // assignment and stays until he is paid off; this is for the Clamps that did
+            // their work the moment they landed. Read off `clearedBy` before the prices
+            // came in, it swept every defender off the moment the ball moved — every
+            // Clamp answers `.givingUpTheBall` now, because none of them prints a counter
+            // any more.
             let idle = state[seat].clamps.filter {
-                $0.bitten && ($0.card.clamp?.clearedBy ?? .givingUpTheBall) == .givingUpTheBall
+                $0.bitten && $0.card.clamp?.isStanding != true
             }
             guard !idle.isEmpty else { continue }
             state[seat].clamps.removeAll { idle.contains($0) }

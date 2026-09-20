@@ -409,7 +409,7 @@ func runTests() {
         state.shotClock = 1
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
         for case .shotAttempted(_, let chance, _) in events {
-            Check.that(chance == 50, "Dagger Three at Shot Clock 01 is +60% less 10%")
+            Check.that(chance == 100, "Dagger Three at Shot Clock 01 is a hundred")
         }
     }
     do {
@@ -1062,9 +1062,9 @@ func runTests() {
         // that question has not cleared the last one's Clamps yet — it does that on the
         // answer. See `Rules.beginPossession`.
         declineCounter(&state)
-        // **And he is still there.** A defender is an assignment now: handing the ball on
-        // does not shake him. Only meeting what is printed on his card does — Contest
-        // prints SHOT 60% or more.
+        // **And he is still there.** A defender is an assignment: handing the ball on
+        // does not shake him, and nothing but paying his price does — see
+        // `Rules.clearPrice`.
         Check.that(state[receiver].clamps.count == 1,
                    "and stands through the possession ending")
     }
@@ -1106,9 +1106,8 @@ func runTests() {
         let fromGravity = state[gravity].bag.last { $0.descriptor.id == CardLibrary.swingLeft.id }!
         Rules.apply(.play(fromGravity.id), by: gravity, to: &state)
         declineCounter(&state)
-        // He stays: Contest prints SHOT 60% or more as what beats it, and nothing here
-        // has beaten it.
-        Check.that(state[gravity].clamps.count == 1, "and stays until he is beaten")
+        // He stays: nothing beats a defender but retiring what his card asks for.
+        Check.that(state[gravity].clamps.count == 1, "and stays until he is paid off")
     }
 
     print("Breaking a Clamp before it lands")
@@ -1818,8 +1817,8 @@ func runTests() {
         pounded[seat].intangibles = [CardLibrary.ballPounder]
         let held = pounded[seat].bag.count
         Rules.apply(.play(cards[0].id), by: seat, to: &pounded)
-        Check.that(pounded.shotClock == plain.shotClock.map { $0 - 3 },
-                   "Ball Pounder pays three ticks for the trade")
+        Check.that(pounded.shotClock == plain.shotClock.map { $0 - 1 },
+                   "Ball Pounder pays a tick for the trade")
         Check.that(pounded[seat].bag.count > held,
                    "and the card it bought arrives")
     }

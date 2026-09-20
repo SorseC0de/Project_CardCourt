@@ -28,4 +28,7 @@ enum Move: Hashable, Codable {
     case exchangeWithRetirement
     /// S.O.S — Sell-Out Stadium: a three, put up as a two at double SHOT.
     case playAsTwo(Card.ID)
+    /// **Beating your man**, by retiring the cards his card asks for — see
+    /// `ClampEffect.clearPrice`.
+    case clearClamp(paying: [Card.ID])
 }

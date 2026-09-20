@@ -176,11 +176,10 @@ enum CardLibrary {
     static let pumpFake = CardDescriptor(
         id: "pump-fake", name: "Pump Fake", type: .move,
         effect: "#[Draw] 1 card. SHOT +10%. #[Shot Clock] -01.\n"
-            + "Target any number of ~[Clamps] on you: SHOT +15% and #[Shot Clock] -01 "
-            + "extra for each",
+            + "You may #[Clear] your ~[Clamp]: SHOT +10% extra and #[Shot Clock] -01 extra",
         numberInDeck: 5,
         shotDelta: 10, drawCount: 1, clockDelta: -1,
-        shotPerClampNamed: 15, clockPerClampNamed: -1)
+        shotPerClampNamed: 10, clockPerClampNamed: -1, clearsOwnClamp: true)
 
     static let stepback = CardDescriptor(
         id: "stepback", name: "Stepback", type: .move,
@@ -238,51 +237,49 @@ enum CardLibrary {
 
     static let contest = CardDescriptor(
         id: "contest", name: "Contest", type: .clamp,
-        effect: "SHOT -25% when shooting\n#[Clear]: SHOT above 50%", numberInDeck: 10,
-        clamp: ClampEffect(clearedBy: .shotAbove(50), shotDebuff: -25))
+        effect: "SHOT -25% when shooting", numberInDeck: 10,
+        clamp: ClampEffect(clearPrice: 2, shotDebuff: -25))
 
     static let manToMan = CardDescriptor(
         id: "man-to-man", name: "Man-To-Man", type: .clamp,
-        effect: "SHOT -10% each time a card is played\n"
-            + "#[Clear]: 3 ~[Move] cards this possession", numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .movesAtLeast(3), shotPerCardPlayed: -10))
+        effect: "SHOT -10% each time a card is played", numberInDeck: 3,
+        clamp: ClampEffect(clearPrice: 3, shotPerCardPlayed: -10))
 
     static let closeOut = CardDescriptor(
         id: "close-out", name: "Close-Out", type: .clamp,
-        effect: "Cannot attempt a @[Three]\n"
-            + "#[Clear]: Attempt a Shot", numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .attemptingAShot, blocksShotTypes: [.three]))
+        effect: "Cannot attempt a @[Three]", numberInDeck: 3,
+        clamp: ClampEffect(clearPrice: 2, blocksShotTypes: [.three]))
 
     static let zone = CardDescriptor(
         id: "zone", name: "Zone", type: .clamp,
         effect: "Cannot #[Shoot]. With no playable ~[Pass] cards, "
-            + "#[TOV] +1 and the round ends\n#[Clear]: ~[Pass] the ball", numberInDeck: 1,
-        clamp: ClampEffect(clearedBy: .passingTheBall, blocksShooting: true,
+            + "#[TOV] +1 and the round ends", numberInDeck: 1,
+        clamp: ClampEffect(clearPrice: 1, blocksShooting: true,
                            turnoverWithoutAPass: true))
 
     static let doubleTeam = CardDescriptor(
         id: "double-team", name: "Double-Team", type: .clamp,
-        effect: "#[Lock|2] cards\n#[Clear]: 2 cards or fewer in Bag",
+        effect: "#[Lock|2] cards",
         numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .handAtMost(2), defenders: 2, locksRandomCards: 2))
+        clamp: ClampEffect(clearPrice: 2, defenders: 2, locksRandomCards: 2))
 
     static let tripleTeam = CardDescriptor(
         id: "triple-team", name: "Triple-Team", type: .clamp,
-        effect: "#[Lock|3] cards\n#[Clear]: ~[Pass] the ball",
+        effect: "#[Lock|3] cards",
         numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .passingTheBall, defenders: 3, locksRandomCards: 3))
+        clamp: ClampEffect(clearPrice: 3, defenders: 3, locksRandomCards: 3))
 
     static let trap = CardDescriptor(
         id: "trap", name: "Trap", type: .clamp,
-        effect: "Can only ~[Pass] or #[Shoot]\n#[Clear]: ~[Pass] to an #[Open] player",
+        effect: "Can only ~[Pass] or #[Shoot]",
         numberInDeck: 1,
-        clamp: ClampEffect(clearedBy: .passingToAnOpenPlayer, defenders: 3, passOnly: true))
+        clamp: ClampEffect(clearPrice: 1, defenders: 3, passOnly: true))
 
     static let fullCourtPress = CardDescriptor(
         id: "full-court-press", name: "Full-Court Press", type: .clamp,
-        effect: "Can only play ~[Move] cards\n#[Clear]: Play 3 ~[Move] cards in a possession",
+        effect: "Can only play ~[Move] cards",
         numberInDeck: 1,
-        clamp: ClampEffect(clearedBy: .movesAtLeast(3), movesOnly: true))
+        clamp: ClampEffect(clearPrice: 1, movesOnly: true))
 
     // ── The pace defenders ────────────────────────────────────────────
     //
@@ -297,32 +294,29 @@ enum CardLibrary {
 
     static let crushingCenter = CardDescriptor(
         id: "crushing-center", name: "Crushing Center", type: .clamp,
-        effect: "2 cards or fewer in Bag: SHOT -30%\nCannot @[Dunk]\n"
-            + "#[Clear]: 4 cards or more in Bag", numberInDeck: 5,
-        clamp: ClampEffect(clearedBy: .handAtLeast(4), appliesWhen: .handAtMost(2),
+        effect: "2 cards or fewer in Bag: SHOT -30%\nCannot @[Dunk]", numberInDeck: 5,
+        clamp: ClampEffect(clearPrice: 2, appliesWhen: .handAtMost(2),
                            shotDebuff: -30, blocksShotTypes: [.dunk]))
 
     static let pressingPoint = CardDescriptor(
         id: "pressing-point", name: "Pressing Point", type: .clamp,
-        effect: "4 cards or more in Bag: SHOT -30%\nCannot shoot @[Layups]\n"
-            + "#[Clear]: 2 cards or fewer in Bag", numberInDeck: 5,
-        clamp: ClampEffect(clearedBy: .handAtMost(2), appliesWhen: .handAtLeast(4),
+        effect: "4 cards or more in Bag: SHOT -30%\nCannot shoot @[Layups]", numberInDeck: 5,
+        clamp: ClampEffect(clearPrice: 2, appliesWhen: .handAtLeast(4),
                            shotDebuff: -30, blocksShotTypes: [.layup]))
 
     /// **Wings are the most important defenders in the game**, so his band is the middle
     /// of the hand, where most players live.
     static let waitingWing = CardDescriptor(
         id: "lurking-wing", name: "Waiting Wing", type: .clamp,
-        effect: "2 to 4 cards in Bag: SHOT -30%\n"
-            + "#[Clear]: 1 card or fewer, or 5 cards or more in Bag", numberInDeck: 5,
-        clamp: ClampEffect(clearedBy: .handOutside(atMost: 1, atLeast: 5),
+        effect: "2 to 4 cards in Bag: SHOT -30%", numberInDeck: 5,
+        clamp: ClampEffect(clearPrice: 2,
                            appliesWhen: .handBetween(2, 4), shotDebuff: -30))
 
     static let helpSideForward = CardDescriptor(
         id: "help-side-forward", name: "Help-Side Forward", type: .clamp,
-        effect: "SHOT -15%\n#[Clear]: Play an ~[Intangible] or change the ~[Ball]",
+        effect: "SHOT -15%",
         numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .playingAnIntangibleOrChangingTheBall, shotDebuff: -15))
+        clamp: ClampEffect(clearPrice: 3, shotDebuff: -15))
 
     // ── The forcers ───────────────────────────────────────────────────
     //
@@ -333,21 +327,21 @@ enum CardLibrary {
 
     static let baselineDenial = CardDescriptor(
         id: "baseline-denial", name: "Baseline Denial", type: .clamp,
-        effect: "Can only #[Shoot]\n#[Clear]: Any stoppage of play",
+        effect: "Can only #[Shoot]",
         numberInDeck: 1,
-        clamp: ClampEffect(clearedBy: .stoppageOfPlay, shootOnly: true))
+        clamp: ClampEffect(clearPrice: 1, shootOnly: true))
 
     static let paintPacker = CardDescriptor(
         id: "paint-packer", name: "Paint Packer", type: .clamp,
-        effect: "When shooting: can only shoot a @[Three]\n#[Clear]: ~[Pass] the ball",
+        effect: "When shooting: can only shoot a @[Three]",
         numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .passingTheBall, forcesShotType: .three))
+        clamp: ClampEffect(clearPrice: 2, forcesShotType: .three))
 
     static let rimRunner = CardDescriptor(
         id: "rim-runner", name: "Rim Runner", type: .clamp,
-        effect: "Cannot shoot @[Layups]\n#[Clear]: SHOT 40% or less",
+        effect: "Cannot shoot @[Layups]",
         numberInDeck: 3,
-        clamp: ClampEffect(clearedBy: .shotAtMost(40), blocksShotTypes: [.layup]))
+        clamp: ClampEffect(clearPrice: 2, blocksShotTypes: [.layup]))
 
     // ── Whistles ──────────────────────────────────────────────────────
     // A nil trigger resolves on play; everything else lies in wait. A turnover always
@@ -540,10 +534,10 @@ enum CardLibrary {
 
     static let clutchGene = CardDescriptor(
         id: "clutch-gene", name: "Clutch Gene", type: .intangible,
-        effect: "SHOT = $[2X] if you have 1 card or fewer in your Bag, or the #[Shot Clock] is 03 or less",
+        effect: "SHOT = $[2X] if you have 1 card or fewer in your Bag, or the #[Shot Clock] is 05 or less",
         numberInDeck: 1,
         intangible: IntangibleEffect(shotMultiplier: 2,
-                                     requiresHandAtMost: 1, requiresClockAtMost: 3))
+                                     requiresHandAtMost: 1, requiresClockAtMost: 5))
 
     static let floorGeneral = CardDescriptor(
         id: "floor-general", name: "Floor General", type: .intangible,
@@ -614,10 +608,10 @@ enum CardLibrary {
 
     static let ballPounder = CardDescriptor(
         id: "ball-pounder", name: "Ball Pounder", type: .intangible,
-        effect: "When playing a ~[Dribble], you may reduce the #[Shot Clock] by 03 to "
+        effect: "When playing a ~[Dribble], you may reduce the #[Shot Clock] by 01 to "
             + "#[Draw] 1 extra card and gain SHOT +10%",
         numberInDeck: 1,
-        intangible: IntangibleEffect(dribbleClockTradeCost: 3, dribbleClockTradeDraw: 1,
+        intangible: IntangibleEffect(dribbleClockTradeCost: 1, dribbleClockTradeDraw: 1,
                                      dribbleClockTradeShot: 10))
 
     static let franchisePlayer = CardDescriptor(
@@ -799,7 +793,7 @@ enum CardLibrary {
     /// `Rules.clockCatchesUp(_:)`, which calls it the moment this leaves him.
     static let movesAtOwnPace = CardDescriptor(
         id: "moves-at-own-pace", name: "Moves At Own Pace", type: .intangible,
-        effect: "Cannot be called for Traveling or #[Shot Clock] violations",
+        effect: "Cannot be called for Traveling",
         numberInDeck: 1,
         intangible: IntangibleEffect(ignoresViolations: true))
 
@@ -1269,11 +1263,13 @@ enum CardLibrary {
 
     static let daggerThree = CardDescriptor(
         id: "dagger-three", name: "Dagger Three", type: .specialMove,
-        effect: "#[Draw] 1 card. SHOT +60%. SHOT -10% x #[Shot Clock]",
+        effect: "#[Draw] 1 card. SHOT = 100%, -05% for each second the "
+            + "#[Shot Clock] is above 01",
         numberInDeck: 1,
-        shotDelta: 60, drawCount: 1,
+        drawCount: 1,
         special: SpecialMoveEffect(shootsImmediately: true, shotType: .three,
-                                   shotPerClockTick: -10))
+                                   shotOverride: 100,
+                                   overrideWalksBack: OverrideWalk(from: 1, amount: -5)))
 
     static let skyhook = CardDescriptor(
         id: "skyhook", name: "Skyhook", type: .specialMove,

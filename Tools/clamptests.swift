@@ -20,39 +20,63 @@ func clampTests() {
         stand(CardLibrary.closeOut, on: seat, &state)
         Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAs(.three)),
                    "Close-Out: no Three")
+        // **Nothing on the floor beats him any more.** Taking a shot was his printed
+        // clear; the one mechanic is his price, and it is paid out of the hand.
         let events = playDeclining(.shootAs(.layup), by: seat, &state)
-        Check.that(beat(events, CardLibrary.closeOut), "Close-Out: cleared by attempting a Shot")
+        Check.that(!beat(events, CardLibrary.closeOut),
+                   "Close-Out: shooting does not clear him")
     }
     do {
-        var (state, seat, cards) = openPossession(seed: 302, cards: [CardLibrary.swingLeft])
+        var (state, seat, _) = openPossession(seed: 320, cards: [])
+        // Dealt a hand that can afford him: `openPossession` leaves room rather than a
+        // full Bag, and a price is only interesting when it can be paid.
+        state[seat].bag = (0..<4).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
+        stand(CardLibrary.closeOut, on: seat, &state)
+        let price = Rules.clearPrice(for: seat, in: state)
+        Check.that(price == 2, "Close-Out asks for 2")
+        let paying = Array(state[seat].bag.prefix(price ?? 0)).map(\.id)
+        let held = state[seat].bag.count
+        let events = Rules.apply(.clearClamp(paying: paying), by: seat, to: &state)
+        Check.that(state[seat].clamps.isEmpty && beat(events, CardLibrary.closeOut),
+                   "and retiring them beats him")
+        Check.that(state[seat].bag.count == held - (price ?? 0), "at the price on his card")
+        // What he was taking away, given back. Whether the Three is *offered* is the
+        // hand's business — a three wants a fuller one than paying him off leaves.
+        Check.that(!Rules.clampBlockedShotTypes(on: seat, in: state).contains(.three),
+                   "and the Three is his to take away no longer")
+    }
+    do {
+        // **A locked card still pays.** A lock stops you playing it, not spending it —
+        // otherwise Triple-Team could price you out of getting rid of Triple-Team.
+        var (state, seat, _) = openPossession(seed: 321, cards: [])
+        state[seat].bag = (0..<4).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
         stand(CardLibrary.tripleTeam, on: seat, &state)
-        state[seat].clamps[0].locked = []
-        let events = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(beat(events, CardLibrary.tripleTeam), "Triple-Team: cleared by passing the ball")
+        // Locked by hand: `stand` puts him on the floor without the arrival that rolls
+        // them, and what is being tested is that a locked card can still be spent.
+        let locked = Array(state[seat].bag.prefix(3)).map(\.id)
+        state[seat].clamps[0].locked = locked
+        Check.that(Rules.lockedCards(state, for: seat).count == 3, "Triple-Team locks 3")
+        let events = Rules.apply(.clearClamp(paying: locked), by: seat, to: &state)
+        Check.that(state[seat].clamps.isEmpty && beat(events, CardLibrary.tripleTeam),
+                   "and the three it locked are what beat it")
+    }
+    do {
+        // Short of the price is no clear at all.
+        var (state, seat, _) = openPossession(seed: 322, cards: [])
+        state[seat].bag = (0..<4).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
+        stand(CardLibrary.manToMan, on: seat, &state)
+        let one = Array(state[seat].bag.prefix(1)).map(\.id)
+        let events = Rules.apply(.clearClamp(paying: one), by: seat, to: &state)
+        Check.that(events.isEmpty && state[seat].clamps.count == 1,
+                   "Man-To-Man: two cards short of his three buys nothing")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 303, cards: [CardLibrary.swingLeft])
         stand(CardLibrary.trap, on: seat, &state)
-        state[seat.left].clamps = [ActiveClamp(card: CardLibrary.contest, from: seat.right)]
-        let events = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(!beat(events, CardLibrary.trap)
-                   && state[seat].clamps.contains { $0.card.id == CardLibrary.trap.id },
-                   "Trap: a pass to a guarded player does not clear it")
-    }
-    do {
-        var (state, seat, cards) = openPossession(seed: 304, cards: [CardLibrary.swingLeft])
-        stand(CardLibrary.trap, on: seat, &state)
         state[seat.left].clamps = []
         let events = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(beat(events, CardLibrary.trap), "Trap: cleared by a pass to an Open player")
-    }
-    do {
-        var (state, seat, cards) = openPossession(seed: 305, cards: [CardLibrary.lethalShooter])
-        state[seat].intangibles = []
-        stand(CardLibrary.helpSideForward, on: seat, &state)
-        let events = playDeclining(.play(cards[0].id), by: seat, &state)
-        Check.that(beat(events, CardLibrary.helpSideForward),
-                   "Help-Side Forward: cleared by playing an Intangible")
+        Check.that(!beat(events, CardLibrary.trap),
+                   "Trap: a pass to an Open player no longer clears it")
     }
     do {
         var (state, seat, _) = openPossession(seed: 306, cards: [CardLibrary.swingLeft])
@@ -62,8 +86,10 @@ func clampTests() {
                    "Baseline Denial: no card can be played")
         var events: [GameEvent] = []
         Rules.stoppage(state: &state, events: &events)
-        Check.that(beat(events, CardLibrary.baselineDenial),
-                   "Baseline Denial: cleared by any stoppage of play")
+        Check.that(!beat(events, CardLibrary.baselineDenial),
+                   "Baseline Denial: a stoppage does not clear him")
+        Check.that(Rules.clearPrice(for: seat, in: state) == 1,
+                   "and he is the cheapest man on the floor to be rid of")
     }
     do {
         var (state, seat, _) = openPossession(seed: 307, cards: [])
@@ -91,7 +117,10 @@ func clampTests() {
         state[seat].bag = Array(state[seat].bag.prefix(1))
         var events: [GameEvent] = []
         Rules.settleClamps(state: &state, events: &events)
-        Check.that(beat(events, CardLibrary.waitingWing), "Waiting Wing: cleared at 1 card")
+        Check.that(!beat(events, CardLibrary.waitingWing),
+                   "Waiting Wing: stepping out of his band is not beating him")
+        Check.that(!state.shotModifiers(for: seat).debuffs.contains { $0.amount == -30 },
+                   "though his SHOT comes off while you are out of it")
     }
 }
 

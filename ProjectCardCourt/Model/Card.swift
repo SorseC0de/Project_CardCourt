@@ -36,11 +36,18 @@ struct ClampEffect: Hashable, Codable {
             || turnoverWithoutAPass || forcesShotType != nil
     }
 
-    /// **What sends him off, printed on his own card.** Every defender has one, even if it
-    /// is only getting rid of the ball — a man with no assignment left has nobody to guard.
+    /// **What beating him costs, in cards.** One mechanic for the whole set: retire this
+    /// many and he goes. It is printed as a bare number on the card rather than as a line
+    /// of text, since every Clamp says the same thing and only the figure differs.
     ///
-    /// Meeting it is *beating* him: the Clamp leaves and the player it was on takes the
-    /// payoff — see `Rules.settleClamps`.
+    /// The old per-card conditions — pass the ball, shoot, draw back up — are gone: each
+    /// was a different thing to remember, and the ones that shut your hand were the ones
+    /// you could least afford to satisfy. See `Rules.clearClamp`.
+    var clearPrice: Int = 2
+
+    /// **What takes him off on his own.** Only `givingUpTheBall` now: a defender with
+    /// nobody to guard leaves quietly, and that is not beating him — see
+    /// `Rules.settleClamps`.
     var clearedBy: ClampCounter = .givingUpTheBall
 
     /// **When the debuff actually bites.** Nil is a defender who is always a problem.
@@ -623,6 +630,13 @@ struct ShotSwing: Hashable, Codable {
     func delta(on shot: Int) -> Int { shot < at ? under : over }
 }
 
+/// How far an override falls for every second the clock is above `from` — see
+/// `SpecialMoveEffect.overrideWalksBack`.
+struct OverrideWalk: Hashable, Codable {
+    var from: Int
+    var amount: Int
+}
+
 struct SpecialMoveEffect: Hashable, Codable {
     var shootsImmediately = false
     /// **Which of the three this card puts up.** Every shooting Special Move names one, so
@@ -673,6 +687,11 @@ struct SpecialMoveEffect: Hashable, Codable {
     /// `shotDelta`, once for every tick still on the Shot Clock — so +60% and −10% a tick
     /// is +50% at 01 and −40% at 10, read straight off the clock.
     var shotPerClockTick = 0
+    /// **An override that walks back off the clock.** Dagger Three is a hundred per cent
+    /// at 01 and loses this much for every second above it — an equals, like Buzzer
+    /// Beater's, so taking it late is taking the number on the card instead of the one
+    /// the possession built.
+    var overrideWalksBack: OverrideWalk?
     /// Turnaround Three: a hand at least this big may all be discarded, for SHOT = 100%.
     var offersHandDumpAt: Int?
 
@@ -916,11 +935,14 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     let compulsoryFirstAction: Bool
     /// Rhythm Dribble: unplayable unless the last thing played was a Dribble.
     let requiresDribbleFirst: Bool
-    /// **Pump Fake: how much each defender you sell it to is worth.** They stay on you —
-    /// you did not lose them, you got them in the air — so this is SHOT and clock per
-    /// Clamp *named*, and naming fewer is how you stay off the shot clock.
+    /// **Pump Fake: what selling the fake to your man is worth.** One Clamp a player now,
+    /// so there is nothing to target and nothing to count — it is your own defender or
+    /// nobody's, and taking it is optional because the clock it costs is not always worth
+    /// paying. See `clearsOwnClamp`, which is what the sale actually does to him.
     let shotPerClampNamed: Int
     let clockPerClampNamed: Int
+    /// Pump Fake: the man you sold it to is beaten, and goes.
+    let clearsOwnClamp: Bool
     /// Spin Move: the bonus takes an official off, or moves a defender.
     let retiresARef: Bool
     let reassignsAClamp: Bool
@@ -967,6 +989,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          clearsTargetClamp: Bool = false, compulsoryFirstAction: Bool = false,
          requiresDribbleFirst: Bool = false,
          shotPerClampNamed: Int = 0, clockPerClampNamed: Int = 0,
+         clearsOwnClamp: Bool = false,
          retiresARef: Bool = false, reassignsAClamp: Bool = false,
          retiresLastCaller: Bool = false, threeWithFewerCards: Int = 0,
          comboReversesPass: Bool = false,
@@ -998,6 +1021,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.compulsoryFirstAction = compulsoryFirstAction
         self.requiresDribbleFirst = requiresDribbleFirst
         self.shotPerClampNamed = shotPerClampNamed
+        self.clearsOwnClamp = clearsOwnClamp
         self.clockPerClampNamed = clockPerClampNamed
         self.retiresARef = retiresARef
         self.reassignsAClamp = reassignsAClamp

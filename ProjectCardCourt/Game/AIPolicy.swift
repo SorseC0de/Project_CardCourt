@@ -49,6 +49,30 @@ struct AIPolicy {
         })
         let playable = state[seat].bag.filter { playableIDs.contains($0.id) }
 
+        // **Beat your man when he is in the way and you can afford him.**
+        //
+        // Not in `legalMoves`: the move carries the cards that pay for it, and there is
+        // no sense enumerating every combination of a hand. The policy is the same one a
+        // player uses — pay when the defender is costing more than the cards are worth,
+        // which here means he is stopping the shot or shutting the hand.
+        if let price = Rules.clearPrice(for: seat, in: state),
+           Rules.canClearClamp(seat, in: state),
+           let clamp = state[seat].clamps.first?.card.clamp {
+            let inTheWay = clamp.blocksShooting || clamp.shootOnly || clamp.passOnly
+                || clamp.movesOnly || !clamp.blocksShotTypes.isEmpty
+                || clamp.forcesShotType != nil
+            // Keep enough back to still do something with the possession.
+            let sparable = state[seat].bag.count - price >= 1
+            if inTheWay, sparable {
+                // The cards it can least use: whatever is not playable right now goes
+                // first, since a held card pays exactly as well as a live one.
+                let held = state[seat].bag.filter { !playableIDs.contains($0.id) }
+                let paying = (held + state[seat].bag.filter { playableIDs.contains($0.id) })
+                    .prefix(price).map(\.id)
+                if paying.count == price { return .clearClamp(paying: Array(paying)) }
+            }
+        }
+
         // A Free Agent with nothing of his own has only other people's bags. Reaching for
         // the fullest one is the same rule the rest of this policy uses for a target.
         let ownCards = legal.contains { if case .play = $0 { return true }; return false }

@@ -105,10 +105,19 @@ struct ActionBarView: View {
 
     /// Bids and Turnaround Three pick cards; a possession plays one.
     private var isSelecting: Bool {
+        if controller.payingOffClamp != nil { return true }
         switch controller.gate {
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp: return true
         default: return false
         }
+    }
+
+    /// **Beating your man costs cards**, and this is the row that asks for them — see
+    /// `ClampEffect.clearPrice`.
+    private var clampPrice: Int? {
+        guard case .awaitingMove = controller.gate else { return nil }
+        guard Rules.canClearClamp(GameRules.localSeat, in: state) else { return nil }
+        return Rules.clearPrice(for: GameRules.localSeat, in: state)
     }
 
     var body: some View {
@@ -155,6 +164,17 @@ struct ActionBarView: View {
             // **A card asking who, taken back.** Its own row: the floor below is the ball.
             if case .awaitingTarget = controller.gate, Rules.canCancelAim(state) {
                 sideButton("CANCEL") { controller.cancelAim() }
+            }
+            if let owed = controller.payingOffClamp {
+                HStack(spacing: 8) {
+                    sideButton(controller.bidSelection.count == owed
+                               ? "BEAT HIM" : "PICK \(owed - controller.bidSelection.count)") {
+                        controller.submitClampPayment()
+                    }
+                    sideButton("CANCEL") { controller.cancelClearingClamp() }
+                }
+            } else if let price = clampPrice, allowsShooting {
+                sideButton("BEAT YOUR MAN · \(price)") { controller.beginClearingClamp() }
             }
             if case .awaitingMove = controller.gate, allowsShooting { shootExtras }
             prompt

@@ -783,6 +783,9 @@ final class GameController {
     /// without waiting for what has already been spent — see `settleTheCatch`.
     private var passLeftAt: Date?
     var bidSelection: Set<Card.ID> = []
+    /// **Beating your man, mid-payment.** The price his card prints, while the cards to
+    /// pay it with are being picked out of the hand — nil when nobody is being paid off.
+    private(set) var payingOffClamp: Int?
 
     /// The shuffle this game came from. Rolled again when a match starts — see
     /// `dealForTheTable`.
@@ -1896,6 +1899,14 @@ final class GameController {
             guard Rules.legalMoves(shown, for: GameRules.localSeat).contains(.play(card.id))
             else { return }
             play(card)
+        case .awaitingMove where payingOffClamp != nil:
+            // Picking out what the defender costs. A locked card pays: the lock stops it
+            // being played, not spent.
+            if bidSelection.contains(card.id) {
+                bidSelection.remove(card.id)
+            } else if bidSelection.count < (payingOffClamp ?? 0) {
+                bidSelection.insert(card.id)
+            }
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
             // Nothing moves once the bid is in.
             guard !bidPlaced else { return }
@@ -2134,6 +2145,36 @@ final class GameController {
         }
         drive {
             await present(Rules.resolveGiveUp(chosen, state: &state))
+            await run()
+        }
+    }
+
+    /// **Start paying your man off**, or put the question away again.
+    func beginClearingClamp() {
+        guard !isPaused, case .awaitingMove = gate else { return }
+        guard let price = Rules.clearPrice(for: GameRules.localSeat, in: shown),
+              Rules.canClearClamp(GameRules.localSeat, in: shown) else { return }
+        bidSelection.removeAll()
+        payingOffClamp = price
+    }
+
+    func cancelClearingClamp() {
+        payingOffClamp = nil
+        bidSelection.removeAll()
+    }
+
+    /// Paid: the cards are retired and the defender goes.
+    func submitClampPayment() {
+        guard !isPaused, let price = payingOffClamp, bidSelection.count == price else { return }
+        let paying = Array(bidSelection)
+        bidSelection.removeAll()
+        payingOffClamp = nil
+        loop?.cancel()
+        drive {
+            let defenders = defenderCount(on: GameRules.localSeat)
+            await present(Rules.apply(.clearClamp(paying: paying),
+                                      by: GameRules.localSeat, to: &state),
+                          defenders: defenders)
             await run()
         }
     }
