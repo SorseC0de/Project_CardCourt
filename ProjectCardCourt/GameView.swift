@@ -260,20 +260,21 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     statusBar
                         .opacity(callFade)
-                    // **The board on the left, and the card being read beside it.** A
-                    // closed board is a name and a score, which leaves the rest of the
-                    // row for the words of whatever card is in your hand.
-                    HStack(alignment: .top, spacing: 10) {
-                        ScoreboardView(state: controller.shown, withheld: controller.withheldPoints,
-                                       collapses: true)
-                            .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
+                    // **Four seats across the top, and the card being read in their
+                    // place.** The panels are what the table is; the words of a card are
+                    // what you are deciding on, and both want the same room.
+                    Group {
                         if let reading {
                             CardTextPanel(card: reading)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            SeatPanelsView(state: controller.shown,
+                                           withheld: controller.withheldPoints,
+                                           onSelect: { inspecting = (card: $0, from: $1) })
+                                .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                         }
-                        Spacer(minLength: 0)
                     }
-                    .padding(.trailing, 12)
+                    .padding(.horizontal, 12)
                     .animation(.easeOut(duration: 0.18), value: reading)
                     .opacity(callFade)
                     hudRow
@@ -1052,6 +1053,7 @@ struct GameView: View {
                                         onSelect: { inspecting = (card: $0, from: $1) },
                                         unit: Plates.unit)
                     DebuffSlotsView(cards: controller.human.clamps.map(\.card),
+                                    slots: controller.shown.rules.clampSlots,
                                     onSelect: { inspecting = (card: $0, from: $1) },
                                     edge: .leading, unit: Plates.unit)
                     // **How much running is left**, under the two plates that say what is

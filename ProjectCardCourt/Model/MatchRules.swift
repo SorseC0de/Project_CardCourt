@@ -82,8 +82,8 @@ extension MatchRules {
             passShotBonus: 10,
             shotFloor: 0,
             shotCeiling: 100,
-            intangibleSlots: 3,
-            clampSlots: 3,
+            intangibleSlots: 1,
+            clampSlots: 1,
             refereeSlots: 3,
             officialsPool: [],
             cardPool: CardLibrary.classicPool)

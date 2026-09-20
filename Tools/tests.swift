@@ -961,8 +961,9 @@ func runTests() {
                 state[seat].intangibles.removeFirst()
             }
         }
-        Check.that(state[seat].intangibles.map(\.id) == ["b", "c", "d"],
-                   "a fourth passive pushes the oldest out")
+        Check.that(state[seat].intangibles.map(\.id)
+                   == Array(["a", "b", "c", "d"].suffix(state.rules.intangibleSlots)),
+                   "a passive past the slots pushes the oldest out")
     }
     do {
         var (state, seat, _) = openPossession(seed: 53, cards: [])
