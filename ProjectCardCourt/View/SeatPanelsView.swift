@@ -20,8 +20,9 @@ struct SeatPanelsView: View {
     var showing: Showing = .intangibles
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
-    /// Which block is open, if any. One at a time: two sums side by side is a table again.
-    @State private var opened: Seat?
+    /// **Whether the lines are out.** All four or none: comparing them is the whole
+    /// reason to look, and one column at a time is four presses to do it.
+    @State private var opened = false
 
     private enum Panel {
         static let corner: CGFloat = 9
@@ -35,6 +36,8 @@ struct SeatPanelsView: View {
         /// The sum a block opens into.
         static let statLabel: CGFloat = 10
         static let stat: CGFloat = 13
+        /// What is taken off the total rather than added to it.
+        static let taken = Color(red: 1, green: 0.62, blue: 0.62)
     }
 
     /// Your own seat first, then round the table the way the ball goes.
@@ -100,20 +103,18 @@ struct SeatPanelsView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                opened = opened == seat ? nil : seat
-            }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { opened.toggle() }
         }
         // **Opened downward**, over the floor rather than pushing it: the overlay's top
         // is pinned to the block's bottom edge.
         .overlay(alignment: .bottom) {
-            if opened == seat {
+            if opened {
                 sum(seat)
                     .alignmentGuide(VerticalAlignment.bottom) { $0[.top] }
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .zIndex(opened == seat ? 1 : 0)
+        .zIndex(opened ? 1 : 0)
     }
 
     /// The one card this block is showing, or the space it would stand in.
@@ -151,11 +152,12 @@ struct SeatPanelsView: View {
                 HStack(spacing: 6) {
                     SmallCapsText(text: row.label, font: Chrome.display,
                                   size: Panel.statLabel, tracking: Panel.statLabel * 0.1)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(row.taken ? Panel.taken : .white.opacity(0.8))
                     Spacer(minLength: 0)
-                    Text(row.value < 0 ? "−\(-row.value)" : "\(row.value)")
+                    // What comes off the total says so, in the sum and in its colour.
+                    Text(row.taken ? "-\(row.value)" : "\(row.value)")
                         .font(.custom(Chrome.display, size: Panel.stat))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(row.taken ? Panel.taken : .white)
                 }
             }
             Rectangle()
@@ -181,9 +183,10 @@ struct SeatPanelsView: View {
 
     /// What a line is made of, in the order it is added up. Turnovers come off it, which
     /// is why the total is a sum rather than four numbers side by side.
-    private static func line(_ player: PlayerState) -> [(label: String, value: Int)] {
-        [("Pts", player.points), ("Ast", player.assists),
-         ("Reb", player.rebounds), ("Tov", -player.turnovers)]
+    private static func line(_ player: PlayerState)
+    -> [(label: String, value: Int, taken: Bool)] {
+        [("Pts", player.points, false), ("Ast", player.assists, false),
+         ("Reb", player.rebounds, false), ("Tov", player.turnovers, true)]
     }
 
     private func shownScore(_ seat: Seat) -> Int {

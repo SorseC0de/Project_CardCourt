@@ -19,6 +19,10 @@ struct CardFrontView: View {
     let displayWidth: CGFloat
     /// Raised for reading, which is where the longer wording goes.
     var expanded = false
+    /// **The words, against the card's own width.** One everywhere: a card is one drawing
+    /// at every size. Over one where a card has to be *read* at a size smaller than the
+    /// drawing was set for — the official's, standing on the screen under the blocks.
+    var textScale: CGFloat = 1
     /// In play but unable to act — drained of colour rather than dimmed, so it still
     /// reads at a glance without looking merely faded.
     var isDormant = false
@@ -553,7 +557,7 @@ struct CardFrontView: View {
 
     private var effectText: AnyView {
         AnyView(Group {
-            let size = width * set.size
+            let size = width * set.size * textScale
             let inset = width * set.inset
             return CardText(text: expanded ? descriptor.detailedEffect
                                           : descriptor.printedEffect,

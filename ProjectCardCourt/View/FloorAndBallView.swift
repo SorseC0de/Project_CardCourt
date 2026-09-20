@@ -15,28 +15,51 @@ struct FloorAndBallView: View {
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     private enum Layout {
-        /// **The size of one of the crew's cards** in the HUD, so the ball reads as one
-        /// more card in the same set.
-        static var card: CGFloat { StatusHUDView.crewCardWidth() }
+        /// **Its own size, and a small one.** It stands in the quarter beside the ball you
+        /// shoot with, and anything taller than that band pushes the ball off the floor.
+        static let card: CGFloat = 54
         static let gap: CGFloat = 6
         static let note: CGFloat = 10
+        /// The dashes round an empty slot. Thick, so it reads as a slot rather than a rule.
+        static let dash: CGFloat = 3
     }
 
     var body: some View {
         VStack(spacing: 2) {
             if state.courtCard != nil { slot(state.currentCourt, note: floorNote) }
+            // **The card, not the ball.** What the ball is doing is drawn on the one you
+            // shoot with; this is the card that put it in play, to be read — and the slot
+            // it would stand in when nothing has.
             if let ball = state.currentBall {
                 slot(ball, note: ballNote)
                     .transition(.scale.combined(with: .opacity))
             } else if alwaysShowsBall {
-                // Nothing played over it: the ball everybody starts with.
-                BallView(diameter: Layout.card * 0.8)
-                    .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+                empty
             }
             FloorName(text: "Ball")
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.72), value: state.currentCourt.id)
         .animation(.spring(response: 0.35, dampingFraction: 0.72), value: state.currentBall?.id)
+    }
+
+    /// **The slot with nothing in it.** A Regulation ball is no card at all, so what
+    /// stands here is the shape of the one that would: a Variaball with nothing printed
+    /// on it, cut out of the screen and dashed round.
+    private var empty: some View {
+        let corner = Layout.card * CardLayout.cornerFraction
+        return RoundedRectangle(cornerRadius: corner, style: .continuous)
+            .strokeBorder(CardPalette.cloud.opacity(0.7),
+                          style: StrokeStyle(lineWidth: Layout.dash, dash: [Layout.dash * 2,
+                                                                            Layout.dash * 1.4]))
+            .frame(width: Layout.card, height: Layout.card / CardMetrics.aspect)
+            .overlay {
+                SmallCapsText(text: "Variaball", font: Chrome.display,
+                              size: Layout.card * 0.15, tracking: 0.4)
+                    .foregroundStyle(CardPalette.cloud.opacity(0.7))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, 4)
+            }
     }
 
     private func slot(_ card: CardDescriptor, note: String?) -> some View {

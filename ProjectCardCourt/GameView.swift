@@ -30,10 +30,12 @@ struct GameView: View {
     /// tapped to raise it like any other.
     private var crewCard: AnyView {
         AnyView(HStack(spacing: 8) {
+            Spacer(minLength: 0)
             ForEach(controller.shown.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
                               displayWidth: StatusHUDView.crewCardWidth(),
                               expanded: true,
+                              textScale: StatusHUDView.crewTextScale,
                               isDormant: whistle.stayed)
                     .overlay {
                         GeometryReader { card in
@@ -49,6 +51,7 @@ struct GameView: View {
             }
         }
         .padding(.top, 6)
+        .padding(.trailing, 12)
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
                    value: controller.shown.armedWhistles))
     }

@@ -19,6 +19,41 @@ struct ArcSlice: Shape {
     }
 }
 
+/// **A word bent round a circle**, a letter at a time — each one turned to stand on the
+/// curve it sits on, the way a word printed round a dial is.
+struct CurvedWord: View {
+    let word: String
+    let centre: CGPoint
+    let radius: CGFloat
+    /// The middle of the run, in degrees — 0 is due right, -90 straight up.
+    let middle: Double
+    let size: CGFloat
+    var ink: Color = .white
+
+    /// How much of the circle one letter takes at this radius, in degrees.
+    private var step: Double {
+        Double(size * 0.58 / max(radius, 1)) * 180 / .pi
+    }
+
+    var body: some View {
+        let letters = Array(word)
+        let start = middle - step * Double(letters.count - 1) / 2
+        return ZStack {
+            ForEach(letters.indices, id: \.self) { index in
+                let angle = start + step * Double(index)
+                let radians = angle * .pi / 180
+                Text(String(letters[index]))
+                    .font(.system(size: size, weight: .heavy, design: .rounded))
+                    .foregroundStyle(ink)
+                    .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
+                    .rotationEffect(.degrees(angle + 90))
+                    .position(x: centre.x + CGFloat(cos(radians)) * radius,
+                              y: centre.y + CGFloat(sin(radians)) * radius)
+            }
+        }
+    }
+}
+
 /// **The ball you shoot with, sunk into the floor of the screen.**
 ///
 /// Two thirds of the screen across and a third of it showing: the rest is under the
@@ -55,11 +90,15 @@ struct ShootDomeView: View {
         /// How much of the ball is above the screen's edge.
         static let shown: CGFloat = 0.33
         /// The arc over it: how thick, and the air between it and the ball.
-        static let arc: CGFloat = 0.13
+        static let arc: CGFloat = 0.19
         static let gap: CGFloat = 0.02
         /// How far round the ball's shoulder the arc runs, and the seam between segments.
-        static let span: Double = 132
-        static let seam: Double = 4
+        static let span: Double = 150
+        static let seam: Double = 3
+        /// What stands on a segment, as shares of the arc's own thickness: the mark that
+        /// leads it, and the word that follows the mark round.
+        static let mark: CGFloat = 0.62
+        static let letter: CGFloat = 0.46
         /// The number on the ball, and the word lapped over it.
         static let number: CGFloat = 0.27
         /// The per-cent sign never matches the digits — see `ModeCardStyle.digitStandout`.
@@ -114,7 +153,6 @@ struct ShootDomeView: View {
                 .scaledToFit()
                 .frame(width: width, height: width)
                 .drawingGroup()
-                .shadow(color: CardPalette.blue, radius: 0, x: 3, y: 3)
             // The reading, on the part of it that is on screen: the ball's own top third.
             // The word stands beside the number rather than over it, in the plain heavy
             // type every other button on this bar is lettered in.
@@ -181,29 +219,46 @@ struct ShootDomeView: View {
             .padRing(showing && ringed == .finish(finish), corner: arcThickness / 2)
     }
 
-    /// What a segment says: nothing while it is a Move, the finish's mark and word once
-    /// the ball has been pressed.
+    /// **What a segment carries: a mark, and the word bent round after it.**
+    ///
+    /// Closed, that is the Move's own subject on each of the three it has to spend.
+    /// Pressed, it is the finish's mark and its name, both following the curve they are
+    /// standing on.
     @ViewBuilder private func label(_ index: Int, finish: ShotType, live: Bool) -> some View {
+        let step = Dome.span / Double(max(1, Self.finishes.count))
+        let from = -90 - Dome.span / 2 + Double(index) * step + Dome.seam / 2
+        let to = from + step - Dome.seam
+        let reach = radius + arcGap + arcThickness / 2
+        let markSide = arcThickness * Dome.mark
+        // How much of the arc the mark takes, in degrees at this radius.
+        let markSpan = Double(markSide / reach) * 180 / .pi
+        let ink = live || !showing ? Color.white : Color.white.opacity(Dome.greyed)
         if showing {
-            let step = Dome.span / Double(max(1, Self.finishes.count))
-            let mid = (-90 - Dome.span / 2 + (Double(index) + 0.5) * step) * .pi / 180
-            let reach = radius + arcGap + arcThickness / 2
-            VStack(spacing: 1) {
-                Image(Self.mark(for: finish))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: arcThickness * 0.42)
-                Text(finish.name.uppercased())
-                    .font(.system(size: arcThickness * 0.26, weight: .heavy, design: .rounded))
-                    .tracking(0.4)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+            ZStack {
+                mark(Self.mark(for: finish), at: from + markSpan / 2, reach: reach,
+                     side: markSide, ink: ink)
+                CurvedWord(word: finish.name.uppercased(), centre: centre, radius: reach,
+                           middle: (from + markSpan + to) / 2,
+                           size: arcThickness * Dome.letter, ink: ink)
             }
-            .foregroundStyle(live ? .white : Color.white.opacity(Dome.greyed))
-            .shadow(color: CardPalette.navy, radius: 0, x: 1.5, y: 1.5)
-            .position(x: centre.x + CGFloat(cos(mid)) * reach,
-                      y: centre.y + CGFloat(sin(mid)) * reach)
+        } else if index < moveLimit {
+            mark("TypeMoveFront", at: (from + to) / 2, reach: reach,
+                 side: markSide, ink: index < moves ? CardPalette.navy : .white)
         }
+    }
+
+    /// One mark standing on the arc, turned to sit on the curve.
+    private func mark(_ art: String, at angle: Double, reach: CGFloat,
+                      side: CGFloat, ink: Color) -> some View {
+        let radians = angle * .pi / 180
+        return Image(art)
+            .resizable()
+            .scaledToFit()
+            .frame(width: side, height: side)
+            .foregroundStyle(ink)
+            .rotationEffect(.degrees(angle + 90))
+            .position(x: centre.x + CGFloat(cos(radians)) * reach,
+                      y: centre.y + CGFloat(sin(radians)) * reach)
     }
 
     /// **The drop under the arc, by how much running is gone.** The Moves plate's own

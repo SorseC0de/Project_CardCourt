@@ -220,8 +220,9 @@ struct StatusHUDView: View {
         /// **The turned deck, drawn up and left of its count** by this much: turned, the
         /// sheet sat low and to the right of the number it carries.
         static let tilt: CGFloat = 4
-        /// The room between the two decks, as a share of the ball.
-        static let pair: CGFloat = 0.30
+        /// The room between the two decks, as a share of the ball. They carry their own
+        /// offsets for the turn, which brought them together.
+        static let pair: CGFloat = 0.95
     }
 
     /// **Off the Backboard, still owed.** The card itself, shrunk to a mark, held in the
@@ -310,7 +311,13 @@ struct StatusHUDView: View {
     /// One official works the round and everybody plays under him, so his card is printed
     /// where it stands rather than tapped open — and the words are a share of the card's
     /// own width, so the card has to be this big for them to be worth printing.
-    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 140 }
+    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 104 }
+
+    /// **And its words, bigger than the card's own share.** A card's printing is a share
+    /// of its width, and the width that makes an official's words readable is a card that
+    /// takes half the screen. So the card stays the size of a card and the words are set
+    /// up to where they can be read.
+    static let crewTextScale: CGFloat = 1.6
 
     private enum Crew {
         /// **Against the referee icon that stood here**, which is itself smaller than the
