@@ -64,7 +64,7 @@ enum Rules {
             // A Clamp can hold cards down or allow nothing but passes. Both last the
             // possession, and both are read here rather than refused on play — a card you
             // cannot use should look like one.
-            var held = Set(state[seat].clamps.flatMap(\.locked))
+            var held = Set(state.bitingClamps(on: seat).flatMap(\.locked))
             // Torn Achilles is the other way round: everything is held *except* what the
             // roll left, so a card added mid-turn is held too.
             if handIsLocked(state, for: seat) {
@@ -75,11 +75,12 @@ enum Rules {
             held.formUnion(state.footLocked)
             let floor = state.floorEffect
             let slotsFreely = has(seat, in: state, { $0.playsSlotsFreely })
-            let passOnly = state[seat].clamps.contains { $0.card.clamp?.passOnly == true }
-            let movesOnly = state[seat].clamps.contains { $0.card.clamp?.movesOnly == true }
-            let shootOnly = state[seat].clamps.contains { $0.card.clamp?.shootOnly == true }
+            let biting = state.bitingClamps(on: seat)
+            let passOnly = biting.contains { $0.card.clamp?.passOnly == true }
+            let movesOnly = biting.contains { $0.card.clamp?.movesOnly == true }
+            let shootOnly = biting.contains { $0.card.clamp?.shootOnly == true }
             let clampedFinishes = clampBlockedShotTypes(on: seat, in: state)
-            let zoned = state[seat].clamps.contains { $0.card.clamp?.blocksShooting == true }
+            let zoned = biting.contains { $0.card.clamp?.blocksShooting == true }
             let playable = state[seat].bag.filter { card in
                 if held.contains(card.id) { return false }
                 if shootOnly { return false }
@@ -245,9 +246,10 @@ enum Rules {
         return forced.count == 1 ? forced.first : nil
     }
 
-    /// **The finishes the Clamps on this seat take away.**
+    /// **The finishes the Clamps on this seat take away.** Only the ones biting: a
+    /// defender outside his band takes nothing away.
     static func clampBlockedShotTypes(on seat: Seat, in state: GameState) -> Set<ShotType> {
-        Set(state[seat].clamps.flatMap { $0.card.clamp?.blocksShotTypes ?? [] })
+        Set(state.bitingClamps(on: seat).flatMap { $0.card.clamp?.blocksShotTypes ?? [] })
     }
 
     /// **Who a Clamp may be put on.** Anybody with room for another defender — yourself
@@ -277,6 +279,12 @@ enum Rules {
         return applies.met(by: seat, in: state)
     }
 
+    /// The same question asked of every defender on a man at once — see
+    /// `GameState.bitingClamps`, which is where the rule lives.
+    static func bitingClamps(on seat: Seat, in state: GameState) -> [ActiveClamp] {
+        state.bitingClamps(on: seat)
+    }
+
     /// A possession nobody can do anything with is a dead ball.
     ///
     /// Rock Fight bars the good look and a Lob says shoot first, so a man can be left with
@@ -293,7 +301,8 @@ enum Rules {
         guard handOffTargets(state, for: holder).isEmpty else { return }
         let legal = legalMoves(state, for: holder)
         // Zone: left with no Pass to play, at any point in the possession, is the turnover.
-        let zoned = state[holder].clamps.contains { $0.card.clamp?.turnoverWithoutAPass == true }
+        let zoned = state.bitingClamps(on: holder)
+            .contains { $0.card.clamp?.turnoverWithoutAPass == true }
         let canPass = legal.contains { move in
             guard case .play(let id) = move else { return false }
             return state[holder].bag.first(where: { $0.id == id })?.isPass == true
@@ -1322,8 +1331,8 @@ enum Rules {
     /// Trap forbids. Read by the hand so a held card looks held, and by nothing else —
     /// `legalMoves` refuses them on its own.
     static func lockedCards(_ state: GameState, for seat: Seat) -> Set<Card.ID> {
-        var held = Set(state[seat].clamps.flatMap(\.locked))
-        let clamps = state[seat].clamps.compactMap(\.card.clamp)
+        var held = Set(state.bitingClamps(on: seat).flatMap(\.locked))
+        let clamps = state.bitingClamps(on: seat).compactMap(\.card.clamp)
         if clamps.contains(where: \.shootOnly) {
             held.formUnion(state[seat].bag.map(\.id))
         }
@@ -3015,7 +3024,8 @@ enum Rules {
         // Dagger Three. Euro Step is the exception because it does not shoot: it is
         // a Move card wearing a Special Move's coat, and its SHOT is the board's.
         // Man-To-Man: every card played while guarded costs SHOT.
-        delta += state[seat].clamps.reduce(0) { $0 + ($1.card.clamp?.shotPerCardPlayed ?? 0) }
+        delta += state.bitingClamps(on: seat)
+            .reduce(0) { $0 + ($1.card.clamp?.shotPerCardPlayed ?? 0) }
         // **Snow Ball: none of what the pass is worth lands** — its number, its combo,
         // the clock, the lot. What is charged for playing a card at all still does.
         if overridesPassGain(descriptor, in: state) { delta = min(delta, 0) }
@@ -4802,7 +4812,7 @@ enum Rules {
             }
             // Close-Out: a three owed to a player who cannot take one is not shot, and the
             // pass that owed it was only ever a pass. Zone: no owed shot is taken at all.
-            let guarding = state[shooter].clamps.compactMap(\.card.clamp)
+            let guarding = state.bitingClamps(on: shooter).compactMap(\.card.clamp)
             if guarding.contains(where: \.blocksShooting)
                 || (state.pendingBonusPoint > 0
                     && (guarding.contains(where: { $0.blocksShotTypes.contains(.three) })

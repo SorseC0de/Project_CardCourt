@@ -70,8 +70,11 @@ func clampTests() {
         state[seat].bag = (0..<4).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
         stand(CardLibrary.crushingCenter, on: seat, &state)
         state.movesThisPossession = state.moveLimit(for: seat)
-        Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAs(.dunk)),
-                   "Crushing Center: no Dunk, even outside his band")
+        // **The whole defender is out of his band, not half of him.** The sheet's own
+        // note is "only bites at 2 cards or fewer" — so at four the dunk is there. This
+        // asserted the opposite, which is the bug it was pinning in place.
+        Check.that(Rules.legalMoves(state, for: seat).contains(.shootAs(.dunk)),
+                   "Crushing Center: the Dunk is there outside his band")
     }
     do {
         var (state, seat, _) = openPossession(seed: 308, cards: [])
@@ -101,6 +104,42 @@ private func cut(_ id: UUID, by seat: Seat, to target: Seat, _ state: inout Game
     if case .awaitingRetirement = state.phase { events += Rules.resolveRetirement(nil, state: &state) }
     while case .awaitingCounter = state.phase { events += Rules.resolveCounter(false, state: &state) }
     return events
+}
+
+/// **A defender outside his band takes nothing away.**
+///
+/// Pressing Point only bites at four cards or more. Its SHOT debuff checked the band and
+/// its blocked finish did not, so the layup stayed barred at a hand size the defender was
+/// not even a problem at — and no amount of beating him took the ban off.
+func bandTests() {
+    print("Pace defenders")
+    do {
+        var (state, seat, _) = openPossession(seed: 601, cards: [])
+        // Dealt rather than trimmed: `openPossession` leaves room in the hand, so a
+        // `prefix(4)` of it can be three cards and the band never opens.
+        state[seat].bag = (0..<4).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
+        stand(CardLibrary.pressingPoint, on: seat, &state)
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAs(.layup)),
+                   "Pressing Point: no Layup inside his band")
+        state[seat].bag = Array(state[seat].bag.prefix(3))
+        Check.that(Rules.legalMoves(state, for: seat).contains(.shootAs(.layup)),
+                   "Pressing Point: the Layup comes back outside it")
+        Check.that(state[seat].clamps.count == 1,
+                   "Pressing Point: and he is still standing there")
+    }
+    do {
+        var (state, seat, _) = openPossession(seed: 602, cards: [])
+        state[seat].bag = (0..<2).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
+        stand(CardLibrary.crushingCenter, on: seat, &state)
+        Check.that(state.shotModifiers(for: seat).debuffs.contains { $0.amount == -30 },
+                   "Crushing Center: his SHOT inside his band")
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAs(.dunk)),
+                   "Crushing Center: and no Dunk")
+        state[seat].bag += [matchCard(CardLibrary.drive, state.rules),
+                            matchCard(CardLibrary.drive, state.rules)]
+        Check.that(!state.shotModifiers(for: seat).debuffs.contains { $0.amount == -30 },
+                   "Crushing Center: both come off together outside it")
+    }
 }
 
 func cutTests() {

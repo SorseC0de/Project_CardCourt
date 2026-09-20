@@ -451,7 +451,7 @@ struct GameState: Codable {
     func moveLimit(for seat: Seat) -> Int {
         var limit = rules.movesPerPossession
         limit -= armedWhistles.reduce(0) { $0 + ($1.card.descriptor.whistle?.lowersMoveLimit ?? 0) }
-        if let guarded = self[seat].clamps
+        if let guarded = bitingClamps(on: seat)
             .compactMap({ $0.card.clamp?.movesPerPossession }).min() {
             limit = min(limit, guarded)
         }
@@ -557,8 +557,21 @@ struct GameState: Codable {
     }
 
     var half: Int { round <= rules.roundsPerHalf ? 1 : 2 }
+    /// **The defenders on this player who are a problem right now.**
+    ///
+    /// A pace defender only bites inside his band — the seven-footer does not see the
+    /// five-two guard — so everything a Clamp takes away has to be read off this rather
+    /// than off the clamps themselves. **Every restriction, not just the SHOT.** The
+    /// debuff checked the band and the blocked finishes did not, so Pressing Point went
+    /// on refusing layups at a hand size it was not even biting at, and no amount of
+    /// beating the man took the ban off.
+    func bitingClamps(on seat: Seat) -> [ActiveClamp] {
+        self[seat].clamps.filter { $0.card.clamp?.appliesWhen?.met(by: seat, in: self) ?? true }
+    }
+
     /// How many bodies are standing on a player: what every Clamp on them brings, which
-    /// the sheet sets per card.
+    /// the sheet sets per card. **Bodies, not restrictions** — a man out of his band is
+    /// still standing there.
     func defenders(on seat: Seat) -> Int {
         self[seat].clamps.reduce(0) { $0 + ($1.card.clamp?.defenders ?? 1) }
     }

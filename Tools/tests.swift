@@ -1826,6 +1826,7 @@ func runTests() {
 
     slotTests()
     clampTests()
+    bandTests()
     cutTests()
     retirementTests()
     aimTests()
