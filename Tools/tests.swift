@@ -107,7 +107,12 @@ func runTests() {
         Check.that(events.contains { if case .failedReturn = $0 { return true }; return false },
                    "no passer to return to raises failedReturn")
         Check.that(state[seat].turnovers == 1, "TOV +1 is charged")
-        Check.that(state.round == round + 1, "the round ends, like a violation")
+        // A turnover is a dead ball, not the end of a period: only the clock reaching
+        // nought ends one.
+        Check.that(state.round == round, "and the round runs on")
+        Check.that({ if case .refereeInbound = state.phase { return true }
+                     if case .inbound = state.phase { return true }
+                     return false }(), "with the ball going back in")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 2, cards: [CardLibrary.swingLeft])
@@ -496,7 +501,7 @@ func runTests() {
         let events = Rules.resolveTarget(seat, state: &state)
         Check.that(events.contains { if case .turnover = $0 { return true }; return false },
                    "throwing it to yourself is Traveling")
-        Check.that(state.round > round, "and the round ends on it")
+        Check.that(state.round == round, "and the period runs on through it")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 83, cards: [CardLibrary.lob])

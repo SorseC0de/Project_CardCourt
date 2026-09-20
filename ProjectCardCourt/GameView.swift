@@ -61,6 +61,10 @@ struct GameView: View {
             // the ball's wears.
             if controller.shown.armedWhistles.isEmpty || controller.refereeIntro != nil {
                 FloorAndBallView.emptySlot(width: SeatPanelsView.cardWidth, word: "Ref")
+                    // Turned in with the card that stands here when there is one: an
+                    // empty slot is the shape of the thing it is waiting for.
+                    .rotation3DEffect(.degrees(-Self.skew), axis: (x: 0, y: 1, z: 0),
+                                      anchor: .trailing, perspective: Self.depth)
                     .background {
                         GeometryReader { box in
                             let screen = box.frame(in: .named(Chrome.screen))

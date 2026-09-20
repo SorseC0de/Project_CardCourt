@@ -326,7 +326,9 @@ enum Rules {
         events.append(.turnover(holder, cause: zoned && !canPass ? CardLibrary.zone.name
                                 : owedByCut ? (state.arrivedBy?.name ?? "Shot Clock") : "Shot Clock"))
         stoppage(state: &state, events: &events)
-        endRound(state: &state, events: &events)
+        // **A turnover is not the end of a period.** Only the clock reaching
+        // nought ends one — a dead ball goes back in like any other.
+        reinbound(by: holder, barring: holder, state: &state, events: &events)
     }
 
     /// Traderous Tarmac: who a Clamp on this seat may be handed to. Anyone else with room.
@@ -1853,7 +1855,9 @@ enum Rules {
             events.append(.failedReturn(seat: seat))
             events.append(.turnover(seat, cause: descriptor.name))
             stoppage(state: &state, events: &events)
-            endRound(state: &state, events: &events)
+            // **A turnover is not the end of a period.** Only the clock reaching
+            // nought ends one — a dead ball goes back in like any other.
+            reinbound(by: seat, barring: seat, state: &state, events: &events)
             return true
         }
         // **The draw resolves before the ball moves.** Point God queues the pass
@@ -1985,7 +1989,9 @@ enum Rules {
             state[seat].turnovers += 1
             events.append(.turnover(seat, cause: CardLibrary.travel.name))
             stoppage(state: &state, events: &events)
-            endRound(state: &state, events: &events)
+            // **A turnover is not the end of a period.** Only the clock reaching
+            // nought ends one — a dead ball goes back in like any other.
+            reinbound(by: seat, barring: seat, state: &state, events: &events)
             return
         }
         // Hand Ball: the hands swap with the ball.
@@ -2646,7 +2652,9 @@ enum Rules {
             state[seat].turnovers += 1
             events.append(.turnover(seat, cause: CardLibrary.brandNewBall.name))
             stoppage(state: &state, events: &events)
-            endRound(state: &state, events: &events)
+            // **A turnover is not the end of a period.** Only the clock reaching
+            // nought ends one — a dead ball goes back in like any other.
+            reinbound(by: seat, barring: seat, state: &state, events: &events)
             return
         }
         // What the card in hand was worth, spent on this attempt and gone.
