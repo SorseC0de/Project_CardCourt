@@ -44,9 +44,9 @@ struct DeckSlotView: View {
     @State private var render = RenderDebug.shared
 
     private enum Slot {
-        /// How far above the pile the arrow's point sits.
-        static let arrow: CGFloat = 38
-        static let arrowWidth: CGFloat = 30
+        /// How far above the pile the arrow's point sits, and how wide it is drawn.
+        static let arrow: CGFloat = 16
+        static let arrowWidth: CGFloat = 60
         /// The count standing on the pile, as a share of the pile's own width.
         static let count: CGFloat = 0.34
         /// How far out the man it is dealing to stands, in the deck's own metres. Only

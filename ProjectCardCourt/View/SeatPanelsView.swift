@@ -51,8 +51,9 @@ struct SeatPanelsView: View {
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     /// **Whether the lines are out.** All four or none: comparing them is the whole
-    /// reason to look, and one column at a time is four presses to do it.
-    @State private var opened = false
+    /// reason to look, and one column at a time is four presses to do it. The toggle
+    /// under the blocks owns it — Score *is* the sum, not a figure beside a name.
+    private var opened: Bool { showing == .score }
 
     private enum Panel {
         static let corner: CGFloat = 9
@@ -127,10 +128,12 @@ struct SeatPanelsView: View {
                 // **What he is on**, lettered the way a card's own $[2X] is: the one
                 // figure on the block that is a total rather than a part. Only while the
                 // blocks are showing it — a card and a total do not share the corner.
-                // Taken away rather than removed: the cell it stands in is where points
-                // fly to, and a figure with no width is a target with no place.
+                // **Always there, and sometimes seen.** The cell it stands in is where
+                // points fly to, so it is hidden rather than removed — a figure with no
+                // width is a target with no place. Out while a card is up, since a card
+                // and a total were sharing the corner.
                 TwoXMark(size: Panel.score, text: "\(shownScore(seat))")
-                    .opacity(showing == .score ? 1 : 0)
+                    .opacity(opened ? 1 : 0)
                     // **Where the points are**, for anything flying to the board — see
                     // `PointsCells`.
                     .background {
@@ -168,10 +171,6 @@ struct SeatPanelsView: View {
             Rectangle()
                 .fill(mine ? .white : .clear)
                 .frame(height: Panel.rim)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { opened.toggle() }
         }
         // **Opened downward**, over the floor rather than pushing it: the overlay's top
         // is pinned to the block's bottom edge.
@@ -235,14 +234,20 @@ struct SeatPanelsView: View {
                 HStack(spacing: 6) {
                     // **The minus belongs to the line, not to the figure.** It is the
                     // turnovers that come off, and "-2" read as a count of minus two.
-                    SmallCapsText(text: row.taken ? "-" + row.label : row.label,
-                                  font: Chrome.display,
-                                  size: Panel.statLabel, tracking: Panel.statLabel * 0.1)
-                        .foregroundStyle(row.taken ? Panel.taken : .white.opacity(0.8))
+                    //
+                    // Set in the same face as the figure beside it: a line of a sum is
+                    // one thing, and a label in one lettering against a number in another
+                    // reads as two.
+                    StrokedPixelText(text: (row.taken ? "-" + row.label : row.label).uppercased(),
+                                     size: Panel.statLabel,
+                                     ink: row.taken ? Panel.taken : .white)
+                        .fixedSize()
                     Spacer(minLength: 0)
-                    Text("\(row.value)")
-                        .font(.custom(Chrome.display, size: Panel.stat))
-                        .foregroundStyle(row.taken ? Panel.taken : .white)
+                    // Each figure cut out in the pixel face, like every other number
+                    // being counted rather than written — see `StrokedPixelText`.
+                    StrokedPixelText(text: "\(row.value)", size: Panel.stat,
+                                     ink: row.taken ? Panel.taken : .white)
+                        .fixedSize()
                 }
             }
             Rectangle()
@@ -251,15 +256,10 @@ struct SeatPanelsView: View {
                 .padding(.top, 1)
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                Text("\(shownScore(seat))")
-                    .font(.custom(Chrome.display, size: Panel.stat + 3))
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
+                StrokedPixelText(text: "\(shownScore(seat))", size: Panel.stat + 3)
+                    .fixedSize()
             }
         }
-        // Black under every figure, which is what makes a light number on a seat's own
-        // colour readable — the drop the names already wear.
-        .shadow(color: CardPalette.black, radius: 0, x: 1.5, y: 1.5)
         .padding(.horizontal, Panel.pad + 1)
         .padding(.vertical, Panel.pad)
         .background(Theme.color(for: seat))

@@ -168,7 +168,10 @@ struct StatusHUDView: View {
             .rotationEffect(.degrees(readout.rotation))
             .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
+                // **Its own width.** An overlay is offered the frame it sits on, and a
+                // mark that letters wider than a deck glyph was being cut off inside it.
                 TwoXMark(size: readout.number, text: "\(state.officials.count)")
+                    .fixedSize()
                     .offset(x: readout.textX, y: readout.textY)
             }
             .offset(x: readout.x, y: readout.y)
@@ -212,6 +215,7 @@ struct StatusHUDView: View {
             .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
                 TwoXMark(size: readout.number, text: "\(deck ?? state.deck.count)")
+                    .fixedSize()
                     .offset(x: readout.textX, y: readout.textY)
             }
             .offset(x: readout.x, y: readout.y)
@@ -243,6 +247,7 @@ struct StatusHUDView: View {
         .rotationEffect(.degrees(readout.rotation))
         .overlay {
             TwoXMark(size: readout.number, text: "\(state.discard.count)")
+                .fixedSize()
         }
         // **What makes it the spent pile at a glance.** Two piles of cards side by side
         // are two piles of cards; the cross is the whole difference.
