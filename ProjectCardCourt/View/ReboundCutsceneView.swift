@@ -12,6 +12,7 @@ struct ReboundCutsceneView: View {
     /// priced above or below the ball's SHOT by whatever paid for it.
     var chance: Int?
 
+    @State private var tuning = ReboundSceneTuning.shared
     @State private var spin = false
     @State private var lift = false
     /// Monster Ball's card shakes where the ball would be: lightly, and quickly.
@@ -68,6 +69,7 @@ struct ReboundCutsceneView: View {
                     .foregroundStyle(Theme.inkDim)
                     .opacity(revealedBids == nil ? 1 : 0)
 
+                Group {
                 if let prize {
                     HStack(alignment: .center, spacing: 14) {
                         CardFrontView(descriptor: prize, displayWidth: 110)
@@ -88,9 +90,15 @@ struct ReboundCutsceneView: View {
                         .offset(y: lift ? -7 : 7)
                         .shadow(color: Theme.ball.opacity(0.55), radius: 14)
                 }
+                }
+                // The ball has a line of its own: it is the thing being gone up for, and
+                // the words above it are read rather than watched.
+                .scaleEffect(tuning.ballScale)
+                .offset(y: tuning.ballY)
             }
             // Clear of the hand, which the centred stack was sitting on top of.
-            .offset(y: -Self.lift)
+            .scaleEffect(tuning.titleScale)
+            .offset(y: -Self.lift + tuning.titleY)
 
             // The bids, placed from the centre of the screen rather than from the bottom
             // of whatever happens to be above them.
@@ -129,7 +137,8 @@ struct ReboundCutsceneView: View {
                     }
                 }
             }
-            .offset(y: Self.bidsY)
+            .scaleEffect(tuning.bidsScale)
+            .offset(y: Self.bidsY + tuning.bidsY)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: revealedBids)
         .onAppear {

@@ -31,6 +31,8 @@ struct ActionBarView: View {
     @Environment(\.floorIsHidden) private var floorIsHidden
     /// How far the hand sits down over the ball — see `HandTuning`.
     @State private var handTuning = HandTuning.shared
+    /// What a board's own furniture is set at — see `ReboundSceneTuning`.
+    @State private var board = ReboundSceneTuning.shared
 
     private var state: GameState { controller.shown }
     /// What the table has seen arrive, not what the rules have dealt — see
@@ -84,6 +86,12 @@ struct ActionBarView: View {
         case .awaitingMove: return canHandOff || canExchange
         default: return false
         }
+    }
+
+    /// Whether a board is up and the hand is what it is asking about.
+    private var isBidding: Bool {
+        if case .awaitingBid = controller.gate { return true }
+        return false
     }
 
     /// The court is asking who to throw to, so the hand is not the question.
@@ -143,6 +151,10 @@ struct ActionBarView: View {
                           onBonus: onBonus,
                           detail: $detail,
                           onCommit: commit)
+                // A board asks for cards, so the hand is the question: it is set at its
+                // own size while one is up — see `ReboundSceneTuning`.
+                .scaleEffect(isBidding ? board.handScale : 1)
+                .offset(y: isBidding ? board.handY : 0)
                 // Out of the ball's way as it comes up to meet a press.
                 .scaleEffect(shootOpen ? Act.handShrink : 1, anchor: .bottom)
                 .animation(.spring(response: 0.36, dampingFraction: 0.58), value: shootOpen)
@@ -153,7 +165,11 @@ struct ActionBarView: View {
                 // a rebound's own button and prompt came up into the cards.
                 .padding(.bottom, -(barIsAsking ? 0 : handTuning.lift))
             asking
-            if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
+            if case .awaitingBid = controller.gate, controller.revealedBids == nil {
+                confirmBid
+                    .scaleEffect(board.buttonScale)
+                    .offset(y: board.buttonY)
+            }
             if case .awaitingDiscard = controller.gate { confirmDiscard }
             if case .awaitingGiveUp(let card, let count) = controller.gate {
                 confirmInjuryDiscard(card, count: count)
@@ -428,12 +444,16 @@ struct ActionBarView: View {
                     // `GameView.crewCard`.
                     VStack(alignment: .trailing, spacing: 6) {
                         if let onPause { pauseButton(onPause) }
+                        // **Nothing to draw from while a board is up.** A bid is cards
+                        // out of the hand; the deck has no part in it.
+                        if !isBidding {
                         DeckSlotView(remaining: controller.shownDeck,
                                      waiting: controller.deckWaiting,
                                      owed: controller.deckOwed,
                                      dealing: controller.dealingNow,
                                      routine: controller.deckRoutine,
                                      width: Act.deck) { controller.takeFromDeck() }
+                        }
                     }
                     .frame(width: across * Act.side, alignment: .trailing)
                 }
@@ -446,6 +466,10 @@ struct ActionBarView: View {
                 // ball; the row it sits in stops short of the bottom, for the home
                 // indicator and the bar's own padding, and every point of that showed
                 // more of the ball than a third.
+                // **The ball you shoot with, and the Moves left in a possession.** Both
+                // are a possession's furniture and there is no possession while a board
+                // is in the air.
+                if !isBidding {
                 ShootDomeView(shot: controller.shownShot,
                               hidden: !state.canReadShot(GameRules.localSeat),
                               offered: Set(finishes),
@@ -460,6 +484,7 @@ struct ActionBarView: View {
                     // under it showed more of the ball than a third.
                     .padding(.bottom, -(Act.barPad + Chrome.bottomInset))
                     .ignoresSafeArea(edges: .bottom)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }

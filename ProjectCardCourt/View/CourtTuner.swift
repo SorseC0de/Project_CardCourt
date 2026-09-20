@@ -161,6 +161,31 @@ final class BallOverlayTuning {
     var y: CGFloat = -15
 }
 
+/// **The four things on screen while a board is up**, each on its own scale and line:
+/// the words, the button that answers them, the hand they are answered out of, and the
+/// row of men going up for it. Freeze into their own views once they land.
+@Observable
+@MainActor
+final class ReboundSceneTuning {
+    static let shared = ReboundSceneTuning()
+
+    /// "Crashing the Glass" and the line under it.
+    var titleScale: CGFloat = 1
+    var titleY: CGFloat = 0
+    /// The button the bid is placed with.
+    var buttonScale: CGFloat = 1
+    var buttonY: CGFloat = 0
+    /// The cards it is placed out of.
+    var handScale: CGFloat = 1
+    var handY: CGFloat = 0
+    /// Heads, names and Bag counts.
+    var bidsScale: CGFloat = 1
+    var bidsY: CGFloat = 0
+    /// The ball itself — or Monster Ball's prize, which stands where it does.
+    var ballScale: CGFloat = 1
+    var ballY: CGFloat = 0
+}
+
 /// **The wedges over the ball** — the Moves left, and the three finishes they become —
 /// while their size and their seams are being eyeballed. Freeze into `ShootDomeView.Dome`
 /// once they land.
@@ -210,6 +235,9 @@ struct DebugActionsView: View {
     @State private var refs = RefereeTuning.shared
     @AppStorage("bench.hand") private var showHand = false
     @AppStorage("bench.pass") private var showPass = false
+    @AppStorage("bench.board") private var showBoard = false
+    /// What a board's four things are set at — see `ReboundSceneTuning`.
+    @State private var board = ReboundSceneTuning.shared
     /// The three beats a pass is paced by — see `PassTuning`.
     @State private var pass = PassTuning.shared
     /// The hand's own three readings, and the wedges standing over the ball beside it.
@@ -250,6 +278,7 @@ struct DebugActionsView: View {
                 action(showRefs ? "refs ▾" : "refs ▸") { showRefs.toggle() }
                 action(showHand ? "hand ▾" : "hand ▸") { showHand.toggle() }
                 action(showPass ? "pass ▾" : "pass ▸") { showPass.toggle() }
+                action(showBoard ? "board ▾" : "board ▸") { showBoard.toggle() }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -379,6 +408,30 @@ struct DebugActionsView: View {
                 }
                 .frame(width: 150)
             }
+            if showBoard {
+                HStack(spacing: 4) {
+                    action("reset") {
+                        board.titleScale = 1; board.titleY = 0
+                        board.ballScale = 1; board.ballY = 0
+                        board.buttonScale = 1; board.buttonY = 0
+                        board.handScale = 1; board.handY = 0
+                        board.bidsScale = 1; board.bidsY = 0
+                    }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    slider("title size", size(\.titleScale), 0.3...2.5)
+                    slider("title y", place(\.titleY), -260...260)
+                    slider("ball size", size(\.ballScale), 0.3...2.5)
+                    slider("ball y", place(\.ballY), -260...260)
+                    slider("bids size", size(\.bidsScale), 0.3...2.5)
+                    slider("bids y", place(\.bidsY), -260...260)
+                    slider("button size", size(\.buttonScale), 0.3...2.5)
+                    slider("button y", place(\.buttonY), -260...260)
+                    slider("hand size", size(\.handScale), 0.3...2.5)
+                    slider("hand y", place(\.handY), -260...260)
+                }
+                .frame(width: 150)
+            }
             if showPass {
                 HStack(spacing: 4) {
                     action("pass") { controller.debugPass(to: Self.targets[target]) }
@@ -431,6 +484,16 @@ struct DebugActionsView: View {
         }
         .frame(width: 150)
     }
+
+    /// The board's dials, which are all the same two shapes.
+    private func size(_ path: ReferenceWritableKeyPath<ReboundSceneTuning, CGFloat>)
+    -> Binding<Double> {
+        Binding(get: { Double(board[keyPath: path]) },
+                set: { board[keyPath: path] = CGFloat($0) })
+    }
+
+    private func place(_ path: ReferenceWritableKeyPath<ReboundSceneTuning, CGFloat>)
+    -> Binding<Double> { size(path) }
 
     private func bind(_ path: ReferenceWritableKeyPath<DeckTuning, CGFloat>) -> Binding<Double> {
         Binding(get: { Double(deck[keyPath: path]) },
