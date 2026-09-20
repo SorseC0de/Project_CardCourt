@@ -356,6 +356,7 @@ struct GameView: View {
                                        showing: seatCards,
                                        hidesCards: reading != nil,
                                        lit: readingOwner,
+                                       undelivered: controller.undelivered,
                                        onSelect: { inspecting = (card: $0, from: $1) })
                             .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                         if let reading {
@@ -1143,6 +1144,7 @@ struct GameView: View {
             StatusHUDView(state: controller.shown, shot: controller.shownShot,
                           deck: controller.shownDeck,
                           onInspectReferee: { inspecting = (card: $0, from: $1) },
+                          onOpenDiscard: { browsingDiscard = true },
                           spread: true)
 
             // A lesson's way out stands where the floor's corner used to.

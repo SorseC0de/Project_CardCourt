@@ -258,7 +258,7 @@ struct ActionBarView: View {
         /// What the bar keeps under itself, which the ball is let through — see `body`.
         static let barPad: CGFloat = 10
         /// The deck, standing where the ball in play used to.
-        static let deck: CGFloat = 54
+        static let deck: CGFloat = 76
         /// **The hand's arc until the floor has been measured once.** The real one is the
         /// distance from the hand down to the ball's middle, which is a good deal more
         /// than the ball's own radius — the hand stands outside the ball, so a circle

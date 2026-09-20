@@ -23,6 +23,9 @@ struct SeatPanelsView: View {
     var hidesCards = false
     /// Whose card is being read, if it is anybody's: the others go back while it is up.
     var lit: Seat?
+    /// Cards the rules have dealt that the table has not shown arriving — a card still
+    /// in the air is not in a hand yet, and the count must not say it is.
+    var undelivered: Set<UUID> = []
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     /// **Whether the lines are out.** All four or none: comparing them is the whole
@@ -36,6 +39,8 @@ struct SeatPanelsView: View {
         static let pad: CGFloat = 5
         static let name: CGFloat = 15
         static let score: CGFloat = 22
+        /// The bag count along the bottom edge of a block.
+        static let bag: CGFloat = 17
         /// The card in a block, as a share of the block's own width.
         static let card: CGFloat = 0.82
         /// The sum a block opens into.
@@ -111,6 +116,16 @@ struct SeatPanelsView: View {
             Spacer(minLength: 0)
         }
         .padding(Panel.pad)
+        // **How many cards he is holding**, along the bottom edge of his own block. It
+        // hung over his head on the floor, where it had his name and his Clamps to stay
+        // clear of.
+        .overlay(alignment: .bottom) {
+            if !hidesCards {
+                HandCountBadge(count: state[seat].bag.count { !undelivered.contains($0.id) },
+                               side: Panel.bag)
+                    .padding(.bottom, Panel.pad)
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.color(for: seat))
         // Whoever's card is being read keeps the light; the rest stand back.

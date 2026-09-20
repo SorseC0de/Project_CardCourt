@@ -921,7 +921,7 @@ struct CourtView: View {
     enum Court {
         /// **How wide the far basket is drawn.** Small enough to read as distance and big
         /// enough to be the thing at the end of the floor.
-        static let hoop: CGFloat = 52
+        static let hoop: CGFloat = 60
         /// How far over the ring the clock hangs, in basket widths.
         static let clockOver: CGFloat = 0.95
         /// How big the ball is as it leaves the rim. It is coming from the horizon, and a
@@ -1262,7 +1262,6 @@ struct CourtView: View {
                     clampCount: showingClamps ? state[seat].clamps.count : nil,
                     badgeLift: NamePlate.badgeLift(
                         atScale: court.scale(of: seat, inbounding: thrower)),
-                    handCount: state[seat].bag.count { !undelivered.contains($0.id) },
                     // Set and waiting for it, like everybody else during an inbound — and
                     // turned to watch whoever is throwing it, rather than facing whichever
                     // way the run of play had left them. One of four ways of standing, so a
@@ -1560,20 +1559,23 @@ struct ShotClockBoard: View {
     /// What it read before the stoppage took the number away.
     @State private var last: Int?
 
-    private static let digit = CGSize(width: 14, height: 28)
+    /// **Read from across the hall, not squinted at.** The board is the one thing on
+    /// the floor with a number that has to be taken in at a glance.
+    private static let digit = CGSize(width: 22, height: 44)
+    private static let label: CGFloat = 9
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             SevenSegmentClock(value: value ?? last, digitSize: Self.digit)
             Text("SHOT CLOCK")
-                .font(.system(size: 6, weight: .bold)).tracking(1.1)
+                .font(.system(size: Self.label, weight: .bold)).tracking(1.4)
                 .foregroundStyle(.white)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(CardPalette.black))
-        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
             .strokeBorder(.white.opacity(0.25), lineWidth: 1))
         .animation(.easeOut(duration: 0.25), value: value)
         .onChange(of: value) { _, now in if let now { last = now } }

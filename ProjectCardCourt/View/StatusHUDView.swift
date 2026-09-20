@@ -102,6 +102,8 @@ struct StatusHUDView: View {
     /// the way a passive in the slots does — no sheet of all three in between, since you
     /// tapped the one you wanted to read.
     var onInspectReferee: (CardDescriptor, CGPoint) -> Void = { _, _ in }
+    /// The spent pile, opened — see `DiscardPileView`.
+    var onOpenDiscard: () -> Void = {}
     /// **Spread across the screen** — the main HUD: SHOT and the deck count in the
     /// middle, the crew and the two decks to the right of them. Off, it is the one row it
     /// always was.
@@ -130,11 +132,15 @@ struct StatusHUDView: View {
     /// enough to be read where they stand rather than tapped open to be.
     private var spreadOut: some View {
         HStack(alignment: .center, spacing: ballSize * 0.24) {
-            // The main deck and the officials', side by side in the bar.
+            // What is left to draw and what has already been spent, together at the head
+            // of the bar — the two halves of one pile. The officials' deck keeps the far
+            // end to itself.
             HStack(alignment: .center, spacing: ballSize * Deck.pair) {
                 remaining
-                officialsRemaining
+                discarded
             }
+            Spacer(minLength: 0)
+            officialsRemaining
             HStack(alignment: .center, spacing: ballSize * 0.16) {
                 if owed > 0 { pending }
                 if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
@@ -215,8 +221,38 @@ struct StatusHUDView: View {
             .animation(.easeOut(duration: 0.25), value: layout)
     }
 
+    /// **What has been spent**, beside what is left. The top card of the pile shrunk to
+    /// a mark, with the count over it: an empty pile is no card at all, which is exactly
+    /// what it says.
+    private var discarded: some View {
+        Group {
+            if let top = state.discard.last?.descriptor {
+                CardFrontView(descriptor: top, displayWidth: readout.side * Deck.discard)
+            } else {
+                RoundedRectangle(cornerRadius: readout.side * Deck.discard
+                                     * CardLayout.cornerFraction,
+                                 style: .continuous)
+                    .fill(CardPalette.black.opacity(0.35))
+                    .frame(width: readout.side * Deck.discard,
+                           height: readout.side * Deck.discard / CardMetrics.aspect)
+            }
+        }
+        .overlay {
+            Text("\(state.discard.count)")
+                .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
+                .foregroundStyle(.white)
+                .shadow(color: CardPalette.black, radius: 0, x: Deck.drop, y: Deck.drop)
+                .contentTransition(.numericText())
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenDiscard)
+        .animation(.easeOut(duration: 0.25), value: state.discard.count)
+    }
+
     private enum Deck {
         static let drop: CGFloat = 3
+        /// The spent pile's own mark, against the deck glyph beside it.
+        static let discard: CGFloat = 0.78
         /// **The turned deck, drawn up and left of its count** by this much: turned, the
         /// sheet sat low and to the right of the number it carries.
         static let tilt: CGFloat = 4

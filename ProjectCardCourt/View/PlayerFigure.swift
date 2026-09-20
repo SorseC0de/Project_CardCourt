@@ -31,7 +31,6 @@ struct PlayerFigure: View {
     /// points — room under it for the name the court puts over his head.
     var badgeLift: CGFloat = 0
     /// Cards in this player's bag, shown above their head.
-    var handCount: Int?
     /// Overrides what they are doing. The cutscenes use it to make someone shoot.
     var sprite: Sprite?
     /// Which cell of that sheet to hold on. A sheet of poses rather than of frames — the
@@ -91,7 +90,6 @@ struct PlayerFigure: View {
     @State private var airborne: CGFloat = 0
     @State private var leapTune = ReboundTuning.shared
     /// Raised for a beat when a card arrives — see `Bag`.
-    @State private var bagTook = false
 
     private enum Leap: Equatable {
         case none
@@ -132,20 +130,13 @@ struct PlayerFigure: View {
         static let lift: CGFloat = -38
     }
 
+    /// What the Clamp count is set at. The hand's own count stands on the player's
+    /// block now — see `HandCountBadge`.
     private enum Bag {
         static let number: CGFloat = 34
         /// The art is trimmed to its own subject rather than squared off, so this is not
         /// the number's own size — it is what reads as the same size beside it.
         static let side: CGFloat = 34
-        static let gap: CGFloat = 3
-        /// How big it goes when a card lands in it, and how long it stays there.
-        ///
-        /// **The hold has to outlast the spring.** At a sixth of a second against a
-        /// spring that takes a quarter to arrive, it was told to come back before it had
-        /// finished going — which is a bag that does not swell so much as flinch.
-        static let swell: CGFloat = 1.45
-        static let swellHolds: Double = 0.26
-        static let swellSpring: Double = 0.16
     }
 
     /// The rate this sprite runs at. The catch has its own, and the hold that keeps
@@ -380,35 +371,6 @@ struct PlayerFigure: View {
                             .offset(y: -5 - Bag.side - badgeLift)
                             .transition(.scale.combined(with: .opacity))
                     }
-                    if let handCount {
-                        // The bag says what the number is counting. Its own hard drop in the
-                        // seat's colour is what ties the pair to its player now that there is
-                        // no ring doing it.
-                        HStack(spacing: Bag.gap) {
-                            Image("BagIcon")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: Bag.side, height: Bag.side)
-                            Text("\(handCount)")
-                                .font(.custom("AvenirNextCondensed-Heavy", size: Bag.number))
-                                .contentTransition(.numericText())
-                        }
-                        // **It takes the card.** The bag swells for a beat as the count
-                        // ticks over, so the arrival lands on something rather than a
-                        // number quietly becoming a different number.
-                        .scaleEffect(bagTook ? Bag.swell : 1)
-                        // Its own animation, keyed to its own flag. Raised inside a
-                        // `withAnimation` on a hopped task it was being swallowed by the
-                        // implicit animations further out, which are keyed to the count.
-                        .animation(.spring(response: Bag.swellSpring, dampingFraction: 0.5),
-                                   value: bagTook)
-                        .foregroundStyle(.white)
-                        // One drop for the pair. Without this SwiftUI casts one per child and
-                        // the bag's falls across the number.
-                        .compositingGroup()
-                        .shadow(color: tint, radius: 0, x: 4, y: 4)
-                        .offset(y: -5 - badgeLift)
-                    }
                     if let marker {
                         MarkerTriangle()
                             .fill(marker)
@@ -432,15 +394,6 @@ struct PlayerFigure: View {
                     }
                 }
                 .animation(.easeOut(duration: 0.22), value: marker)
-                .animation(.easeOut(duration: 0.25), value: handCount)
-                .onChange(of: handCount) { was, now in
-                    guard let was, let now, now > was else { return }
-                    bagTook = true
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(Bag.swellHolds))
-                        bagTook = false
-                    }
-                }
                 .animation(.easeOut(duration: 0.22), value: clampCount)
                 .animation(.easeOut(duration: 0.22), value: isDimmed)
                 .task(id: reboundID) {

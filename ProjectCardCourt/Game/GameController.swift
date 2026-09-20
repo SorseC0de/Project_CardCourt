@@ -1729,6 +1729,11 @@ final class GameController {
 
     /// Runs a card across the court for each draw, and blocks until they have all landed.
     private func flyDraws(in events: [GameEvent], each duration: Double) async {
+        // **Held out of the hand until each one lands.** This batch never goes through
+        // `present`, which is where every other draw is marked — so the opening hand was
+        // already sitting in front of you before a single card had flown, and taking
+        // them off the deck was watching cards arrive somewhere they already were.
+        for case .drew(_, _, let card, _) in events { undelivered.insert(card) }
         for case .drew(let seat, _, let card, let opening) in events {
             await fly(to: seat, over: duration, delivering: card, opening: opening)
             if Task.isCancelled { return }
