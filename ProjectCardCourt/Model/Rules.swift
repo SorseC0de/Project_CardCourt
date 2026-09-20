@@ -2745,6 +2745,17 @@ enum Rules {
             state[seat].scoredWithBall = state.ballCard?.id ?? Self.regulationBallRun
             state[seat].lastMake = Make(round: state.round, chance: chance)
             events.append(.shotMade(seat: seat, points: points, roll: roll, chance: chance))
+            // **Scoring over him is beating him.** The other way off a defender is the
+            // price on his card; this one is free and it is the one the game is about —
+            // he was put there to stop this and it happened anyway.
+            let over = state[seat].clamps
+            if !over.isEmpty {
+                state[seat].clamps.removeAll()
+                state.discard.append(contentsOf: over.map { Card($0.card) })
+                for beaten in over {
+                    events.append(.clampBeaten(seat: seat, card: beaten.card))
+                }
+            }
             stoppage(state: &state, events: &events)
             if state[seat].drawsOwedOnMake > 0 {
                 let owed = state[seat].drawsOwedOnMake

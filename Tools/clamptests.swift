@@ -27,6 +27,18 @@ func clampTests() {
                    "Close-Out: shooting does not clear him")
     }
     do {
+        // **Scoring over him beats him**, free, whatever his card asks for.
+        var (state, seat, _) = openPossession(seed: 330, cards: [])
+        state[seat].bag = (0..<4).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
+        stand(CardLibrary.contest, on: seat, &state)
+        state.shot = 100
+        let events = playDeclining(.shootAs(.layup), by: seat, &state)
+        Check.that(events.contains { if case .shotMade = $0 { return true }; return false },
+                   "a make at a hundred goes in")
+        Check.that(state[seat].clamps.isEmpty && beat(events, CardLibrary.contest),
+                   "and scoring over him takes him off")
+    }
+    do {
         var (state, seat, _) = openPossession(seed: 320, cards: [])
         // Dealt a hand that can afford him: `openPossession` leaves room rather than a
         // full Bag, and a price is only interesting when it can be paid.
