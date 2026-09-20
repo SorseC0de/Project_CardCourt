@@ -420,8 +420,8 @@ enum CardLibrary {
 
     static let officialReview = CardDescriptor(
         id: "official-review", name: "Official Review", type: .whistle,
-        effect: "~[Intangible] slots: 1", numberInDeck: 1,
-        whistle: WhistleEffect(intangibleSlots: 1))
+        effect: "Cannot place a new ~[Intangible]", numberInDeck: 1,
+        whistle: WhistleEffect(barsNewIntangibles: true))
 
     static let goaltending = CardDescriptor(
         id: "goaltending", name: "Goaltending", type: .whistle,

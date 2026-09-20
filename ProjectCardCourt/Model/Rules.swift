@@ -166,8 +166,12 @@ enum Rules {
                    moveDiscardCost(in: state, for: seat) > state[seat].bag.count - 1 { return false }
                 // Hero Ball: nobody passes it.
                 if state.ballEffect.barsPasses, card.descriptor.isPass { return false }
-                // One Intangible a possession, played by hand.
+                // One Intangible a possession, played by hand — and none at all while
+                // an Official Review is standing.
                 if card.descriptor.intangible != nil {
+                    if state.armedWhistles.contains(where: {
+                        $0.card.descriptor.whistle?.barsNewIntangibles == true
+                    }) { return false }
                     return !state.playedIntangibleThisPossession
                 }
                 // One Varena and one Variaball a possession, unless Varsitile says otherwise.

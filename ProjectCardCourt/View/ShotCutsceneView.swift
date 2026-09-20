@@ -180,6 +180,19 @@ struct ShotCutsceneView: View {
     /// past them**: the ring is upcourt, so the trip goes away from the camera. He says
     /// when it changes — see `DunkFigure.onDepth`.
     @State private var dunkBehind = false
+    /// **Whether a dunker has come forward yet.** A dunk is behind the wall from the
+    /// gather until he is over the ring, so it starts false and the trip says when.
+    @State private var overTheRing = false
+
+    /// **Behind the men he is rising past.**
+    ///
+    /// A dunk starts behind and comes forward, rather than starting in front and being
+    /// pushed back: on a miss he never reaches the ring, so the moment that would bring
+    /// him forward never arrives — and asking the trip to push him back left him in
+    /// front of the wall for the whole of it.
+    private var behindTheWall: Bool {
+        scene.dunk != nil ? !overTheRing : dunkBehind
+    }
     /// Which burst this finish throws — see `DunkStyle.Trip.burst`.
     @State private var dunkTuning = DunkTuning.shared
 
@@ -379,6 +392,7 @@ struct ShotCutsceneView: View {
                                     }
                                 }, onDepth: { behind in
                                     dunkBehind = behind
+                                    overTheRing = !behind
                                 }, onRimPull: { amount, spring in
                                     // Whatever he just did to it, on his curve. He calls this
                                     // at every change he makes, so nothing here has to guess
@@ -451,7 +465,7 @@ struct ShotCutsceneView: View {
                     // reads right behind its near half; a man finishing at it is on top of it
                     // — except on the way up, where he is climbing past the wall and the ring
                     // both. See `DunkFigure.onDepth`.
-                    .zIndex(dunkBehind ? Depth.climbing : Depth.shooter)
+                    .zIndex(behindTheWall ? Depth.climbing : Depth.shooter)
 
                     PixelBallView(scale: ballStartScale
                                   + (ballEndScale - ballStartScale) * min(flight, 1))

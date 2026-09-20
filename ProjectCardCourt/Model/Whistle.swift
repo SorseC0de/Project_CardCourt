@@ -181,6 +181,9 @@ struct WhistleEffect: Hashable, Codable {
     var barsBonuses = false
     /// Official Review: how many passives a board may hold while he works.
     var intangibleSlots: Int?
+    /// **Official Review: nothing new goes into a slot while he is working.** Whatever is
+    /// already standing there stays — he is reviewing the call, not clearing the table.
+    var barsNewIntangibles = false
     /// Rookie Official: a card put into Retirement may be swapped for one already there.
     var swapsOnRetire = false
     /// **The Equalizer: a fourth button on the shot triangle.** Any player may spend him —
