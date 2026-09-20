@@ -72,7 +72,7 @@ struct DeckSlotView: View {
             .onTapGesture(perform: onTake)
             // **What it still owes you**, lettered the way a card's own $[2X] is.
             .overlay {
-                if waiting, owed > 1 {
+                if waiting, owed > 0 {
                     TwoXMark(size: width * Slot.count, text: "\(owed)")
                         .transition(.scale.combined(with: .opacity))
                 }

@@ -146,6 +146,20 @@ final class HandTuning {
     var scale: CGFloat = 1
 }
 
+/// **The ball standing out of its own card**, under the blocks: how big it is drawn
+/// against that card, and where it sits on it. Freeze into `GameView` once it lands.
+@Observable
+@MainActor
+final class BallOverlayTuning {
+    static let shared = BallOverlayTuning()
+
+    /// A share of the card's own width.
+    var scale: CGFloat = 0.38
+    /// Where it sits on the card, in points from its middle.
+    var x: CGFloat = 0
+    var y: CGFloat = 0
+}
+
 /// **The wedges over the ball** — the Moves left, and the three finishes they become —
 /// while their size and their seams are being eyeballed. Freeze into `ShootDomeView.Dome`
 /// once they land.
@@ -197,6 +211,8 @@ struct DebugActionsView: View {
     /// The hand's own three readings, and the wedges standing over the ball beside it.
     @State private var hand = HandTuning.shared
     @State private var arc = MoveArcTuning.shared
+    /// The ball standing out of its card, under the blocks.
+    @State private var overlay = BallOverlayTuning.shared
     /// The one HUD arrangement that is a setting rather than a measurement.
     @AppStorage(DeckReadout.setting) private var deckReadout = DeckReadout.over
 
@@ -314,6 +330,7 @@ struct DebugActionsView: View {
                     action("reset") {
                         hand.lift = 75; hand.spacing = 0.75; hand.scale = 1
                         arc.scale = 0.9; arc.spacing = 3
+                        overlay.scale = 0.38; overlay.x = 0; overlay.y = 0
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
@@ -336,6 +353,18 @@ struct DebugActionsView: View {
                     slider("wedge seam",
                            Binding(get: { arc.spacing }, set: { arc.spacing = $0 }),
                            0...20)
+                    slider("ball size",
+                           Binding(get: { Double(overlay.scale) },
+                                   set: { overlay.scale = CGFloat($0) }),
+                           0.1...1.5)
+                    slider("ball x",
+                           Binding(get: { Double(overlay.x) },
+                                   set: { overlay.x = CGFloat($0) }),
+                           -60...60)
+                    slider("ball y",
+                           Binding(get: { Double(overlay.y) },
+                                   set: { overlay.y = CGFloat($0) }),
+                           -60...60)
                 }
                 .frame(width: 150)
             }

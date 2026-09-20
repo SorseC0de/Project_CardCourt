@@ -406,7 +406,10 @@ if "Variaball" in boxes and subject:
 # child indices from the root.
 BALL_GROUPS = {"blazeball": (0, 0, 1), "snowball": (0, 0, 0),
                # Its crimson panel and highlights sit beside the ball's group, not in it.
-               "medicineball": (0,)}
+               "medicineball": (0,),
+               # Built out of nine groups — the tan body, the panel over it, the seams,
+               # the lacing — with no one group that is the ball. The drawing is the ball.
+               "longball": (0,)}
 # Pieces of the aura drawn inside the ball's own group, taken out by the same indices.
 BALL_DROPPED = {"rechargerock": [(0, 8, 4)], "heroball": [(0, 0, 0, 0)]}
 # Balls with nothing of their own to put in play, and why.

@@ -37,6 +37,20 @@ struct GameView: View {
                              onSelect: { inspecting = (card: $0, from: $1) })
                 .rotation3DEffect(.degrees(Self.skew), axis: (x: 0, y: 1, z: 0),
                                   anchor: .leading, perspective: Self.depth)
+                // **The ball itself, standing out of its own card.** Over the turn
+                // rather than in it: a ball skewed with the card is a ball printed on
+                // it, and this one is meant to look like it is coming out.
+                .overlay {
+                    Image(BallInPlay.vector(for: controller.shown.currentBall))
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: SeatPanelsView.cardWidth * ballOverlay.scale)
+                        .offset(x: ballOverlay.x, y: ballOverlay.y)
+                        .shadow(color: .black.opacity(0.5), radius: 6, y: 4)
+                        .allowsHitTesting(false)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7),
+                                   value: controller.shown.currentBall?.id)
+                }
             Spacer(minLength: 0)
             ForEach(controller.shown.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
@@ -81,6 +95,8 @@ struct GameView: View {
     /// as two more slots; angled, they read as cards standing on a table.
     private static let skew: Double = 16
     private static let depth: CGFloat = 0.55
+    /// How big the ball in play is drawn over its own card, and where it sits on it,
+    /// while that is being eyeballed — see `BallOverlayTuning`.
 
     /// **The circle the hand is fanned on.** From the middle of the fan down to the
     /// middle of the ball under it, so the two arcs are concentric: the hand stands well
@@ -116,6 +132,8 @@ struct GameView: View {
     @State private var shootOpen = false
     /// Which card the blocks along the top are showing — swapped from the bottom row.
     @State private var seatCards: SeatPanelsView.Showing = .intangibles
+    /// The ball standing out of its own card — see `BallOverlayTuning`.
+    @State private var ballOverlay = BallOverlayTuning.shared
     /// **The two ends of the hand's arc**, measured off the screen itself: the middle of
     /// the ball you shoot with, and the middle of the fan standing over it.
     @State private var ballCentre: CGPoint?

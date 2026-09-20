@@ -8,6 +8,5 @@ enum BallSizes {
     static let share: [String: CGFloat] = [
         "foul-ball": 0.75,
         "hand-ball": 0.75,
-        "long-ball": 0.67,
     ]
 }
