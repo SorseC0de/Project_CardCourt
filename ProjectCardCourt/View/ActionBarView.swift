@@ -163,7 +163,7 @@ struct ActionBarView: View {
             }
             // **A card asking who, taken back.** Its own row: the floor below is the ball.
             if case .awaitingTarget = controller.gate, Rules.canCancelAim(state) {
-                sideButton("CANCEL") { controller.cancelAim() }
+                CancelButton { controller.cancelAim() }
             }
             if let owed = controller.payingOffClamp {
                 HStack(spacing: 8) {
@@ -171,7 +171,7 @@ struct ActionBarView: View {
                                ? "BEAT HIM" : "PICK \(owed - controller.bidSelection.count)") {
                         controller.submitClampPayment()
                     }
-                    sideButton("CANCEL") { controller.cancelClearingClamp() }
+                    CancelButton { controller.cancelClearingClamp() }
                 }
             } else if let price = clampPrice, allowsShooting {
                 sideButton("BEAT YOUR MAN · \(price)") { controller.beginClearingClamp() }
