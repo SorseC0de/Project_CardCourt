@@ -178,7 +178,18 @@ struct CourtView: View {
     /// When the ball actually arrived, which is what the catch counts from. Distinct from
     /// `settledAt`, which is when it *left* — feeding that to the catch played it over the
     /// top of the throw.
-    @State private var landedAt: Date?
+    /// **Who last caught something, and when.**
+    ///
+    /// It carries the seat because it is never cleared: two tasks stamp it — a throw-in
+    /// and a pass — and each clearing the other's was a catch that played on some balls
+    /// and not others. Naming the man instead means a stale stamp cannot be picked up by
+    /// whoever the ball moves to next, which is a receiver catching before it is thrown.
+    private struct Landing: Equatable {
+        let seat: Seat
+        let at: Date
+    }
+
+    @State private var landed: Landing?
     /// The throw-in whose ball has already been caught, so it stops being drawn while
     /// `throwing` runs on through the hold that keeps the thrower on the line.
     @State private var caughtThrow: UUID?
@@ -500,7 +511,7 @@ struct CourtView: View {
                 // it. Apart, the thrown ball hung at the destination for the rest of the
                 // hold while the receiver caught a second one.
                 caughtThrow = throwing.id
-                landedAt = Date()
+                landed = Landing(seat: throwing.to, at: Date())
             }
             .task(id: settledAt) {
                 guard let settledAt, passer != nil, flewAt != settledAt else { return }
@@ -529,7 +540,9 @@ struct CourtView: View {
                 withAnimation(.easeInOut(duration: Theme.Pass.flightSeconds)) { passFlight = 1 }
                 try? await Task.sleep(for: .seconds(Theme.Pass.flightSeconds))
 
-                landedAt = Date()
+                if let caught = receiver ?? shownBall ?? state.ball {
+                    landed = Landing(seat: caught, at: Date())
+                }
             }
         }
         // A body does not come apart the same way twice.
@@ -1277,11 +1290,8 @@ struct CourtView: View {
                     // A throw-in is caught too. `holder` is not yet this seat during the
                     // throw — the rules moved the ball before the beat began — so the throw
                     // names its own receiver.
-                    // **Only the man who caught it, and only once.** The stamp is never
-                    // cleared now — two tasks owned it and each wiped the other's, which
-                    // is a catch that plays on some balls and not others — so it says
-                    // *when* somebody last caught something and this picks out *who*.
-                    caughtAt: (holder == seat || throwing?.to == seat) ? landedAt : nil,
+                    // **Only the man it names.** See `Landing`.
+                    caughtAt: landed?.seat == seat ? landed?.at : nil,
                     // Only the man who won it goes up, and only he comes down with it.
                     reboundID: rebound?.seat == seat ? rebound?.id : nil,
                     // Warping to a spot during a stoppage is arriving somewhere; a warp in
