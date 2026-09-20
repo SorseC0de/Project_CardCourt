@@ -80,6 +80,10 @@ struct ModeCardView: View {
     /// what lets the digits carry the size without the whole string growing with them.
     var titlePrefix = ""
     var titleSuffix = ""
+    /// **A figure rather than a phrase.** Points are a number being called out, so they
+    /// are set in the game's pixel face and cut out with a stroke instead of taking the
+    /// display lettering's loud-to-quiet ramp — see `StrokedPixelText`.
+    var pixelTitle = false
     /// How big the affixes are against the title they sit beside. The unit is smaller
     /// than the sign: one is read *with* the number and the other is read after it.
     var affixScale: CGFloat = 0.56
@@ -353,12 +357,18 @@ struct ModeCardView: View {
                             // paints over whatever it overlaps.
                             .zIndex(1)
                     }
-                    ActionText(title, size: lead,
-                               ink: ink, drop: titleShade,
-                               taper: ModeCardStyle.titleTaper,
-                               tracking: ModeCardStyle.titleTracking)
-                        .lineLimit(1)
-                        .minimumScaleFactor(ModeCardStyle.textSqueeze)
+                    if pixelTitle {
+                        StrokedPixelText(text: title, size: lead, ink: ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(ModeCardStyle.textSqueeze)
+                    } else {
+                        ActionText(title, size: lead,
+                                   ink: ink, drop: titleShade,
+                                   taper: ModeCardStyle.titleTaper,
+                                   tracking: ModeCardStyle.titleTracking)
+                            .lineLimit(1)
+                            .minimumScaleFactor(ModeCardStyle.textSqueeze)
+                    }
                     if !titleSuffix.isEmpty {
                         affix(titleSuffix, against: size, scale: suffixScale)
                     }

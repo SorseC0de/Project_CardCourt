@@ -16,6 +16,8 @@ struct SelectionArrow: View {
         case pass
         /// Whoever has the ball — the drawing's own greys, which is no reading at all.
         case plain
+        /// The deck, waiting to be taken from. 26/27 and the dark orange under them.
+        case gold
     }
 
     let reading: Reading
@@ -39,6 +41,7 @@ struct SelectionArrow: View {
         case .invalid: return [PixelPalette.orange, PixelPalette.vermilion, PixelPalette.darkRed]
         case .pass:    return [PixelPalette.aqua, PixelPalette.azure, PixelPalette.blue]
         case .plain:   return nil
+        case .gold:    return [PixelPalette.gold, PixelPalette.orange, PixelPalette.darkOrange]
         }
     }
 

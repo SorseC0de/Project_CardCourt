@@ -67,7 +67,7 @@ struct ScoreCallView: View {
                              subtitleInk: .white,
                              seat: call.seat,
                              titleScale: Board.titleScale,
-                             titlePrefix: "+", titleSuffix: "pts",
+                             titlePrefix: "+", titleSuffix: "pts", pixelTitle: true,
                              isLeaving: false,
                              onLanded: {},
                              onFinished: {})

@@ -168,11 +168,7 @@ struct StatusHUDView: View {
             .rotationEffect(.degrees(readout.rotation))
             .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
-                Text("\(state.officials.count)")
-                    .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
-                    .foregroundStyle(.white)
-                    .shadow(color: CardPalette.black, radius: 0, x: Deck.drop, y: Deck.drop)
-                    .contentTransition(.numericText())
+                TwoXMark(size: readout.number, text: "\(state.officials.count)")
                     .offset(x: readout.textX, y: readout.textY)
             }
             .offset(x: readout.x, y: readout.y)
@@ -215,11 +211,7 @@ struct StatusHUDView: View {
             .rotationEffect(.degrees(readout.rotation))
             .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
-                Text("\(deck ?? state.deck.count)")
-                    .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
-                    .foregroundStyle(.white)
-                    .shadow(color: CardPalette.blue, radius: 0, x: Deck.drop, y: Deck.drop)
-                    .contentTransition(.numericText())
+                TwoXMark(size: readout.number, text: "\(deck ?? state.deck.count)")
                     .offset(x: readout.textX, y: readout.textY)
             }
             .offset(x: readout.x, y: readout.y)
@@ -250,11 +242,7 @@ struct StatusHUDView: View {
         // table rather than one pile and one card.
         .rotationEffect(.degrees(readout.rotation))
         .overlay {
-            Text("\(state.discard.count)")
-                .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
-                .foregroundStyle(.white)
-                .shadow(color: CardPalette.black, radius: 0, x: Deck.drop, y: Deck.drop)
-                .contentTransition(.numericText())
+            TwoXMark(size: readout.number, text: "\(state.discard.count)")
         }
         // **What makes it the spent pile at a glance.** Two piles of cards side by side
         // are two piles of cards; the cross is the whole difference.

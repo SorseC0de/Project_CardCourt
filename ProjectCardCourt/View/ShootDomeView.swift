@@ -185,21 +185,13 @@ struct ShootDomeView: View {
             // The reading, on the part of it that is on screen: the ball's own top third.
             // The word stands beside the number rather than over it, in the plain heavy
             // type every other button on this bar is lettered in.
+            // **Lettered like a card's own $[2X]**: the word and the figure are the same
+            // kind of mark, and the ball is read at a glance rather than studied.
             HStack(alignment: .center, spacing: width * Dome.wordGap) {
-                Text("SHOOT")
-                    .font(.system(size: width * Dome.word, weight: .heavy, design: .rounded))
-                    .tracking(width * Dome.word * 0.06)
-                    .foregroundStyle(.white)
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text(hidden ? "??" : "\(shot)")
-                        .font(.custom(Chrome.display, size: width * Dome.number))
-                        .contentTransition(.numericText())
-                    Text(hidden ? "" : "%")
-                        .font(.custom(Chrome.display, size: width * Dome.number * Dome.sign))
-                }
-                .foregroundStyle(flash ?? .white)
+                TwoXMark(size: width * Dome.word, text: "SHOOT")
+                TwoXMark(size: width * Dome.number, text: hidden ? "??%" : "\(shot)%")
+                    .foregroundStyle(flash ?? .white)
             }
-            .shadow(color: .black, radius: 0, x: 3, y: 3)
             .offset(y: width * Dome.reading)
         }
         .frame(width: width, height: width)

@@ -263,6 +263,12 @@ struct DebugActionsView: View {
                 // Not a real screen yet, and it cannot be until the app has a Game Center
                 // record to authenticate against.
             }
+            // **The 2X mark's line**, up here rather than behind a door: it is set in
+            // card text, which is on screen whatever else is.
+            slider("2X y", Binding(get: { Double(printing.markDrop) },
+                                   set: { printing.markDrop = CGFloat($0) }),
+                   -0.6...0.9)
+                .frame(width: 150)
             if showCuts {
                 HStack(spacing: 4) {
                     action("travel") { controller.debugTurnover(.whistle("Travel")) }
