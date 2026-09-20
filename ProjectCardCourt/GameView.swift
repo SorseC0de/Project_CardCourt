@@ -26,10 +26,16 @@ struct GameView: View {
     /// A mechanic somebody pressed on a card they were reading, and what it means.
     @State private var explaining: (title: String, says: String)?
     @State private var detail: Card?
-    /// **The crew, under the blocks.** One card, big enough to read where it stands, and
-    /// tapped to raise it like any other.
+    /// **The crew, under the blocks**, with the card toggle at the other end of the same
+    /// row. One card, big enough to read where it stands, and tapped to raise it like any
+    /// other; the toggle stands directly under the blocks it changes.
     private var crewCard: AnyView {
-        AnyView(HStack(spacing: 8) {
+        AnyView(HStack(alignment: .top, spacing: 8) {
+            SeatCardsToggle(showing: seatCards) {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    seatCards = seatCards == .intangibles ? .clamps : .intangibles
+                }
+            }
             Spacer(minLength: 0)
             ForEach(controller.shown.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
@@ -51,9 +57,20 @@ struct GameView: View {
             }
         }
         .padding(.top, 6)
-        .padding(.trailing, 12)
+        .padding(.horizontal, 12)
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
                    value: controller.shown.armedWhistles))
+    }
+
+    /// **The circle the hand is fanned on.** From the middle of the fan down to the
+    /// middle of the ball under it, so the two arcs are concentric: the hand stands well
+    /// outside the ball, and a hand bent to the ball's own radius curls far too hard.
+    /// Both ends are measured, since how far apart they are depends on every row the bar
+    /// happens to be carrying — see `BallCentre` and `HandMidline`.
+    private var handCurve: CGFloat? {
+        guard let ballCentre, let handMidline else { return nil }
+        let radius = ballCentre.y - handMidline
+        return radius > 60 ? radius : nil
     }
 
     /// **What the reading panel is set to**: the card raised out of your hand, or one
@@ -79,6 +96,10 @@ struct GameView: View {
     @State private var shootOpen = false
     /// Which card the blocks along the top are showing — swapped from the bottom row.
     @State private var seatCards: SeatPanelsView.Showing = .intangibles
+    /// **The two ends of the hand's arc**, measured off the screen itself: the middle of
+    /// the ball you shoot with, and the middle of the fan standing over it.
+    @State private var ballCentre: CGPoint?
+    @State private var handMidline: CGFloat?
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -371,13 +392,7 @@ struct GameView: View {
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
                                       onInspectBall: { inspecting = (card: $0, from: $1) },
-                                      seatCards: seatCards,
-                                      onSwapSeatCards: {
-                                          withAnimation(.easeOut(duration: 0.2)) {
-                                              seatCards = seatCards == .intangibles
-                                                  ? .clamps : .intangibles
-                                          }
-                                      },
+                                      handCurve: handCurve,
                                       onNames: { showingNames = $0 },
                                       shootOpen: $shootOpen,
                                       onCombo: { comboOf = $0 },
@@ -393,6 +408,8 @@ struct GameView: View {
                                           withAnimation(.easeOut(duration: 0.2)) { paused = true }
                                       } : nil)
                     }
+                    .onPreferenceChange(BallCentre.self) { ballCentre = $0 }
+                    .onPreferenceChange(HandMidline.self) { handMidline = $0 }
                     // Out of the way rather than washed over. Two translucent sheets meeting
                     // multiply, and the seam where the hand's met the court's was a black
                     // band across the screen — so the cards step down instead, which also

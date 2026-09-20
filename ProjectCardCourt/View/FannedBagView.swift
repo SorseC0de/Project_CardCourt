@@ -1,5 +1,15 @@
 import SwiftUI
 
+/// **Where the middle of the hand is**, in the screen's own space: the one card that sits
+/// at the top of the arc. The circle the fan stands on runs from here down to the ball's
+/// middle, which is what makes the two arcs concentric — see `BallCentre`.
+struct HandMidline: PreferenceKey {
+    static let defaultValue: CGFloat? = nil
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        value = nextValue() ?? value
+    }
+}
+
 /// The Bag, arced into a fan and laid straight over the court.
 ///
 /// Gestures, per card: tap raises the full text, tapping again while that is up commits
@@ -8,9 +18,10 @@ import SwiftUI
 /// lifted card leaves stays open until it has actually gone.
 struct FannedBagView: View {
     let cards: [Card]
-    /// **The circle the cards stand on.** The ball you shoot with is right under them, so
-    /// the hand's arc is that ball's own, one card's room further out — see
-    /// `ActionBarView.Act.handCurve`.
+    /// **The circle the cards stand on.** Not the ball's own radius: the hand stands well
+    /// outside the ball, so its arc is the one *concentric* with it — from the middle card
+    /// all the way down to the ball's middle. Measured, since how far down that is depends
+    /// on every row between — see `HandMidline` and `ActionBarView.Act.handCurve`.
     var curve: CGFloat = 300
     let seat: Seat
     let lastPasser: Seat?
@@ -75,7 +86,7 @@ struct FannedBagView: View {
         /// The room the fan stands in, at the same tenth off.
         static let room: CGFloat = 119
         /// How far apart two cards stand, as a share of a card's width.
-        static let spacing: CGFloat = 0.58
+        static let spacing: CGFloat = 0.74
         /// How far a chosen card stands out of the fan.
         static let chosenLift: CGFloat = 26
         /// What a card the rules will not take right now wears.
@@ -179,6 +190,12 @@ struct FannedBagView: View {
             }
         }
         .frame(height: Hand.room)
+        .background {
+            GeometryReader { box in
+                Color.clear.preference(key: HandMidline.self,
+                                       value: box.frame(in: .named(Chrome.screen)).midY)
+            }
+        }
     }
 
     private func tap(_ card: Card) {

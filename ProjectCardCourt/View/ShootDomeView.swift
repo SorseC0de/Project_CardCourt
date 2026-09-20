@@ -1,5 +1,16 @@
 import SwiftUI
 
+/// **Where the ball's middle is**, in the screen's own space — a long way under its
+/// bottom edge. The hand is fanned on a circle round that point, so it has to be measured
+/// rather than assumed: the hand's arc is *concentric* with the ball, which makes its
+/// radius the distance from that middle up to the hand, not the ball's own radius.
+struct BallCentre: PreferenceKey {
+    static let defaultValue: CGPoint? = nil
+    static func reduce(value: inout CGPoint?, nextValue: () -> CGPoint?) {
+        value = nextValue() ?? value
+    }
+}
+
 /// A trapezoid bent round a circle: one segment of the arc over the dome.
 struct ArcSlice: Shape {
     var centre: CGPoint
@@ -142,6 +153,14 @@ struct ShootDomeView: View {
             }
         }
         .frame(width: width, height: height, alignment: .top)
+        .background {
+            GeometryReader { box in
+                let screen = box.frame(in: .named(Chrome.screen))
+                Color.clear.preference(key: BallCentre.self,
+                                       value: CGPoint(x: screen.minX + centre.x,
+                                                      y: screen.minY + centre.y))
+            }
+        }
         .animation(.spring(response: 0.34, dampingFraction: 0.78), value: showing)
         .animation(.easeOut(duration: 0.25), value: moves)
     }

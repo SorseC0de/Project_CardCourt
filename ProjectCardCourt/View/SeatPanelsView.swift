@@ -218,6 +218,39 @@ struct SeatPanelsView: View {
     }
 }
 
+/// **What the blocks are showing.** Intangibles or Clamps, one press apart, and standing
+/// directly under the blocks it changes rather than down among the shot controls.
+struct SeatCardsToggle: View {
+    let showing: SeatPanelsView.Showing
+    let swap: () -> Void
+
+    var body: some View {
+        let intangibles = showing == .intangibles
+        Button(action: swap) {
+            HStack(spacing: 4) {
+                Image(systemName: "eye.fill")
+                    .font(.system(size: 11, weight: .black))
+                Text(intangibles ? "INTANGIBLES" : "CLAMPS")
+                    .font(.system(size: 10, weight: .black))
+                    .tracking(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .frame(width: 108, height: 27, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(intangibles ? CardPalette.black : CardPalette.red))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(.white, lineWidth: 1.5))
+            .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(intangibles ? "Showing Intangibles" : "Showing Clamps")
+    }
+}
+
 #if DEBUG
 #Preview("Seats") {
     var table = Rules.newGame(seed: 7).0

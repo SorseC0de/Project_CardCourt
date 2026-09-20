@@ -11,9 +11,9 @@ struct ActionBarView: View {
     var onInspectReferees: () -> Void = {}
     /// The ball in play, raised to be read — it stands beside the one you shoot with.
     var onInspectBall: (CardDescriptor, CGPoint) -> Void = { _, _ in }
-    /// Which card the blocks along the top are showing, and the swap that changes it.
-    var seatCards: SeatPanelsView.Showing = .intangibles
-    var onSwapSeatCards: (() -> Void)?
+    /// **The circle the hand is fanned on**, measured off the ball under it — see
+    /// `BallCentre`. Nil until the floor has been laid out once.
+    var handCurve: CGFloat?
     /// Held down: every name on the floor, for as long as it is held.
     var onNames: ((Bool) -> Void)?
     /// **Whether the shoot ball has its rays out.** The screen owns it: a press anywhere
@@ -101,7 +101,7 @@ struct ActionBarView: View {
     var body: some View {
         VStack(spacing: 6) {
             FannedBagView(cards: bag,
-                          curve: Act.handCurve,
+                          curve: handCurve ?? Act.handCurve,
                           seat: GameRules.localSeat,
                           lastPasser: state.lastPasser,
                           playable: playableCards,
@@ -241,15 +241,16 @@ struct ActionBarView: View {
         static let domeBand: CGFloat = 132
         /// What the bar keeps under itself, which the ball is let through — see `body`.
         static let barPad: CGFloat = 10
-        /// **The hand's own arc, bent round the ball under it.** The fan is a circle the
-        /// cards stand on; this is that circle's radius, the ball's own plus the room a
-        /// card takes over it — so the two curves are concentric and the hand reads as
-        /// resting on the ball rather than as a straight row above it.
+        /// **The hand's arc until the floor has been measured once.** The real one is the
+        /// distance from the hand down to the ball's middle, which is a good deal more
+        /// than the ball's own radius — the hand stands outside the ball, so a circle
+        /// concentric with it is a much flatter curve. See `HandMidline`.
         @MainActor static var handCurve: CGFloat {
-            dome(Chrome.screenWidth) / 2 + 72
+            dome(Chrome.screenWidth) / 2 + 200
         }
-        /// How far the hand comes down over the rows under it, onto the ball.
-        static let handSink: CGFloat = 24
+        /// How far the hand comes down over the rows under it, onto the ball. Further now
+        /// that the card toggle has gone up under the blocks it changes.
+        static let handSink: CGFloat = 44
         static let width: CGFloat = 190
         static let height: CGFloat = 42
         /// The word, in the game's own lettering. The figure beside it is not — a
@@ -374,7 +375,6 @@ struct ActionBarView: View {
             ZStack(alignment: .bottom) {
                 HStack(alignment: .bottom, spacing: 0) {
                     VStack(alignment: .leading, spacing: 6) {
-                        if let onSwapSeatCards { swapButton(onSwapSeatCards) }
                         if let onOpenLog { logButton(onOpenLog) }
                         if let onNames { namesButton(onNames) }
                     }
@@ -459,34 +459,6 @@ struct ActionBarView: View {
                 .onChanged { _ in show(true) }
                 .onEnded { _ in show(false) })
             .accessibilityLabel("Hold for names")
-    }
-
-    /// **What the blocks along the top are showing.** Intangibles or Clamps, one press
-    /// apart, and down here where a thumb already is rather than up beside them.
-    private func swapButton(_ swap: @escaping () -> Void) -> some View {
-        let showing = seatCards == .intangibles
-        return Button(action: swap) {
-            HStack(spacing: 4) {
-                Image(systemName: "eye.fill")
-                    .font(.system(size: 11, weight: .black))
-                Text(showing ? "INTANGIBLES" : "CLAMPS")
-                    .font(.system(size: 10, weight: .black))
-                    .tracking(0.6)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .frame(width: 54 * 2, height: 27, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(showing ? CardPalette.black : CardPalette.red))
-            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .strokeBorder(.white, lineWidth: 1.5))
-            .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(showing ? "Showing Intangibles" : "Showing Clamps")
     }
 
     private func pauseButton(_ pause: @escaping () -> Void) -> some View {
