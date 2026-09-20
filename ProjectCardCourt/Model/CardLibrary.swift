@@ -871,7 +871,7 @@ enum CardLibrary {
         varena: VarenaEffect(shotBonus: -20))
     static let smacktop = CardDescriptor(
         id: "smacktop", name: "Smacktop", type: .varena,
-        effect: "Clear All ~[Whistles]. ~[Whistles] Cannot Be Played. All ~[Clamps] are enhanced",
+        effect: "Clear All ~[Refs]. ~[Refs] Cannot Be Played. All ~[Clamps] are enhanced",
         numberInDeck: 3,
         varena: VarenaEffect(clearsWhistlesOnArrival: true, barsWhistles: true,
                              enhancesClamps: true))
@@ -1176,7 +1176,7 @@ enum CardLibrary {
 
     static let swallowedWhistle = CardDescriptor(
         id: "swallowed-whistle", name: "Swallowed Whistle", type: .gameBreak,
-        effect: "~[Whistles] cannot be called for the rest of the round",
+        effect: "~[Refs] cannot be called for the rest of the round",
         numberInDeck: 3,
         gameBreak: GameBreakEffect(silencesWhistles: true))
 

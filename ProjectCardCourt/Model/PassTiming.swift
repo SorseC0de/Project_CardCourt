@@ -21,6 +21,9 @@ final class PassTuning: @unchecked Sendable {
     var throwRate: Double = 15
     /// How fast the catch sheet plays, and so how long a catch takes.
     var catchRate: Double = 20
+    /// How long a throw-in is in the air. Its own number: the referee's throw is a
+    /// different distance and a different gesture from a pass between players.
+    var inbound: Double = 0.5
 }
 
 enum PassTiming {

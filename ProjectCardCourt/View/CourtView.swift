@@ -493,7 +493,6 @@ struct CourtView: View {
             // same constant the ball is flown with.
             .task(id: throwing?.id) {
                 guard let throwing else { return }
-                landedAt = nil
                 caughtThrow = nil
                 try? await Task.sleep(for: .seconds(Pacing.inboundThrow))
                 guard !Task.isCancelled else { return }
@@ -513,7 +512,6 @@ struct CourtView: View {
                     var vanish = Transaction(); vanish.disablesAnimations = true
                     withTransaction(vanish) { ballInFlight = false }
                 }
-                landedAt = nil
                 // **The wind-up first, and then the ball in one breath.** The throw sheet's
                 // first cell is him still holding it, so the ball waits that long — but the
                 // frame it appears on has to be the frame it starts travelling on. With the
@@ -1279,6 +1277,10 @@ struct CourtView: View {
                     // A throw-in is caught too. `holder` is not yet this seat during the
                     // throw — the rules moved the ball before the beat began — so the throw
                     // names its own receiver.
+                    // **Only the man who caught it, and only once.** The stamp is never
+                    // cleared now — two tasks owned it and each wiped the other's, which
+                    // is a catch that plays on some balls and not others — so it says
+                    // *when* somebody last caught something and this picks out *who*.
                     caughtAt: (holder == seat || throwing?.to == seat) ? landedAt : nil,
                     // Only the man who won it goes up, and only he comes down with it.
                     reboundID: rebound?.seat == seat ? rebound?.id : nil,

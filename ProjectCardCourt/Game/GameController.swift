@@ -67,7 +67,7 @@ enum Pacing {
     static let clampSwipe = 1.3
     /// The inbound's own throw: how long the ball takes to cross from the sideline, and
     /// how long the thrower stands there having thrown it. He is watching it land.
-    static let inboundThrow = 0.5
+    @MainActor static var inboundThrow: Double { PassTuning.shared.inbound }
     /// **And how long everybody holds before the floor runs again.** At half a second they
     /// were off and running the moment the ball arrived, before the stoppage had read.
     static let inboundHold = 1.5

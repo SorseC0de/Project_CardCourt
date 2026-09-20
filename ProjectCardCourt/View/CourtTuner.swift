@@ -378,6 +378,7 @@ struct DebugActionsView: View {
                     action("pass") { controller.debugPass(to: Self.targets[target]) }
                     action("reset") {
                         pass.flight = 0.26; pass.throwRate = 15; pass.catchRate = 20
+                        pass.inbound = 0.5
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
@@ -387,6 +388,8 @@ struct DebugActionsView: View {
                                                 set: { pass.throwRate = $0 }), 4...40)
                     slider("catch fps", Binding(get: { pass.catchRate },
                                                 set: { pass.catchRate = $0 }), 4...40)
+                    slider("inbound", Binding(get: { pass.inbound },
+                                              set: { pass.inbound = $0 }), 0.1...2)
                 }
                 .frame(width: 150)
             }
