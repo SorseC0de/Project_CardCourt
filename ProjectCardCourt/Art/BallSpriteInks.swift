@@ -20,7 +20,7 @@ enum BallSpriteInks {
         "hand-ball": (body: PixelPalette.midnight, light: PixelPalette.vermilion),
         "hero-ball": (body: PixelPalette.blue, light: PixelPalette.vermilion),
         "liar-ball": (body: PixelPalette.vermilion, light: PixelPalette.orange),
-        "long-ball": (body: PixelPalette.ice, light: PixelPalette.slate),
+        "long-ball": (body: PixelPalette.slate, light: PixelPalette.ice),
         "med-ball": (body: PixelPalette.midnight, light: PixelPalette.maroon),
         "monster-ball": (body: PixelPalette.darkRed, light: PixelPalette.darkMagenta),
         "recharge-rock": (body: PixelPalette.gold, light: PixelPalette.aqua),
