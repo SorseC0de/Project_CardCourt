@@ -10,26 +10,27 @@ final class FinTuning {
     /// How long the whole thing takes. **One number for two things**: the sheet's thirty-
     /// five cells are paced to fill it and the travel runs over it, so the brush finishes
     /// its last stroke exactly as the kanji comes to rest.
-    var seconds: Double = 1.6
+    var seconds: Double = 2.0
 
     /// When the man starts appearing, and how long he takes, measured from the start.
-    var playerIn: Double = 0.25
-    var playerFade: Double = 0.5
-    /// When the black starts coming off him, and how long that takes. Meant to finish as
-    /// the kanji does.
-    var colourIn: Double = 0.7
-    var colourFade: Double = 0.9
+    /// **His fade outlasts the brush**: he is still arriving after the kanji has settled.
+    var playerIn: Double = 0
+    var playerFade: Double = 3.0
+    /// When the black starts coming off him, and how long that takes. These two add up
+    /// to the length of the whole thing, so the colour is in him as the last stroke lands.
+    var colourIn: Double = 0.5
+    var colourFade: Double = 1.5
 
     /// Where it starts: a share of the frame it is drawn at, and points from the man's
     /// own middle. Roughly a 32-pixel kanji at the scale the player is drawn at.
-    var startScale: CGFloat = 1
+    var startScale: CGFloat = 1.0
     var startX: CGFloat = 0
-    var startY: CGFloat = -26
+    var startY: CGFloat = 20.0
 
     /// And where it comes to rest — on the back of the shirt.
-    var endScale: CGFloat = 0.3
+    var endScale: CGFloat = 0.10
     var endX: CGFloat = 0
-    var endY: CGFloat = -34
+    var endY: CGFloat = 16.0
 }
 
 /// **The winner's kanji.**
@@ -81,10 +82,12 @@ struct FinKanjiView: View {
         .onChange(of: run) { startedAt = Date() }
     }
 
-    /// How far in we are, in seconds. Held at the end rather than looping.
+    /// **How far in we are, and it keeps running.** The kanji's own travel is finished at
+    /// `seconds` and holds there; the fades are not tied to it, so a man who takes longer
+    /// to arrive than the brush takes to write is allowed to.
     private func elapsed(at now: Date) -> Double {
         guard let startedAt else { return 0 }
-        return min(tuning.seconds, now.timeIntervalSince(startedAt))
+        return now.timeIntervalSince(startedAt)
     }
 
     /// **The man, coming up out of nothing and then out of black.** Drawn twice: himself,
