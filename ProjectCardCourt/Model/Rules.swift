@@ -2691,7 +2691,17 @@ enum Rules {
                 state[passer].assists += 1 + extra
                 events.append(.assisted(passer))
             }
-            endRound(state: &state, events: &events)
+            // **A bucket does not end the quarter.** It is a dead ball like any other:
+            // the ball goes back in to somebody other than the man who just scored, and
+            // the clock carries on running — only nought ends a round now.
+            //
+            // **SHOT goes back to nothing with it.** The board is what a possession has
+            // built up, and the possession is over: a made basket that kept it handed the
+            // next man everything the last one earned, and a quarter of that compounding
+            // is four players shooting at a hundred per cent for the rest of the game.
+            // The clock is the round's; the board is the possession's.
+            state.shot = state.rules.startingShot
+            reinbound(by: seat, barring: seat, state: &state, events: &events)
         } else {
             events.append(.shotMissed(seat: seat, roll: roll, chance: chance))
             // **Off the Backboard: he called it, so it comes back to him.** No bid and
@@ -3632,6 +3642,12 @@ enum Rules {
             events.append(.turnover(offender, cause: whistle.card.name))
             stoppage(state: &state, events: &events)
         }
+        // **A called violation puts fourteen on it**, and only from higher: a clock
+        // already under fourteen is not handed time back for being caught.
+        if let reset = effect.resetsClockTo, let now = state.shotClock, now > reset {
+            state.shotClock = reset
+            events.append(.shotClockTicked(reset))
+        }
         if effect.keepsClockCost, case .playCard(let seat, let card) = action,
            card.descriptor.clockDelta < 0 {
             tickClock(by: card.descriptor.clockDelta, holder: seat,
@@ -4282,11 +4298,9 @@ enum Rules {
         state.shotClock = remaining
         events.append(.shotClockTicked(remaining))
         guard remaining <= 0 else { return false }
-        // **Moves At Own Pace plays at nought.** Not forgiven, held: `clockCatchesUp`
-        // calls it the moment the passive leaves him.
-        guard !has(holder, in: state, { $0.ignoresViolations }) else { return false }
-        state[holder].turnovers += 1
-        events.append(.turnover(holder))
+        // **Nought ends the quarter.** It is not a turnover any more and it is nobody's
+        // fault: the period is over, the way a clock on a wall is over. Moves At Own Pace
+        // holds off a *violation* and has nothing to say about time running out.
         stoppage(state: &state, events: &events)
         endRound(state: &state, events: &events)
         return true
@@ -4299,10 +4313,7 @@ enum Rules {
     /// At Own Pace loses the ball with it.
     private static func clockCatchesUp(_ seat: Seat, state: inout GameState,
                                        events: inout [GameEvent]) {
-        guard state.ball == seat, let clock = state.shotClock, clock <= 0,
-              !has(seat, in: state, { $0.ignoresViolations }) else { return }
-        state[seat].turnovers += 1
-        events.append(.turnover(seat, cause: CardLibrary.shotClockViolation.name))
+        guard state.ball == seat, let clock = state.shotClock, clock <= 0 else { return }
         stoppage(state: &state, events: &events)
         endRound(state: &state, events: &events)
     }
@@ -4547,11 +4558,15 @@ enum Rules {
             events.append(.gameEnded(winners: winners(of: state)))
             return
         }
+        // **Every quarter is dealt fresh.** The hands are retired into the pile and new
+        // ones come off the deck, so a period is played with what that period was given
+        // rather than with whatever survived the last one.
         if state.round == state.rules.roundsPerHalf {
             // Halftime already puts everything back, so recalling would be doing it twice.
             halftime(state: &state, events: &events)
         } else {
             recallWhistles(state: &state, events: &events)
+            redeal(reshuffling: false, state: &state, events: &events)
         }
         state.round += 1
         // Rotation continues clockwise across halftime.
@@ -4574,17 +4589,32 @@ enum Rules {
     }
 
     private static func halftime(state: inout GameState, events: inout [GameEvent]) {
-        // **Nothing goes back into the deck.** The hands are spent into the discard and
-        // the new ones dealt out of whatever is left, so a game works its way down one
-        // deck instead of meeting the same cards again after the break. The deck still
-        // comes back off the discard when it finally runs out — see `draw`.
-        for seat in Seat.allCases {
-            state.discard.append(contentsOf: emptyBag(of: seat, state: &state))
-        }
         // **Called before it deals.** The half is the moment; the deal is what the half
         // does. Appended after the cards, it read as twenty cards arriving from nowhere
         // and *then* being explained.
         events.append(.halftime)
+        // **The break is the only shuffle.** Every quarter retires its hands and deals
+        // fresh out of what is left of the deck; halftime is where Retirement goes back
+        // in, so the second half is played off a full one again.
+        redeal(reshuffling: true, state: &state, events: &events)
+    }
+
+    /// **Hands retired and dealt again**, which is what a quarter turning over does.
+    ///
+    /// `reshuffling` is halftime's: the pile goes back into the deck before the deal, so
+    /// the cards spent in the first half are met again in the second. Between quarters it
+    /// does not, and a game works its way down one deck — the deck still comes back off
+    /// the pile when it finally runs out, which is `draw`'s business.
+    private static func redeal(reshuffling: Bool, state: inout GameState,
+                               events: inout [GameEvent]) {
+        for seat in Seat.allCases {
+            state.discard.append(contentsOf: emptyBag(of: seat, state: &state))
+        }
+        if reshuffling, !state.discard.isEmpty {
+            state.deck = state.shuffled(state.deck + state.discard)
+            state.discard.removeAll()
+            events.append(.deckReshuffled)
+        }
         deal(to: Seat.allCases, count: state.rules.startingBagSize, state: &state, events: &events)
         settleHands(state: &state, events: &events)
     }

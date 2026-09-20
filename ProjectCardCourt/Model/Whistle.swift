@@ -141,6 +141,12 @@ struct WhistleEffect: Hashable, Codable {
     var ownerInbounds = false
     var setterChoosesInbound = false
     var endsRound = false
+    /// **What a called violation puts back on the clock.** A quarter is one clock now, so
+    /// a violation inside it cannot end the round — it takes the ball and resets the
+    /// clock to this. Only from above: a clock already under it is not handed time back
+    /// for being caught, and the clock running out on its own is the end of the period
+    /// rather than a call anybody makes.
+    var resetsClockTo: Int?
     var pointsToVictim = 0
     /// Trips to the line for the Whistle's owner.
     var freeThrowsToVictim = 0

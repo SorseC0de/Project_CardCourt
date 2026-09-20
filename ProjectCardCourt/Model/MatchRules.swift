@@ -69,8 +69,11 @@ extension MatchRules {
     static var classic: MatchRules {
         MatchRules(
             name: "Classic",
-            roundsPerGame: 8,
-            roundsPerHalf: 4,
+            // **Four quarters, and the shot clock is the quarter.** A round used to be
+            // one possession that a made basket ended; it is a period now, and what ends
+            // it is the clock reaching nought.
+            roundsPerGame: 4,
+            roundsPerHalf: 2,
             // **Four, so the draw at the top of a possession makes five** — the hand limit
             // — and nobody starts a turn a card up on the table. Yu-Gi-Oh made the same
             // change for the player going first.
@@ -79,7 +82,7 @@ extension MatchRules {
             movesPerPossession: 3,
             handLimit: 5,
             overflowShot: 10,
-            shotClockStart: 10,
+            shotClockStart: 24,
             startingShot: 0,
             madeShotPoints: 2,
             freeThrowPoints: 1,

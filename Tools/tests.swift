@@ -162,8 +162,11 @@ func runTests() {
         state.shotClock = 1
         let round = state.round
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        Check.that(state[seat].turnovers == 1, "Hesitation Dribble to zero is a self-inflicted violation")
-        Check.that(state.round == round + 1, "and it ends the round")
+        // The clock is the quarter now: running it out is the period ending, not a
+        // violation anybody committed.
+        Check.that(state[seat].turnovers == 0,
+                   "Hesitation Dribble to zero is nobody's turnover")
+        Check.that(state.round == round + 1, "and the quarter is over")
     }
     do {
         var (state, seat, cards) = openPossession(seed: 7, cards: [CardLibrary.dribble, CardLibrary.dribble])
@@ -512,18 +515,15 @@ func runTests() {
         var (state, seat, _) = openPossession(seed: 84, cards: [])
         state[seat].intangibles.append(CardLibrary.movesAtOwnPace)
         state.shotClock = 1
+        let before = state.round
         var events: [GameEvent] = []
         Rules.testTick(by: -1, holder: seat, state: &state, events: &events)
-        Check.that(state.shotClock == 0, "the clock reaches nought")
+        // **A clock on a wall is nobody's to ignore.** He held off a violation while one
+        // could be called on him; time running out is the period ending instead, and it
+        // ends on him like everybody else. His clock clause is up for the audit.
+        Check.that(state.round > before, "nought ends the quarter whoever is holding it")
         Check.that(!events.contains { if case .turnover = $0 { return true }; return false },
-                   "and nothing is called")
-        // And the moment it leaves him.
-        let before = state.round
-        var after: [GameEvent] = []
-        Rules.testStripIntangibles(seat, state: &state, events: &after)
-        Check.that(after.contains { if case .turnover = $0 { return true }; return false },
-                   "losing it at nought calls the violation at once")
-        Check.that(state.round > before, "which ends the round")
+                   "and nobody is charged for it")
     }
 
     print("Off the Backboard")

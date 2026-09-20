@@ -170,8 +170,8 @@ enum CardLibrary {
 
     static let hesi = CardDescriptor(
         id: "hesi", name: "Hesitation Dribble", type: .move,
-        effect: "SHOT +10%. #[Draw] 2 cards. #[Shot Clock] -03.", numberInDeck: 5,
-        shotDelta: 10, drawCount: 2, clockDelta: -3, isDribble: true)
+        effect: "SHOT +10%. #[Draw] 2 cards. #[Shot Clock] -01.", numberInDeck: 5,
+        shotDelta: 10, drawCount: 2, clockDelta: -1, isDribble: true)
 
     static let pumpFake = CardDescriptor(
         id: "pump-fake", name: "Pump Fake", type: .move,
@@ -355,9 +355,11 @@ enum CardLibrary {
 
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
-        effect: "#[Shot Clock] changes: #[TOV] +1. Side-out.", numberInDeck: 1,
+        effect: "#[Shot Clock] changes: #[TOV] +1. Side-out. "
+            + "#[Shot Clock] resets to 14 if it is higher.", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotClockChanged, turnoverOnOffender: true,
-                               cancelsCard: false, offenderInbounds: true))
+                               cancelsCard: false, offenderInbounds: true,
+                               resetsClockTo: 14))
 
     /// Called on the draw itself, which is the only Whistle that is — see
     /// `WhistleTrigger.cardDrawn`. It ends the possession where it stands and throws away
