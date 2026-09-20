@@ -143,6 +143,9 @@ struct ActionBarView: View {
                           onBonus: onBonus,
                           detail: $detail,
                           onCommit: commit)
+                // Out of the ball's way as it comes up to meet a press.
+                .scaleEffect(shootOpen ? Act.handShrink : 1, anchor: .bottom)
+                .animation(.spring(response: 0.36, dampingFraction: 0.58), value: shootOpen)
                 // **Down onto the ball.** The fan's own arc is the ball's, so the two
                 // only read as one object if the hand is sitting on it.
                 // **Only when there is nothing under it to land on.** The sink is a
@@ -279,6 +282,8 @@ struct ActionBarView: View {
         static let barPad: CGFloat = 10
         /// The deck, standing where the ball in play used to.
         static let deck: CGFloat = 76
+        /// How far the hand gives way while the ball is up.
+        static let handShrink: CGFloat = 0.82
         /// **The hand's arc until the floor has been measured once.** The real one is the
         /// distance from the hand down to the ball's middle, which is a good deal more
         /// than the ball's own radius — the hand stands outside the ball, so a circle

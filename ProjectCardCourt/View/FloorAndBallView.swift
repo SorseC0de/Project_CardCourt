@@ -15,6 +15,8 @@ struct FloorAndBallView: View {
     /// How wide the card is drawn. It stands opposite the official's card under the
     /// blocks, at that card's own size.
     var width: CGFloat = Layout.card
+    /// What an empty slot is called. The same shape stands in for the official.
+    var word: String = "Ball"
     var onSelect: (CardDescriptor, CGPoint) -> Void = { _, _ in }
 
     enum Layout {
@@ -47,15 +49,18 @@ struct FloorAndBallView: View {
     /// **The slot with nothing in it.** A Regulation ball is no card at all, so what
     /// stands here is the shape of the one that would: a Variaball with nothing printed
     /// on it, cut out of the screen and dashed round.
-    private var empty: some View {
+    /// **The shape of a card that is not there**, dashed round and named. Shared, so the
+    /// ball's empty slot and the official's are the same object rather than two drawings
+    /// that happen to look alike.
+    static func emptySlot(width: CGFloat, word: String) -> some View {
         let corner = width * CardLayout.cornerFraction
         return RoundedRectangle(cornerRadius: corner, style: .continuous)
             .strokeBorder(CardPalette.cloud.opacity(0.7),
-                          style: StrokeStyle(lineWidth: Layout.dash, dash: [Layout.dash * 2,
-                                                                            Layout.dash * 1.4]))
+                          style: StrokeStyle(lineWidth: Layout.dash,
+                                             dash: [Layout.dash * 2, Layout.dash * 1.4]))
             .frame(width: width, height: width / CardMetrics.aspect)
             .overlay {
-                SmallCapsText(text: "Variaball", font: Chrome.display,
+                SmallCapsText(text: word, font: Chrome.display,
                               size: width * 0.15, tracking: 0.4)
                     .foregroundStyle(CardPalette.cloud.opacity(0.7))
                     .lineLimit(1)
@@ -63,6 +68,8 @@ struct FloorAndBallView: View {
                     .padding(.horizontal, 4)
             }
     }
+
+    private var empty: some View { Self.emptySlot(width: width, word: word) }
 
     private func slot(_ card: CardDescriptor, note: String?) -> some View {
         VStack(spacing: 2) {

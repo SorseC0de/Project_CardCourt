@@ -56,9 +56,12 @@ struct GameView: View {
                         .transition(.scale(scale: 0.6).combined(with: .opacity))
                     }
                 }
-            stackedLabel("BALL")
             Spacer(minLength: 0)
-            stackedLabel("REF")
+            // The official's own slot, empty until one is on the floor — the same shape
+            // the ball's wears.
+            if controller.shown.armedWhistles.isEmpty {
+                FloorAndBallView.emptySlot(width: SeatPanelsView.cardWidth, word: "Ref")
+            }
             ForEach(controller.shown.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
                               displayWidth: SeatPanelsView.cardWidth,
@@ -97,27 +100,11 @@ struct GameView: View {
                    value: controller.shown.armedWhistles))
     }
 
-    /// **What the card beside it is**, a letter to a line. Small enough to read as a tab
-    /// on the card rather than as a heading over the row.
-    private func stackedLabel(_ text: String) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(text.enumerated()), id: \.offset) { _, letter in
-                SmallCapsText(text: String(letter), font: Chrome.display,
-                              size: Self.tab, tracking: 0)
-                    .foregroundStyle(.white)
-            }
-        }
-        .shadow(color: CardPalette.black, radius: 0, x: 1.5, y: 1.5)
-        .padding(.top, 2)
-    }
-
     /// **How far the two cards under the blocks are turned in toward the middle**, and
     /// how much of a camera the turn is given. A flat pair either side of the toggle read
     /// as two more slots; angled, they read as cards standing on a table.
     private static let skew: Double = 16
     private static let depth: CGFloat = 0.55
-    /// The lettering down the inside edge of each card under the blocks.
-    private static let tab: CGFloat = 11
     /// How big the ball in play is drawn over its own card, and where it sits on it,
     /// while that is being eyeballed — see `BallOverlayTuning`.
 

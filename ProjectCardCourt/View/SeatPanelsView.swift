@@ -116,14 +116,10 @@ struct SeatPanelsView: View {
         let card = across * Panel.card
         return VStack(spacing: Panel.gap) {
             HStack(spacing: 3) {
-                SmallCapsText(text: seat.playerName, font: Chrome.display, size: Panel.name,
-                              tracking: Panel.name * 0.02)
+                StrokedPixelText(text: seat.playerName.uppercased(), size: Panel.name)
+                    .fixedSize()
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                    // The name's own drop. **Not the row's** — the figure beside it
-                    // carries an outline and a drop of its own, and a second one laid
-                    // over the top of those is a smudge.
-                    .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
                 Spacer(minLength: 0)
                 // **What he is on**, lettered the way a card's own $[2X] is: the one
                 // figure on the block that is a total rather than a part. Only while the
@@ -240,13 +236,15 @@ struct SeatPanelsView: View {
                     // reads as two.
                     StrokedPixelText(text: (row.taken ? "-" + row.label : row.label).uppercased(),
                                      size: Panel.statLabel,
-                                     ink: row.taken ? Panel.taken : .white)
+                                     ink: row.taken ? Panel.taken : .white,
+                                     edge: .black, outlined: false)
                         .fixedSize()
                     Spacer(minLength: 0)
                     // Each figure cut out in the pixel face, like every other number
                     // being counted rather than written — see `StrokedPixelText`.
                     StrokedPixelText(text: "\(row.value)", size: Panel.stat,
-                                     ink: row.taken ? Panel.taken : .white)
+                                     ink: row.taken ? Panel.taken : .white,
+                                     edge: .black, outlined: false)
                         .fixedSize()
                 }
             }
@@ -256,7 +254,8 @@ struct SeatPanelsView: View {
                 .padding(.top, 1)
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                StrokedPixelText(text: "\(shownScore(seat))", size: Panel.stat + 3)
+                StrokedPixelText(text: "\(shownScore(seat))", size: Panel.stat + 3,
+                                 edge: .black, outlined: false)
                     .fixedSize()
             }
         }

@@ -40,6 +40,9 @@ struct CurvedWord: View {
     let middle: Double
     let size: CGFloat
     var ink: Color = .white
+    /// **Lettered like the word on the ball**, rather than plain type: the buttons and
+    /// the thing they are printed on are one object.
+    var marked = false
 
     /// How much of the circle one letter takes at this radius, in degrees.
     private var step: Double {
@@ -53,10 +56,17 @@ struct CurvedWord: View {
             ForEach(letters.indices, id: \.self) { index in
                 let angle = start + step * Double(index)
                 let radians = angle * .pi / 180
-                Text(String(letters[index]))
-                    .font(.system(size: size, weight: .heavy, design: .rounded))
-                    .foregroundStyle(ink)
-                    .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
+                Group {
+                    if marked {
+                        TwoXMark(size: size, text: String(letters[index]))
+                            .foregroundStyle(ink)
+                    } else {
+                        Text(String(letters[index]))
+                            .font(.system(size: size, weight: .heavy, design: .rounded))
+                            .foregroundStyle(ink)
+                            .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
+                    }
+                }
                     .rotationEffect(.degrees(angle + 90))
                     .position(x: centre.x + CGFloat(cos(radians)) * radius,
                               y: centre.y + CGFloat(sin(radians)) * radius)
@@ -101,8 +111,10 @@ struct ShootDomeView: View {
     @State private var flash: Color?
 
     private enum Dome {
-        /// How much of the ball is above the screen's edge.
+        /// **How much of the ball is above the screen's edge**, at rest and with its
+        /// rays out. Pressing it lifts the ball as well as opening the arc.
         static let shown: CGFloat = 0.33
+        static let lifted: CGFloat = 0.5
         /// The arc over it: how thick, and the air between it and the ball.
         static let arc: CGFloat = 0.19
         static let gap: CGFloat = 0.02
@@ -118,7 +130,7 @@ struct ShootDomeView: View {
         static let number: CGFloat = 0.20
         /// The per-cent sign never matches the digits — see `ModeCardStyle.digitStandout`.
         static let sign: CGFloat = 0.5
-        static let word: CGFloat = 0.09
+        static let word: CGFloat = 0.11
         static let wordGap: CGFloat = 0.025
         /// How far down the ball's own face the reading sits, as a share of its width.
         static let reading: CGFloat = 0.035
@@ -136,7 +148,9 @@ struct ShootDomeView: View {
     private var seam: Double { tuning.spacing }
     private var arcGap: CGFloat { width * Dome.gap }
     /// The band this view takes: the arc, the air under it, and the ball's own third.
-    private var height: CGFloat { arcThickness + arcGap + width * Dome.shown }
+    private var height: CGFloat { arcThickness + arcGap + width * shownShare }
+    /// How much of the ball is up right now — see `Dome.lifted`.
+    private var shownShare: CGFloat { showing ? Dome.lifted : Dome.shown }
     /// The ball's middle, in this view's own space — well below its bottom edge.
     private var centre: CGPoint {
         CGPoint(x: width / 2, y: arcThickness + arcGap + radius)
@@ -168,7 +182,8 @@ struct ShootDomeView: View {
                                                       y: screen.minY + centre.y))
             }
         }
-        .animation(.spring(response: 0.34, dampingFraction: 0.78), value: showing)
+        // Bouncy on purpose: the ball comes up to meet the press.
+        .animation(.spring(response: 0.36, dampingFraction: 0.58), value: showing)
         .animation(.easeOut(duration: 0.25), value: moves)
     }
 
@@ -189,8 +204,13 @@ struct ShootDomeView: View {
             // kind of mark, and the ball is read at a glance rather than studied.
             HStack(alignment: .center, spacing: width * Dome.wordGap) {
                 TwoXMark(size: width * Dome.word, text: "SHOOT")
-                TwoXMark(size: width * Dome.number, text: hidden ? "??%" : "\(shot)%")
-                    .foregroundStyle(flash ?? .white)
+                // **The sign is smaller than the figure it qualifies.** Set at the same
+                // size it reads as part of the number rather than as its unit.
+                HStack(alignment: .center, spacing: 0) {
+                    TwoXMark(size: width * Dome.number, text: hidden ? "??" : "\(shot)")
+                    TwoXMark(size: width * Dome.number * Dome.sign, text: "%")
+                }
+                .foregroundStyle(flash ?? .white)
             }
             .offset(y: width * Dome.reading)
         }
@@ -260,7 +280,7 @@ struct ShootDomeView: View {
                      side: markSide, ink: ink)
                 CurvedWord(word: finish.name.uppercased(), centre: centre, radius: reach,
                            middle: (from + markSpan + to) / 2,
-                           size: arcThickness * Dome.letter, ink: ink)
+                           size: arcThickness * Dome.letter, ink: ink, marked: true)
             }
         } else if index < moveLimit {
             mark("TypeMoveFront", at: (from + to) / 2, reach: reach,
