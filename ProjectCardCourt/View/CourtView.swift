@@ -1121,14 +1121,28 @@ struct CourtView: View {
         static let lift: CGFloat = -62
     }
 
-    private func marker(for seat: Seat, selectable: Bool) -> Color? {
-        // A question being asked always marks who it is about.
-        if selectable { return seat == ringed ? CardPalette.gold : Theme.live }
+    private func marker(for seat: Seat, selectable: Bool) -> SelectionArrow.Reading? {
+        // **A question being asked marks everybody it is about** — green over the men who
+        // may be picked, red over the ones who may not, so a refusal is drawn rather than
+        // left to be discovered by pressing.
+        if !selectableSeats.isEmpty {
+            return selectable ? .valid : (state.phase.actingSeat == seat ? nil : .invalid)
+        }
+        // A Pass in hand, held up to be read: where it could go.
+        if passPreview.contains(seat) { return .pass }
         // **Who has the ball goes up with the names.** It is the same kind of label, and
         // a mark hanging over somebody's head all game is a mark nobody reads.
         guard showingNames else { return nil }
         if case .inbound = state.phase { return nil }
-        return state.phase.actingSeat == seat ? .white : nil
+        return state.phase.actingSeat == seat ? .plain : nil
+    }
+
+    /// **Where a Pass being read could be thrown.** The same answer the arrows are drawn
+    /// from, so the marks and the lines cannot disagree — see `passArrows`.
+    private var passPreview: Set<Seat> {
+        guard let judged, judged.isPass, let from = holder,
+              from == GameRules.localSeat, !isStill else { return [] }
+        return Set(Rules.passTargets(judged, from: from, in: state))
     }
 
     private func defenders(on seat: Seat) -> Int { state.defenders(on: seat) }

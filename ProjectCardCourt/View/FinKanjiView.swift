@@ -51,8 +51,9 @@ struct FinKanjiView: View {
     /// Nil until it starts, so nothing is drawn mid-air on the first frame.
     @State private var startedAt: Date?
 
-    /// How big the man stands in the scene.
-    static let playerScale: CGFloat = 5
+    /// How big the man stands in the scene. The results card draws its winners at eight
+    /// to the pixel and then halves them again; this is a scene, not a row of portraits.
+    static let playerScale: CGFloat = 10
 
     private enum Mark {
         /// The kanji's own cell, in art pixels — twice a player's.
@@ -70,8 +71,11 @@ struct FinKanjiView: View {
                 man(at: t)
                 kanji(at: t)
             }
-            .frame(width: Theme.Figure.headDiameter * scale,
-                   height: Theme.Figure.height * scale, alignment: .bottom)
+            // **The sheet's own size at this scale.** `Theme.Figure.height` already has
+            // the court's scale baked into it — multiplying by another one framed him at
+            // a thousand points and stood him well below the bottom of the screen.
+            .frame(width: Sprite.akuma.frameSize * scale,
+                   height: Sprite.akuma.frameSize * scale, alignment: .bottom)
         }
         .onAppear { startedAt = Date() }
         .onChange(of: run) { startedAt = Date() }
@@ -139,7 +143,9 @@ struct FinKanjiBench: View {
                 Color.black
                 FinKanjiView(run: run)
             }
-            .frame(maxHeight: .infinity)
+            // Tall enough for a man drawn at five, and no taller: given the whole
+            // preview it pushed every dial off the bottom of it.
+            .frame(height: 380)
 
             Button("replay") { run += 1 }
                 .buttonStyle(.borderedProminent)

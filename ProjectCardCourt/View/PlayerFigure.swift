@@ -2,16 +2,6 @@ import SwiftUI
 
 /// A player: capsule body under a circle head.
 /// A squat downward wedge that sits over a marked player's head.
-struct MarkerTriangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.closeSubpath()
-        return path
-    }
-}
 
 /// A player: the pixel sheet, wearing that seat's colours.
 ///
@@ -23,7 +13,8 @@ struct PlayerFigure: View {
     var isHolding = false
     var isActing = false
     var isDimmed = false
-    var marker: Color?
+    /// **What the arrow over him says**, if anything — see `SelectionArrow`.
+    var marker: SelectionArrow.Reading?
     /// Clamps already on this player, shown above their head while a Clamp is being read.
     /// Nil the rest of the time — a running count of nothing on four heads is clutter.
     var clampCount: Int?
@@ -127,7 +118,6 @@ struct PlayerFigure: View {
     /// The "you can pick this one" wedge over his head.
     private enum Wedge {
         static let width: CGFloat = 40
-        static let height: CGFloat = 20
         /// Deeper than the two it had, and in the kit's blue rather than navy.
         static let drop: CGFloat = 4
         static let lift: CGFloat = -38
@@ -391,10 +381,8 @@ struct PlayerFigure: View {
                             .transition(.scale.combined(with: .opacity))
                     }
                     if let marker {
-                        MarkerTriangle()
-                            .fill(marker)
-                            .frame(width: Wedge.width, height: Wedge.height)
-                            .shadow(color: CardPalette.blue, radius: 0,
+                        SelectionArrow(reading: marker, width: Wedge.width)
+                            .shadow(color: CardPalette.black, radius: 0,
                                     x: Wedge.drop, y: Wedge.drop)
                         // Lifted by half of what it grew, so the bigger wedge keeps
                         // the air it had over his head rather than reaching down
