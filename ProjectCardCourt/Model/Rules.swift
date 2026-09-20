@@ -177,6 +177,9 @@ enum Rules {
                     return slotsFreely || !state.playedVariaballThisPossession
                 }
                 // Only so many referees will stand on one floor.
+                // The floor's own capacity, not the round's deal: how many the game
+                // sends out builds with the rounds, but a Whistle somebody plays fills
+                // the floor up to what it holds. See `MatchRules.crewSize(inRound:)`.
                 if card.descriptor.whistle?.trigger != nil {
                     return state.armedWhistles.count < state.rules.refereeSlots
                 }
@@ -3815,7 +3818,7 @@ enum Rules {
     /// watching for and plays under it. A referee who stayed on from the round before
     /// keeps his place and the rest of the crew is filled in around him.
     private static func assignCrew(state: inout GameState, events: inout [GameEvent]) {
-        let slots = state.rules.refereeSlots - state.armedWhistles.count
+        let slots = state.rules.crewSize(inRound: state.round) - state.armedWhistles.count
         guard slots > 0 else { return }
         var assigned: [CardDescriptor] = []
         for _ in 0..<slots {
@@ -4409,9 +4412,15 @@ enum Rules {
             state.discard.removeAll()
             events.append(.deckReshuffled)
         }
+        // **Policeum: an official who has called does not leave with the round.** The
+        // round's end swept the floor whatever the floor said, and nothing showed it
+        // while a fresh crew of the same size came straight back out.
+        let staying = state.floorEffect.refereesStay
+            ? state.armedWhistles.filter(\.stayed) : []
+        let leaving = state.armedWhistles.filter { man in !staying.contains { $0.id == man.id } }
         // To the bottom of the Ref deck, never the main discard.
-        state.officials.insert(contentsOf: state.armedWhistles.map(\.card), at: 0)
-        state.armedWhistles = []
+        state.officials.insert(contentsOf: leaving.map(\.card), at: 0)
+        state.armedWhistles = staying
         state.clockTicksOwed = 0
         state.threeDiscount = 0
         state.passesThisRound = 0

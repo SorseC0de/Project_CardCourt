@@ -1406,12 +1406,18 @@ func runTests() {
     }
 
     do {
-        // **Nobody sets a referee down.** The crew is dealt face-up off the officials deck
-        // at the top of every round, three of them, belonging to nobody.
+        // **Nobody sets a referee down.** The crew is dealt face-up off the officials
+        // deck, belonging to nobody — and it builds: an empty floor to begin with, a full
+        // crew by the seventh round. See `MatchRules.crewSize(inRound:)`.
         var (state, _) = Rules.newGame(seed: 51, rules: .standard)
         let seat = state.inbounder
+        Check.that(state.armedWhistles.isEmpty, "nobody works the first round")
+        var toSeven: [GameEvent] = []
+        while state.round < 7, !state.isOver {
+            Rules.testEndRound(state: &state, events: &toSeven)
+        }
         Check.that(state.armedWhistles.count == state.rules.refereeSlots,
-                   "a crew of three works every round")
+                   "a full crew works the seventh")
         Check.that(state.armedWhistles.allSatisfy { $0.owner == nil },
                    "and belongs to nobody")
         let held = matchCard(CardLibrary.travel, state.rules)

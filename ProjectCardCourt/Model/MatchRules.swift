@@ -41,8 +41,17 @@ struct MatchRules: Hashable, Codable {
     /// down entirely before its owner had touched the ball.
     var clampSlots: Int
     /// **How many officials work the game.** The crew is dealt face-up from the officials
-    /// deck and belongs to nobody; this is how many of them stand out there at once.
+    /// deck and belongs to nobody; this is how many of them stand out there at once — a
+    /// full crew, which a game works up to rather than opening on. See `crewSize(inRound:)`.
     var refereeSlots: Int
+    /// **The crew for a round, which builds as the game goes on.** Nobody is watching the
+    /// first two rounds; one official comes out at round three, and another every second
+    /// round after that, up to the full crew. A game opens as a game of cards and ends as
+    /// one played under officials.
+    func crewSize(inRound round: Int) -> Int {
+        min(refereeSlots, max(0, (round - 1) / 2))
+    }
+
     /// The officials deck. Shuffled once at the start of the game like the main deck, and
     /// dealt from at the top of every round.
     var officialsPool: [CardDescriptor]

@@ -7,6 +7,20 @@ func crewTests() {
     // see is the crew.
     let plainMove = CardLibrary.drive
     do {
+        // The crew builds: nobody for the first two rounds, and one more every second.
+        // The officials deck is Standard's; Classic fields no crew at all.
+        var (state, _) = Rules.newGame(seed: 410, rules: .standard)
+        var out: [Int: Int] = [:]
+        var events: [GameEvent] = []
+        while state.round <= state.rules.roundsPerGame, !state.isOver {
+            out[state.round] = state.armedWhistles.count
+            Rules.testEndRound(state: &state, events: &events)
+        }
+        Check.that(out[1] == 0 && out[2] == 0 && out[3] == 1 && out[4] == 1
+                   && out[5] == 2 && out[6] == 2 && out[7] == 3 && out[8] == 3,
+                   "the crew builds: none, one from round 3, two from 5, three from 7")
+    }
+    do {
         var (state, seat, cards) = openPossession(seed: 401, cards: [plainMove])
         state.armedWhistles = [ArmedWhistle(owner: nil, card: matchCard(CardLibrary.travel, state.rules))]
         let events = Rules.apply(.play(cards[0].id), by: seat, to: &state)
