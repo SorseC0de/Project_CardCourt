@@ -2435,6 +2435,15 @@ enum Rules {
         }
         let winner = state.pick(from: contenders)
 
+        // **Everybody who went up and did not come down with it takes a card.**
+        //
+        // A bid is cards out of your hand, and three of the four spend them for nothing.
+        // The man who wins the board has the ball, which is the whole of his payment;
+        // the rest are left a hand lighter for a board they lost, and that compounds
+        // across a round of misses until nobody can do anything.
+        drawTogether(order.filter { $0 != winner }, count: state.rules.lostBidDraw,
+                     state: &state, events: &events)
+
         // **Monster Ball's board.** Nobody missed: what comes down is an Intangible it had
         // swallowed. The winner takes it, the next goes up, and after the last the
         // possession it interrupted picks up where it was.

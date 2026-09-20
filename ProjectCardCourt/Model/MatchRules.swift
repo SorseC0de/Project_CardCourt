@@ -12,6 +12,10 @@ struct MatchRules: Hashable, Codable {
     var roundsPerGame: Int
     var roundsPerHalf: Int
     var startingBagSize: Int
+    /// **What losing a rebound bid pays.** Everybody who went up for the board except the
+    /// man who took it: a bid is cards out of the hand, and three of the four spend them
+    /// for nothing at all.
+    var lostBidDraw: Int
     /// **How many Move cards a possession holds.** A core rule rather than a card: every
     /// Move draws, so a run of them is a run of cards, and this is what stops the engine
     /// running for ever. The Travel official lowers it by one while he is working.
@@ -71,6 +75,7 @@ extension MatchRules {
             // — and nobody starts a turn a card up on the table. Yu-Gi-Oh made the same
             // change for the player going first.
             startingBagSize: 4,
+            lostBidDraw: 1,
             movesPerPossession: 3,
             handLimit: 5,
             overflowShot: 10,
