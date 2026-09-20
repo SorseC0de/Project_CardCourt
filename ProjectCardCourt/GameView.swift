@@ -55,8 +55,9 @@ struct GameView: View {
                     }
             }
         }
-        // Centred in the row rather than hung off one end of it.
-        .overlay {
+        // Centred across the row rather than hung off one end of it, and standing at the
+        // top of it with the two cards.
+        .overlay(alignment: .top) {
             SeatCardsToggle(showing: seatCards) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     seatCards = seatCards == .intangibles ? .clamps : .intangibles
