@@ -4645,17 +4645,21 @@ enum Rules {
         // **Every quarter is dealt fresh.** The hands are retired into the pile and new
         // ones come off the deck, so a period is played with what that period was given
         // rather than with whatever survived the last one.
-        if state.round == state.rules.roundsPerHalf {
+        // **The period is called before the cards come out.** Dealing first put four
+        // hands in the air ahead of the thing that says what they are for, and at the
+        // half it buried the halftime scene under them.
+        let closing = state.round
+        state.round += 1
+        // Rotation continues clockwise across halftime.
+        state.inbounder = state.inbounder.clockwise
+        beginRound(state: &state, events: &events)
+        if closing == state.rules.roundsPerHalf {
             // Halftime already puts everything back, so recalling would be doing it twice.
             halftime(state: &state, events: &events)
         } else {
             recallWhistles(state: &state, events: &events)
             redeal(reshuffling: false, state: &state, events: &events)
         }
-        state.round += 1
-        // Rotation continues clockwise across halftime.
-        state.inbounder = state.inbounder.clockwise
-        beginRound(state: &state, events: &events)
     }
 
     /// Spent Whistles go back into the deck at the end of every round.

@@ -36,8 +36,12 @@ struct RefereeIntroView: View {
 
     private enum Trip {
         /// How wide the card is drawn at each end of the trip, and while it is read.
+        /// **The read is the presentation**: the same width and the same doubling a card
+        /// held up for inspection uses, so an official introducing himself is read
+        /// exactly the way any other card is — see `InspectedCardView`.
         static let atDeck: CGFloat = 26
-        static let read: CGFloat = 150
+        static let read: CGFloat = 96
+        static let presented: CGFloat = 2
         /// How far up the screen it stands while it is being read.
         static let readY: CGFloat = 0.42
         /// The turn it makes on its way into the slot, and the one it wears there —
@@ -64,6 +68,7 @@ struct RefereeIntroView: View {
                           displayWidth: travelling ? SeatPanelsView.cardWidth
                                       : (left ? Trip.read : Trip.atDeck),
                           expanded: !travelling && left)
+                .scaleEffect(!travelling && left ? Trip.presented : 1)
                 .rotationEffect(.degrees(travelling ? Trip.resting : (left ? 0 : Trip.spin)))
                 .shadow(color: .black.opacity(0.5), radius: 14, y: 8)
                 .position(travelling ? home : (left ? middle : deck))

@@ -3443,7 +3443,12 @@ final class GameController {
             // The round going home, or a man sent off: the crew changes here.
             if crewHeld {
                 switch event {
-                case .roundEnded, .officialDistracted, .challenged, .crewAssigned:
+                // **A new crew comes out the way the first one did.** Whoever is working
+                // the period introduces himself — see `introduceTheCrew`.
+                case .crewAssigned:
+                    await introduceTheCrew()
+                    crewHeld = false
+                case .roundEnded, .officialDistracted, .challenged:
                     releaseCrew()
                     crewHeld = false
                 default:
