@@ -11,10 +11,12 @@ struct StrokedPixelText: View {
     var ink: Color = .white
     /// What the outline and the drop are drawn in.
     var edge: Color = CardPalette.black
-    /// **Whether it is cut out or simply dropped.** A figure called out across the floor
-    /// wants the outline; one in a column of its own wants the drop alone, or the ring
-    /// closes up the counters at a size that small.
-    var outlined = true
+    /// **How much is made of it.** A figure called out across the floor is cut out; one
+    /// in a column of its own wants a drop at most, and a black one on a seat's colour
+    /// wants nothing at all — the ring and the drop both close up the counters at the
+    /// size a stat line is set at.
+    enum Weight { case outlined, dropped, flat }
+    var weight: Weight = .outlined
 
     private enum Layout {
         /// The outline and the drop, as shares of the text's size.
@@ -34,15 +36,18 @@ struct StrokedPixelText: View {
         let stroke = size * Layout.stroke
         let drop = size * Layout.drop
         ZStack {
-            if outlined {
+            switch weight {
+            case .outlined:
                 outline(width: stroke).offset(x: drop, y: drop)
                 outline(width: stroke)
-            } else {
+            case .dropped:
                 Text(text).font(face).foregroundStyle(edge).offset(x: drop, y: drop)
+            case .flat:
+                EmptyView()
             }
             Text(text).font(face).foregroundStyle(ink)
         }
-        .padding(outlined ? stroke + drop : drop)
+        .padding(weight == .outlined ? stroke + drop : (weight == .dropped ? drop : 0))
     }
 
     /// A thick outline: the letters in the edge colour, nudged round a ring.

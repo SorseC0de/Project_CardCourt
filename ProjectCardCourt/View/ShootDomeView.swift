@@ -282,6 +282,9 @@ struct ShootDomeView: View {
                            middle: (from + markSpan + to) / 2,
                            size: arcThickness * Dome.letter, ink: ink, marked: true)
             }
+            // **In with a pop**, not a fade: the ball comes up to meet the press and the
+            // words arrive with it.
+            .transition(.scale(scale: 0.4).combined(with: .opacity))
         } else if index < moveLimit {
             mark("TypeMoveFront", at: (from + to) / 2, reach: reach,
                  side: markSide, ink: index < moves ? CardPalette.navy : .white)

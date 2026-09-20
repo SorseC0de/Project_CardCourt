@@ -59,10 +59,20 @@ struct GameView: View {
             Spacer(minLength: 0)
             // The official's own slot, empty until one is on the floor — the same shape
             // the ball's wears.
-            if controller.shown.armedWhistles.isEmpty {
+            if controller.shown.armedWhistles.isEmpty || controller.refereeIntro != nil {
                 FloorAndBallView.emptySlot(width: SeatPanelsView.cardWidth, word: "Ref")
+                    .background {
+                        GeometryReader { box in
+                            let screen = box.frame(in: .named(Chrome.screen))
+                            Color.clear.preference(
+                                key: CrewSlotPoint.self,
+                                value: CGPoint(x: screen.midX, y: screen.midY))
+                        }
+                    }
             }
-            ForEach(controller.shown.armedWhistles) { whistle in
+            // **Not while he is still coming out.** The card crossing the screen is this
+            // card; two of them is one too many — see `RefereeIntroView`.
+            ForEach(controller.refereeIntro == nil ? controller.shown.armedWhistles : []) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
                               displayWidth: SeatPanelsView.cardWidth,
                               expanded: true,
@@ -152,6 +162,9 @@ struct GameView: View {
     @State private var deckAt: CGPoint?
     /// And the spent pile, which is where a card given up is going.
     @State private var discardAt: CGPoint?
+    /// The two ends of the official's entrance — see `RefereeIntroView`.
+    @State private var officialsAt: CGPoint?
+    @State private var crewSlotAt: CGPoint?
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -379,6 +392,7 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     statusBar
                         .onPreferenceChange(DiscardPoint.self) { discardAt = $0 }
+                    .onPreferenceChange(OfficialsPoint.self) { officialsAt = $0 }
                         .opacity(callFade)
                     // **Four blocks across the top, and a card's words over them.** The
                     // names and the totals stay up: what a card says is read against who
@@ -407,6 +421,7 @@ struct GameView: View {
                     // **The official working the round, under the blocks**, printed at
                     // the size his card is read at — everybody is playing under it.
                     crewCard
+                        .onPreferenceChange(CrewSlotPoint.self) { crewSlotAt = $0 }
                         .opacity(callFade)
                     // **Where the name plate hangs from.** Measured rather than added up:
                     // the floor's own top depends on the rows above it, which depend on
@@ -498,6 +513,13 @@ struct GameView: View {
                                       onKeyword: explain)
                         .id(inspecting.card.id)
                         .zIndex(9)
+                }
+                // **The man in charge, arriving.** Over the floor and under a card being
+                // read: it is the game introducing somebody, not something you opened.
+                if let intro = controller.refereeIntro, let card = controller.introducing {
+                    RefereeIntroView(card: card, phase: intro,
+                                     from: officialsAt, slot: crewSlotAt)
+                        .zIndex(8.5)
                 }
                 if let explaining {
                     GlossaryPopup(title: explaining.title, says: explaining.says) {

@@ -165,6 +165,13 @@ struct StatusHUDView: View {
     /// with a card-black drop under the number.
     private var officialsRemaining: some View {
         DeckGlyph(cell: readout.cell, deck: .officials, side: readout.side)
+            .background {
+                GeometryReader { box in
+                    let screen = box.frame(in: .named(Chrome.screen))
+                    Color.clear.preference(key: OfficialsPoint.self,
+                                           value: CGPoint(x: screen.midX, y: screen.midY))
+                }
+            }
             .rotationEffect(.degrees(readout.rotation))
             .offset(x: -Deck.tilt, y: -Deck.tilt)
             .overlay {
