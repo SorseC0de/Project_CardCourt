@@ -11,8 +11,30 @@ import SwiftUI
 /// **Pressed, a block opens downward** into that player's full line, stacked and added up
 /// the way a sum is — the total under a rule at the bottom.
 struct SeatPanelsView: View {
-    /// Which of a player's two cards the blocks are showing.
-    enum Showing: String { case intangibles, clamps }
+    /// **What the blocks are showing.** One of the two cards standing on a player, or
+    /// the figure he is on — a block has room for one of the three, and a card and a
+    /// total fighting over the same corner is what the toggle is for.
+    enum Showing: String, CaseIterable {
+        case intangibles, clamps, score
+
+        /// The next one round.
+        var next: Showing {
+            let all = Showing.allCases
+            return all[(all.firstIndex(of: self)! + 1) % all.count]
+        }
+
+        /// What the button says it is showing.
+        var word: String { rawValue.uppercased() }
+
+        /// The subject printed faintly in an empty slot, for the two that show cards.
+        var emptyMark: String? {
+            switch self {
+            case .intangibles: return "TypeIntangibleFront"
+            case .clamps:      return "TypeClampFront"
+            case .score:       return nil
+            }
+        }
+    }
 
     let state: GameState
     /// Points already in the state but not yet shown — a three still flying to the board.
@@ -41,6 +63,9 @@ struct SeatPanelsView: View {
         static let score: CGFloat = 22
         /// The bag count along the bottom edge of a block.
         static let bag: CGFloat = 17
+        /// The subject in an empty slot: how much of the slot it takes, and how faint.
+        static let emptyMark: CGFloat = 0.6
+        static let emptyMarkInk: Double = 0.1
         /// The card in a block, as a share of the block's own width.
         static let card: CGFloat = 0.82
         /// The sum a block opens into.
@@ -100,8 +125,12 @@ struct SeatPanelsView: View {
                     .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
                 Spacer(minLength: 0)
                 // **What he is on**, lettered the way a card's own $[2X] is: the one
-                // figure on the block that is a total rather than a part.
+                // figure on the block that is a total rather than a part. Only while the
+                // blocks are showing it — a card and a total do not share the corner.
+                // Taken away rather than removed: the cell it stands in is where points
+                // fly to, and a figure with no width is a target with no place.
                 TwoXMark(size: Panel.score, text: "\(shownScore(seat))")
+                    .opacity(showing == .score ? 1 : 0)
                     // **Where the points are**, for anything flying to the board — see
                     // `PointsCells`.
                     .background {
@@ -158,9 +187,13 @@ struct SeatPanelsView: View {
 
     /// The one card this block is showing, or the space it would stand in.
     @ViewBuilder private func slot(for seat: Seat, width: CGFloat) -> some View {
-        let card = showing == .intangibles
-            ? state[seat].intangibles.first
-            : state[seat].clamps.first?.card
+        let card: CardDescriptor? = {
+            switch showing {
+            case .intangibles: return state[seat].intangibles.first
+            case .clamps:      return state[seat].clamps.first?.card
+            case .score:       return nil
+            }
+        }()
         if let card {
             CardFrontView(descriptor: card, displayWidth: width)
                 .overlay {
@@ -179,6 +212,17 @@ struct SeatPanelsView: View {
                              style: .continuous)
                 .fill(CardPalette.black.opacity(0.3))
                 .frame(width: width, height: width / CardMetrics.aspect)
+                // **What would stand here**, printed almost out of sight: an empty slot
+                // that says what kind of empty it is.
+                .overlay {
+                    if let mark = showing.emptyMark {
+                        Image(mark)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: width * Panel.emptyMark)
+                            .opacity(Panel.emptyMarkInk)
+                    }
+                }
         }
     }
 
@@ -244,13 +288,21 @@ struct SeatCardsToggle: View {
     let showing: SeatPanelsView.Showing
     let swap: () -> Void
 
+    /// One colour each, so the button says which of the three it is on without reading it.
+    private var fill: Color {
+        switch showing {
+        case .intangibles: return CardPalette.black
+        case .clamps:      return CardPalette.red
+        case .score:       return CardPalette.navy
+        }
+    }
+
     var body: some View {
-        let intangibles = showing == .intangibles
         Button(action: swap) {
             HStack(spacing: 4) {
                 Image(systemName: "eye.fill")
                     .font(.system(size: 11, weight: .black))
-                Text(intangibles ? "INTANGIBLES" : "CLAMPS")
+                Text(showing.word)
                     .font(.system(size: 10, weight: .black))
                     .tracking(0.6)
                     .lineLimit(1)
@@ -260,14 +312,14 @@ struct SeatCardsToggle: View {
             .padding(.horizontal, 6)
             .frame(width: 108, height: 27, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(intangibles ? CardPalette.black : CardPalette.red))
+                .fill(fill))
             .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .strokeBorder(.white, lineWidth: 1.5))
             .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(intangibles ? "Showing Intangibles" : "Showing Clamps")
+        .accessibilityLabel("Showing \(showing.word.capitalized)")
     }
 }
 

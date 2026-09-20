@@ -87,7 +87,7 @@ struct GameView: View {
         .overlay(alignment: .top) {
             SeatCardsToggle(showing: seatCards) {
                 withAnimation(.easeOut(duration: 0.2)) {
-                    seatCards = seatCards == .intangibles ? .clamps : .intangibles
+                    seatCards = seatCards.next
                 }
             }
         }
