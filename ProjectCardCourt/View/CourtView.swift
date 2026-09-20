@@ -351,6 +351,11 @@ struct CourtView: View {
                         .zIndex(swipeInFront ? 250 : Layer.behind)
                 }
 
+                // **Where a Pass being read could go.** One curve to each man it could
+                // reach, thrown over the floor rather than ruled across it.
+                passArrows(on: court)
+                    .zIndex(Layer.prompt)
+
                 // A card asking for a player uses the floor's own question, without the
                 // sideline staging an inbound needs — nobody is throwing anything.
                 if isChoosing {
@@ -757,6 +762,25 @@ struct CourtView: View {
     private func hoopPoint(on court: CourtGeometry, in size: CGSize) -> CGPoint {
         CGPoint(x: court.centreX,
                 y: court.horizonY - 18 - size.height * 0.1)
+    }
+
+    /// **The curves a Pass card could take**, while one is being held up to be read.
+    ///
+    /// **Erased**, like everything else that joins this body: another `ForEach` of a
+    /// drawn shape inside the stack is a walk the builder has to make on every frame of
+    /// the court's life — see `court`.
+    private func passArrows(on court: CourtGeometry) -> AnyView {
+        guard let judged, judged.isPass, let from = holder, from == GameRules.localSeat,
+              !isStill else { return AnyView(EmptyView()) }
+        let targets = Rules.passTargets(judged, from: from, in: state)
+        guard !targets.isEmpty else { return AnyView(EmptyView()) }
+        let start = ballPoint(of: from, on: court, catching: false)
+        return AnyView(ForEach(targets, id: \.self) { target in
+            PassArrow(from: start,
+                      to: ballPoint(of: target, on: court, catching: true),
+                      width: 3 * court.scale(of: target),
+                      head: 15 * court.scale(of: target))
+        })
     }
 
     /// Where the ball comes out of the rim: the rim, and the offset off it.
@@ -1438,6 +1462,81 @@ private struct FloorSweep: View {
                     sweep = 1
                 }
             }
+    }
+}
+
+/// **A pass, drawn as a throw.** One curve from the ball to a man who could take it:
+/// solid into the head and dashing out behind it, bowed off the straight line so it reads
+/// as a ball going over the floor rather than a rule drawn across it.
+struct PassArrow: View {
+    let from: CGPoint
+    let to: CGPoint
+    var width: CGFloat = 3
+    var head: CGFloat = 15
+
+    /// How far the curve bows off the line between the two, as a share of its length.
+    private static let bow: CGFloat = 0.22
+    /// Where the dashes give way to the solid run into the head.
+    private static let solidFrom: CGFloat = 0.62
+
+    /// The control point: out to the side of the middle, always toward the top of the
+    /// screen, so every arrow arcs the way a thrown ball does.
+    private var control: CGPoint {
+        let middle = CGPoint(x: (from.x + to.x) / 2, y: (from.y + to.y) / 2)
+        let run = CGVector(dx: to.x - from.x, dy: to.y - from.y)
+        let length = max(1, (run.dx * run.dx + run.dy * run.dy).squareRoot())
+        // The normal, turned to point up the screen.
+        var normal = CGVector(dx: -run.dy / length, dy: run.dx / length)
+        if normal.dy > 0 { normal = CGVector(dx: -normal.dx, dy: -normal.dy) }
+        return CGPoint(x: middle.x + normal.dx * length * Self.bow,
+                       y: middle.y + normal.dy * length * Self.bow)
+    }
+
+    private var curve: Path {
+        Path { path in
+            path.move(to: from)
+            path.addQuadCurve(to: to, control: control)
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            curve.trimmedPath(from: 0, to: Self.solidFrom)
+                .stroke(style: StrokeStyle(lineWidth: width, lineCap: .round,
+                                           dash: [width * 1.4, width * 2.0]))
+                .foregroundStyle(.white)
+            curve.trimmedPath(from: Self.solidFrom, to: 1)
+                .stroke(style: StrokeStyle(lineWidth: width, lineCap: .round))
+                .foregroundStyle(.white)
+            arrowhead
+        }
+        // The game's own hard drop, so a white line reads over a pale floor as well as a
+        // dark one.
+        .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+        .allowsHitTesting(false)
+        .transition(.opacity)
+    }
+
+    /// The head, pointed the way the curve arrives: along the line from the control point.
+    private var arrowhead: some View {
+        let run = CGVector(dx: to.x - control.x, dy: to.y - control.y)
+        return Arrowhead()
+            .fill(.white)
+            .frame(width: head, height: head * 0.9)
+            .rotationEffect(Angle(radians: atan2(run.dy, run.dx)))
+            .position(to)
+    }
+}
+
+/// A triangle pointing along its own width, for the head of a pass's curve.
+private struct Arrowhead: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.maxX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        }
     }
 }
 

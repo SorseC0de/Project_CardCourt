@@ -92,13 +92,6 @@ struct ActionBarView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            // **Right above the hand**, which is where the decision is: the fourth Move is
-            // still a card you may play, and this is what it will cost you.
-            if case .possession(let holder) = state.phase, holder == GameRules.localSeat {
-                TravelMeter(played: state.movesThisPossession,
-                            limit: state.rules.movesPerPossession)
-                    .transition(.opacity)
-            }
             FannedBagView(cards: bag,
                           seat: GameRules.localSeat,
                           lastPasser: state.lastPasser,

@@ -1027,6 +1027,11 @@ struct GameView: View {
                     DebuffSlotsView(cards: controller.human.clamps.map(\.card),
                                     onSelect: { inspecting = (card: $0, from: $1) },
                                     edge: .leading, unit: Plates.unit)
+                    // **How much running is left**, under the two plates that say what is
+                    // working for and against you.
+                    MoveSlotsView(played: controller.shown.movesThisPossession,
+                                  slots: controller.shown.moveLimit(for: GameRules.localSeat),
+                                  edge: .leading, unit: Plates.unit)
                 }
             }
         }

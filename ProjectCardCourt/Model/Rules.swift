@@ -2066,16 +2066,7 @@ enum Rules {
             return events
         }
         if descriptor.targetDiscards > 0 {
-            guard !state[target].bag.isEmpty else {
-                events.append(.movePlayed(seat: actor, card: descriptor, shot: loggedShot(state)))
-                state.lastPlayThisPossession = descriptor.id
-                state.movesThisPossession += 1
-                return events
-            }
-            state.pendingPlay = descriptor
-            state.pendingActor = actor
-            state.phase = .awaitingCardFrom(seat: asker(instead: actor, in: state),
-                                           card: descriptor, victim: target)
+            resolveTargetDiscard(descriptor, by: actor, at: target, state: &state, events: &events)
             return events
         }
         completePass(descriptor, from: actor, to: target, state: &state, events: &events)
@@ -2785,6 +2776,24 @@ enum Rules {
         return true
     }
 
+    /// **A card that takes one off a man it names**, once the man is named — whether he
+    /// was named before the card was played, which is how it is asked now, or after,
+    /// which is how a Floor General still asks it.
+    private static func resolveTargetDiscard(_ descriptor: CardDescriptor, by actor: Seat,
+                                             at target: Seat, state: inout GameState,
+                                             events: inout [GameEvent]) {
+        guard !state[target].bag.isEmpty else {
+            events.append(.movePlayed(seat: actor, card: descriptor, shot: loggedShot(state)))
+            state.lastPlayThisPossession = descriptor.id
+            state.movesThisPossession += 1
+            return
+        }
+        state.pendingPlay = descriptor
+        state.pendingActor = actor
+        state.phase = .awaitingCardFrom(seat: asker(instead: actor, in: state),
+                                        card: descriptor, victim: target)
+    }
+
     /// **Some calls are a coin toss.** Travel and Back Court Violation watch a whole class
     /// of play, which as a certainty is a cancelled card in nearly every round they work —
     /// so they are a chance of one instead. Rolled where the call is made, not where it is
@@ -3317,6 +3326,13 @@ enum Rules {
             state.movesThisPossession += 1
             clearOut(from: seat, state: &state, events: &events)
         } else if descriptor.targetDiscards > 0 {
+            // Named before it was played, where the man playing it does the naming —
+            // see `aimChoices`. Only a Floor General's question is asked from here.
+            if let aim = state.currentAim {
+                state.currentAim = nil
+                return resolveTargetDiscard(descriptor, by: seat, at: aim,
+                                            state: &state, events: &events)
+            }
             state.pendingPlay = descriptor
             state.pendingActor = seat
             state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
@@ -4313,7 +4329,11 @@ enum Rules {
     /// **Who a card may be aimed at before it is played**, or nil for a card that does not
     /// name anybody. See `aimingCard`.
     static func aimChoices(_ descriptor: CardDescriptor, by seat: Seat) -> [Seat]? {
-        if descriptor.cut != nil { return Seat.allCases.filter { $0 != seat } }
+        // A Cut, and anything that takes a card off a man it names: the question is who,
+        // and it is asked before the card is spent so it can be taken back.
+        if descriptor.cut != nil || descriptor.targetDiscards > 0 {
+            return Seat.allCases.filter { $0 != seat }
+        }
         guard let target = descriptor.passTarget, target == .choice || target == .leftOrRight
         else { return nil }
         return passChoices(target, from: seat, othersOnly: descriptor.passesToOthersOnly)
@@ -4344,6 +4364,22 @@ enum Rules {
         case .leftOrRight: return [seat.left, seat.right]
         default:
             return othersOnly ? Seat.allCases.filter { $0 != seat } : Seat.allCases
+        }
+    }
+
+    /// **Where a Pass card could go**, so the floor can draw a line to each: the men it
+    /// may name, or the one man its own direction lands on. Empty for anything else.
+    static func passTargets(_ descriptor: CardDescriptor, from seat: Seat,
+                            in state: GameState) -> [Seat] {
+        guard let target = descriptor.passTarget else { return [] }
+        switch target {
+        case .choice, .leftOrRight:
+            return passChoices(target, from: seat, othersOnly: descriptor.passesToOthersOnly)
+        // Nobody picks a random one, so every man it could land on is drawn.
+        case .random:
+            return Seat.allCases.filter { $0 != seat }
+        default:
+            return resolve(target, from: seat, state: state).map { [$0] } ?? []
         }
     }
 
