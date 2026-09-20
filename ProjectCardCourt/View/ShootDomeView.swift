@@ -97,7 +97,7 @@ struct ShootDomeView: View {
         static let seam: Double = 3
         /// What stands on a segment, as shares of the arc's own thickness: the mark that
         /// leads it, and the word that follows the mark round.
-        static let mark: CGFloat = 0.62
+        static let mark: CGFloat = 0.95
         static let letter: CGFloat = 0.46
         /// The number on the ball, and the word lapped over it.
         static let number: CGFloat = 0.27
@@ -253,7 +253,9 @@ struct ShootDomeView: View {
         let radians = angle * .pi / 180
         return Image(art)
             .resizable()
-            .scaledToFit()
+            // **Filled, not fitted.** A shoe drawn to fit its box is a shoe with air all
+            // round it; on a band this thin that read as a smudge.
+            .scaledToFill()
             .frame(width: side, height: side)
             .foregroundStyle(ink)
             .rotationEffect(.degrees(angle + 90))

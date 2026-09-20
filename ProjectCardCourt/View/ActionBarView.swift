@@ -101,6 +101,7 @@ struct ActionBarView: View {
     var body: some View {
         VStack(spacing: 6) {
             FannedBagView(cards: bag,
+                          curve: Act.handCurve,
                           seat: GameRules.localSeat,
                           lastPasser: state.lastPasser,
                           playable: playableCards,
@@ -120,6 +121,9 @@ struct ActionBarView: View {
                           onBonus: onBonus,
                           detail: $detail,
                           onCommit: commit)
+                // **Down onto the ball.** The fan's own arc is the ball's, so the two
+                // only read as one object if the hand is sitting on it.
+                .padding(.bottom, -Act.handSink)
             asking
             if case .awaitingBid = controller.gate, controller.revealedBids == nil { confirmBid }
             if case .awaitingDiscard = controller.gate { confirmDiscard }
@@ -237,6 +241,15 @@ struct ActionBarView: View {
         static let domeBand: CGFloat = 132
         /// What the bar keeps under itself, which the ball is let through — see `body`.
         static let barPad: CGFloat = 10
+        /// **The hand's own arc, bent round the ball under it.** The fan is a circle the
+        /// cards stand on; this is that circle's radius, the ball's own plus the room a
+        /// card takes over it — so the two curves are concentric and the hand reads as
+        /// resting on the ball rather than as a straight row above it.
+        @MainActor static var handCurve: CGFloat {
+            dome(Chrome.screenWidth) / 2 + 72
+        }
+        /// How far the hand comes down over the rows under it, onto the ball.
+        static let handSink: CGFloat = 24
         static let width: CGFloat = 190
         static let height: CGFloat = 42
         /// The word, in the game's own lettering. The figure beside it is not — a
@@ -364,14 +377,17 @@ struct ActionBarView: View {
                         if let onOpenLog { logButton(onOpenLog) }
                         if let onNames { namesButton(onNames) }
                         if let onSwapSeatCards { swapButton(onSwapSeatCards) }
-                        if let onPause { pauseButton(onPause) }
                     }
                     .frame(width: across * Act.side, alignment: .leading)
                     Spacer(minLength: 0)
-                    // What everybody is playing with, beside the ball you shoot with.
-                    FloorAndBallView(state: controller.shown, alwaysShowsBall: true,
-                                     onSelect: onInspectBall)
-                        .frame(width: across * Act.side, alignment: .trailing)
+                    // What everybody is playing with, beside the ball you shoot with, and
+                    // the way out of the game over the top of it.
+                    VStack(alignment: .trailing, spacing: 6) {
+                        if let onPause { pauseButton(onPause) }
+                        FloorAndBallView(state: controller.shown, alwaysShowsBall: true,
+                                         onSelect: onInspectBall)
+                    }
+                    .frame(width: across * Act.side, alignment: .trailing)
                 }
 
                 if case .awaitingMove = controller.gate, allowsShooting, canBorrow {
@@ -391,7 +407,10 @@ struct ActionBarView: View {
                               ringed: ringed,
                               onShoot: { controller.shoot(as: $0) },
                               width: Act.dome(across))
-                    .padding(.bottom, -Act.barPad)
+                    // Down past the bar's own padding *and* the home indicator's band:
+                    // the band this takes is a third of the ball, and every point left
+                    // under it showed more of the ball than a third.
+                    .padding(.bottom, -(Act.barPad + Chrome.bottomInset))
                     .ignoresSafeArea(edges: .bottom)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -445,21 +464,29 @@ struct ActionBarView: View {
     /// **What the blocks along the top are showing.** Intangibles or Clamps, one press
     /// apart, and down here where a thumb already is rather than up beside them.
     private func swapButton(_ swap: @escaping () -> Void) -> some View {
-        Button(action: swap) {
-            Image(seatCards == .intangibles ? "TypeIntangibleFront" : "TypeClampFront")
-                .resizable()
-                .scaledToFit()
-                .padding(5)
-                .frame(width: 27, height: 27)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(seatCards == .intangibles ? CardPalette.black : CardPalette.red))
-                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(.white, lineWidth: 1.5))
-                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
-                .contentShape(Rectangle())
+        let showing = seatCards == .intangibles
+        return Button(action: swap) {
+            HStack(spacing: 4) {
+                Image(systemName: "eye.fill")
+                    .font(.system(size: 11, weight: .black))
+                Text(showing ? "INTANGIBLES" : "CLAMPS")
+                    .font(.system(size: 10, weight: .black))
+                    .tracking(0.6)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .frame(width: 54 * 2, height: 27, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(showing ? CardPalette.black : CardPalette.red))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(.white, lineWidth: 1.5))
+            .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(seatCards == .intangibles ? "Showing Intangibles" : "Showing Clamps")
+        .accessibilityLabel(showing ? "Showing Intangibles" : "Showing Clamps")
     }
 
     private func pauseButton(_ pause: @escaping () -> Void) -> some View {

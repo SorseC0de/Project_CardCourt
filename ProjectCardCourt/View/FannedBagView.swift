@@ -8,6 +8,10 @@ import SwiftUI
 /// lifted card leaves stays open until it has actually gone.
 struct FannedBagView: View {
     let cards: [Card]
+    /// **The circle the cards stand on.** The ball you shoot with is right under them, so
+    /// the hand's arc is that ball's own, one card's room further out — see
+    /// `ActionBarView.Act.handCurve`.
+    var curve: CGFloat = 300
     let seat: Seat
     let lastPasser: Seat?
     let playable: Set<Card.ID>
@@ -79,7 +83,7 @@ struct FannedBagView: View {
     private var arc: (spread: Double, radius: CGFloat) {
         let count = max(cards.count, 1)
         // Tighten as the hand grows, so twelve cards do not wrap into a circle.
-        return (min(46, Double(count) * 7), 300)
+        return (min(46, Double(count) * 7), curve)
     }
 
     var body: some View {

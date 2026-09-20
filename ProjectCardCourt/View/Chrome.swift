@@ -16,6 +16,21 @@ enum Chrome {
     /// The coordinate space the whole screen is measured in — see `GameView`, which reads
     /// the log's foot out of it to hang the name plate under.
     static let screen = "screen"
+
+    /// **The window the game is in.** Read for the two things a layout cannot ask its own
+    /// container for: how wide the screen is before a reader has run, and the band the
+    /// home indicator takes — which anything reaching the screen's true bottom edge has
+    /// to be let through. `ignoresSafeArea` enlarges where a view *may* draw; it does not
+    /// move a fixed-size one down into it.
+    @MainActor private static var window: UIWindow? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }
+    }
+
+    @MainActor static var screenWidth: CGFloat { window?.bounds.width ?? 393 }
+    @MainActor static var bottomInset: CGFloat { window?.safeAreaInsets.bottom ?? 0 }
     /// The air between the log and whatever hangs off it.
     static let underLog: CGFloat = 6
     /// Where two-colour lettering changes colour, as a share of its height.
