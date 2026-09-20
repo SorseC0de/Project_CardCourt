@@ -102,8 +102,9 @@ struct StatusHUDView: View {
     /// the way a passive in the slots does — no sheet of all three in between, since you
     /// tapped the one you wanted to read.
     var onInspectReferee: (CardDescriptor, CGPoint) -> Void = { _, _ in }
-    /// The spent pile, opened — see `DiscardPileView`.
-    var onOpenDiscard: () -> Void = {}
+    /// The spent pile, opened — see `DiscardBrowserView`. Handed the mark's own frame,
+    /// so the cards fan out of the thing that was pressed.
+    var onOpenDiscard: (CGRect) -> Void = { _ in }
     /// **Spread across the screen** — the main HUD: SHOT and the deck count in the
     /// middle, the crew and the two decks to the right of them. Off, it is the one row it
     /// always was.
@@ -113,6 +114,8 @@ struct StatusHUDView: View {
     @AppStorage(DeckReadout.setting) private var layout = DeckReadout.beside
 
     private var readout: DeckReadout.Metrics { layout.metrics }
+    /// Where the spent pile's mark is standing, for the fan-out — see `iMAPicker`.
+    @State private var discardFrame: CGRect = .zero
 
     /// Never over the ceiling — Med Ball's 50 included, whatever the holder carries.
     private var shownShot: Int { min(shot ?? state.shot, state.baseShotCeiling) }
@@ -245,7 +248,14 @@ struct StatusHUDView: View {
                 .contentTransition(.numericText())
         }
         .contentShape(Rectangle())
-        .onTapGesture(perform: onOpenDiscard)
+        .background {
+            GeometryReader { box in
+                Color.clear
+                    .onAppear { discardFrame = box.frame(in: .global) }
+                    .onChange(of: box.frame(in: .global)) { _, now in discardFrame = now }
+            }
+        }
+        .onTapGesture { onOpenDiscard(discardFrame) }
         .animation(.easeOut(duration: 0.25), value: state.discard.count)
     }
 

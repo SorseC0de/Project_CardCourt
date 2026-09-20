@@ -32,7 +32,7 @@ struct CourtView: View {
     var swipe: (seat: Seat, id: UUID)?
     var opening: OpeningDeal?
     var flightDuration: Double = 0.30
-    var onOpenDiscard: () -> Void = {}
+    var onOpenDiscard: (CGRect) -> Void = { _ in }
     /// Where the deck is standing, in the screen's own space — see `DeckPoint`.
     var deckAt: CGPoint?
     var onSelect: (Seat) -> Void
@@ -1214,7 +1214,13 @@ struct CourtView: View {
                             showsPile: !render.courtStage)
                 .scaleEffect(court.scale(at: depth), anchor: .bottom)
                 .contentShape(Rectangle())
-                .onTapGesture(perform: onOpenDiscard)
+                .overlay {
+                    GeometryReader { pile in
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { onOpenDiscard(pile.frame(in: .global)) }
+                    }
+                }
                 .position(discardPoint(on: court))
         case .player(let seat):
             let footing = court.footing(of: seat, inbounding: thrower)

@@ -132,7 +132,9 @@ struct GameView: View {
     /// A slotted passive or an active debuff, held up to be read.
     /// A slotted card held up, and the slot it came from.
     @State private var inspecting: (card: CardDescriptor, from: CGPoint)?
-    @State private var browsingDiscard = false
+    /// **The spent pile, open** — and where it was opened from, so the cards fan out of
+    /// whatever was pressed. Nil while it is shut.
+    @State private var browsingDiscard: CGRect?
     /// What the player has tapped open on the floor. See `Inspection`.
     @State private var onFloor: Inspection?
 
@@ -578,9 +580,10 @@ struct GameView: View {
                                    onPick: takeTheOffer)
                         .zIndex(11)
                 }
-                if browsingDiscard {
+                if let browsingDiscard {
                     DiscardBrowserView(cards: controller.shown.discard,
-                                       onDismiss: { browsingDiscard = false })
+                                       from: browsingDiscard,
+                                       onDismiss: { self.browsingDiscard = nil })
                         .transition(.opacity)
                         .zIndex(11)
                 }
@@ -937,7 +940,7 @@ struct GameView: View {
     /// Everything that takes the screen away from the floor — see the `onChange` that
     /// holds the game while any of it is up.
     private var holdsTheFloor: Bool {
-        onFloor != nil || inspecting != nil || browsingDiscard || readingLog
+        onFloor != nil || inspecting != nil || browsingDiscard != nil || readingLog
     }
 
     /// Opens a floor sheet, where that is allowed. The hold is the `onChange`'s job.
@@ -981,7 +984,7 @@ struct GameView: View {
     private static let floorSleepDelay: Double = 0.3
 
     private var dim: Double {
-        if browsingDiscard { return Theme.dimBrowser }
+        if browsingDiscard != nil { return Theme.dimBrowser }
         // Your own hand being asked for cards is the same question somebody else's hand
         // gets a dimmed floor for.
         switch controller.gate {
@@ -1072,7 +1075,7 @@ struct GameView: View {
                   swipe: controller.clampSwipe,
                   opening: controller.opening,
                   flightDuration: controller.flightDuration,
-                  onOpenDiscard: { browsingDiscard = true },
+                  onOpenDiscard: { browsingDiscard = $0 },
                   deckAt: deckAt,
                   onSelect: select,
                   faces: padGlyphs,
@@ -1144,7 +1147,7 @@ struct GameView: View {
             StatusHUDView(state: controller.shown, shot: controller.shownShot,
                           deck: controller.shownDeck,
                           onInspectReferee: { inspecting = (card: $0, from: $1) },
-                          onOpenDiscard: { browsingDiscard = true },
+                          onOpenDiscard: { browsingDiscard = $0 },
                           spread: true)
 
             // A lesson's way out stands where the floor's corner used to.
@@ -1401,9 +1404,9 @@ struct GameView: View {
 
         // Everything the player opened for themselves, and everything the game is
         // holding up to be looked at. All of it closes on the same two buttons.
-        if browsingDiscard || onFloor != nil || inspecting != nil {
+        if browsingDiscard != nil || onFloor != nil || inspecting != nil {
             guard action == .back || action == .tap else { return }
-            browsingDiscard = false
+            browsingDiscard = nil
             onFloor = nil
             inspecting = nil
             return

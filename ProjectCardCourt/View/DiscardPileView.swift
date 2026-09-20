@@ -72,16 +72,47 @@ struct DiscardPileView: View {
 }
 
 /// Everything in the pile, grouped so twenty Swing Lefts read as one card with a count.
+/// **One card in the pile, and how many of it are in there.**
+struct DiscardEntry: Hashable {
+    let card: CardDescriptor
+    let count: Int
+
+    static func == (a: DiscardEntry, b: DiscardEntry) -> Bool {
+        a.card.id == b.card.id && a.count == b.count
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(card.id)
+        hasher.combine(count)
+    }
+}
+
+/// **Everything that has been spent, laid out to be read.**
+///
+/// The pile used to open as a grid of cards too small to read, which meant the only way
+/// to find out what was in there was to already know. It is the iMAPicker now: the cards
+/// fan out from whatever was tapped into a column you scroll, and tapping one stands it
+/// up full size beside the list rather than choosing it — nothing here is a question.
 struct DiscardBrowserView: View {
     let cards: [Card]
+    /// Where the press came from, so the column fans out of it.
+    var from: CGRect = .zero
     var onDismiss: () -> Void
 
-    private var grouped: [(descriptor: CardDescriptor, count: Int)] {
+    private enum Browse {
+        static let row: CGFloat = 40
+        static let raised: CGFloat = 150
+        static let name: CGFloat = 13
+        static let count: CGFloat = 11
+    }
+
+    private var grouped: [DiscardEntry] {
         Dictionary(grouping: cards, by: \.descriptor.id)
             .values
-            .compactMap { group in group.first.map { ($0.descriptor, group.count) } }
-            .sorted { ($0.descriptor.type.rawValue, $0.descriptor.name)
-                    < ($1.descriptor.type.rawValue, $1.descriptor.name) }
+            .compactMap { group in group.first.map { DiscardEntry(card: $0.descriptor,
+                                                                  count: group.count) } }
+            .sorted { ($0.card.type.rawValue, $0.card.name)
+                    < ($1.card.type.rawValue, $1.card.name) }
     }
 
     var body: some View {
@@ -89,7 +120,22 @@ struct DiscardBrowserView: View {
             DimLayer(on: true, amount: Theme.dimBrowser)
                 .onTapGesture(perform: onDismiss)
 
-            VStack(spacing: 10) {
+            if grouped.isEmpty {
+                Text("Nobody has retired yet.")
+                    .font(.system(size: 12)).foregroundStyle(Theme.inkDim)
+            } else {
+                iMAPickerList(items: grouped, sourceFrame: from) { entry, open in
+                    line(entry, open: open)
+                } detail: { entry in
+                    CardFrontView(descriptor: entry.card, displayWidth: Browse.raised,
+                                  expanded: true)
+                        .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
+                } onDismiss: {
+                    onDismiss()
+                }
+            }
+
+            VStack {
                 HStack {
                     Text("RETIRED · \(cards.count)")
                         .font(.system(size: 12, weight: .black)).tracking(1.6)
@@ -102,37 +148,34 @@ struct DiscardBrowserView: View {
                     }
                 }
                 .padding(.horizontal, 18)
+                .padding(.top, 16)
+                Spacer()
+            }
+        }
+    }
 
-                if grouped.isEmpty {
-                    Spacer()
-                    Text("Nobody has retired yet.")
-                        .font(.system(size: 12)).foregroundStyle(Theme.inkDim)
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)],
-                                  spacing: 12) {
-                            ForEach(grouped, id: \.descriptor.id) { entry in
-                                CardFrontView(descriptor: entry.descriptor, displayWidth: 84)
-                                    .overlay(alignment: .topTrailing) {
-                                        if entry.count > 1 {
-                                            Text("×\(entry.count)")
-                                                .font(.system(size: 10, weight: .heavy, design: .rounded))
-                                                .foregroundStyle(.white)
-                                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                                .background(Capsule().fill(CardPalette.navy))
-                                                .offset(x: 4, y: -4)
-                                        }
-                                    }
-                            }
-                        }
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 24)
-                    }
+    /// One row: the card small, what it is called, and how many of it went in.
+    private func line(_ entry: DiscardEntry, open: Bool) -> some View {
+        HStack(spacing: 8) {
+            CardFrontView(descriptor: entry.card, displayWidth: Browse.row)
+            VStack(alignment: .leading, spacing: 1) {
+                SmallCapsText(text: entry.card.name, font: Chrome.display,
+                              size: Browse.name, tracking: Browse.name * 0.02)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                if entry.count > 1 {
+                    Text("×\(entry.count)")
+                        .font(.system(size: Browse.count, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Theme.inkDim)
                 }
             }
-            .padding(.top, 16)
+            Spacer(minLength: 0)
         }
+        .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
+        // The one being read stands a little out of the column.
+        .scaleEffect(open ? 1.06 : 1, anchor: .leading)
+        .opacity(open ? 1 : 0.75)
     }
 }
 
