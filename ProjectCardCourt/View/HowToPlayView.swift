@@ -67,9 +67,11 @@ struct HowToPlayView: View {
     /// Printed in its cards' colours, with one of them spilling off an end — the leading
     /// end and the trailing end in turn down the list.
     private func lessonButton(_ tutorial: Tutorial, cardLeads: Bool) -> some View {
-        let body = tuning.bodyInk(for: tutorial.face)
-        return ChunkyButton(title: tutorial.title, fill: body, stroke: body,
-                            shade: tuning.ringInk(for: tutorial.face),
+        // The skin a card of that face is printed in, so a lesson wears its own cards'
+        // paper and ring in whatever theme is out — see `TutorialOverlay`.
+        let skin = CardSkin.of(tutorial.face)
+        return ChunkyButton(title: tutorial.title, fill: skin.body, stroke: skin.body,
+                            shade: skin.ring,
                             size: 26, run: { open(tutorial) })
             .overlay(alignment: cardLeads ? .leading : .trailing) {
                 CardFrontView(descriptor: tutorial.blankCard(named: tutorial.cardName),

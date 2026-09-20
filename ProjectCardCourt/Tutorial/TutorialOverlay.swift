@@ -36,9 +36,13 @@ struct TutorialOverlay: View {
 
     private var step: TutorialStep? { director.current }
     private var face: CardFace { director.tutorial.face }
-    /// Printed the way the lesson's own cards are: the body, dropped in the inner ring.
-    private var popoverFill: Color { tuning.bodyInk(for: face) }
-    private var popoverDrop: Color { tuning.ringInk(for: face) }
+    /// **The game's own panel, and the lesson's colour under it.** It used to take the
+    /// paper a card is printed on, which is cloud — pale, under the white the words are
+    /// set in, and nothing else on this screen is printed that way. What carries the
+    /// lesson now is the drop and the blips, in the ring its cards wear.
+    private var skin: CardSkin { .of(face) }
+    private var popoverFill: Color { Theme.panel }
+    private var popoverDrop: Color { skin.ring }
 
     /// A step that waits on the player only shows itself while the player is being asked to
     /// play — a scene or a question on the table is left alone.
