@@ -1312,7 +1312,13 @@ struct CourtView: View {
                     isActing: state.phase.actingSeat == seat,
                     // The seat being asked to choose is never dimmed, even though it is
                     // not a legal target for itself.
-                    isDimmed: !selectableSeats.isEmpty && !selectable
+                    // **A pass being read lights its own answers.** The floor dims for a
+                    // card held up, and the whole point of holding a Pass up is to see
+                    // where it goes — so the men it could reach, and the lines drawn to
+                    // them, stay out of it.
+                    isDimmed: (!selectableSeats.isEmpty && !selectable)
+                        || (!passPreview.isEmpty && !passPreview.contains(seat)
+                            && holder != seat)
                         && state.phase.actingSeat != seat,
                     marker: marker(for: seat, selectable: selectable),
                     clampCount: showingClamps ? state[seat].clamps.count : nil,

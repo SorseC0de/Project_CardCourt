@@ -3063,8 +3063,10 @@ enum Rules {
         let takesASlot = descriptor.varena != nil || descriptor.variaball != nil
             || descriptor.intangible != nil
         // Foot Ball: a Move or a Pass stays in the hand, locked until the possession ends.
+        // **Not a finish.** A Special Move is a shot going up; keeping one in the hand is
+        // keeping the shot itself, which is a different card altogether.
         let footLocks = state.ballEffect.locksInsteadOfSpending
-            && (descriptor.isMove || descriptor.isPass)
+            && (descriptor.type == .move || descriptor.isPass)
         if descriptor.whistle?.trigger == nil, !kept, !takesASlot, !footLocks {
             state.discard.append(card)
         } else if kept || footLocks {
@@ -4375,9 +4377,14 @@ enum Rules {
         state.shotClock = remaining
         events.append(.shotClockTicked(remaining))
         guard remaining <= 0 else { return false }
-        // **Nought ends the quarter.** It is not a turnover any more and it is nobody's
-        // fault: the period is over, the way a clock on a wall is over. Moves At Own Pace
-        // holds off a *violation* and has nothing to say about time running out.
+        // **Nought ends the quarter, and charges the man holding it.** The period is over
+        // the way a clock on a wall is over — but somebody was standing there with the
+        // ball when it went, and that is a violation on him whatever else it is. Moves At
+        // Own Pace holds off the call, not the end of the period.
+        if state.ball == holder, !has(holder, in: state, { $0.ignoresViolations }) {
+            state[holder].turnovers += 1
+            events.append(.turnover(holder, cause: CardLibrary.shotClockViolation.name))
+        }
         stoppage(state: &state, events: &events)
         endRound(state: &state, events: &events)
         return true

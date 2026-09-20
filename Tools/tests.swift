@@ -167,10 +167,10 @@ func runTests() {
         state.shotClock = 1
         let round = state.round
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
-        // The clock is the quarter now: running it out is the period ending, not a
-        // violation anybody committed.
-        Check.that(state[seat].turnovers == 0,
-                   "Hesitation Dribble to zero is nobody's turnover")
+        // The clock running out ends the period — and the man holding the ball when it
+        // went is charged with it, the way he always was.
+        Check.that(state[seat].turnovers == 1,
+                   "running it to zero with the ball is his violation")
         Check.that(state.round == round + 1, "and the quarter is over")
     }
     do {

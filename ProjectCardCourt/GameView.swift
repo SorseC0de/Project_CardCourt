@@ -442,8 +442,11 @@ struct GameView: View {
                     // hand are all part of reading a card, and stay lit.
                     stage
                         .overlay {
-                            DimLayer(on: reading != nil, amount: Theme.dimBrowser,
-                                     full: false)
+                            // A Pass held up dims the floor a man at a time instead —
+                            // see `CourtView`'s own dim — so the arrows and the men they
+                            // point at are not put behind a sheet.
+                            DimLayer(on: reading != nil && readingAPass != true,
+                                     amount: Theme.dimBrowser, full: false)
                         }
                         // **He warps on.** The crew changing is a controller's doing and
                         // a controller has no springs, so the floor is told to animate
@@ -1077,6 +1080,11 @@ struct GameView: View {
     }
 
     /// A practice pass overrides both ends of the flight; otherwise the rules say.
+    /// Whether the card being held up is a Pass, which the floor answers for itself.
+    private var readingAPass: Bool {
+        (inspecting?.card ?? detail?.descriptor)?.isPass == true
+    }
+
     private var passerOnCourt: Seat? {
         #if DEBUG
         if let practice = controller.practicePass { return practice.from }

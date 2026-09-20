@@ -55,7 +55,11 @@ struct SmokePuff: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / dust.landFPS,
                                 paused: startedAt == nil || settled == startedAt)) { timeline in
-            SmokeCell(since: startedAt.map { timeline.date.timeIntervalSince($0) },
+            // **Nothing once it has settled.** Pausing a timeline freezes its date at the
+            // last tick, and that tick is *inside* the sheet — so the puff held its final
+            // cell for the rest of the game rather than clearing.
+            SmokeCell(since: settled == startedAt ? nil
+                      : startedAt.map { timeline.date.timeIntervalSince($0) },
                       scale: scale * dust.landScale,
                       at: at ?? CGPoint(x: dust.landX, y: dust.landY),
                       fps: dust.landFPS, fade: dust.landFade)

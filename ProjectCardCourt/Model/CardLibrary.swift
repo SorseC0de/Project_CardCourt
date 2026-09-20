@@ -452,11 +452,10 @@ enum CardLibrary {
 
     static let flagrantFoulII = CardDescriptor(
         id: "flagrant-foul-ii", name: "Flagrant Foul II", type: .whistle,
-        effect: "~[Clamp] on a clamped player: Clamper #[Retires] 2. Target player +1 #[FT]",
+        effect: "~[Clamp] played: Clamper #[Retires] 2. Target player +1 #[FT]",
         numberInDeck: 1,
         whistle: WhistleEffect(trigger: .clampPlayed, offenderDiscards: 2,
-                               freeThrowsToClampVictim: 1, cancelsCard: false,
-                               requiresClampOnClamped: true))
+                               freeThrowsToClampVictim: 1, cancelsCard: false))
 
     static let charge = CardDescriptor(
         id: "charge", name: "Charge", type: .whistle,
@@ -1059,7 +1058,8 @@ enum CardLibrary {
         variaball: VariaballEffect(swapsHandsOnPass: true))
     static let footBall = CardDescriptor(
         id: "foot-ball", name: "Foot Ball", type: .variaball,
-        effect: "~[Moves] and ~[Passes] are not spent. They lock until your possession ends",
+        effect: "~[Moves] and ~[Passes] are not spent, except @[Special Moves].\n"
+            + "They lock until your possession ends",
         numberInDeck: 1,
         variaball: VariaballEffect(locksInsteadOfSpending: true))
     static let rechargeRock = CardDescriptor(
@@ -1215,10 +1215,10 @@ enum CardLibrary {
     /// each button, so every finish has a card that simply takes it.
     static let floater = CardDescriptor(
         id: "floater", name: "Floater", type: .specialMove,
-        effect: "#[Draw] 1 card. SHOT +30%\nIgnore target ~[Clamp]", numberInDeck: 3,
-        shotDelta: 30, drawCount: 1,
+        effect: "#[Draw] 1 card. SHOT +15%\nIgnores ~[Clamps]", numberInDeck: 3,
+        shotDelta: 15, drawCount: 1,
         special: SpecialMoveEffect(shootsImmediately: true, shotType: .layup,
-                                   ignoresATargetClamp: true))
+                                   ignoresClamps: true))
 
     static let threeBall = CardDescriptor(
         id: "three-ball", name: "Three-Ball", type: .specialMove,
