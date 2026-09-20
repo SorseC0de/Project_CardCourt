@@ -2396,11 +2396,13 @@ final class GameController {
             practicePass = (GameRules.localSeat, seat)
             // Restamped, so a second press replays rather than being ignored.
             ballSettledAt = Date()
-            // Long enough for the throw *and* the catch that follows it. Clearing this
-            // at the end of the flight pulled the receiver's `caughtAt` away a tenth of a
-            // second into the catch, so the sheet never got past its first frames.
-            try? await Task.sleep(for: .seconds(PassTiming.flight
-                                                + PassTiming.catchSeconds + 0.2))
+            // **It arrives like any other ball.** The bench's pass moves nothing in the
+            // rules, so no `.passed` is ever presented for it — and the catch is stamped
+            // off that. Without this the one path built for watching a pass was the one
+            // path with no catch in it.
+            try? await Task.sleep(for: .seconds(PassTiming.windup + PassTiming.flight))
+            caught = Catch(seat: seat, at: Date())
+            try? await Task.sleep(for: .seconds(PassTiming.catchSeconds + 0.2))
             practicePass = nil
             await run()
         }

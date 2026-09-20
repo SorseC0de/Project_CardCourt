@@ -624,6 +624,17 @@ struct CourtView: View {
     }
 
     /// The sheet this seat throws on, while it is throwing.
+    /// **A ball on its way to him.**
+    ///
+    /// From the throw to the catch — the wind-up included, before the ball is drawn at
+    /// all — he has not got one, so he is not dribbling one. `ballInFlight` alone starts
+    /// a wind-up late, and the man the ball is *going* to is already its holder by then:
+    /// that gap is a receiver dribbling a ball nobody has thrown yet.
+    private func ballIsComing(to seat: Seat) -> Bool {
+        guard holder == seat, caught?.seat != seat else { return false }
+        return ballInFlight || passer != nil || throwing?.to == seat
+    }
+
     private func throwing(_ seat: Seat) -> (sheet: Sprite, at: Date)? {
         guard let thrownBy, thrownBy.from == seat else { return nil }
         return (Self.throwSheet(for: thrownBy, viewedFrom: viewer), thrownBy.at)
@@ -1288,7 +1299,7 @@ struct CourtView: View {
                     landsFromWarp: isStill,
                     // Nobody dribbles a ball that is still in the air. The thrower has let go
                     // and the receiver has not caught it yet, so both are simply running.
-                    awaitingBall: ballInFlight && holder == seat,
+                    awaitingBall: ballIsComing(to: seat),
                     throwing: throwing(seat),
                     clockShift: clockShift[seat] ?? 0,
                     // Whoever is inbounding is drawn on the sideline instead, further up this
