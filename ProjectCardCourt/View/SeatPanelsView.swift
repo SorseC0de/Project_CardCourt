@@ -46,6 +46,8 @@ struct SeatPanelsView: View {
         /// The sum a block opens into.
         static let statLabel: CGFloat = 10
         static let stat: CGFloat = 13
+        /// The figure under the rule, which is the point of opening the column.
+        static let total: CGFloat = 18
         /// What is taken off the total rather than added to it.
         static let taken = Color(red: 1, green: 0.62, blue: 0.62)
     }
@@ -186,12 +188,14 @@ struct SeatPanelsView: View {
         return VStack(spacing: 2) {
             ForEach(Array(Self.line(player).enumerated()), id: \.offset) { _, row in
                 HStack(spacing: 6) {
-                    SmallCapsText(text: row.label, font: Chrome.display,
+                    // **The minus belongs to the line, not to the figure.** It is the
+                    // turnovers that come off, and "-2" read as a count of minus two.
+                    SmallCapsText(text: row.taken ? "-" + row.label : row.label,
+                                  font: Chrome.display,
                                   size: Panel.statLabel, tracking: Panel.statLabel * 0.1)
                         .foregroundStyle(row.taken ? Panel.taken : .white.opacity(0.8))
                     Spacer(minLength: 0)
-                    // What comes off the total says so, in the sum and in its colour.
-                    Text(row.taken ? "-\(row.value)" : "\(row.value)")
+                    Text("\(row.value)")
                         .font(.custom(Chrome.display, size: Panel.stat))
                         .foregroundStyle(row.taken ? Panel.taken : .white)
                 }
@@ -202,10 +206,9 @@ struct SeatPanelsView: View {
                 .padding(.top, 1)
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                Text("\(shownScore(seat))")
-                    .font(.custom(Chrome.display, size: Panel.stat + 3))
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
+                // The figure the whole column adds up to, lettered the way a card's own
+                // $[2X] is — the one number here that is not a component.
+                TwoXMark(size: Panel.total, text: "\(shownScore(seat))")
             }
         }
         // Black under every figure, which is what makes a light number on a seat's own

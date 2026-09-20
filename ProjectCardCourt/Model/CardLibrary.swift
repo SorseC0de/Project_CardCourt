@@ -75,10 +75,11 @@ enum CardLibrary {
 
     static let touchPass = CardDescriptor(
         id: "touch-pass", name: "Touch", type: .pass,
-        effect: "SHOT +10%. Continue the ball in the direction of travel.\n"
-            + "(Cannot be played when the ball arrived Across)",
+        effect: "First action only: SHOT +10%. Continue the ball in the direction of "
+            + "travel.\n(Cannot be played when the ball arrived Across)",
         numberInDeck: 5,
         passTarget: .continuing, shotDelta: 10, drawIfFirstAction: 2,
+        firstActionOnly: true, playedOnArrival: true,
         bonus: "If played as your first action: #[Draw] 2 cards")
 
     static let rightBack = CardDescriptor(

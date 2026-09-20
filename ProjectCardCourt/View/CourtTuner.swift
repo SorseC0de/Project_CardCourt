@@ -209,6 +209,9 @@ struct DebugActionsView: View {
     @AppStorage("bench.refs") private var showRefs = false
     @State private var refs = RefereeTuning.shared
     @AppStorage("bench.hand") private var showHand = false
+    @AppStorage("bench.pass") private var showPass = false
+    /// The three beats a pass is paced by — see `PassTuning`.
+    @State private var pass = PassTuning.shared
     /// The hand's own three readings, and the wedges standing over the ball beside it.
     @State private var hand = HandTuning.shared
     @State private var arc = MoveArcTuning.shared
@@ -246,6 +249,7 @@ struct DebugActionsView: View {
                 action(showDeck ? "deck ▾" : "deck ▸") { showDeck.toggle() }
                 action(showRefs ? "refs ▾" : "refs ▸") { showRefs.toggle() }
                 action(showHand ? "hand ▾" : "hand ▸") { showHand.toggle() }
+                action(showPass ? "pass ▾" : "pass ▸") { showPass.toggle() }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -366,6 +370,23 @@ struct DebugActionsView: View {
                            Binding(get: { Double(overlay.y) },
                                    set: { overlay.y = CGFloat($0) }),
                            -60...60)
+                }
+                .frame(width: 150)
+            }
+            if showPass {
+                HStack(spacing: 4) {
+                    action("pass") { controller.debugPass(to: Self.targets[target]) }
+                    action("reset") {
+                        pass.flight = 0.26; pass.throwRate = 15; pass.catchRate = 20
+                    }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    slider("flight", Binding(get: { pass.flight },
+                                             set: { pass.flight = $0 }), 0.05...1.2)
+                    slider("throw fps", Binding(get: { pass.throwRate },
+                                                set: { pass.throwRate = $0 }), 4...40)
+                    slider("catch fps", Binding(get: { pass.catchRate },
+                                                set: { pass.catchRate = $0 }), 4...40)
                 }
                 .frame(width: 150)
             }

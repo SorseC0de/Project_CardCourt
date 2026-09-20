@@ -546,6 +546,13 @@ enum Rules {
         // the ball on.
         if let passer = state.lastPasser, passer != seat {
             offered += state[seat].bag.filter { $0.descriptor.clearsOut }
+            // Touch, asked the same way: the ball is still in the air and this is what
+            // you do with it. Only with somewhere to send it on to.
+            offered += state[seat].bag.filter {
+                $0.descriptor.playedOnArrival
+                    && ($0.descriptor.passTarget != .continuing
+                        || continuation(from: seat, in: state) != nil)
+            }
         }
         if !clampsArriving(on: seat, in: state).isEmpty {
             // Clear Out takes the floor; Crossover and Outlet take the man in the way.
@@ -984,6 +991,18 @@ enum Rules {
             // through here, so declining stranded the ball with the receiver until the
             // clock ran out on him: a shot-clock violation nobody could see coming.
             settleHands(state: &state, events: &events)
+            return events
+        }
+
+        // **A card that is simply played on the catch.** Touch continues the ball the
+        // moment it reaches you, so the possession opens and the card goes through the
+        // ordinary play path — everything it does happens the way it always does, and the
+        // first action is what it was played as.
+        if card.descriptor.playedOnArrival {
+            beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
+                            fromOwnMiss: held.fromOwnMiss, offering: false,
+                            alreadyDrew: held.drew, state: &state, events: &events)
+            events += apply(.play(card.id), by: seat, to: &state)
             return events
         }
 
@@ -2597,9 +2616,15 @@ enum Rules {
         }
         // Spazzphalt: the floor names its own number, fresh for every shot.
         if state.floorEffect.randomShotOverride { state.courtShotRoll = state.roll(0...20) * 5 }
+        // **The stack has to be told it is a three.** It never was: every caller took the
+        // default, so Splash Ball's hundred and every Intangible that pays only on a
+        // three were dead in a real game and alive only in the tests, which pass the flag
+        // by hand. The attempt's own finish, read the same way the ball's bonus reads it.
+        let finish = card?.special?.shotType ?? state.shotType
         let resolution = ShotMath.resolve(base: state.shot + priced + carried,
                                           modifiers: state.shotModifiers(
-                                            for: seat, ignoringClamps: overClamps),
+                                            for: seat, ignoringClamps: overClamps,
+                                            fromThree: finish == .three),
                                           rules: state.rules)
         let soldOut = state.sellingOut
         state.sellingOut = false

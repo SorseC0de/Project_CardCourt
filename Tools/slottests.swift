@@ -669,7 +669,10 @@ func probeSouthpaw() {
         for other in Seat.allCases {
             state[other].intangibles = []
             state[other].clamps = []
-            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+            // Touch is asked for on the catch now too, so it goes with them: what is
+            // being tested is the Lob's own question.
+            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps
+                                         || $0.descriptor.playedOnArrival }
         }
         state.shot = 55
         state[seat].clamps = [ActiveClamp(card: CardLibrary.contest, from: seat.right)]
@@ -700,7 +703,10 @@ func alleyOopTests() {
         state[receiver].bag.append(dunk)
         for other in Seat.allCases {
             state[other].intangibles = []
-            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps }
+            // Touch is asked for on the catch now too, so it goes with them: what is
+            // being tested is the Lob's own question.
+            state[other].bag.removeAll { $0.descriptor.clearsOut || $0.descriptor.clearsClamps
+                                         || $0.descriptor.playedOnArrival }
         }
         Rules.resolveTarget(receiver, state: &state)
         Check.that({ if case .awaitingCounter(let who, let offered) = state.phase {

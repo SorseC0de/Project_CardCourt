@@ -152,7 +152,13 @@ struct PlayerFigure: View {
     /// otherwise an inbound receiver stands frozen in his waiting cell while the ball
     /// lands in his arms.
     private var pose: Sprite? { catching ? nil : sprite }
-    private var poseFrame: Int? { catching ? nil : spriteFrame }
+    /// **Held on a cell rather than played.** A man waiting on a pass stands in the run
+    /// sheet's first, which is both feet under him.
+    private var poseFrame: Int? {
+        if catching { return nil }
+        if awaitingBall, sprite == nil { return 0 }
+        return spriteFrame
+    }
 
     /// Catching for a beat as the ball arrives, then dribbling; jogging without it.
     private var action: Sprite {
@@ -169,7 +175,11 @@ struct PlayerFigure: View {
         if let throwing { return throwing.sheet }
         if let pose { return pose }
         if catching { return .catchBall }
-        guard isHolding, !awaitingBall else { return .run }
+        // **Waiting on it, not working with it.** The ball is in the air: he has not got
+        // one to dribble, and he had been drawn dribbling an imaginary one until it
+        // arrived. Stood still on the run sheet's first cell — see `poseFrame`.
+        if awaitingBall { return .run }
+        guard isHolding else { return .run }
         return .dribble
     }
 

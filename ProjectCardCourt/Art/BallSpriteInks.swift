@@ -26,6 +26,6 @@ enum BallSpriteInks {
         "recharge-rock": (body: PixelPalette.gold, light: PixelPalette.aqua),
         "shufflebag-ball": (body: PixelPalette.blue, light: PixelPalette.brown),
         "snow-ball": (body: PixelPalette.aqua, light: PixelPalette.ice),
-        "splash-ball": (body: PixelPalette.aqua, light: PixelPalette.ice),
+        "splash-ball": (body: PixelPalette.aqua, light: PixelPalette.gold),
     ]
 }

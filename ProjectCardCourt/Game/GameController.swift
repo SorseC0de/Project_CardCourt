@@ -710,6 +710,9 @@ final class GameController {
     /// Answered by the tap. Cleared as the wait begins, so a press made while the game
     /// was busy is not a press banked against the next draw.
     private var deckTaken = false
+    /// **One tap pays for the batch.** A hand dealt four cards is one reach, not four —
+    /// and a card that draws three is one draw however many it moves.
+    private var deckTappedThisBatch = false
 
     /// Passives the rules have slotted that the table has not seen turn over.
     ///
@@ -1739,6 +1742,7 @@ final class GameController {
         // them off the deck was watching cards arrive somewhere they already were.
         for case .drew(_, _, let card, _) in events { undelivered.insert(card) }
         deckOwed = Self.owed(in: events)
+        deckTappedThisBatch = false
         for case .drew(let seat, _, let card, let opening) in events {
             await fly(to: seat, over: duration, delivering: card, opening: opening)
             if Task.isCancelled { return }
@@ -1790,7 +1794,10 @@ final class GameController {
     private func fly(to seat: Seat, over duration: Double, delivering card: UUID? = nil,
                      opening: Bool = false) async {
         if opening, seat == GameRules.localSeat {
-            await waitForTheDeck()
+            if !deckTappedThisBatch {
+                await waitForTheDeck()
+                deckTappedThisBatch = true
+            }
             deckOwed = max(0, deckOwed - 1)
         }
         // Counted off as it leaves, not when the rules dealt it.
@@ -3216,6 +3223,7 @@ final class GameController {
         // hand must not have them until their flight says so.
         for case .drew(_, _, let card, _) in events { undelivered.insert(card) }
         deckOwed = Self.owed(in: events)
+        deckTappedThisBatch = false
         for case .shotAttempted(_, let chance, _) in events { lastChance = chance }
         for case .intangibleRevealed(let seat, _) in events {
             unrevealed[seat, default: 0] += 1

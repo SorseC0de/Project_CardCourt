@@ -88,7 +88,9 @@ struct PlayerState: Hashable, Identifiable, Codable {
     var position: Position = .pointGuard
 
     var id: Seat { seat }
-    var score: Int { points + assists + rebounds - turnovers }
+    /// **Never below nothing.** Turnovers come off the total, and a man who has done
+    /// nothing else all game was being shown a negative number for it.
+    var score: Int { max(0, points + assists + rebounds - turnovers) }
 }
 
 enum Phase: Hashable, Codable {

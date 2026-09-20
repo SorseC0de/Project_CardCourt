@@ -466,6 +466,10 @@ struct CourtView: View {
                         // anything but a hard cut reads as two balls dissolving through
                         // each other.
                         .transition(.identity)
+                        // **Over the men it is crossing between.** It had no rung of its
+                        // own, which is the ZStack's zero — under every figure on the
+                        // floor and under the dim, so a pass was a ball you never saw.
+                        .zIndex(Layer.prompt)
                 }
             }
             .animation(.spring(response: 0.42, dampingFraction: 0.72), value: state.ball)
@@ -1300,8 +1304,9 @@ struct CourtView: View {
                         HStack(spacing: 3) {
                             if showingNames { FloorName(text: seat.playerName) }
                             // Whoever has it, said twice: the sprite is dribbling one and
-                            // this is the same fact at a glance.
-                            if holder == seat {
+                            // this is the same fact at a glance. Up with the names, since
+                            // it is the same kind of label.
+                            if showingNames, holder == seat {
                                 BallView(diameter: FloorName.size)
                                     .shadow(color: CardPalette.navy, radius: 0, x: 1, y: 1)
                                     .transition(.scale.combined(with: .opacity))
@@ -1554,7 +1559,7 @@ struct ShotClockBoard: View {
 
     /// **Read from across the hall, not squinted at.** The board is the one thing on
     /// the floor with a number that has to be taken in at a glance.
-    private static let digit = CGSize(width: 22, height: 44)
+    private static let digit = CGSize(width: 21, height: 42)
     private static let label: CGFloat = 9
 
     var body: some View {

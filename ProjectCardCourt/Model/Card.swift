@@ -871,6 +871,10 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
     var clearsOut = false
     /// You get out of the way before the play starts, or not at all.
     var firstActionOnly = false
+    /// **Asked for the moment the ball reaches you**, the way Clear Out is: the ball is
+    /// still in the air and the card is what you do with it. Played through the ordinary
+    /// path once the possession opens, so it does everything it always does.
+    var playedOnArrival = false
     /// Nutmeg: a card travels the way the pass did, from the receiver to the next along.
     var stealsAlongPass = 0
     /// Ankle Breaker: a player of your choosing gives one up.
@@ -978,6 +982,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
          returnsImmediately: Bool = false, matchesArrivingPass: Bool = false,
          drawIfFirstAction: Int = 0,
          clearsOut: Bool = false, firstActionOnly: Bool = false,
+         playedOnArrival: Bool = false,
          stealsAlongPass: Int = 0,
          targetDiscards: Int = 0, optionalDiscardForShot: Int = 0,
          modes: [CardMode] = [], blocksFurtherMoves: Bool = false,
@@ -1017,6 +1022,7 @@ struct CardDescriptor: Hashable, Identifiable, Codable {
         self.drawIfFirstAction = drawIfFirstAction
         self.clearsOut = clearsOut
         self.firstActionOnly = firstActionOnly
+        self.playedOnArrival = playedOnArrival
         self.stealsAlongPass = stealsAlongPass
         self.targetDiscards = targetDiscards
         self.optionalDiscardForShot = optionalDiscardForShot

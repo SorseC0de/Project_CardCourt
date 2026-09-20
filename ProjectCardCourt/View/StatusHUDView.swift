@@ -231,18 +231,24 @@ struct StatusHUDView: View {
     /// a mark, with the count over it: an empty pile is no card at all, which is exactly
     /// what it says.
     private var discarded: some View {
-        Group {
+        let across = readout.side * Deck.discard
+        return Group {
             if let top = state.discard.last?.descriptor {
-                CardFrontView(descriptor: top, displayWidth: readout.side * Deck.discard)
+                CardFrontView(descriptor: top, displayWidth: across)
             } else {
-                RoundedRectangle(cornerRadius: readout.side * Deck.discard
-                                     * CardLayout.cornerFraction,
+                // **Nothing spent yet**: the shape of the card that would stand here,
+                // dashed round, the way the Variaball slot says the same thing.
+                RoundedRectangle(cornerRadius: across * CardLayout.cornerFraction,
                                  style: .continuous)
-                    .fill(CardPalette.black.opacity(0.35))
-                    .frame(width: readout.side * Deck.discard,
-                           height: readout.side * Deck.discard / CardMetrics.aspect)
+                    .strokeBorder(CardPalette.cloud.opacity(0.7),
+                                  style: StrokeStyle(lineWidth: Deck.dash,
+                                                     dash: [Deck.dash * 2, Deck.dash * 1.4]))
+                    .frame(width: across, height: across / CardMetrics.aspect)
             }
         }
+        // Turned with the deck it stands beside — the pair reads as two piles on one
+        // table rather than one pile and one card.
+        .rotationEffect(.degrees(readout.rotation))
         .overlay {
             Text("\(state.discard.count)")
                 .font(.custom("AvenirNextCondensed-Heavy", size: readout.number))
@@ -279,7 +285,9 @@ struct StatusHUDView: View {
     private enum Deck {
         static let drop: CGFloat = 3
         /// The spent pile's own mark, against the deck glyph beside it.
-        static let discard: CGFloat = 0.78
+        static let discard: CGFloat = 0.62
+        /// The dashes round an empty one.
+        static let dash: CGFloat = 2
         /// The cross on it, against the count it is standing beside.
         static let cross: CGFloat = 0.42
         /// **The turned deck, drawn up and left of its count** by this much: turned, the
