@@ -406,6 +406,7 @@ struct ActionBarView: View {
                         DeckSlotView(remaining: controller.shownDeck,
                                      waiting: controller.deckWaiting,
                                      dealing: controller.dealingNow,
+                                     routine: controller.deckRoutine,
                                      width: Act.deck) { controller.takeFromDeck() }
                     }
                     .frame(width: across * Act.side, alignment: .trailing)

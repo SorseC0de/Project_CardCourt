@@ -24,6 +24,9 @@ struct DeckSlotView: View {
     var waiting: Bool
     /// The card on its way to somebody, so the pile can turn and nod toward them.
     var dealing: (seat: Seat, id: UUID)?
+    /// What the deck is being asked to do — a shuffle, a landing. It came with the pile
+    /// off the floor.
+    var routine: DeckStage.Routine = .rest
     var width: CGFloat = 54
     var onTake: () -> Void
 
@@ -76,6 +79,7 @@ struct DeckSlotView: View {
     @ViewBuilder private var pile: some View {
         if render.courtStage {
             DeckBody(layers: DeckStackView.layers(for: remaining),
+                     routine: routine,
                      dealingTo: dealing.map { .init(id: $0.id, toward: toward($0.seat)) })
         } else {
             FlatPile(layers: DeckStackView.layers(for: remaining))

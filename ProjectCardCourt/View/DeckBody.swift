@@ -172,13 +172,12 @@ struct DeckBody: View {
             pile.transform.rotation = simd_quatf(angle: spin * .pi / 180, axis: [0, 1, 0])
         }
 
-        // The top card is drawn from the artwork's own proportions and never from these,
-        // so the slabs can be matched to it without moving it.
-        for index in 0..<Slab.maxLayers {
-            pile.findEntity(named: "slab\(index)")?.isEnabled = index < shown
-        }
-        // Does nothing unless the height has actually moved.
-        stage.rehome(thickness: thickness)
+        // **Through the stage, not by hand.** Switching the slabs on from here left
+        // `shown` at nothing, and `dressFaces` hangs the printed back on whichever slab
+        // that says is the top one — so the pile was a stack of bare gold slabs with no
+        // card on it. `show` is the one door: the height, the faces and the homes are
+        // all the same fact.
+        stage.show(shown, of: Slab.maxLayers, thickness: thickness)
         let height = Float(shown) * thickness
         let target = SIMD3<Float>(0, height / 2, 0)
         let angle = pitch * .pi / 180
