@@ -125,28 +125,23 @@ struct StatusHUDView: View {
         if spread { spreadOut } else { row }
     }
 
-    /// **SHOT dead centre, the crew to the right of it**, and under the crew the two decks
-    /// side by side — the main one and the officials', each the same drawing.
+    /// **The two piles and the crew, in the bar along the top.** The decks stand one over
+    /// the other, the main one first, and the officials working the round are drawn big
+    /// enough to be read where they stand rather than tapped open to be.
     private var spreadOut: some View {
-        ZStack(alignment: .top) {
-            HStack(alignment: .top) {
-                Spacer(minLength: 0)
-                VStack(alignment: .trailing, spacing: ballSize * 0.10) {
-                    HStack(alignment: .center, spacing: ballSize * 0.16) {
-                        if owed > 0 { pending }
-                        if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
-                        if state.whistlesSilenced { silenced }
-                        if !state.armedWhistles.isEmpty { crew }
-                    }
-                    // The main deck over the officials', one under the other.
-                    VStack(alignment: .trailing, spacing: ballSize * Deck.pair) {
-                        remaining
-                        officialsRemaining
-                    }
-                }
+        HStack(alignment: .center, spacing: ballSize * 0.24) {
+            // The main deck over the officials', one under the other.
+            VStack(alignment: .trailing, spacing: ballSize * Deck.pair) {
+                remaining
+                officialsRemaining
+            }
+            HStack(alignment: .center, spacing: ballSize * 0.16) {
+                if owed > 0 { pending }
+                if state.freeRebound[GameRules.localSeat] != nil { calledGlass }
+                if state.whistlesSilenced { silenced }
+                if !state.armedWhistles.isEmpty { crew }
             }
         }
-        .frame(maxWidth: .infinity)
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
                    value: state.whistlesSilenced)
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
@@ -290,6 +285,7 @@ struct StatusHUDView: View {
                 ForEach(state.armedWhistles) { whistle in
                     CardFrontView(descriptor: whistle.card.descriptor,
                                   displayWidth: Self.crewCardWidth(ballSize: ballSize),
+                                  expanded: true,
                                   isDormant: whistle.stayed)
                         // Its own tap, reporting where it sits so the card rises from there.
                         .overlay {
@@ -310,10 +306,12 @@ struct StatusHUDView: View {
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 
-    /// How wide one of the crew's cards is drawn — the size your own plates' slots match.
-    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat {
-        ballSize * 0.60 * Crew.share
-    }
+    /// How wide one of the crew's cards is drawn.
+    ///
+    /// **Readable where it stands.** One official works the round and everybody plays
+    /// under him, so his card is printed at the size a card is read at rather than at the
+    /// size of a reminder that something is being watched for.
+    static func crewCardWidth(ballSize: CGFloat = 58) -> CGFloat { 78 }
 
     private enum Crew {
         /// **Against the referee icon that stood here**, which is itself smaller than the

@@ -1,0 +1,243 @@
+import SwiftUI
+
+/// A trapezoid bent round a circle: one segment of the arc over the dome.
+struct ArcSlice: Shape {
+    var centre: CGPoint
+    var inner: CGFloat
+    var outer: CGFloat
+    var from: Angle
+    var to: Angle
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addArc(center: centre, radius: outer, startAngle: from, endAngle: to,
+                    clockwise: false)
+        path.addArc(center: centre, radius: inner, startAngle: to, endAngle: from,
+                    clockwise: true)
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// **The ball you shoot with, sunk into the floor of the screen.**
+///
+/// Two thirds of the screen across and a third of it showing: the rest is under the
+/// bottom edge, so the thing you press is the biggest object in the game and still takes
+/// up a band rather than a corner. The board's number is on it.
+///
+/// **The arc over it is the Moves left in the possession** — segments bent round the
+/// ball's shoulder, filling as the possession spends them. Press the ball and the same
+/// segments become the three finishes, each with its own mark.
+struct ShootDomeView: View {
+    let shot: Int
+    /// Dim Dome: the number is not this player's to read.
+    var hidden = false
+    /// Which finishes are on offer. The rest are drawn greyed, so the shape of the choice
+    /// never changes and you can see what you are working toward.
+    var offered: Set<ShotType> = []
+    /// Moves spent this possession, and how many there is room for.
+    var moves: Int = 0
+    var moveLimit: Int = 3
+    /// Whether the finishes are showing. The screen owns it: a press anywhere else puts
+    /// them away — see `GameView`.
+    @Binding var open: Bool
+    /// What the pad's cursor is on, so a ring can sit on a segment.
+    var ringed: PadSpot?
+    var onShoot: (ShotType) -> Void = { _ in }
+    /// How wide the ball is drawn — two thirds of the screen.
+    var width: CGFloat = 260
+
+    @Environment(\.ballInPlay) private var ballInPlay
+    /// Green on the way up, red on the way down, for a beat.
+    @State private var flash: Color?
+
+    private enum Dome {
+        /// How much of the ball is above the screen's edge.
+        static let shown: CGFloat = 0.33
+        /// The arc over it: how thick, and the air between it and the ball.
+        static let arc: CGFloat = 0.13
+        static let gap: CGFloat = 0.02
+        /// How far round the ball's shoulder the arc runs, and the seam between segments.
+        static let span: Double = 132
+        static let seam: Double = 4
+        /// The number on the ball, and the word lapped over it.
+        static let number: CGFloat = 0.27
+        static let word: CGFloat = 0.075
+        static let overlap: CGFloat = 0.34
+        static let greyed: Double = 0.45
+    }
+
+    /// The three, in the order they sit on the arc: left, middle, right.
+    private static let finishes: [ShotType] = [.layup, .dunk, .three]
+
+    private var radius: CGFloat { width / 2 }
+    private var arcThickness: CGFloat { width * Dome.arc }
+    private var arcGap: CGFloat { width * Dome.gap }
+    /// The band this view takes: the arc, the air under it, and the ball's own third.
+    private var height: CGFloat { arcThickness + arcGap + width * Dome.shown }
+    /// The ball's middle, in this view's own space — well below its bottom edge.
+    private var centre: CGPoint {
+        CGPoint(x: width / 2, y: arcThickness + arcGap + radius)
+    }
+
+    /// Out because they were asked for, or because the pad is pointing at one.
+    private var showing: Bool {
+        if case .finish = ringed { return true }
+        return open
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            ball
+            ForEach(Array(Self.finishes.enumerated()), id: \.offset) { index, finish in
+                slice(index, finish: finish)
+            }
+        }
+        .frame(width: width, height: height, alignment: .top)
+        .animation(.spring(response: 0.34, dampingFraction: 0.78), value: showing)
+        .animation(.easeOut(duration: 0.25), value: moves)
+    }
+
+    // MARK: - The ball
+
+    private var ball: some View {
+        let art = BallInPlay.vector(for: ballInPlay)
+        return ZStack(alignment: .top) {
+            Image(art)
+                .resizable()
+                .scaledToFit()
+                .frame(width: width, height: width)
+                .drawingGroup()
+                .shadow(color: CardPalette.blue, radius: 0, x: 3, y: 3)
+            // The reading, on the part of it that is on screen.
+            ZStack(alignment: .top) {
+                Text(hidden ? "??" : "\(shot)")
+                    .font(.custom(Chrome.display, size: width * Dome.number))
+                    .contentTransition(.numericText())
+                    .foregroundStyle(flash ?? .white)
+                    .shadow(color: .black, radius: 0, x: 4, y: 4)
+                ActionText("Shoot", size: width * Dome.word, ink: .white,
+                           drop: CardPalette.blue, taper: 0, tracking: 0.08)
+                    .offset(y: -width * Dome.word * Dome.overlap)
+            }
+            .offset(y: width * Dome.shown * 0.42)
+        }
+        .frame(width: width, height: height, alignment: .top)
+        // Only the part of it that is on screen answers a press.
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.78)) { open.toggle() }
+        }
+        .tutorialTarget(.shotHUD)
+        .onChange(of: shot) { old, new in
+            guard new != old else { return }
+            flash = new > old ? Theme.live : Theme.danger
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.4))
+                withAnimation(.easeOut(duration: 0.25)) { flash = nil }
+            }
+        }
+    }
+
+    // MARK: - The arc
+
+    /// One segment: a Move the possession has, or a finish it could take.
+    private func slice(_ index: Int, finish: ShotType) -> some View {
+        let step = Dome.span / Double(max(1, Self.finishes.count))
+        let start = -90 - Dome.span / 2 + Double(index) * step
+        let from = Angle(degrees: start + Dome.seam / 2)
+        let to = Angle(degrees: start + step - Dome.seam / 2)
+        let shape = ArcSlice(centre: centre, inner: radius + arcGap,
+                             outer: radius + arcGap + arcThickness, from: from, to: to)
+        let live = offered.contains(finish)
+        let spent = index < moves
+        let within = index < moveLimit
+        return shape
+            .fill(showing ? (live ? Self.ink(for: finish) : CardPalette.gray)
+                          : (spent ? moveShade : (within ? PixelPalette.deepTeal
+                                                         : CardPalette.gray.opacity(0.4))))
+            .overlay {
+                shape.stroke(CardPalette.navy, lineWidth: 2)
+            }
+            .overlay { label(index, finish: finish, live: live) }
+            .contentShape(shape)
+            .onTapGesture {
+                guard showing, live else { return }
+                onShoot(finish)
+            }
+            .padRing(showing && ringed == .finish(finish), corner: arcThickness / 2)
+    }
+
+    /// What a segment says: nothing while it is a Move, the finish's mark and word once
+    /// the ball has been pressed.
+    @ViewBuilder private func label(_ index: Int, finish: ShotType, live: Bool) -> some View {
+        if showing {
+            let step = Dome.span / Double(max(1, Self.finishes.count))
+            let mid = (-90 - Dome.span / 2 + (Double(index) + 0.5) * step) * .pi / 180
+            let reach = radius + arcGap + arcThickness / 2
+            VStack(spacing: 1) {
+                Image(Self.mark(for: finish))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: arcThickness * 0.42)
+                Text(finish.name.uppercased())
+                    .font(.system(size: arcThickness * 0.26, weight: .heavy, design: .rounded))
+                    .tracking(0.4)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .foregroundStyle(live ? .white : Color.white.opacity(Dome.greyed))
+            .shadow(color: CardPalette.navy, radius: 0, x: 1.5, y: 1.5)
+            .position(x: centre.x + CGFloat(cos(mid)) * reach,
+                      y: centre.y + CGFloat(sin(mid)) * reach)
+        }
+    }
+
+    /// **The drop under the arc, by how much running is gone.** The Moves plate's own
+    /// ramp: cloud with the whole possession ahead, red once there is none left.
+    private var moveShade: Color {
+        switch moves {
+        case 0:  return CardPalette.cloud
+        case 1:  return CardPalette.gold
+        case 2:  return CardPalette.orange
+        default: return CardPalette.red
+        }
+    }
+
+    /// **The colour each finish wears.** Orange is the shot that is always there; the two
+    /// that have to be earned say so by not being it.
+    private static func ink(for finish: ShotType) -> Color {
+        switch finish {
+        case .layup: return CardPalette.orange
+        case .dunk:  return CardPalette.red
+        case .three: return CardPalette.gold
+        }
+    }
+
+    /// The mark each finish is drawn with, the same one its cards wear.
+    private static func mark(for finish: ShotType) -> String {
+        switch finish {
+        case .layup: return "ShootIcon"
+        case .dunk:  return "DunkIcon"
+        case .three: return "ThreeHandWhole"
+        }
+    }
+}
+
+#if DEBUG
+#Preview("Dome") {
+    struct Bench: View {
+        @State private var open = false
+        var body: some View {
+            VStack {
+                Spacer()
+                ShootDomeView(shot: 65, offered: [.layup, .three], moves: 2,
+                              open: $open, width: 260)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.sceneGround)
+        }
+    }
+    return Bench()
+}
+#endif

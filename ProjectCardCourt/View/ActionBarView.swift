@@ -9,6 +9,11 @@ struct ActionBarView: View {
     var onKeyword: ((String) -> Void)?
     @Binding var detail: Card?
     var onInspectReferees: () -> Void = {}
+    /// The ball in play, raised to be read — it stands beside the one you shoot with.
+    var onInspectBall: (CardDescriptor, CGPoint) -> Void = { _, _ in }
+    /// Which card the blocks along the top are showing, and the swap that changes it.
+    var seatCards: SeatPanelsView.Showing = .intangibles
+    var onSwapSeatCards: (() -> Void)?
     /// Held down: every name on the floor, for as long as it is held.
     var onNames: ((Bool) -> Void)?
     /// **Whether the shoot ball has its rays out.** The screen owns it: a press anywhere
@@ -127,11 +132,16 @@ struct ActionBarView: View {
                     if canExchange { sideButton("EXCHANGE", run: onExchange) }
                 }
             }
-            bottomRow
+            // **A card asking who, taken back.** Its own row: the floor below is the ball.
+            if case .awaitingTarget = controller.gate, Rules.canCancelAim(state) {
+                sideButton("CANCEL") { controller.cancelAim() }
+            }
+            if case .awaitingMove = controller.gate, allowsShooting { shootExtras }
             prompt
+            bottomRow
         }
         .padding(.horizontal, 10)
-        .padding(.bottom, 10)
+        .padding(.bottom, Act.barPad)
         .frame(maxWidth: .infinity)
     }
 
@@ -217,6 +227,16 @@ struct ActionBarView: View {
     // MARK: - Buttons
 
     private enum Act {
+        /// **The ball, two thirds of the way across the screen**, and the sixth either
+        /// side of it that the furniture stands in.
+        static let domeShare: CGFloat = 0.66
+        static let side: CGFloat = 0.165
+        static func dome(_ across: CGFloat) -> CGFloat { across * domeShare }
+        /// The band it takes: the arc, its air, and the third of the ball on screen. A
+        /// phone's width, since the row is laid out before the reader knows the screen's.
+        static let domeBand: CGFloat = 132
+        /// What the bar keeps under itself, which the ball is let through — see `body`.
+        static let barPad: CGFloat = 10
         static let width: CGFloat = 190
         static let height: CGFloat = 42
         /// The word, in the game's own lettering. The figure beside it is not — a
@@ -270,26 +290,21 @@ struct ActionBarView: View {
         return (card, override)
     }
 
-    private var shootButton: AnyView {
+    /// **What is making this shot special, and the second shot a card is offering** —
+    /// the row above the ball, since the ball itself is now the whole of the floor.
+    private var shootExtras: AnyView {
         AnyView(Group {
             HStack(spacing: 8) {
                 if let offer {
                     offerPill(offer.card, at: offer.override)
                         .transition(.scale.combined(with: .opacity))
                 }
-                // **The card that armed it, beside the button.** A HUD glyph says *something*
-                // is on; the card says which, and it is the same drawing the player already
-                // knows from their own board.
+                // **The card that armed it.** A HUD glyph says *something* is on; the card
+                // says which, and it is the same drawing the player already knows.
                 if let armed {
                     CardFrontView(descriptor: armed, displayWidth: Act.armedCard)
                         .transition(.scale.combined(with: .opacity))
                 }
-                ShootControl(shot: controller.shownShot,
-                             hidden: !state.canReadShot(GameRules.localSeat),
-                             offered: Set(finishes),
-                             open: $shootOpen,
-                             ringed: ringed,
-                             onShoot: { controller.shoot(as: $0) })
             }
             .animation(.spring(response: 0.32, dampingFraction: 0.7), value: armed)
         })
@@ -336,22 +351,51 @@ struct ActionBarView: View {
     /// **The bottom row: the log, the shot, the pause.** The shot is up for every
     /// possession of yours, whether or not anything can go — a Zone that forbids shooting
     /// greys all three rather than taking the capsule away.
+    /// **The floor of the screen.** The ball you shoot with, two thirds of the way across
+    /// and sunk into the bottom edge; the three buttons that are not plays down the left,
+    /// in the sixth of the width nearest your thumb; the ball in play in the sixth on the
+    /// right. Everything that is a *question* stands in its own row above this.
     private var bottomRow: AnyView {
-        AnyView(HStack(spacing: 8) {
-            if let onOpenLog { logButton(onOpenLog) }
-            if let onNames { namesButton(onNames) }
-            Spacer(minLength: 0)
-            if case .awaitingMove = controller.gate, allowsShooting {
-                shootButton
-                if canBorrow { borrowButton }
+        AnyView(GeometryReader { geo in
+            let across = geo.size.width
+            ZStack(alignment: .bottom) {
+                HStack(alignment: .bottom, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let onOpenLog { logButton(onOpenLog) }
+                        if let onNames { namesButton(onNames) }
+                        if let onSwapSeatCards { swapButton(onSwapSeatCards) }
+                        if let onPause { pauseButton(onPause) }
+                    }
+                    .frame(width: across * Act.side, alignment: .leading)
+                    Spacer(minLength: 0)
+                    // What everybody is playing with, beside the ball you shoot with.
+                    FloorAndBallView(state: controller.shown, onSelect: onInspectBall)
+                        .frame(width: across * Act.side, alignment: .trailing)
+                }
+
+                if case .awaitingMove = controller.gate, allowsShooting, canBorrow {
+                    borrowButton.offset(y: -Act.dome(across) * 0.42)
+                }
+
+                // **Down to the screen's own edge.** The band it takes is a third of the
+                // ball; the row it sits in stops short of the bottom, for the home
+                // indicator and the bar's own padding, and every point of that showed
+                // more of the ball than a third.
+                ShootDomeView(shot: controller.shownShot,
+                              hidden: !state.canReadShot(GameRules.localSeat),
+                              offered: Set(finishes),
+                              moves: state.movesThisPossession,
+                              moveLimit: state.moveLimit(for: GameRules.localSeat),
+                              open: $shootOpen,
+                              ringed: ringed,
+                              onShoot: { controller.shoot(as: $0) },
+                              width: Act.dome(across))
+                    .padding(.bottom, -Act.barPad)
+                    .ignoresSafeArea(edges: .bottom)
             }
-            // **A card asking who can be taken back**, from the middle of the row.
-            if case .awaitingTarget = controller.gate, Rules.canCancelAim(state) {
-                sideButton("CANCEL") { controller.cancelAim() }
-            }
-            Spacer(minLength: 0)
-            if let onPause { pauseButton(onPause) }
-        })
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+        .frame(height: Act.domeBand))
     }
 
     /// **Opens the log.** The pause button's twin: somewhere to step out of the game and
@@ -395,6 +439,26 @@ struct ActionBarView: View {
                 .onChanged { _ in show(true) }
                 .onEnded { _ in show(false) })
             .accessibilityLabel("Hold for names")
+    }
+
+    /// **What the blocks along the top are showing.** Intangibles or Clamps, one press
+    /// apart, and down here where a thumb already is rather than up beside them.
+    private func swapButton(_ swap: @escaping () -> Void) -> some View {
+        Button(action: swap) {
+            Image(seatCards == .intangibles ? "TypeIntangibleFront" : "TypeClampFront")
+                .resizable()
+                .scaledToFit()
+                .padding(5)
+                .frame(width: 27, height: 27)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(seatCards == .intangibles ? CardPalette.black : CardPalette.red))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(.white, lineWidth: 1.5))
+                .shadow(color: CardPalette.gold, radius: 0, x: 2, y: 2)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(seatCards == .intangibles ? "Showing Intangibles" : "Showing Clamps")
     }
 
     private func pauseButton(_ pause: @escaping () -> Void) -> some View {

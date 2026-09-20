@@ -35,6 +35,8 @@ struct GameView: View {
     /// **The shoot ball's rays.** Here rather than in the bar, because a press anywhere
     /// else on the screen is what puts them away.
     @State private var shootOpen = false
+    /// Which card the blocks along the top are showing — swapped from the bottom row.
+    @State private var seatCards: SeatPanelsView.Showing = .intangibles
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -270,6 +272,7 @@ struct GameView: View {
                         } else {
                             SeatPanelsView(state: controller.shown,
                                            withheld: controller.withheldPoints,
+                                           showing: seatCards,
                                            onSelect: { inspecting = (card: $0, from: $1) })
                                 .onPreferenceChange(PointsCells.self) { pointsCells = $0 }
                         }
@@ -277,18 +280,16 @@ struct GameView: View {
                     .padding(.horizontal, 12)
                     .animation(.easeOut(duration: 0.18), value: reading)
                     .opacity(callFade)
-                    hudRow
-                        .opacity(callFade)
-                        // **Where the name plate hangs from.** Measured rather than added up:
-                        // the plate sits under this row, and the row's own top depends on the
-                        // scoreboard, whose height depends on how many players there are.
-                        .background {
-                            GeometryReader { geo in
-                                Color.clear.onGeometryChange(for: CGFloat.self) { _ in
-                                    geo.frame(in: .named(Chrome.screen)).maxY
-                                } action: { hudBottom = $0 }
-                            }
+                    // **Where the name plate hangs from.** Measured rather than added up:
+                    // the floor's own top depends on the rows above it, which depend on
+                    // how many players there are.
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.onGeometryChange(for: CGFloat.self) { _ in
+                                geo.frame(in: .named(Chrome.screen)).maxY
+                            } action: { hudBottom = $0 }
                         }
+                    }
                     stage
                 }
                 .ignoresSafeArea(edges: .bottom)
@@ -318,6 +319,14 @@ struct GameView: View {
                         ActionBarView(controller: controller, ringed: ring,
                                       detail: $detail,
                                       onInspectReferees: { open(.referees) },
+                                      onInspectBall: { inspecting = (card: $0, from: $1) },
+                                      seatCards: seatCards,
+                                      onSwapSeatCards: {
+                                          withAnimation(.easeOut(duration: 0.2)) {
+                                              seatCards = seatCards == .intangibles
+                                                  ? .clamps : .intangibles
+                                          }
+                                      },
                                       onNames: { showingNames = $0 },
                                       shootOpen: $shootOpen,
                                       onCombo: { comboOf = $0 },
@@ -1007,74 +1016,6 @@ struct GameView: View {
             .frame(maxHeight: .infinity))
     }
 
-    /// The Varena and the ball in play, top left of the court — and in a lesson, the bare
-    /// spot its way out is drawn from instead.
-    ///
-    /// **Erased where it joins the court**, which is already as deep as SwiftUI can build.
-    /// A plain `if` here is another conditional wrapping that whole type, and the walk ran
-    /// off the end of the stack the moment a lesson made the second branch real — a crash
-    /// in `court.getter` on opening a lesson, which is the same fault `court` itself
-    /// carries a note about.
-    private var floorCorner: AnyView {
-        guard tutorial == nil else {
-            // A lesson has no Varena. Its way out stands here — see `TutorialOverlay`.
-            return AnyView(Color.clear
-                .frame(width: 1, height: 1)
-                .tutorialTarget(.exitSpot)
-                .padding(.leading, 14)
-                .padding(.top, 8))
-        }
-        return AnyView(FloorAndBallView(state: controller.shown,
-                                        onSelect: { inspecting = (card: $0, from: $1) })
-            .padding(.leading, 14)
-            .padding(.top, 8))
-    }
-
-    /// **The readings, under the scoreboard.** They used to hang in the court's two top
-    /// corners, over the floor and over the players standing on it. Up here they sit with
-    /// the other numbers, and the court is left to be a court.
-    ///
-    /// **Three columns.** Down the left, the ball and then your own plates — Intangibles,
-    /// and the Clamps on you under them. SHOT in the middle; the crew to the right of it,
-    /// and the two decks under the crew.
-    private var hudRow: AnyView {
-        AnyView(ZStack(alignment: .topLeading) {
-            StatusHUDView(state: controller.shown, shot: controller.shownShot,
-                          deck: controller.shownDeck,
-                          onInspectReferee: { inspecting = (card: $0, from: $1) },
-                          spread: true)
-                .padding(.horizontal, 14)
-            VStack(alignment: .leading, spacing: Plates.gap) {
-                floorCorner
-                if tutorial == nil {
-                    IntangibleSlotsView(held: controller.shownIntangibles(of: GameRules.localSeat),
-                                        dormant: controller.dormantIntangibles,
-                                        slots: controller.shown.rules.intangibleSlots,
-                                        onSelect: { inspecting = (card: $0, from: $1) },
-                                        unit: Plates.unit)
-                    DebuffSlotsView(cards: controller.human.clamps.map(\.card),
-                                    slots: controller.shown.rules.clampSlots,
-                                    onSelect: { inspecting = (card: $0, from: $1) },
-                                    edge: .leading, unit: Plates.unit)
-                    // **How much running is left**, under the two plates that say what is
-                    // working for and against you.
-                    MoveSlotsView(played: controller.shown.movesThisPossession,
-                                  slots: controller.shown.moveLimit(for: GameRules.localSeat),
-                                  edge: .leading, unit: Plates.unit)
-                }
-            }
-        }
-        .padding(.top, 6)
-        .padding(.bottom, 4))
-    }
-
-    /// **Your own plates, the size of a crew card.** A slot is exactly as big as one of
-    /// the officials' cards in the HUD, so the two rows read as one set of cards.
-    private enum Plates {
-        static var unit: CGFloat { StatusHUDView.crewCardWidth() / Well.side.width }
-        static let gap: CGFloat = 14
-    }
-
     /// Where that seat sits on the scoreboard, which orders by score.
     private func scoreRow(of seat: Seat) -> Int {
         let ranked = controller.shown.players
@@ -1088,17 +1029,31 @@ struct GameView: View {
         AnyView(HStack {
             // **Which round it is, at a size that says so.** Eleven points of system
             // type in the corner was there all along and nobody could find it.
-            SmallCapsText(text: "Round \(controller.shown.round)"
-                          + "/\(controller.shown.rules.roundsPerGame)",
-                          font: Chrome.display, size: 19, tracking: 0.6)
-                .foregroundStyle(.white)
-                .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                SmallCapsText(text: "Round \(controller.shown.round)"
+                              + "/\(controller.shown.rules.roundsPerGame)",
+                              font: Chrome.display, size: 19, tracking: 0.6)
                 SmallCapsText(text: "Half \(controller.shown.half)",
                               font: Chrome.display, size: 15, tracking: 0.6)
-                    .foregroundStyle(.white)
+            }
+            .foregroundStyle(.white)
+            .shadow(color: CardPalette.navy, radius: 0, x: 2, y: 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // **The piles and the crew, in the same row.** The officials' card is read
+            // where it stands — see `StatusHUDView`.
+            StatusHUDView(state: controller.shown, shot: controller.shownShot,
+                          deck: controller.shownDeck,
+                          onInspectReferee: { inspecting = (card: $0, from: $1) },
+                          spread: true)
+
+            // A lesson's way out stands where the floor's corner used to.
+            Group {
+                if tutorial != nil {
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .tutorialTarget(.exitSpot)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
