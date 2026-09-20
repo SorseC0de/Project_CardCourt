@@ -46,8 +46,6 @@ struct SeatPanelsView: View {
         /// The sum a block opens into.
         static let statLabel: CGFloat = 10
         static let stat: CGFloat = 13
-        /// The figure under the rule, which is the point of opening the column.
-        static let total: CGFloat = 18
         /// What is taken off the total rather than added to it.
         static let taken = Color(red: 1, green: 0.62, blue: 0.62)
     }
@@ -96,10 +94,14 @@ struct SeatPanelsView: View {
                               tracking: Panel.name * 0.02)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
+                    // The name's own drop. **Not the row's** — the figure beside it
+                    // carries an outline and a drop of its own, and a second one laid
+                    // over the top of those is a smudge.
+                    .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
                 Spacer(minLength: 0)
-                Text("\(shownScore(seat))")
-                    .font(.custom(Chrome.display, size: Panel.score))
-                    .contentTransition(.numericText())
+                // **What he is on**, lettered the way a card's own $[2X] is: the one
+                // figure on the block that is a total rather than a part.
+                TwoXMark(size: Panel.score, text: "\(shownScore(seat))")
                     // **Where the points are**, for anything flying to the board — see
                     // `PointsCells`.
                     .background {
@@ -112,7 +114,6 @@ struct SeatPanelsView: View {
                     }
             }
             .foregroundStyle(.white)
-            .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
 
             if !hidesCards { slot(for: seat, width: card) }
             Spacer(minLength: 0)
@@ -206,9 +207,10 @@ struct SeatPanelsView: View {
                 .padding(.top, 1)
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                // The figure the whole column adds up to, lettered the way a card's own
-                // $[2X] is — the one number here that is not a component.
-                TwoXMark(size: Panel.total, text: "\(shownScore(seat))")
+                Text("\(shownScore(seat))")
+                    .font(.custom(Chrome.display, size: Panel.stat + 3))
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
             }
         }
         // Black under every figure, which is what makes a light number on a seat's own
@@ -220,7 +222,7 @@ struct SeatPanelsView: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(CardPalette.navy).frame(height: 1)
         }
-        .shadow(color: CardPalette.black.opacity(0.5), radius: 4, y: 3)
+
     }
 
     /// What a line is made of, in the order it is added up. Turnovers come off it, which
