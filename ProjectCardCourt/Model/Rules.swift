@@ -2653,6 +2653,16 @@ enum Rules {
         state.ballEffect.layupsShootAsThrees && type == .layup ? 1 : 0
     }
 
+    /// **Whether this shot is being taken from range.**
+    ///
+    /// A Three is, and so is a layup on a Long Ball — taking it from out there is the
+    /// whole of what that ball does to it. Anything that pays for shooting from range
+    /// pays for both: Sniper read the finish's own name instead and never once paid on
+    /// the ball whose entire purpose is to move a layup out to the line.
+    static func fromRange(_ type: ShotType?, in state: GameState) -> Bool {
+        type == .three || longBallBonus(for: type, in: state) > 0
+    }
+
     private static func resolveShot(by seat: Seat, bonusPoints: Int,
                                     overClamps: Bool = false,
                                     card: CardDescriptor? = nil,
@@ -2721,7 +2731,7 @@ enum Rules {
         let resolution = ShotMath.resolve(base: state.shot + priced + carried,
                                           modifiers: state.shotModifiers(
                                             for: seat, ignoringClamps: overClamps,
-                                            fromThree: finish == .three),
+                                            fromThree: fromRange(finish, in: state)),
                                           rules: state.rules)
         let soldOut = state.sellingOut
         state.sellingOut = false

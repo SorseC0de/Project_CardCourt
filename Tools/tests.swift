@@ -515,6 +515,20 @@ func runTests() {
                    "and it opens like any other possession — he draws")
     }
 
+    do {
+        // Long Ball takes a layup from out there, so anything paid for range pays.
+        var (state, seat, _) = openPossession(seed: 620, cards: [])
+        state[seat].intangibles = [CardLibrary.sniper]
+        state.ballCard = Card(CardLibrary.benchBall)
+        let withBall = state.shotModifiers(for: seat, fromThree:
+            Rules.fromRange(.layup, in: state)).adds.contains { $0.amount == 25 }
+        Check.that(withBall, "Sniper pays on a Long Ball layup")
+        state.ballCard = nil
+        let without = state.shotModifiers(for: seat, fromThree:
+            Rules.fromRange(.layup, in: state)).adds.contains { $0.amount == 25 }
+        Check.that(!without, "and not on an ordinary one")
+    }
+
     print("The Move bar")
     do {
         // **The bar is a line.** Three to a possession; the fourth is carrying the ball.
