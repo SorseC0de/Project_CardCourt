@@ -3334,9 +3334,12 @@ enum Rules {
                     // dunk's gate in one number, so a good Euro Step both risks the call
                     // and walks you to the rim.
                     state.movesThisPossession += special.coinRunMoves * heads
-                } else if !has(seat, in: state, { $0.ignoresViolations }) {
+                } else if !has(seat, in: state, { $0.ignoresViolations }),
+                          !state.ballEffect.ignoresTravel {
+                    // Med Ball: a Move never travels, and every one of them Heads is
+                    // still a Move. One word for the call — see `travelCall`.
                     state[seat].turnovers += 1
-                    events.append(.turnover(seat, cause: "Travel"))
+                    events.append(.turnover(seat, cause: travelCall))
                     stoppage(state: &state, events: &events)
                     reinbound(by: seat, state: &state, events: &events)
                     return
