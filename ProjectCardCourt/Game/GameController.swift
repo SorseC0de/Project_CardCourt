@@ -649,6 +649,20 @@ final class GameController {
     private var flashed: PlayedCard?
     /// Stamped once the cutscenes clear, which is when the catch should play.
     private(set) var ballSettledAt: Date?
+    /// **The ball reaching a pair of hands, and whose.**
+    ///
+    /// One owner for the arrival. The floor used to run a second clock of its own —
+    /// sleep the flight, stamp the catch — alongside this one, and nothing held the two
+    /// together: whichever fired first decided what you saw, so a receiver could be
+    /// handed the ball a frame or two before the catch started and be drawn dribbling
+    /// one he had not caught. The hand-over and the catch are the same instant, and this
+    /// is it.
+    private(set) var caught: Catch?
+
+    struct Catch: Equatable {
+        let seat: Seat
+        let at: Date
+    }
     /// A made three, celebrating. The points are withheld from the scoreboard until the
     /// number reaches it.
     private(set) var celebratingThree: Seat?
@@ -3100,6 +3114,9 @@ final class GameController {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(PassTiming.windup + PassTiming.flight))
                 self.shownBall = self.state.ball
+                if let hands = self.state.ball {
+                    self.caught = Catch(seat: hands, at: Date())
+                }
             }
             return
         }
@@ -3356,10 +3373,14 @@ final class GameController {
             var scene = [event]
             switch event {
             case .inbounded(let from, let to):
-                // The throw-in, and the man who threw it watching it go.
+                // The throw-in, and the man who threw it watching it go. The catch is
+                // stamped when the ball actually gets there — the hold after it is him
+                // standing with it.
                 inbounding = nil
                 throwing = ThrowIn(from: from, to: to)
-                try? await Task.sleep(for: .seconds(Pacing.inboundThrow + Pacing.inboundHold))
+                try? await Task.sleep(for: .seconds(Pacing.inboundThrow))
+                caught = Catch(seat: to, at: Date())
+                try? await Task.sleep(for: .seconds(Pacing.inboundHold))
                 throwing = nil
             case .passed(_, let from, let to, let shot, _):
                 if shot >= 0 { shownShot = shot }

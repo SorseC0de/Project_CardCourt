@@ -152,11 +152,21 @@ struct PlayerFigure: View {
         return action == .catchBall ? Theme.Pass.catchFPS : Theme.Figure.playerFPS
     }
 
+    /// **Whether the catch owns the sheet.** Stamped and not yet played out: the task
+    /// that plays it is a runloop behind the stamp, and everything that asks "is he
+    /// catching?" has to say yes for that frame too — otherwise the pose wins it, which
+    /// is a receiver holding his inbound stance while the ball floats by his arm.
+    private var catchPending: Bool {
+        if catching { return true }
+        guard let caughtAt else { return false }
+        return caughtAt != caughtThrough
+    }
+
     /// A cutscene pose is a resting pose. The catch interrupts it and hands it back —
     /// otherwise an inbound receiver stands frozen in his waiting cell while the ball
     /// lands in his arms.
-    private var pose: Sprite? { catching ? nil : sprite }
-    private var poseFrame: Int? { catching ? nil : spriteFrame }
+    private var pose: Sprite? { catchPending ? nil : sprite }
+    private var poseFrame: Int? { catchPending ? nil : spriteFrame }
 
     /// Catching for a beat as the ball arrives, then dribbling; jogging without it.
     private var action: Sprite {
@@ -172,13 +182,10 @@ struct PlayerFigure: View {
         }
         if let throwing { return throwing.sheet }
         if let pose { return pose }
-        if catching { return .catchBall }
-        // **Arrived, but the catch has not begun.** The task that starts it is a runloop
-        // behind the ball, and that gap was drawn as a dribble — a few frames of working
-        // a ball he had not caught yet. It also kept him in his inbound pose while the
-        // ball floated by his arm, since the throw lands where a *catching* man's hands
-        // are.
-        if let caughtAt, caughtAt != caughtThrough { return .catchBall }
+        // **Arrived, or arriving.** The gap between the ball landing and the sheet
+        // starting was drawn as a dribble — a few frames of working a ball he had not
+        // caught yet — and on a throw-in it left him posed while it floated by his arm.
+        if catchPending { return .catchBall }
         // **Waiting on it, not working with it.** The ball is in the air: he has not got
         // one to dribble, so he runs to meet it.
         if awaitingBall { return .run }

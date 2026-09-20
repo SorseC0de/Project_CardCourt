@@ -1119,6 +1119,7 @@ struct GameView: View {
                   onOpenDiscard: { browsingDiscard = $0 },
                   deckAt: deckAt,
                   discardAt: discardAt,
+                  caught: controller.caught,
                   onSelect: select,
                   faces: padGlyphs,
                   ringed: pad.isAttached && padFaces == nil ? cursor.seat : nil,
