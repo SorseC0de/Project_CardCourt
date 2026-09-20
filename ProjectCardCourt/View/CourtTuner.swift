@@ -139,9 +139,9 @@ final class HandTuning {
 
     /// How far the hand comes down over the rows under it, in points. Bigger sinks it
     /// further onto the ball.
-    var lift: CGFloat = 44
+    var lift: CGFloat = 75
     /// What is left showing of the card underneath, as a share of a card's width.
-    var spacing: CGFloat = 0.74
+    var spacing: CGFloat = 0.75
     /// Multiplies the card's drawn width, and the room the fan stands in with it.
     var scale: CGFloat = 1
 }
@@ -156,7 +156,7 @@ final class MoveArcTuning {
 
     /// Multiplies a wedge as a whole: both how thick the band is and how far round the
     /// ball's shoulder the three of them run.
-    var scale: CGFloat = 1
+    var scale: CGFloat = 0.9
     /// The seam between two wedges, in degrees.
     var spacing: Double = 3
 }
@@ -312,8 +312,8 @@ struct DebugActionsView: View {
             if showHand {
                 HStack(spacing: 4) {
                     action("reset") {
-                        hand.lift = 44; hand.spacing = 0.74; hand.scale = 1
-                        arc.scale = 1; arc.spacing = 3
+                        hand.lift = 75; hand.spacing = 0.75; hand.scale = 1
+                        arc.scale = 0.9; arc.spacing = 3
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {

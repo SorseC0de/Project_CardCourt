@@ -88,8 +88,6 @@ struct FannedBagView: View {
         static let card: CGFloat = 68
         /// The room the fan stands in, at the same tenth off.
         static let room: CGFloat = 119
-        /// How far apart two cards stand, as a share of a card's width.
-        static let spacing: CGFloat = 0.74
         /// How far a chosen card stands out of the fan.
         static let chosenLift: CGFloat = 26
         /// What a card the rules will not take right now wears.
