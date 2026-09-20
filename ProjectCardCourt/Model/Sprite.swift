@@ -88,6 +88,10 @@ enum Sprite: String, CaseIterable {
     /// Squared up and glowering, arms out. Faceless like the rest of the turn, so the
     /// chosen face drops straight on it.
     case akuma = "Player_akumapose"
+    /// **死**, drawn stroke by stroke by a brush that leaves the frame: the kanji the
+    /// fierce pose wins on. Sixty-four to a cell rather than thirty-two, since it lands
+    /// large before it settles onto the back of a shirt — see `FinKanjiView`.
+    case finKanji = "FIN_kanji"
     /// Idling with the ball, face-on. Both carry their own ball, so nothing is laid over
     /// them — unlike the throw-in stance, which is drawn empty-handed.
     case spinBall = "Player_front_spinball"
@@ -124,6 +128,7 @@ enum Sprite: String, CaseIterable {
         // Counted off the sheets, which are not the same length as each other.
         case .sparkleBurst2: return 18
         case .sparkleBurst3: return 17
+        case .finKanji:     return 35
         case .front, .back, .right, .akuma, .praised, .gooseneck, .holdBall: return 1
         case .refereeRight, .refereeCall, .refereeShot, .refereeShotFront: return 1
         case .refereeHoldBall, .refereeInbound, .refereeTech: return 1
@@ -196,7 +201,7 @@ enum Sprite: String, CaseIterable {
     var frameSize: CGFloat {
         switch self {
         case .shoot:        return 48
-        case .sparkleBurst, .sparkleBurst2, .sparkleBurst3: return 64
+        case .sparkleBurst, .sparkleBurst2, .sparkleBurst3, .finKanji: return 64
         case .heads, .faces: return 8
         default:            return 32
         }

@@ -1339,16 +1339,23 @@ struct GameView: View {
                         // Facing the room with the ball, not jogging upcourt — the game
                         // is over and there is nowhere left to run. One pose each where
                         // more than one of them won, so a tie is not the same man twice.
-                        HooperPortrait(pose: Winner.pose(for: seat, at: place,
-                                                         from: winnerPose),
-                                       // Only the player has chosen a face; the rest
-                                       // wear their seat's, as on the court.
-                                       kit: seat.isLocal ? HooperKit.shared : nil,
-                                       seat: seat)
-                            .scaleEffect(Winner.portraitScale, anchor: .bottom)
-                            .frame(width: Theme.Figure.headDiameter * Winner.portraitScale,
-                                   height: Theme.Figure.height * Winner.portraitScale,
-                                   alignment: .bottom)
+                        let pose = Winner.pose(for: seat, at: place, from: winnerPose)
+                        // Only the player has chosen a face; the rest wear their seat's,
+                        // as on the court.
+                        let kit = seat.isLocal ? HooperKit.shared : nil
+                        // **The fierce one is written, not just struck.** 死 comes down
+                        // over him a stroke at a time and settles on his back — see
+                        // `FinKanjiView`.
+                        if pose == .fierce {
+                            FinKanjiView(pose: pose, kit: kit, seat: seat,
+                                         scale: Winner.portraitScale, run: winnerPose)
+                        } else {
+                            HooperPortrait(pose: pose, kit: kit, seat: seat)
+                                .scaleEffect(Winner.portraitScale, anchor: .bottom)
+                                .frame(width: Theme.Figure.headDiameter * Winner.portraitScale,
+                                       height: Theme.Figure.height * Winner.portraitScale,
+                                       alignment: .bottom)
+                        }
                     }
                 }
 
