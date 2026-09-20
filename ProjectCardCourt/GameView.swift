@@ -35,6 +35,8 @@ struct GameView: View {
             FloorAndBallView(state: controller.shown, alwaysShowsBall: true,
                              width: SeatPanelsView.cardWidth,
                              onSelect: { inspecting = (card: $0, from: $1) })
+                .rotation3DEffect(.degrees(Self.skew), axis: (x: 0, y: 1, z: 0),
+                                  anchor: .leading, perspective: Self.depth)
             Spacer(minLength: 0)
             ForEach(controller.shown.armedWhistles) { whistle in
                 CardFrontView(descriptor: whistle.card.descriptor,
@@ -53,6 +55,10 @@ struct GameView: View {
                                 }
                         }
                     }
+                    // Turned in toward the middle, the way two cards stood on a table
+                    // face each other rather than the room.
+                    .rotation3DEffect(.degrees(-Self.skew), axis: (x: 0, y: 1, z: 0),
+                                      anchor: .trailing, perspective: Self.depth)
             }
         }
         // Centred across the row rather than hung off one end of it, and standing at the
@@ -69,6 +75,12 @@ struct GameView: View {
         .animation(.spring(response: 0.32, dampingFraction: 0.7),
                    value: controller.shown.armedWhistles))
     }
+
+    /// **How far the two cards under the blocks are turned in toward the middle**, and
+    /// how much of a camera the turn is given. A flat pair either side of the toggle read
+    /// as two more slots; angled, they read as cards standing on a table.
+    private static let skew: Double = 16
+    private static let depth: CGFloat = 0.55
 
     /// **The circle the hand is fanned on.** From the middle of the fan down to the
     /// middle of the ball under it, so the two arcs are concentric: the hand stands well
@@ -108,6 +120,8 @@ struct GameView: View {
     /// the ball you shoot with, and the middle of the fan standing over it.
     @State private var ballCentre: CGPoint?
     @State private var handMidline: CGFloat?
+    /// Where the deck is standing, so a drawn card can fly off it — see `DeckPoint`.
+    @State private var deckAt: CGPoint?
     /// The card whose combo scene is open, over everything — see `ComboView`.
     @State private var comboOf: CardDescriptor?
     /// A raised card's bonus, and the BONUS button it hangs off.
@@ -423,6 +437,7 @@ struct GameView: View {
                                       } : nil)
                     }
                     .onPreferenceChange(BallCentre.self) { ballCentre = $0 }
+                    .onPreferenceChange(DeckPoint.self) { deckAt = $0 }
                     .onPreferenceChange(HandMidline.self) { handMidline = $0 }
                     // Out of the way rather than washed over. Two translucent sheets meeting
                     // multiply, and the seam where the hand's met the court's was a black
@@ -1057,6 +1072,7 @@ struct GameView: View {
                   opening: controller.opening,
                   flightDuration: controller.flightDuration,
                   onOpenDiscard: { browsingDiscard = true },
+                  deckAt: deckAt,
                   onSelect: select,
                   faces: padGlyphs,
                   ringed: pad.isAttached && padFaces == nil ? cursor.seat : nil,

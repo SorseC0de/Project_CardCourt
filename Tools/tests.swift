@@ -1662,7 +1662,7 @@ func runTests() {
             }
             let drawn = events.filter {
                 switch $0 {
-                case .drew(let who, _, _), .injuryRevealed(let who, _): return who == seat
+                case .drew(let who, _, _, _), .injuryRevealed(let who, _): return who == seat
                 default: return false
                 }
             }.count
@@ -2047,13 +2047,13 @@ func runTests() {
         let drew = GameEvent.drew(seat: .north, card: CardLibrary.drive, id: UUID())
         let asEast = drew.redacted(for: .east)
         let asNorth = drew.redacted(for: .north)
-        if case .drew(_, let card, _) = asEast {
+        if case .drew(_, let card, _, _) = asEast {
             Check.that(card.id == CardLibrary.faceDown.id,
                        "somebody else's draw crosses face down")
         } else {
             Check.that(false, "somebody else's draw crosses face down")
         }
-        if case .drew(_, let card, _) = asNorth {
+        if case .drew(_, let card, _, _) = asNorth {
             Check.that(card.id == CardLibrary.drive.id, "your own draw crosses by name")
         } else {
             Check.that(false, "your own draw crosses by name")

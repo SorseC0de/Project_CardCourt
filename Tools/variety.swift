@@ -51,7 +51,7 @@ func measureVariety() {
                 totalPlays += 1
                 seen.insert(key)
             }
-            for case .drew(let who, let card, _) in Rules.apply(move, by: seat, to: &state) {
+            for case .drew(let who, let card, _, _) in Rules.apply(move, by: seat, to: &state) {
                 if who == watcher { held.insert(card.id) }
                 namesOf[card.id] = card.name
             }

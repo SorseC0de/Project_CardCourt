@@ -699,6 +699,13 @@ final class GameController {
     /// that already had it. Held out of the bag until the flight lands, the same way
     /// `shownBall` and `shownDeck` hold back the ball and the pile.
     private(set) var undelivered: Set<UUID> = []
+    /// **The pile is waiting on you.** Your own opening hand and the card your possession
+    /// opens with come off the deck when you take them, which is a tap on the pile — see
+    /// `DeckSlotView`. Nobody else's draws wait: an opponent takes his own cards.
+    private(set) var deckWaiting = false
+    /// Answered by the tap. Cleared as the wait begins, so a press made while the game
+    /// was busy is not a press banked against the next draw.
+    private var deckTaken = false
 
     /// Passives the rules have slotted that the table has not seen turn over.
     ///
@@ -1477,7 +1484,7 @@ final class GameController {
     /// **A finished game is restarted too**: the loop's first act is to put the final card
     /// up, and a game that ended while nothing was driving it sat on the floor for good.
     private func restartIfStalled() {
-        guard !isGuest, !isPaused, working == 0 else { return }
+        guard !isGuest, !isPaused, working == 0, !deckWaiting else { return }
         guard case .thinking = gate, let since = wentQuiet else { return }
         guard Date().timeIntervalSince(since) > 8 else { return }
         DevLog.say(.input, "➜ Restarting Input Loop  (\(state.phase.label), "
@@ -1722,8 +1729,8 @@ final class GameController {
 
     /// Runs a card across the court for each draw, and blocks until they have all landed.
     private func flyDraws(in events: [GameEvent], each duration: Double) async {
-        for case .drew(let seat, _, let card) in events {
-            await fly(to: seat, over: duration, delivering: card)
+        for case .drew(let seat, _, let card, let opening) in events {
+            await fly(to: seat, over: duration, delivering: card, opening: opening)
             if Task.isCancelled { return }
         }
         flight = nil
@@ -1736,7 +1743,35 @@ final class GameController {
         spend = nil
     }
 
-    private func fly(to seat: Seat, over duration: Double, delivering card: UUID? = nil) async {
+    /// **Holds until the pile is tapped.** Only ever your own, and only the draws you
+    /// would make with your own hand at a table — see `GameEvent.drew`.
+    private func waitForTheDeck() async {
+        deckTaken = false
+        deckWaiting = true
+        // `!Task.isCancelled`, or a cancelled sleep returns straight away and this spins
+        // the main actor for as long as the game is up.
+        while !deckTaken, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(60))
+        }
+        deckWaiting = false
+    }
+
+    /// **The card in the air off the pile**, whichever renderer is drawing it — the deck
+    /// in the bar bows toward whoever it is going to, and it is the same nod either way.
+    var dealingNow: (seat: Seat, id: UUID)? {
+        if let stageDeal { return (stageDeal.seat, stageDeal.id) }
+        return flight.map { ($0.seat, $0.id) }
+    }
+
+    /// The pile, tapped: the card comes off it.
+    func takeFromDeck() {
+        guard deckWaiting else { return }
+        deckTaken = true
+    }
+
+    private func fly(to seat: Seat, over duration: Double, delivering card: UUID? = nil,
+                     opening: Bool = false) async {
+        if opening, seat == GameRules.localSeat { await waitForTheDeck() }
         // Counted off as it leaves, not when the rules dealt it.
         if shownDeck > 0 { shownDeck -= 1 }
         flightDuration = duration
@@ -3158,7 +3193,7 @@ final class GameController {
         unrevealed.removeAll()
         // Marked before a single scene plays: the rules dealt these on the way in, and the
         // hand must not have them until their flight says so.
-        for case .drew(_, _, let card) in events { undelivered.insert(card) }
+        for case .drew(_, _, let card, _) in events { undelivered.insert(card) }
         for case .shotAttempted(_, let chance, _) in events { lastChance = chance }
         for case .intangibleRevealed(let seat, _) in events {
             unrevealed[seat, default: 0] += 1
@@ -3286,8 +3321,8 @@ final class GameController {
                 }
                 await showWhistle(in: [event])
                 if crewHeld { releaseCrew(); crewHeld = false }
-            case .drew(let seat, _, let card):
-                await fly(to: seat, over: Pacing.drawFlight, delivering: card)
+            case .drew(let seat, _, let card, let opening):
+                await fly(to: seat, over: Pacing.drawFlight, delivering: card, opening: opening)
                 flight = nil
             case .gameBreakRevealed:
                 // Called before it is shown: nobody played it.
@@ -3481,7 +3516,7 @@ final class GameController {
     private func writeLog(_ events: [GameEvent]) {
         // A card still marked in the air here was never flown. Stranded, it is a card
         // missing from the hand for the rest of the game.
-        for case .drew(_, _, let card) in events { undelivered.remove(card) }
+        for case .drew(_, _, let card, _) in events { undelivered.remove(card) }
         for event in events where event.isLoggable {
             log.append(LogLine(text: event.logLine, kind: kind(of: event),
                                cards: event.cardsNamed))

@@ -24,6 +24,15 @@ struct DeckBody: View {
 
     /// What the deck should be doing. Changing it starts that routine.
     var routine: DeckStage.Routine = .rest
+    /// **Who it is dealing to.** It turns that way, dips, and squares up after — a deck
+    /// that hands cards out without ever facing anybody reads as a machine on rails.
+    var dealingTo: Deal?
+
+    /// One card going out, and the direction it is going in this deck's own space.
+    struct Deal: Equatable {
+        let id: UUID
+        let toward: SIMD3<Float>
+    }
 
     /// Owns the slabs, so a routine can be danced across frames without the view
     /// rebuilding underneath it.
@@ -119,6 +128,15 @@ struct DeckBody: View {
         }
         // Runs whenever the asked-for routine changes, and only then.
         .task(id: routine) { await stage.perform(routine) }
+        // **The bow, and the card leaving while it bows.** Given back however this ends:
+        // a pile left held is one nothing sizes or straightens again.
+        .task(id: dealingTo?.id) {
+            guard let dealingTo else { return }
+            defer { stage.settle() }
+            await stage.bow(toward: dealingTo.toward, seconds: Pacing.deckLean)
+            guard !Task.isCancelled else { return }
+            await stage.straighten()
+        }
     }
 
     /// The card back, rasterised for a texture.
@@ -148,7 +166,11 @@ struct DeckBody: View {
     /// Everything that changes with the deck's height or its turn.
     private func arrange(pile: Entity, camera: PerspectiveCamera) {
         let shown = max(1, min(Slab.maxLayers, layers))
-        pile.transform.rotation = simd_quatf(angle: spin * .pi / 180, axis: [0, 1, 0])
+        // **Not while it is bowing.** The height changes on the very draw the bow is for,
+        // and squaring it up here snapped the pile upright mid-nod.
+        if !stage.travelling {
+            pile.transform.rotation = simd_quatf(angle: spin * .pi / 180, axis: [0, 1, 0])
+        }
 
         // The top card is drawn from the artwork's own proportions and never from these,
         // so the slabs can be matched to it without moving it.

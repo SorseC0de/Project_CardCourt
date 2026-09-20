@@ -110,7 +110,7 @@ enum DevLog {
                 say(.card, "\(seat.dev) clears out ➜ \(to?.dev ?? "nobody")")
             case .clampSet(let seat, let card):
                 say(.card, "\(seat.dev) sets \(card.name)")
-            case .drew(let seat, let card, _):
+            case .drew(let seat, let card, _, _):
                 say(.card, "\(seat.dev) drew \(card.name)")
             case .gameBreakRevealed(let seat, let card), .injuryRevealed(let seat, let card):
                 say(.card, "\(seat.dev) turns up \(card.name)")

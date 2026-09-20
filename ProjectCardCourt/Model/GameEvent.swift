@@ -6,7 +6,12 @@ enum GameEvent: Hashable, Codable {
     case inbounded(from: Seat, to: Seat)
     /// A card off the deck and into a bag. The physical card's id travels with it so the
     /// table can hold it out of the hand until its flight has actually landed.
-    case drew(seat: Seat, card: CardDescriptor, id: UUID)
+    ///
+    /// **`opening` is a card you take off the pile yourself**: the one your possession
+    /// opens with, and the cards of an opening hand. At a table nobody deals those to
+    /// you, and on the screen they wait on your own hand — see `GameController.fly`.
+    /// Everything a card draws for you is the card doing it, and comes on its own.
+    case drew(seat: Seat, card: CardDescriptor, id: UUID, opening: Bool = false)
     case shotClockSet(Int)
     case shotClockTicked(Int)
     case passed(card: CardDescriptor, from: Seat, to: Seat, shot: Int, returning: Bool = false)
@@ -152,7 +157,7 @@ enum GameEvent: Hashable, Codable {
             return "— Round \(round) — \(inbounder.playerName) to inbound."
         case .inbounded(let from, let to):
             return "\(from.playerName) \(from.verb("inbounds", "inbound")) to \(to.playerName)."
-        case .drew(let seat, let card, _):
+        case .drew(let seat, let card, _, _):
             return "\(seat.playerName) drew \(card.name)."
         case .shotClockSet(let value):
             return "Shot clock set to \(value)."

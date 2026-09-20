@@ -5164,7 +5164,8 @@ enum Rules {
             events.append(.drawConverted(seat: seat, card: card.descriptor, shot: paid))
         } else {
             give(card, to: seat, state: &state)
-            events.append(.drew(seat: seat, card: card.descriptor, id: card.id))
+            events.append(.drew(seat: seat, card: card.descriptor, id: card.id,
+                                opening: opening || duringDeal))
             // **The one call that does not wait for the chain.** Discontinued Dribble is
             // called on the draw itself, so it fires here rather than in the queue — and
             // it takes the queue with it: whatever else was coming was being drawn for a

@@ -92,7 +92,7 @@ extension GameEvent {
     ///
     /// Your own draws are yours to see, so only the other seats are covered.
     func redacted(for seat: Seat) -> GameEvent {
-        guard case .drew(let who, _, let id) = self, who != seat else { return self }
-        return .drew(seat: who, card: CardLibrary.faceDown, id: id)
+        guard case .drew(let who, _, let id, let opening) = self, who != seat else { return self }
+        return .drew(seat: who, card: CardLibrary.faceDown, id: id, opening: opening)
     }
 }

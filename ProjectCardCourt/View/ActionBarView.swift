@@ -257,6 +257,8 @@ struct ActionBarView: View {
         static let domeBand: CGFloat = 132
         /// What the bar keeps under itself, which the ball is let through — see `body`.
         static let barPad: CGFloat = 10
+        /// The deck, standing where the ball in play used to.
+        static let deck: CGFloat = 54
         /// **The hand's arc until the floor has been measured once.** The real one is the
         /// distance from the hand down to the ball's middle, which is a good deal more
         /// than the ball's own radius — the hand stands outside the ball, so a circle
@@ -395,11 +397,16 @@ struct ActionBarView: View {
                     }
                     .frame(width: across * Act.side, alignment: .leading)
                     Spacer(minLength: 0)
-                    // The way out of the game. What everybody is playing with used to
-                    // stand under it; that card is up under the blocks now, opposite the
-                    // official's — see `GameView.crewCard`.
+                    // The way out of the game, and the pile your own cards come off.
+                    // What everybody is playing with used to stand here; that card is up
+                    // under the blocks now, opposite the official's — see
+                    // `GameView.crewCard`.
                     VStack(alignment: .trailing, spacing: 6) {
                         if let onPause { pauseButton(onPause) }
+                        DeckSlotView(remaining: controller.shownDeck,
+                                     waiting: controller.deckWaiting,
+                                     dealing: controller.dealingNow,
+                                     width: Act.deck) { controller.takeFromDeck() }
                     }
                     .frame(width: across * Act.side, alignment: .trailing)
                 }

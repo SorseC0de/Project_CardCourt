@@ -33,6 +33,8 @@ struct CourtView: View {
     var opening: OpeningDeal?
     var flightDuration: Double = 0.30
     var onOpenDiscard: () -> Void = {}
+    /// Where the deck is standing, in the screen's own space — see `DeckPoint`.
+    var deckAt: CGPoint?
     var onSelect: (Seat) -> Void
     /// **Which button stands for which man**, while the game is asking which of them.
     /// The pad's own glyph for each face button, over the head of the man it names — see
@@ -242,12 +244,6 @@ struct CourtView: View {
                 PileShadow(width: geo.size.width * Perspective.pileCardShare
                                   * deckTuning.size,
                            across: geo.size.width,
-                           paused: pilesStill)
-                    .position(deckPoint(on: court))
-
-                PileShadow(width: geo.size.width * Perspective.pileCardShare
-                                  * deckTuning.size,
-                           across: geo.size.width,
                            phase: 0.5,
                            paused: pilesStill)
                     // Nothing is standing there to cast one.
@@ -258,15 +254,17 @@ struct CourtView: View {
                 // One scene for the whole floor. Everything on it is placed from the same
                 // court points the sprites use, so the two cannot disagree.
                 if render.courtStage {
-                    CourtStage(deckAt: share(deckPoint(on: court), in: geo.size),
+                    CourtStage(deckAt: share(deckOrigin(on: court, in: geo), in: geo.size),
                                discardAt: share(discardPoint(on: court), in: geo.size),
-                               deckLayers: DeckStackView.layers(for: state.deck.count),
+                               // Nothing to draw: the pile is in the bar.
+                               deckLayers: 0,
                                discardLayers: state.discard.isEmpty ? 0
                                    : DeckStackView.layers(for: state.discard.count),
                                deckRoutine: deckRoutine,
                                flight: deal.map { deal in
                                    CardFlight(id: deal.id,
-                                              from: share(deckPoint(on: court), in: geo.size),
+                                              from: share(deckOrigin(on: court, in: geo),
+                                                          in: geo.size),
                                               to: share(court.footing(of: deal.seat), in: geo.size),
                                               // **The same number the controller waits.**
                                               // It was taking the default and flying for
@@ -432,9 +430,7 @@ struct CourtView: View {
                 }
 
                 if let flight {
-                    let deck = CGPoint(
-                        x: court.centreX + court.halfWidth(at: Perspective.deckDepth) * Perspective.deckLateral,
-                        y: court.y(at: Perspective.deckDepth))
+                    let deck = deckOrigin(on: court, in: geo)
                     let seatFooting = court.footing(of: flight.seat)
                     DrawFlightView(from: deck,
                                    to: CGPoint(x: seatFooting.x, y: seatFooting.y - 24),
@@ -700,6 +696,20 @@ struct CourtView: View {
     }
 
     /// Where the deck and the discard stand, as court points.
+    /// **Where a drawn card starts from.** The pile itself is down in the bar, so this
+    /// is that slot's own middle brought into the court's space — see `DeckPoint`. Only
+    /// if the floor has been laid out beside it: until then, the spot the pile used to
+    /// stand on.
+    private func deckOrigin(on court: CourtGeometry, in geo: GeometryProxy) -> CGPoint {
+        guard let deckAt else {
+            return CGPoint(x: court.centreX
+                              + court.halfWidth(at: Perspective.deckDepth) * Perspective.deckLateral,
+                           y: court.y(at: Perspective.deckDepth))
+        }
+        let floor = geo.frame(in: .named(Chrome.screen))
+        return CGPoint(x: deckAt.x - floor.minX, y: deckAt.y - floor.minY)
+    }
+
     private func deckPoint(on court: CourtGeometry) -> CGPoint {
         pilePoint(lateral: Perspective.deckLateral, on: court)
     }
@@ -1197,11 +1207,9 @@ struct CourtView: View {
         case .deck:
             let depth = Perspective.deckDepth
             let width = Self.pileWidth * deckTuning.size
-            DeckStackView(remaining: state.deck.count, width: width, routine: deckRoutine,
-                          showsPile: !render.courtStage)
-                .scaleEffect(court.scale(at: depth), anchor: .bottom)
-                .position(deckPoint(on: court))
-
+            // **The draw pile is not on the floor any more** — it is down in the bar,
+            // where a thumb can reach it, because your own cards come off it by hand.
+            // See `DeckSlotView`. The discard stays: nothing is ever asked of it.
             DiscardPileView(count: state.discard.count, width: width,
                             showsPile: !render.courtStage)
                 .scaleEffect(court.scale(at: depth), anchor: .bottom)
