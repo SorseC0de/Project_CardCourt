@@ -529,6 +529,23 @@ func runTests() {
         Check.that(!without, "and not on an ordinary one")
     }
 
+    do {
+        // **Asked before the pile for what he holds, and again for what he draws.**
+        var (state, seat, cards) = openPossession(seed: 640, cards: [CardLibrary.swingLeft])
+        let receiver = seat.left
+        state[receiver].bag.removeAll {
+            $0.descriptor.clearsOut || $0.descriptor.clearsClamps
+                || $0.descriptor.clearsTargetClamp
+        }
+        let held = state[receiver].bag.count
+        state[receiver].bag.append(matchCard(CardLibrary.clearOut, state.rules))
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        Check.that({ if case .awaitingCounter = state.phase { return true }; return false }(),
+                   "the out in his hand is asked about before the pile")
+        Check.that(state[receiver].bag.count == held + 1,
+                   "and he has not been dealt his card yet")
+    }
+
     print("The Move bar")
     do {
         // **The bar is a line.** Three to a possession; the fourth is carrying the ball.
@@ -1233,7 +1250,14 @@ func runTests() {
         }
         state[receiver].bag.append(matchCard(CardLibrary.crossover, state.rules))
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        // **Asked once for the hand and once for the draw.** Turning the first down does
+        // not take the question off the table — the pile may hand him another out, which
+        // is the whole of "drawing the out". Declined until he has nothing left to
+        // decline.
         Rules.resolveCounter(false, state: &state)
+        while case .awaitingCounter = state.phase {
+            Rules.resolveCounter(false, state: &state)
+        }
         Check.that(state[receiver].clamps.count == 1, "turning it down lets them land")
         Check.that(!Rules.lockedCards(state, for: receiver).isEmpty,
                    "and lock what they came to lock")

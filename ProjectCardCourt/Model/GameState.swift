@@ -517,6 +517,12 @@ struct GameState: Codable {
         let drew: Bool
     }
     var heldPossession: HeldPossession?
+    /// **Offers he has already turned down this possession.**
+    ///
+    /// The question is asked twice — once for what he was holding when the ball came at
+    /// him, and again the moment the pile hands him something that answers it. Without
+    /// this the second asking would put the same card back in front of him.
+    var declinedCounters: Set<Card.ID> = []
     /// Back-and-Forth Game: how many more Breaks get waved away as they land.
     var breaksWaived = 0
     /// Mic'd Up: SHOT carried by whoever is holding the ball. Not part of `shot`, which

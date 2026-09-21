@@ -578,9 +578,12 @@ enum Rules {
                 $0.descriptor.clearsClamps || $0.descriptor.clearsTargetClamp
             }
         }
-        // A card that does both is still one card.
+        // A card that does both is still one card — and one already turned down this
+        // possession is not asked again. See `GameState.declinedCounters`.
         var seen: Set<Card.ID> = []
-        return offered.filter { seen.insert($0.id).inserted }
+        return offered.filter {
+            !state.declinedCounters.contains($0.id) && seen.insert($0.id).inserted
+        }
     }
 
 
@@ -1007,8 +1010,13 @@ enum Rules {
             countersOnOffer(to: seat, in: state).first { $0.id == id }
         }
         guard let card else {
+            // **Turned down, not taken off the table.** What he was just offered is
+            // remembered so it is not put back in front of him — but the possession is
+            // still offering, because the card the pile is about to hand him is a
+            // different question. See `GameState.declinedCounters`.
+            state.declinedCounters.formUnion(offered.map(\.id))
             beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
-                            fromOwnMiss: held.fromOwnMiss, offering: false,
+                            fromOwnMiss: held.fromOwnMiss, offering: true,
                             alreadyDrew: held.drew, state: &state, events: &events)
             // **Turning it down is still an answer.** A possession held on this question
             // has whatever the last one left owed still owed — a Right Back's return leg,
@@ -4164,12 +4172,15 @@ enum Rules {
         // up by this possession's own card is the one that stands.
         state.holderShot = 0
 
-        // **The question first, before the pile.** A man who steps out of the play is not
-        // there for the defenders either — and he is not there for the draw. Asked after
-        // it, Clear Out paid a card for a turn its owner then declined to take.
+        // **Asked twice, for two different questions.**
         //
-        // What that costs: a card drawn this possession can no longer be the answer to a
-        // Clamp still in the air, which is what "drawing the out" was.
+        // First with what he is already holding, before the pile: a man who steps out of
+        // the play is not there for the draw either, and asking after it paid him a card
+        // for a turn he then declined to take.
+        //
+        // Then again below, the moment the draw hands him one — which is "drawing the
+        // out", and the reason the question used to come after the pile at all. One he
+        // has already turned down is not put back in front of him.
         let offers = offering ? countersOnOffer(to: seat, in: state) : []
         if !offers.isEmpty {
             state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
@@ -4210,8 +4221,24 @@ enum Rules {
                 }
             }
             refills(for: seat, state: &state, events: &events)
+
+            // **And again, if the pile just handed him one.** This is "drawing the out":
+            // a Clamp is still in the air at draw time, so a card that answers it is
+            // asked about the moment it arrives rather than a turn too late. Only what is
+            // new — anything he turned down above is filtered out by `countersOnOffer`.
+            let drawn = offering ? countersOnOffer(to: seat, in: state) : []
+            if !drawn.isEmpty {
+                state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
+                                                                fromRebound: fromRebound,
+                                                                fromOwnMiss: fromOwnMiss,
+                                                                drew: true)
+                state.phase = .awaitingCounter(seat: seat, cards: drawn)
+                return
+            }
         }
 
+        // Nothing is owed the question any more: the possession is his.
+        state.declinedCounters = []
 
         // **A defender is an assignment, and it lasts until it is beaten.** He bites on his
         // man's possession and he is still there on the next one: what sends him off is the
