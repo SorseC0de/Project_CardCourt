@@ -414,9 +414,10 @@ func slotTestsTwo() {
         Rules.apply(.play(cards[0].id), by: seat, to: &state)
         Check.that(state.ballCard == nil && state.discard.contains { $0.id == oldBall.id },
                    "Vintage Varnish: the ball in play is discarded")
-        Check.that({ if case .awaitingIntangibleDrop(let who, _) = state.phase { return who == seat }
-                     return false }(),
-                   "a board over 1 Intangible drops to 1")
+        // One slot is not a choice: the newest keeps it and nobody is asked.
+        Check.that({ if case .awaitingIntangibleDrop = state.phase { return false }
+                     return true }() && state[seat].intangibles.count == 1,
+                   "a board over 1 Intangible drops to 1 without asking")
         answerArrival(&state)
         Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[1].id))
                    && state.shotClockLength == 14,

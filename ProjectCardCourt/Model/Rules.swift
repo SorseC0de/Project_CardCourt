@@ -5049,6 +5049,19 @@ enum Rules {
         // being over the slots is a fact about the board rather than something to keep in
         // step, so it is not a step. One at a time — answering it can rehome a passive
         // onto another full board, which asks again.
+        // **One slot is not a choice.** The new one simply takes it and the old one goes
+        // to the pile — asking which of two to keep made sense with several slots to fill,
+        // and with one it was a question with an obvious answer every time.
+        if state.intangibleSlotLimit == 1 {
+            for seat in Seat.allCases where state[seat].intangibles.count > 1 {
+                let replaced = state[seat].intangibles.dropLast()
+                state[seat].intangibles = Array(state[seat].intangibles.suffix(1))
+                for card in replaced {
+                    state.discard.append(Card(card))
+                    events.append(.intangibleDisplaced(seat: seat, card: card))
+                }
+            }
+        }
         let over = Seat.allCases
             .filter { state[$0].intangibles.count > state.intangibleSlotLimit }
             .sorted { $0.rawValue < $1.rawValue }
