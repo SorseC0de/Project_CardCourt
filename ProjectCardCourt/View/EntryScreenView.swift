@@ -68,7 +68,7 @@ struct EntryScreenView: View {
 
     var body: some View {
         ZStack {
-            CardPalette.blue.ignoresSafeArea()
+            CardPalette.azure.ignoresSafeArea()
 
             // **Card backs coming out of the mark.** Declared first, so the wordmark and
             // every button are drawn over them, and nothing here can be pressed — see

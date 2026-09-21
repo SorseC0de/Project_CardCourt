@@ -252,25 +252,24 @@ struct SeatPanelsView: View {
                     // reads as two.
                     StrokedPixelText(text: (row.taken ? "-" + row.label : row.label).uppercased(),
                                      size: Panel.statLabel,
-                                     ink: row.taken ? Panel.taken : .black, weight: .flat)
+                                     ink: row.taken ? Panel.taken : .white)
                         .fixedSize()
                     Spacer(minLength: 0)
                     // Each figure cut out in the pixel face, like every other number
                     // being counted rather than written — see `StrokedPixelText`.
                     StrokedPixelText(text: "\(row.value)", size: Panel.stat,
-                                     ink: row.taken ? Panel.taken : .black, weight: .flat)
+                                     ink: row.taken ? Panel.taken : .white)
                         .fixedSize()
                 }
             }
             // The line a sum is drawn under, in the same ink as the figures over it.
             Rectangle()
-                .fill(.black)
+                .fill(.white)
                 .frame(height: 1.5)
                 .padding(.top, 1)
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                StrokedPixelText(text: "\(shownScore(seat))", size: Panel.stat + 3,
-                                 ink: .black, weight: .flat)
+                StrokedPixelText(text: "\(shownScore(seat))", size: Panel.stat + 3)
                     .fixedSize()
             }
         }

@@ -275,6 +275,10 @@ struct ShootDomeView: View {
             .contentShape(shape)
             .onTapGesture {
                 guard showing, live else { return }
+                // **Shut behind the shot.** The arc is a question and it has been
+                // answered; left open it sat there offering three finishes through the
+                // whole of the attempt and everything after it.
+                open = false
                 onShoot(finish)
             }
             .padRing(showing && ringed == .finish(finish), corner: arcThickness / 2)

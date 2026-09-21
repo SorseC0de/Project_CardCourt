@@ -1057,6 +1057,24 @@ enum Rules {
                             fromOwnMiss: held.fromOwnMiss, offering: false,
                             alreadyDrew: held.drew, state: &state, events: &events)
             pay(card.descriptor, breaking: breaking, for: seat, state: &state, events: &events)
+            // **A Pass played at the arrival is still a Pass.** Outlet takes the man off
+            // *and* moves the ball; paid as a Clamp-breaker alone it cleared him and left
+            // the ball exactly where it was, which is half a card. Asked the way it is
+            // asked on a turn — the choice is his — and thrown where a pass with nobody
+            // to name throws itself.
+            if card.descriptor.isPass {
+                if let choices = aimChoices(card.descriptor, by: seat), !choices.isEmpty {
+                    state.pendingPlay = card.descriptor
+                    state.pendingActor = seat
+                    state.phase = .awaitingTarget(seat: asker(instead: seat, in: state),
+                                                  card: card.descriptor, choices: choices)
+                    return events
+                }
+                if let target = passTargets(card.descriptor, from: seat, in: state).first {
+                    completePass(card.descriptor, from: seat, to: target,
+                                 state: &state, events: &events)
+                }
+            }
             // **A trip is queued, not taken.** `awardFreeThrows` only puts one down —
             // the phase is set here, after the possession has finished settling, or the
             // line would be set on a phase about to be replaced. Flop broke the Clamps
