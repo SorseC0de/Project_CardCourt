@@ -16,6 +16,20 @@ private func beat(_ events: [GameEvent], _ card: CardDescriptor) -> Bool {
 func clampTests() {
     print("Clamps")
     do {
+        // **As many as there is room for.** A second Clamp of your own is legal while
+        // somebody still has a slot free — one on each player is the only cap.
+        var (state, seat, cards) = openPossession(seed: 340, cards: [CardLibrary.contest,
+                                                                     CardLibrary.contest])
+        state[seat.left].clamps = [ActiveClamp(card: CardLibrary.rimRunner, from: seat)]
+        Check.that(Rules.legalMoves(state, for: seat).contains(.play(cards[1].id)),
+                   "a second Clamp of your own may go down")
+        for other in Seat.allCases {
+            state[other].clamps = [ActiveClamp(card: CardLibrary.rimRunner, from: seat)]
+        }
+        Check.that(!Rules.legalMoves(state, for: seat).contains(.play(cards[0].id)),
+                   "until every man has one")
+    }
+    do {
         var (state, seat, _) = openPossession(seed: 301, cards: [])
         stand(CardLibrary.closeOut, on: seat, &state)
         Check.that(!Rules.legalMoves(state, for: seat).contains(.shootAs(.three)),

@@ -191,11 +191,11 @@ enum Rules {
                 // And only so many defenders on one man. Counted against what is already
                 // waiting rather than what has landed — Clamps are set down a possession
                 // before they bite, so the pending pile is the whole stack.
-                // **One defender each.** A player may have the whole crowd on them, but
-                // only one of them is yours — so a matchup is always readable by who set
-                // it, and three opponents can never gang into a lock.
+                // **As many as there is room for.** One on each player is the restraint,
+                // and it is enough of one: a cap on how many *you* may set as well left
+                // hands full of Clamps with nobody to put them on, and hid the play of
+                // clamping yourself to clear it.
                 if card.descriptor.clamp != nil {
-                    guard !alreadyGuarding(seat, in: state) else { return false }
                     return !clampTargets(for: seat, in: state).isEmpty
                 }
                 return true
@@ -280,10 +280,6 @@ enum Rules {
 
     /// Whether this seat already has a defender of their own out on somebody.
 
-    static func alreadyGuarding(_ seat: Seat, in state: GameState) -> Bool {
-        if state.pendingClamps.contains(where: { $0.from == seat }) { return true }
-        return Seat.allCases.contains { state[$0].clamps.contains { $0.from == seat } }
-    }
 
     /// **Whether a standing defender is a problem right now.**
     ///
