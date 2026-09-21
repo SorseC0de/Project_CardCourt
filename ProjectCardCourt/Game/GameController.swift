@@ -1938,10 +1938,9 @@ final class GameController {
         // losing it, the card is on screen and must not be reachable — see `justPlayed`.
         guard !justPlayed.contains(card.id) else { return }
         switch gate {
-        case .awaitingMove:
-            guard Rules.legalMoves(shown, for: GameRules.localSeat).contains(.play(card.id))
-            else { return }
-            play(card)
+        // **The narrower case first.** A `where` clause written under the plain case is
+        // never reached — Swift takes the first that matches — so counting out what a
+        // defender costs played the card instead.
         case .awaitingMove where payingOffClamp != nil:
             // Picking out what the defender costs. A locked card pays: the lock stops it
             // being played, not spent.
@@ -1950,6 +1949,10 @@ final class GameController {
             } else if bidSelection.count < (payingOffClamp ?? 0) {
                 bidSelection.insert(card.id)
             }
+        case .awaitingMove:
+            guard Rules.legalMoves(shown, for: GameRules.localSeat).contains(.play(card.id))
+            else { return }
+            play(card)
         case .awaitingBid, .awaitingDiscard, .awaitingGiveUp:
             // Nothing moves once the bid is in.
             guard !bidPlaced else { return }

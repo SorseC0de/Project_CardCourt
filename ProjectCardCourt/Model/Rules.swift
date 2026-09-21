@@ -2320,12 +2320,21 @@ enum Rules {
         let special = descriptor.special
         state.pendingShotBonus += (special?.shotPerNamed ?? 0) * state.namedForAssist.count
 
+        // **A downgrade is not a cancellation.** Foot On The Line says the three scores
+        // two instead, so the ball still goes up — every other call on this trigger waves
+        // the attempt off, and treating them all the same let a card score its three
+        // whole while the official who was supposed to dock it stood there.
+        var downgraded = false
         if let whistle = interceptor(of: .shoot(seat: shooter), in: &state, events: &events) {
+            downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
             blow(whistle, on: .shoot(seat: shooter), state: &state, events: &events)
-            state.namedForAssist = []
-            return events
+            guard downgraded, case .possession(let still) = state.phase, still == shooter else {
+                state.namedForAssist = []
+                return events
+            }
         }
-        resolveShot(by: shooter, bonusPoints: extraPoint(for: special?.shotType),
+        resolveShot(by: shooter, bonusPoints: extraPoint(for: special?.shotType,
+                                                         downgraded: downgraded),
                     overClamps: special?.ignoresClamps ?? false, card: descriptor,
                     state: &state, events: &events)
         state.namedForAssist = []
@@ -2508,13 +2517,18 @@ enum Rules {
             settleHands(state: &state, events: &events)
             return events
         }
+        var downgraded = false
         if let whistle = interceptor(of: .shoot(seat: seat), in: &state, events: &events) {
+            downgraded = whistle.card.descriptor.whistle?.downgradesThree == true
             blow(whistle, on: .shoot(seat: seat), state: &state, events: &events)
-            adjustShot(by: -bought, state: &state)
-            return events
+            guard downgraded, case .possession(let still) = state.phase, still == seat else {
+                adjustShot(by: -bought, state: &state)
+                return events
+            }
         }
         let roundBefore = state.round
-        resolveShot(by: seat, bonusPoints: extraPoint(for: card.special?.shotType) + extraPointOwed,
+        resolveShot(by: seat, bonusPoints: extraPoint(for: card.special?.shotType,
+                                                      downgraded: downgraded) + extraPointOwed,
                     overClamps: card.special?.ignoresClamps ?? false,
                     card: card, state: &state, events: &events)
         // Only when the round is still running. A round that turned over has already had

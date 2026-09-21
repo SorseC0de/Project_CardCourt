@@ -184,17 +184,7 @@ struct ActionBarView: View {
             if case .awaitingTarget = controller.gate, Rules.canCancelAim(state) {
                 CancelButton { controller.cancelAim() }
             }
-            if let owed = controller.payingOffClamp {
-                HStack(spacing: 8) {
-                    sideButton(controller.bidSelection.count == owed
-                               ? "BEAT HIM" : "PICK \(owed - controller.bidSelection.count)") {
-                        controller.submitClampPayment()
-                    }
-                    CancelButton { controller.cancelClearingClamp() }
-                }
-            } else if let price = clampPrice, allowsShooting {
-                sideButton("BEAT YOUR MAN · \(price)") { controller.beginClearingClamp() }
-            }
+
             if case .awaitingMove = controller.gate, allowsShooting { shootExtras }
             prompt
             bottomRow
@@ -432,7 +422,11 @@ struct ActionBarView: View {
             let across = geo.size.width
             ZStack(alignment: .bottom) {
                 HStack(alignment: .bottom, spacing: 0) {
+                    // **Over the log, clear of the hand.** It used to stand across the
+                    // fan in the game's own lettering, at a size that covered the cards
+                    // it is asking you to pick from.
                     VStack(alignment: .leading, spacing: 6) {
+                        clearDefenderButton
                         if let onOpenLog { logButton(onOpenLog) }
                         if let onNames { namesButton(onNames) }
                     }
@@ -493,6 +487,45 @@ struct ActionBarView: View {
 
     /// **Opens the log.** The pause button's twin: somewhere to step out of the game and
     /// look, not a play — and it says what it is.
+    /// **Paying your man off**, and counting out what he costs.
+    ///
+    /// The same small chip the log and the names wear — it stands with them rather than
+    /// over the cards it is asking about.
+    @ViewBuilder private var clearDefenderButton: some View {
+        if let owed = controller.payingOffClamp {
+            HStack(spacing: 6) {
+                chip(controller.bidSelection.count == owed
+                     ? "CLEAR" : "PICK \(owed - controller.bidSelection.count)",
+                     fill: CardPalette.green) {
+                    controller.submitClampPayment()
+                }
+                chip("×", fill: CardPalette.maroon) { controller.cancelClearingClamp() }
+            }
+        } else if let price = clampPrice, allowsShooting {
+            chip("CLEAR DEFENDER · \(price)", fill: CardPalette.teal) {
+                controller.beginClearingClamp()
+            }
+        }
+    }
+
+    /// The bar's own small button: a word on a rounded plate with a hard drop.
+    private func chip(_ word: String, fill: Color,
+                      run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            Text(word)
+                .font(.system(size: 12, weight: .black)).tracking(1)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .frame(height: 27)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(fill))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(.white, lineWidth: 1.5))
+                .shadow(color: CardPalette.black, radius: 0, x: 2, y: 2)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     private func logButton(_ open: @escaping () -> Void) -> some View {
         Button(action: open) {
             HStack(spacing: 5) {
