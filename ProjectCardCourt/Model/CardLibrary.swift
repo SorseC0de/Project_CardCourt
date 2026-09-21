@@ -219,7 +219,10 @@ enum CardLibrary {
     static let flop = CardDescriptor(
         id: "flop", name: "Flop", type: .move,
         effect: "#[Draw] 1 card. #[Clear] all ~[Clamps]. Take 1 #[FT] for each. "
-            + "If no ~[Clamps], #[TOV] +1",
+            + "If no ~[Clamps], #[TOV] +1\n"
+            // **The rule it plays by, printed.** It was enforced and never written down, so
+            // a hand that held one simply went grey with nothing on the card to say why.
+            + "Must be your first action while it is in your Bag",
         numberInDeck: 3,
         drawCount: 1, freeThrowsPerClamp: 1, clearsClamps: true,
         compulsoryFirstAction: true,
