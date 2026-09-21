@@ -237,7 +237,6 @@ struct DebugActionsView: View {
     @AppStorage("bench.hand") private var showHand = false
     @AppStorage("bench.pass") private var showPass = false
     @AppStorage("bench.board") private var showBoard = false
-    @AppStorage("bench.shoe") private var showShoe = false
     /// What a board's four things are set at — see `ReboundSceneTuning`.
     @State private var board = ReboundSceneTuning.shared
     @State private var moveHUD = MoveHUDTuning.shared
@@ -287,7 +286,6 @@ struct DebugActionsView: View {
                 action(moveHUD.drawn ? "moves: drawn" : "moves: arcs") {
                     moveHUD.drawn.toggle()
                 }
-                action(showShoe ? "shoe ▾" : "shoe ▸") { showShoe.toggle() }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -417,24 +415,6 @@ struct DebugActionsView: View {
                 }
                 .frame(width: 150)
             }
-            if showShoe {
-                // **Which stop is being set**: the meter shows this many Moves while the
-                // door is open, so each stop can be placed without playing to it.
-                HStack(spacing: 4) {
-                    ForEach(0...3, id: \.self) { count in
-                        action(moveHUD.previewMoves == count ? "[\(count)]" : "\(count)") {
-                            moveHUD.previewMoves = count
-                        }
-                    }
-                    action("live") { moveHUD.previewMoves = nil }
-                }
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(ShoeDial.allCases, id: \.self) { dial in
-                        slider(dial.label, shoeBinding(dial), dial.range)
-                    }
-                }
-                .frame(width: 150)
-            }
             if showBoard {
                 VStack(alignment: .leading, spacing: 0) {
                     slider("moves size", Binding(get: { Double(moveHUD.scale) },
@@ -525,54 +505,6 @@ struct DebugActionsView: View {
                    -180...180)
         }
         .frame(width: 150)
-    }
-
-    /// **The shoe's nine dials**: x, y and a turn at each of its three stops.
-    enum ShoeDial: CaseIterable {
-        case beginX, beginY, beginTurn, middleX, middleY, middleTurn, endX, endY, endTurn
-
-        var label: String {
-            switch self {
-            case .beginX: "begin x"; case .beginY: "begin y"; case .beginTurn: "begin rot"
-            // Measured from the centre of the drawing, not from where the shoe stands.
-            case .middleX: "mid x (from centre)"; case .middleY: "mid y"; case .middleTurn: "mid rot"
-            case .endX: "end x"; case .endY: "end y"; case .endTurn: "end rot"
-            }
-        }
-
-        var range: ClosedRange<Double> {
-            switch self {
-            case .beginTurn, .middleTurn, .endTurn: -180...180
-            // Wide, because the drawing is: at one and a half times the ball, a walk
-            // along the bars covers most of the screen's width.
-            default: -500...500
-            }
-        }
-    }
-
-    private func shoeBinding(_ dial: ShoeDial) -> Binding<Double> {
-        let path: ReferenceWritableKeyPath<MoveHUDTuning, ShoeStop>
-        switch dial {
-        case .beginX, .beginY, .beginTurn: path = \.shoeBegin
-        case .middleX, .middleY, .middleTurn: path = \.shoeMiddle
-        case .endX, .endY, .endTurn: path = \.shoeEnd
-        }
-        return Binding(
-            get: {
-                let stop = moveHUD[keyPath: path]
-                switch dial {
-                case .beginX, .middleX, .endX: return Double(stop.x)
-                case .beginY, .middleY, .endY: return Double(stop.y)
-                default: return stop.rotation
-                }
-            },
-            set: { value in
-                switch dial {
-                case .beginX, .middleX, .endX: moveHUD[keyPath: path].x = CGFloat(value)
-                case .beginY, .middleY, .endY: moveHUD[keyPath: path].y = CGFloat(value)
-                default: moveHUD[keyPath: path].rotation = value
-                }
-            })
     }
 
     /// The board's dials, which are all the same two shapes.

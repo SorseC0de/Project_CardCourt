@@ -22,17 +22,16 @@ final class MoveHUDTuning {
     /// rather than sliding sideways past each other.
     var separation: CGFloat = 0
 
-    /// **The shoe walking the bars.** Its three places — see `MoveHUDView.place` for which
-    /// Moves put it where — as offsets in points from its place on the drawing, and a
-    /// turn in degrees about its own middle. It springs from one to the next.
-    var shoeBegin = ShoeStop(x: -237, y: -26, rotation: -90)
-    /// **Centred on the drawing**, whatever the phone: its `x` is a nudge from the middle
-    /// rather than from where the shoe is drawn — see `MoveHUDView.shoeOffset`.
-    var shoeMiddle = ShoeStop(x: -17, y: -96, rotation: 4)
-    var shoeEnd = ShoeStop(x: -20, y: -35, rotation: 45)
-    /// **For tuning**: shows the meter at this many Moves whatever the game says, so each
-    /// stop can be set without playing to it. Nil is the game's own count.
-    var previewMoves: Int?
+    /// **The shoe walking the bars: one place for each Move made.** At the start with none,
+    /// then at the end of each bar in turn — four places for four counts, so no two share
+    /// one. Offsets in points and a turn in degrees about the shoe's own middle; it springs
+    /// from one to the next. Tuned in `MoveHUDBench`, which draws nothing else.
+    var shoeStops: [ShoeStop] = [
+        ShoeStop(x: -237, y: -26, rotation: -90),
+        ShoeStop(x: -237, y: -26, rotation: -90),
+        ShoeStop(x: -17, y: -96, rotation: 4, fromCentre: true),
+        ShoeStop(x: -20, y: -35, rotation: 45),
+    ]
 }
 
 /// One place the shoe can stand — see `MoveHUDTuning.shoeBegin`.
@@ -40,6 +39,10 @@ struct ShoeStop: Equatable {
     var x: CGFloat = 0
     var y: CGFloat = 0
     var rotation: Double = 0
+    /// **Measured from the centre of the drawing** rather than from where the shoe is
+    /// drawn. The centre moves with the ball's width, so a stop set this way stays centred
+    /// on every phone.
+    var fromCentre = false
 }
 
 /// **The Moves left in a possession**, drawn rather than struck.
@@ -61,8 +64,9 @@ struct MoveHUDView: View {
 
     @State private var tuning = MoveHUDTuning.shared
 
-    /// The Moves the drawing shows — the game's, unless the bench is previewing a count.
-    private var shown: Int { tuning.previewMoves ?? moves }
+    /// The Moves the drawing shows. The shoe's bench sets this directly — see
+    /// `MoveHUDBench` — so there is no override to leave switched on in a real game.
+    private var shown: Int { moves }
 
     /// The drawing's own proportions.
     private enum Art {
@@ -113,33 +117,21 @@ struct MoveHUDView: View {
         .animation(.easeOut(duration: 0.25), value: shown)
     }
 
-    /// **Three places, not a slide.** It stands at the first until the bar is nearly spent,
-    /// moves to the middle on the second-to-last Move and to the end on the last — so with
-    /// three to a possession, none made and one made look the same, and it only starts
-    /// walking once a possession is getting somewhere.
-    private enum Place { case begin, middle, end }
-
-    private var place: Place {
-        let made = min(shown, limit)
-        if made >= limit { return .end }
-        if made == limit - 1 { return .middle }
-        return .begin
-    }
-
-    /// Where the shoe stands, and how it is turned, at this count.
+    /// **Where the shoe stands at this count.** One stop per Move made; a full bar is
+    /// always the last stop, so a shorter bar — Torn Achilles — still finishes at the end
+    /// rather than stopping partway along it.
     private var stop: ShoeStop {
-        switch place {
-        case .begin:  return tuning.shoeBegin
-        case .middle: return tuning.shoeMiddle
-        case .end:    return tuning.shoeEnd
-        }
+        let stops = tuning.shoeStops
+        guard !stops.isEmpty else { return ShoeStop() }
+        let made = min(shown, limit)
+        if made >= limit { return stops[stops.count - 1] }
+        return stops[min(made, stops.count - 1)]
     }
 
-    /// **The offset it is drawn at.** The middle stop is measured from the centre of the
-    /// drawing — that is what "centred" means, and it moves with the ball's width — and
-    /// the other two from where the shoe is drawn.
+    /// **The offset it is drawn at**, from where the shoe is drawn — or from the centre of
+    /// the drawing, for a stop set that way.
     private var shoeOffset: CGSize {
-        let centring = place == .middle ? (0.5 - Art.shoeCentre.x) * width : 0
+        let centring = stop.fromCentre ? (0.5 - Art.shoeCentre.x) * width : 0
         return CGSize(width: centring + stop.x, height: stop.y)
     }
 
