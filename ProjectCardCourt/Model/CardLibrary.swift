@@ -533,10 +533,10 @@ enum CardLibrary {
 
     static let clutchGene = CardDescriptor(
         id: "clutch-gene", name: "Clutch Gene", type: .intangible,
-        effect: "SHOT = $[2X] if you have 1 card or fewer in your Bag, or the #[Shot Clock] is 05 or less",
+        effect: "SHOT = $[2X] if you have 1 card or fewer in your Bag, or the #[Shot Clock] is 03 or less",
         numberInDeck: 1,
         intangible: IntangibleEffect(shotMultiplier: 2,
-                                     requiresHandAtMost: 1, requiresClockAtMost: 5))
+                                     requiresHandAtMost: 1, requiresClockAtMost: 3))
 
     static let floorGeneral = CardDescriptor(
         id: "floor-general", name: "Floor General", type: .intangible,
