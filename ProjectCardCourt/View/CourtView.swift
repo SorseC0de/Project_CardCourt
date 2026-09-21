@@ -7,6 +7,9 @@ struct CourtView: View {
     /// Who is going up for the board, if anybody. The ball comes out of the hoop to meet
     /// him — see `ReboundBallView`.
     var rebound: ReboundLeap?
+    /// **A board in the air**, which nobody has yet. Held from the miss until somebody
+    /// comes down with it — see `waitingForThrow`.
+    var boardUp = false
     /// When the ball finished changing hands, so the catch plays in view.
     var settledAt: Date?
     /// Who is drawn holding it, which lags the rules across a pass — see
@@ -1036,6 +1039,11 @@ struct CourtView: View {
     /// hold the receiver was dropping back into the pose that asks for a throw-in, with
     /// the ball in his hands.
     private func waitingForThrow(_ seat: Seat) -> Bool {
+        // **A board is watched, not run.** The ball is off the rim and loose and nobody
+        // has it, so a man drawn on his run sheet is a man dribbling one that does not
+        // exist. He stands and watches it until somebody comes down with it — the
+        // moment of the catch is the leap, which draws its own sheet over this.
+        if boardUp, rebound == nil { return true }
         // **A call is not an inbound.** It stills the floor too, and the men stood in the
         // receiving pose through it; they stand as they do for a rebound instead.
         guard isStill, callingRef == nil else { return false }

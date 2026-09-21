@@ -3105,6 +3105,14 @@ final class GameController {
         introducing = nil
     }
 
+    /// **A board in the air and nobody down with it yet.** The floor holds its men still
+    /// through this — see `CourtView.waitingForThrow`.
+    var isBoardUp: Bool {
+        if case .awaitingRebound = shown.phase { return true }
+        if case .awaitingBid = gate { return true }
+        return false
+    }
+
     /// The crew as the rules have it, on the floor.
     private func releaseCrew() {
         shown.armedWhistles = state.armedWhistles

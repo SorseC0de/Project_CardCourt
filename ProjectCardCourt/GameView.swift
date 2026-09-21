@@ -1148,6 +1148,7 @@ struct GameView: View {
                   gate: controller.gate,
                   revealedBids: controller.revealedBids,
                   rebound: controller.reboundLeap,
+                  boardUp: controller.isBoardUp,
                   settledAt: controller.ballSettledAt,
                   shownBall: controller.shownBall,
                   inbounding: controller.inbounding,

@@ -4156,6 +4156,22 @@ enum Rules {
         // up by this possession's own card is the one that stands.
         state.holderShot = 0
 
+        // **The question first, before the pile.** A man who steps out of the play is not
+        // there for the defenders either — and he is not there for the draw. Asked after
+        // it, Clear Out paid a card for a turn its owner then declined to take.
+        //
+        // What that costs: a card drawn this possession can no longer be the answer to a
+        // Clamp still in the air, which is what "drawing the out" was.
+        let offers = offering ? countersOnOffer(to: seat, in: state) : []
+        if !offers.isEmpty {
+            state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
+                                                            fromRebound: fromRebound,
+                                                            fromOwnMiss: fromOwnMiss,
+                                                            drew: alreadyDrew)
+            state.phase = .awaitingCounter(seat: seat, cards: offers)
+            return
+        }
+
         // **Draw, then the defenders.**
         //
         // The card comes off the pile before anything is allowed to act on it — a Clamp
@@ -4188,19 +4204,6 @@ enum Rules {
             refills(for: seat, state: &state, events: &events)
         }
 
-        // **And now the question, with the pile still in the air.** A man who steps out
-        // of the play is not there for the defenders either, and they land immediately
-        // below — so this is the last moment it can be asked. The whole opening is held
-        // and run again on the answer, which is what `drew` is for.
-        let offers = offering ? countersOnOffer(to: seat, in: state) : []
-        if !offers.isEmpty {
-            state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
-                                                            fromRebound: fromRebound,
-                                                            fromOwnMiss: fromOwnMiss,
-                                                            drew: true)
-            state.phase = .awaitingCounter(seat: seat, cards: offers)
-            return
-        }
 
         // **A defender is an assignment, and it lasts until it is beaten.** He bites on his
         // man's possession and he is still there on the next one: what sends him off is the
