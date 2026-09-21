@@ -16,18 +16,20 @@ final class MoveHUDTuning {
     /// the ball instead of round it.
     var scale: CGFloat = 1.5
     var x: CGFloat = 15
-    var y: CGFloat = -20
+    var y: CGFloat = -38
     /// **How far apart the pieces stand**, in points, each pushed outward from the arc's
     /// own centre along the line it already sits on — so the bars open out round the ball
     /// rather than sliding sideways past each other.
     var separation: CGFloat = 0
 
-    /// **The shoe walking the bars.** Where it stands with no Moves made, halfway, and
-    /// with the bar spent — offsets in points from its place on the drawing, and a turn
-    /// in degrees about its own middle. Between the three it slides as each Move is made.
-    var shoeBegin = ShoeStop()
-    var shoeMiddle = ShoeStop()
-    var shoeEnd = ShoeStop()
+    /// **The shoe walking the bars.** Its three places — see `MoveHUDView.place` for which
+    /// Moves put it where — as offsets in points from its place on the drawing, and a
+    /// turn in degrees about its own middle. It springs from one to the next.
+    var shoeBegin = ShoeStop(x: -237, y: -26, rotation: -90)
+    /// **Centred on the drawing**, whatever the phone: its `x` is a nudge from the middle
+    /// rather than from where the shoe is drawn — see `MoveHUDView.shoeOffset`.
+    var shoeMiddle = ShoeStop(x: 0, y: -100, rotation: 0)
+    var shoeEnd = ShoeStop(x: -20, y: -35, rotation: 45)
     /// **For tuning**: shows the meter at this many Moves whatever the game says, so each
     /// stop can be set without playing to it. Nil is the game's own count.
     var previewMoves: Int?
@@ -38,13 +40,6 @@ struct ShoeStop: Equatable {
     var x: CGFloat = 0
     var y: CGFloat = 0
     var rotation: Double = 0
-
-    /// Partway from this stop to another.
-    func toward(_ other: ShoeStop, _ through: Double) -> ShoeStop {
-        let t = CGFloat(min(1, max(0, through)))
-        return ShoeStop(x: x + (other.x - x) * t, y: y + (other.y - y) * t,
-                        rotation: rotation + (other.rotation - rotation) * Double(t))
-    }
 }
 
 /// **The Moves left in a possession**, drawn rather than struck.
@@ -118,19 +113,40 @@ struct MoveHUDView: View {
         .animation(.easeOut(duration: 0.25), value: shown)
     }
 
-    /// **Where the shoe is along the bars**: at the first stop with nothing made, at the
-    /// last with the bar spent, through the middle one on the way.
+    /// **Three places, not a slide.** It stands at the first until the bar is nearly spent,
+    /// moves to the middle on the second-to-last Move and to the end on the last — so with
+    /// three to a possession, none made and one made look the same, and it only starts
+    /// walking once a possession is getting somewhere.
+    private enum Place { case begin, middle, end }
+
+    private var place: Place {
+        let made = min(shown, limit)
+        if made >= limit { return .end }
+        if made == limit - 1 { return .middle }
+        return .begin
+    }
+
+    /// Where the shoe stands, and how it is turned, at this count.
     private var stop: ShoeStop {
-        let through = limit > 0 ? Double(min(shown, limit)) / Double(limit) : 0
-        return through <= 0.5
-            ? tuning.shoeBegin.toward(tuning.shoeMiddle, through / 0.5)
-            : tuning.shoeMiddle.toward(tuning.shoeEnd, (through - 0.5) / 0.5)
+        switch place {
+        case .begin:  return tuning.shoeBegin
+        case .middle: return tuning.shoeMiddle
+        case .end:    return tuning.shoeEnd
+        }
+    }
+
+    /// **The offset it is drawn at.** The middle stop is measured from the centre of the
+    /// drawing — that is what "centred" means, and it moves with the ball's width — and
+    /// the other two from where the shoe is drawn.
+    private var shoeOffset: CGSize {
+        let centring = place == .middle ? (0.5 - Art.shoeCentre.x) * width : 0
+        return CGSize(width: centring + stop.x, height: stop.y)
     }
 
     private var shoe: some View {
         piece("Move_Shoe")
             .rotationEffect(.degrees(stop.rotation), anchor: Art.shoeCentre)
-            .offset(x: stop.x, y: stop.y)
+            .offset(shoeOffset)
             // **A step, not a jump**: it slides to the next stop as the Move lands.
             .animation(.spring(response: 0.4, dampingFraction: 0.7), value: shown)
     }

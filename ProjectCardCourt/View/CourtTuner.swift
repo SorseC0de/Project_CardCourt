@@ -534,7 +534,8 @@ struct DebugActionsView: View {
         var label: String {
             switch self {
             case .beginX: "begin x"; case .beginY: "begin y"; case .beginTurn: "begin rot"
-            case .middleX: "mid x"; case .middleY: "mid y"; case .middleTurn: "mid rot"
+            // Measured from the centre of the drawing, not from where the shoe stands.
+            case .middleX: "mid x (from centre)"; case .middleY: "mid y"; case .middleTurn: "mid rot"
             case .endX: "end x"; case .endY: "end y"; case .endTurn: "end rot"
             }
         }
