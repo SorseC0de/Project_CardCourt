@@ -864,6 +864,30 @@ final class GameController {
         record(events)
     }
 
+    /// **A game picked up where it was left.** Nothing is dealt and nothing is introduced:
+    /// the hands, the crew and the clock are what they were, and the loop simply carries
+    /// on from the question that was being asked when the app went away. See `SavedGame`.
+    init(resuming saved: GameState) {
+        let seed = UInt64.random(in: 1...9_999_999)
+        self.seed = seed
+        self.mode = saved.rules
+        self.ai = AITable(seed: seed)
+        self.state = saved
+        shown = saved
+        self.openingDraws = []
+        resumed = true
+    }
+
+    /// Set on a game that was picked up rather than dealt — `begin` skips the opening.
+    private var resumed = false
+
+    /// **Written down after every batch**, so an app killed mid-game loses at most the
+    /// play that was on screen. A match is never kept — see `SavedGame`.
+    private func keepTheGame() {
+        guard !isGuest, match?.isActive != true, !isLesson else { return }
+        SavedGame.save(state)
+    }
+
     // MARK: - Lessons
 
     /// **A How To Play table**: no deal, no opponents taking turns. The lesson stages each
@@ -1592,6 +1616,13 @@ final class GameController {
         hasBegun = true
         // A lesson deals nothing and runs no loop of its own: it stages its hands.
         if isLesson { return }
+        // **Picked up, not dealt.** The opening — the deal, the official coming out, the
+        // quarter being called — has already happened in the game being resumed.
+        if resumed {
+            watchTheLoop()
+            drive { await run() }
+            return
+        }
         // Rolled here rather than in `init`. SwiftUI re-creates a View struct on every
         // state change, so `@State private var controller = GameController()` runs that
         // initialiser every time and throws all but the first result away — but any side
@@ -3775,6 +3806,7 @@ final class GameController {
 
     /// The lagging readouts, put where the board actually is once everything has played.
     private func settleBoard() {
+        keepTheGame()
         // Anything still owed here was never turned over — a slot missing from the board
         // for the rest of the game if it stayed.
         unrevealed.removeAll()

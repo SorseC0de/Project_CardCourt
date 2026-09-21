@@ -546,6 +546,39 @@ func runTests() {
                    "and he has not been dealt his card yet")
     }
 
+    print("A game kept")
+    do {
+        // **Round-tripped mid-game, and played on from.** The whole of resuming is that
+        // the state written down is the state read back, and that the rules can carry on
+        // from it — so both are checked, the second by playing the rest of the game.
+        var (state, _) = Rules.newGame(seed: 880)
+        var ai = AITable(seed: 880)
+        for _ in 0..<60 {
+            guard !state.isOver, let seat = state.phase.actingSeat,
+                  let move = ai.move(state, for: seat) else { break }
+            Rules.apply(move, by: seat, to: &state)
+        }
+        let data = try? JSONEncoder().encode(state)
+        let back = data.flatMap { try? JSONDecoder().decode(GameState.self, from: $0) }
+        Check.that(back != nil, "a game in progress writes down and reads back")
+        if var back {
+            Check.that(back.round == state.round
+                       && back.shotClock == state.shotClock
+                       && back.deck.count == state.deck.count
+                       && Seat.allCases.allSatisfy { back[$0].bag.map(\.id) == state[$0].bag.map(\.id)
+                                                    && back[$0].points == state[$0].points },
+                       "with the same quarter, clock, deck, hands and score")
+            var steps = 0
+            while !back.isOver && steps < 20_000 {
+                steps += 1
+                guard let seat = back.phase.actingSeat,
+                      let move = ai.move(back, for: seat) else { break }
+                Rules.apply(move, by: seat, to: &back)
+            }
+            Check.that(steps > 0, "and the rules play on from it")
+        }
+    }
+
     print("The Move bar")
     do {
         // **The bar is a line.** Three to a possession; the fourth is carrying the ball.

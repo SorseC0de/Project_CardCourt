@@ -22,6 +22,10 @@ struct RootView: View {
     }
 
     @State private var screen: Screen = .front
+    /// **A game left behind when the app went away**, offered back on the way in — see
+    /// `SavedGame`. Read once, at launch: a save made during this run is a game still
+    /// being played, not one to be offered.
+    @State private var leftBehind: GameState? = SavedGame.load()
 
     /// **The game, and nothing until there is one to play.** make it 1.5 
     ///
@@ -40,7 +44,18 @@ struct RootView: View {
     /// Deals a game and shows it. The only place one begins.
     private func deal() {
         game?.quit()
+        // A new game is the old one given up on.
+        SavedGame.clear()
+        leftBehind = nil
         game = GameController()
+        screen = .game
+    }
+
+    /// Picks the game back up where it was left.
+    private func resume(_ saved: GameState) {
+        game?.quit()
+        leftBehind = nil
+        game = GameController(resuming: saved)
         screen = .game
     }
 
@@ -74,6 +89,8 @@ struct RootView: View {
     private func quit() {
         game?.quit()
         game = nil
+        // **Quitting is giving it up.** Only the app being killed keeps a game.
+        SavedGame.clear()
         session?.leave()
         session = nil
         Table.shared.seatSolo()
@@ -118,6 +135,18 @@ struct RootView: View {
 #endif
                     })
                     .transition(.opacity)
+                    // **The game you left, offered back.** Resume it where it was, or
+                    // give it up and stay on the title.
+                    .overlay {
+                        if let saved = leftBehind {
+                            ResumePrompt(saved: saved,
+                                         onResume: { resume(saved) },
+                                         onQuit: {
+                                             SavedGame.clear()
+                                             leftBehind = nil
+                                         })
+                        }
+                    }
             case .lobby:
                 // A screen of its own rather than a sheet over the court. Over the court
                 // it was sitting on a game that had already been dealt, and closing it
