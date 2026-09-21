@@ -504,9 +504,10 @@ func slotTestsTwo() {
         Rules.apply(.play(cards[1].id), by: seat, to: &state)
         Check.that(state.phase == .awaitingRebound(shooter: seat), "and gone, they're rebounded for")
         Rules.resolveRebound(bids: [seat.left: [state[seat.left].bag[0].id]], state: &state)
-        Check.that(state[seat.left].intangibles.contains { $0.id == CardLibrary.hotHand.id }
+        // **Won into the hand**, not onto the board: when he plays it is his business.
+        Check.that(state[seat.left].bag.contains { $0.descriptor.id == CardLibrary.hotHand.id }
                    && state.phase == .possession(holder: seat),
-                   "one board at a time, and play picks up again")
+                   "one board at a time, won into the hand, and play picks up again")
     }
     do {
         var slipped = false

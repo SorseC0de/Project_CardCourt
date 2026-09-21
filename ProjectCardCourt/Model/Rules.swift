@@ -2596,10 +2596,18 @@ enum Rules {
         if !state.intangibleBoard.isEmpty {
             let prize = state.intangibleBoard.removeFirst()
             events.append(.intangibleWon(seat: winner, card: prize))
-            activate(Card(prize), for: winner, state: &state, events: &events)
+            // **Into his hand, not onto his board.** He has won a card; when and whether
+            // he plays it is his own turn's business, and putting it straight into a slot
+            // spent it for him — sometimes over something he would rather have kept.
+            give(Card(prize), to: winner, state: &state)
             if state.intangibleBoard.isEmpty {
                 state.phase = .possession(holder: state.ball ?? shooter)
                 settleHands(state: &state, events: &events)
+            } else {
+                // **And the next one goes up.** One at a time, same men, until the ball
+                // has given up everything it swallowed — the phase has to be set back or
+                // the board simply stops between them.
+                state.phase = .awaitingRebound(shooter: shooter)
             }
             return events
         }
