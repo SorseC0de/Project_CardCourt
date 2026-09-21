@@ -635,7 +635,9 @@ struct CourtView: View {
     /// a wind-up late, and the man the ball is *going* to is already its holder by then:
     /// that gap is a receiver dribbling a ball nobody has thrown yet.
     private func ballIsComing(to seat: Seat) -> Bool {
-        guard holder == seat else { return false }
+        // The man it is going to, who is not the man the floor is still drawing it with.
+        let landing = throwing?.to ?? receiver ?? state.ball
+        guard landing == seat else { return false }
         // **Has he caught *this* one?** The stamp is never cleared — it names the man and
         // the moment — so "he is named in it" is not the question: a second pass to the
         // same man read his last catch as this one and had him dribbling from the throw.
@@ -865,8 +867,12 @@ struct CourtView: View {
 
     /// Both ends of the throw, so the flight is drawn and timed off the same two points.
     private func flightPath(on court: CourtGeometry) -> (CGPoint, CGPoint)? {
-        guard let holder else { return nil }
-        let to = ballPoint(of: holder, on: court, catching: true)
+        // **Where it is going, not where it is.** `holder` lags behind through a pass on
+        // purpose — the court keeps the ball with the thrower until it lands — so asking
+        // it for the destination flew the ball from a man to his own hands and it never
+        // appeared to leave. The rules know where it is going the moment it is thrown.
+        guard let landing = receiver ?? state.ball else { return nil }
+        let to = ballPoint(of: landing, on: court, catching: true)
         let from = passer.map {
             ballPoint(of: $0, on: court, catching: false, throwing: true)
         } ?? to

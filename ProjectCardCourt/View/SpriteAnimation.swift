@@ -25,6 +25,11 @@ extension Sprite {
         // rides a pixel higher than the one still facing you.
         case .runLook, .runLook2, .wave:
             return .glancing(lift: -1)
+        // **The catch is side-on.** He wears the near eye only: the old table gave him a
+        // far one as well and painted it onto the back of a turned head, which is the
+        // smear the shot-clock scene was wearing. One eye can be placed; two could not.
+        case .catchBall:
+            return .profile
         // Turned away, or not a man at all.
         default:
             return nil
