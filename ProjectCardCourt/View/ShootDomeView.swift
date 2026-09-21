@@ -218,6 +218,18 @@ struct ShootDomeView: View {
     private var ball: some View {
         let art = BallInPlay.vector(for: ballInPlay)
         return ZStack(alignment: .top) {
+            // **The Moves left, drawn — under the ball.** First in the stack, so the ball
+            // and its reading are drawn over it; the bars wrap the ball's edge and the
+            // part of the drawing that meets it goes behind. Off while the arc is open,
+            // since the arcs are the buttons then. From the ball's own top edge, at its
+            // width: the bars are an arc drawn to wrap it.
+            if hudTuning.drawn, !showing {
+                MoveHUDView(moves: moves, limit: moveLimit,
+                            width: width * hudTuning.scale,
+                            separation: hudTuning.separation)
+                    .offset(x: hudTuning.x, y: hudTuning.y)
+                    .allowsHitTesting(false)
+            }
             Image(art)
                 .resizable()
                 .scaledToFit()
@@ -240,17 +252,6 @@ struct ShootDomeView: View {
             }
             .offset(y: width * Dome.reading)
 
-            // **The Moves left, drawn.** Over the ball's own top, under the reading it
-            // stands beside — off while the arc is open, since the arcs are the buttons
-            // then and the meter is not the question.
-            if hudTuning.drawn, !showing {
-                // **From the ball's own top edge**, at its width: the bars are an arc drawn
-                // to wrap it. Pinned at the reading's height it sat down inside the ball.
-                MoveHUDView(moves: moves, limit: moveLimit,
-                            width: width * hudTuning.scale)
-                    .offset(x: hudTuning.x, y: hudTuning.y)
-                    .allowsHitTesting(false)
-            }
         }
         .frame(width: width, height: width)
         // Only the part of it that is on screen answers a press.

@@ -15,8 +15,12 @@ final class MoveHUDTuning {
     /// width**: the bars are drawn as an arc to wrap it, so anything narrower sat inside
     /// the ball instead of round it.
     var scale: CGFloat = 1.0
-    var x: CGFloat = 0
+    var x: CGFloat = 15
     var y: CGFloat = -20
+    /// **How far apart the pieces stand**, in points, each pushed outward from the arc's
+    /// own centre along the line it already sits on — so the bars open out round the ball
+    /// rather than sliding sideways past each other.
+    var separation: CGFloat = 0
 }
 
 /// **The Moves left in a possession**, drawn rather than struck.
@@ -33,11 +37,23 @@ struct MoveHUDView: View {
     var moves: Int = 0
     var limit: Int = 3
     var width: CGFloat = 120
+    /// See `MoveHUDTuning.separation`.
+    var separation: CGFloat = 0
 
     /// The drawing's own proportions.
     private enum Art {
         static let aspect: CGFloat = 1104.0 / 512.0
         static let bars = ["Move_Bar1", "Move_Bar2", "Move_Bar3"]
+        /// **Which way each piece leaves the middle**, measured off the drawing: the three
+        /// bars arc left, over the top and right round a centre near the bottom of the
+        /// canvas, and the shoe sits out to the right. A unit direction apiece, from that
+        /// centre to the piece's own.
+        static let outward: [String: CGVector] = [
+            "Move_Bar1": CGVector(dx: -0.863, dy: -0.505),
+            "Move_Bar2": CGVector(dx: 0, dy: -1),
+            "Move_Bar3": CGVector(dx: 0.863, dy: -0.505),
+            "Move_Shoe": CGVector(dx: 0.984, dy: -0.177),
+        ]
         /// What every bar is printed in, lightest first. The drawing's fills are snapped
         /// to these exactly — Affinity rounds, and the swap matches on the value.
         static let printed = [CardPalette.lightBlue, CardPalette.teal, CardPalette.cobalt]
@@ -71,9 +87,11 @@ struct MoveHUDView: View {
     }
 
     private func piece(_ name: String) -> some View {
-        Image(name)
+        let away = Art.outward[name] ?? CGVector(dx: 0, dy: 0)
+        return Image(name)
             .resizable()
             .scaledToFit()
+            .offset(x: away.dx * separation, y: away.dy * separation)
     }
 
     private func swaps(for index: Int) -> [PaletteSwap] {

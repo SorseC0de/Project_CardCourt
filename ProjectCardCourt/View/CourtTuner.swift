@@ -424,6 +424,9 @@ struct DebugActionsView: View {
                                               set: { moveHUD.x = CGFloat($0) }), -80...80)
                     slider("moves y", Binding(get: { Double(moveHUD.y) },
                                               set: { moveHUD.y = CGFloat($0) }), -90...90)
+                    slider("moves apart", Binding(get: { Double(moveHUD.separation) },
+                                                  set: { moveHUD.separation = CGFloat($0) }),
+                           -20...40)
                 }
                 .frame(width: 150)
             }
