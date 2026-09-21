@@ -575,6 +575,14 @@ final class GameController {
     /// number moves as it lands.
     private(set) var overflowFlight: OverflowFlight?
 
+    /// **The sequence before a shot**, while it plays — see `PreShotSequenceView`.
+    private(set) var preShot: PreShot?
+
+    struct PreShot: Equatable, Identifiable {
+        let id = UUID()
+        let breakdown: ShotResolution
+    }
+
     struct OverflowFlight: Equatable, Identifiable {
         let id = UUID()
         let card: CardDescriptor
@@ -3567,7 +3575,15 @@ final class GameController {
                 boundSeats.insert(seat)
             case .clampBit:
                 await showClampBite(in: [event])
-            case .shotAttempted:
+            case .shotAttempted(_, _, let breakdown):
+                // **How it got to its number, first.** Every shot that is not a free throw
+                // — and free throws never reach here — stops to show the raw reading, the
+                // cards that lift it and the ones that drag it down, and where it settles.
+                // See `PreShotSequenceView`.
+                preShot = PreShot(breakdown: breakdown)
+                try? await Task.sleep(for: .seconds(PreShotSequenceView.duration(for: breakdown)))
+                preShot = nil
+                if Task.isCancelled { return }
                 // The attempt and how it went are one scene.
                 var end = index + 1
                 while end < events.endIndex, events[end].tellsHowTheShotWent { end += 1 }
