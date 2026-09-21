@@ -21,6 +21,30 @@ final class MoveHUDTuning {
     /// own centre along the line it already sits on — so the bars open out round the ball
     /// rather than sliding sideways past each other.
     var separation: CGFloat = 0
+
+    /// **The shoe walking the bars.** Where it stands with no Moves made, halfway, and
+    /// with the bar spent — offsets in points from its place on the drawing, and a turn
+    /// in degrees about its own middle. Between the three it slides as each Move is made.
+    var shoeBegin = ShoeStop()
+    var shoeMiddle = ShoeStop()
+    var shoeEnd = ShoeStop()
+    /// **For tuning**: shows the meter at this many Moves whatever the game says, so each
+    /// stop can be set without playing to it. Nil is the game's own count.
+    var previewMoves: Int?
+}
+
+/// One place the shoe can stand — see `MoveHUDTuning.shoeBegin`.
+struct ShoeStop: Equatable {
+    var x: CGFloat = 0
+    var y: CGFloat = 0
+    var rotation: Double = 0
+
+    /// Partway from this stop to another.
+    func toward(_ other: ShoeStop, _ through: Double) -> ShoeStop {
+        let t = CGFloat(min(1, max(0, through)))
+        return ShoeStop(x: x + (other.x - x) * t, y: y + (other.y - y) * t,
+                        rotation: rotation + (other.rotation - rotation) * Double(t))
+    }
 }
 
 /// **The Moves left in a possession**, drawn rather than struck.
@@ -40,6 +64,11 @@ struct MoveHUDView: View {
     /// See `MoveHUDTuning.separation`.
     var separation: CGFloat = 0
 
+    @State private var tuning = MoveHUDTuning.shared
+
+    /// The Moves the drawing shows — the game's, unless the bench is previewing a count.
+    private var shown: Int { tuning.previewMoves ?? moves }
+
     /// The drawing's own proportions.
     private enum Art {
         static let aspect: CGFloat = 1104.0 / 512.0
@@ -54,6 +83,9 @@ struct MoveHUDView: View {
             "Move_Bar3": CGVector(dx: 0.863, dy: -0.505),
             "Move_Shoe": CGVector(dx: 0.984, dy: -0.177),
         ]
+        /// The shoe turns about its own middle — here on the canvas, measured off the
+        /// drawing — rather than about the middle of the whole picture.
+        static let shoeCentre = UnitPoint(x: 0.872, y: 0.756)
         /// What every bar is printed in, lightest first. The drawing's fills are snapped
         /// to these exactly — Affinity rounds, and the swap matches on the value.
         static let printed = [CardPalette.lightBlue, CardPalette.teal, CardPalette.cobalt]
@@ -63,7 +95,7 @@ struct MoveHUDView: View {
     /// same ramp the plate used to run, one step per bar, so a possession running out
     /// reads off the colour before the count.
     private func worn(_ index: Int) -> [Color]? {
-        guard index < moves else { return nil }
+        guard index < shown else { return nil }
         switch index {
         case 0:  return [CardPalette.gold, CardPalette.tangerine, CardPalette.brown]
         case 1:  return [CardPalette.orange, CardPalette.red, CardPalette.darkRed]
@@ -80,10 +112,27 @@ struct MoveHUDView: View {
                     // one away, and the drawing should say so rather than sit there lit.
                     .opacity(index < limit ? 1 : Mark.beyond)
             }
-            piece("Move_Shoe")
+            shoe
         }
         .frame(width: width, height: width / Art.aspect)
-        .animation(.easeOut(duration: 0.25), value: moves)
+        .animation(.easeOut(duration: 0.25), value: shown)
+    }
+
+    /// **Where the shoe is along the bars**: at the first stop with nothing made, at the
+    /// last with the bar spent, through the middle one on the way.
+    private var stop: ShoeStop {
+        let through = limit > 0 ? Double(min(shown, limit)) / Double(limit) : 0
+        return through <= 0.5
+            ? tuning.shoeBegin.toward(tuning.shoeMiddle, through / 0.5)
+            : tuning.shoeMiddle.toward(tuning.shoeEnd, (through - 0.5) / 0.5)
+    }
+
+    private var shoe: some View {
+        piece("Move_Shoe")
+            .rotationEffect(.degrees(stop.rotation), anchor: Art.shoeCentre)
+            .offset(x: stop.x, y: stop.y)
+            // **A step, not a jump**: it slides to the next stop as the Move lands.
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: shown)
     }
 
     private func piece(_ name: String) -> some View {
