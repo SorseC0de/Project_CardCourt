@@ -14,7 +14,7 @@ final class MoveHUDTuning {
     /// How wide the drawing stands, against the ball it sits over. **The ball's own
     /// width**: the bars are drawn as an arc to wrap it, so anything narrower sat inside
     /// the ball instead of round it.
-    var scale: CGFloat = 1.0
+    var scale: CGFloat = 1.5
     var x: CGFloat = 15
     var y: CGFloat = -20
     /// **How far apart the pieces stand**, in points, each pushed outward from the arc's

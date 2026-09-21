@@ -542,7 +542,9 @@ struct DebugActionsView: View {
         var range: ClosedRange<Double> {
             switch self {
             case .beginTurn, .middleTurn, .endTurn: -180...180
-            default: -160...160
+            // Wide, because the drawing is: at one and a half times the ball, a walk
+            // along the bars covers most of the screen's width.
+            default: -500...500
             }
         }
     }
