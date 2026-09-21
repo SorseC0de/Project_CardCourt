@@ -74,6 +74,8 @@ enum Pacing {
     /// **How long a referee stands holding it before he throws.** Long enough to read as
     /// him being the one putting it in — the new thing, and the thing to notice.
     static let refereeHold = 1.0
+    /// A card there was no room for, crossing from the deck into the SHOT plate.
+    static let overflowFlight = 0.45
     /// How long an opponent's challenge stands on screen: long enough to read the card,
     /// see the lantern come on and know who did it.
     static let challengeWatched = 2.2
@@ -567,6 +569,16 @@ final class GameController {
     private(set) var shown: GameState
 
     private(set) var shownShot = 0
+    /// **A card there was no room for, on its way into the SHOT.** A full hand turns a
+    /// draw into SHOT; the card used to vanish and the number jumped at the next settle,
+    /// so a raise nobody saw arrive. It flies from the deck into the plate, and the
+    /// number moves as it lands.
+    private(set) var overflowFlight: OverflowFlight?
+
+    struct OverflowFlight: Equatable, Identifiable {
+        let id = UUID()
+        let card: CardDescriptor
+    }
     /// S.O.S: a three picked up on Sell-Out Stadium, waiting on whether it goes up as a two.
     private(set) var sellOutChoice: Card?
     /// What the pile is showing. A card leaves the deck when it lands in a hand, not when
@@ -3607,6 +3619,12 @@ final class GameController {
                 await playCall(WhistleReveal(caller: caller, owner: nil, card: official,
                                              cancelled: clamp.name, cancelledCard: clamp,
                                              isNew: SeenCards.shared.meet(official.id)))
+            case .drawConverted(let seat, let card, let shot) where seat.isLocal:
+                overflowFlight = OverflowFlight(card: card)
+                try? await Task.sleep(for: .seconds(Pacing.overflowFlight))
+                overflowFlight = nil
+                // The plate takes it as the card lands — see `ShootDomeView`'s swell.
+                shownShot += shot
             case .coinRun(let seat, let card, let heads):
                 // Thrown where it can be seen. It decided something, and it was over
                 // inside a frame — see `CoinFlipView`.

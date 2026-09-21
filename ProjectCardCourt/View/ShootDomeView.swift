@@ -99,6 +99,9 @@ struct ShootDomeView: View {
     /// side rather than swapped out: the arcs are also the three shot buttons, so nothing
     /// about them is thrown away by preferring the drawing.
     @State private var hudTuning = MoveHUDTuning.shared
+    /// **The plate taking a raise.** A brief swell as SHOT goes up, so a number moving is
+    /// something seen rather than something noticed afterwards.
+    @State private var swelling = false
     /// Whether the finishes are showing. The screen owns it: a press anywhere else puts
     /// them away — see `GameView`.
     @Binding var open: Bool
@@ -114,6 +117,13 @@ struct ShootDomeView: View {
     @State private var tuning = MoveArcTuning.shared
     /// Green on the way up, red on the way down, for a beat.
     @State private var flash: Color?
+
+    /// How far the plate swells on a raise, and how long each way takes.
+    private enum Swell {
+        static let size: CGFloat = 1.08
+        static let up: Double = 0.16
+        static let down: Double = 0.3
+    }
 
     private enum Dome {
         /// **How much of the ball is above the screen's edge**, at rest and with its
@@ -185,6 +195,17 @@ struct ShootDomeView: View {
                 Color.clear.preference(key: BallCentre.self,
                                        value: CGPoint(x: screen.minX + centre.x,
                                                       y: screen.minY + centre.y))
+            }
+        }
+        .scaleEffect(swelling ? Swell.size : 1, anchor: .bottom)
+        .onChange(of: shot) { was, now in
+            guard now > was else { return }
+            withAnimation(.spring(response: Swell.up, dampingFraction: 0.5)) { swelling = true }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(Swell.up))
+                withAnimation(.spring(response: Swell.down, dampingFraction: 0.7)) {
+                    swelling = false
+                }
             }
         }
         // Bouncy on purpose: the ball comes up to meet the press.

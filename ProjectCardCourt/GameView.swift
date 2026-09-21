@@ -551,6 +551,13 @@ struct GameView: View {
                         .id(inspecting.card.id)
                         .zIndex(9)
                 }
+                // A card there was no room for, going into the SHOT — see
+                // `OverflowFlightView`.
+                if let overflow = controller.overflowFlight, let deckAt, let ballCentre {
+                    OverflowFlightView(card: overflow.card, from: deckAt, to: ballCentre)
+                        .id(overflow.id)
+                        .zIndex(8.4)
+                }
                 // **The man in charge, arriving.** Over the floor and under a card being
                 // read: it is the game introducing somebody, not something you opened.
                 if let intro = controller.refereeIntro, let card = controller.introducing {
