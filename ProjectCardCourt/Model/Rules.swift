@@ -3822,9 +3822,10 @@ enum Rules {
             events.append(.turnover(offender, cause: whistle.card.name))
             stoppage(state: &state, events: &events)
         }
-        // **A called violation puts fourteen on it**, and only from higher: a clock
-        // already under fourteen is not handed time back for being caught.
-        if let reset = effect.resetsClockTo, let now = state.shotClock, now > reset {
+        // **A called violation puts fourteen on it.** Whatever it read: with a fourteen-
+        // second quarter it could never be higher, so "only from above" was a clause that
+        // never fired.
+        if let reset = effect.resetsClockTo, state.shotClock != nil {
             state.shotClock = reset
             events.append(.shotClockTicked(reset))
         }

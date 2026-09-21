@@ -350,7 +350,7 @@ enum CardLibrary {
     static let shotClockViolation = CardDescriptor(
         id: "shot-clock-violation", name: "Shot Clock Violation", type: .whistle,
         effect: "#[Shot Clock] changes: #[TOV] +1. Side-out. "
-            + "#[Shot Clock] resets to 14 if it is higher.", numberInDeck: 1,
+            + "Resets the #[Shot Clock] to 14.", numberInDeck: 1,
         whistle: WhistleEffect(trigger: .shotClockChanged, turnoverOnOffender: true,
                                cancelsCard: false, offenderInbounds: true,
                                resetsClockTo: 14))
