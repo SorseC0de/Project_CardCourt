@@ -1231,9 +1231,12 @@ struct GameView: View {
             // **Which round it is, at a size that says so.** Eleven points of system
             // type in the corner was there all along and nobody could find it.
             VStack(alignment: .leading, spacing: 2) {
-                SmallCapsText(text: "Round \(controller.shown.round)"
-                              + "/\(controller.shown.rules.roundsPerGame)",
-                              font: Chrome.display, size: 19, tracking: 0.6)
+                // **"1st Quarter"**, with its letters raised — see `OrdinalText`.
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    OrdinalText(number: controller.shown.round, size: 19)
+                    SmallCapsText(text: "Quarter", font: Chrome.display, size: 19,
+                                  tracking: 0.6)
+                }
                 SmallCapsText(text: "Half \(controller.shown.half)",
                               font: Chrome.display, size: 15, tracking: 0.6)
             }

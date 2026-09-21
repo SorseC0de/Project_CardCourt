@@ -54,6 +54,10 @@ struct RoundCallView: View {
         /// one it replaced — the bar halved and the thing on screen grew. The icon is the
         /// tallest part of this now, which is what it was before.
         static let number: CGFloat = 0.30
+        /// The ordinal's letters against the figure, and how far below its top they
+        /// start — high and small, as print sets them.
+        static let ordinal: CGFloat = 0.36
+        static let ordinalLift: CGFloat = 0.12
         static let numberX: CGFloat = 0.36
         static let numberY: CGFloat = -0.02
         /// Its hard drop, drawn as a second copy behind it.
@@ -96,15 +100,23 @@ struct RoundCallView: View {
                 // figure rather than behind a pane. Its drop is drawn as a second copy,
                 // because a `shadow` under a masked view shadows the mask.
                 if !call.isHalftime {
-                    ZStack {
-                        ActionText("\(call.round)", size: across * Slab.number,
-                                   ink: CardPalette.navy, drop: .clear)
-                            .offset(x: across * Slab.numberDrop,
-                                    y: across * Slab.numberDrop)
-                        SpectrumFill(resting: CardPalette.gold) {
+                    // **"1st", as one word.** The figure large and lit, its letters raised
+                    // and small against it the way print sets them — see `Ordinal`.
+                    HStack(alignment: .top, spacing: 0) {
+                        ZStack {
                             ActionText("\(call.round)", size: across * Slab.number,
-                                       ink: .white, drop: .clear)
+                                       ink: CardPalette.navy, drop: .clear)
+                                .offset(x: across * Slab.numberDrop,
+                                        y: across * Slab.numberDrop)
+                            SpectrumFill(resting: CardPalette.gold) {
+                                ActionText("\(call.round)", size: across * Slab.number,
+                                           ink: .white, drop: .clear)
+                            }
                         }
+                        ActionText(Ordinal.suffix(call.round),
+                                   size: across * Slab.number * Slab.ordinal,
+                                   ink: .white, drop: CardPalette.navy)
+                            .offset(y: across * Slab.number * Slab.ordinalLift)
                     }
                     .offset(x: across * Slab.numberX, y: across * Slab.numberY)
 
@@ -147,7 +159,7 @@ struct RoundCall: Equatable, Identifiable {
     var id: String { isHalftime ? "half" : "round-\(round)" }
     /// **The word only.** The number is its own lettering on the slab, drawn large and
     /// behind it — see `RoundCallView.Slab.number`.
-    var word: String { isHalftime ? "Halftime" : "Round" }
+    var word: String { isHalftime ? "Halftime" : "Quarter" }
 }
 
 #if DEBUG

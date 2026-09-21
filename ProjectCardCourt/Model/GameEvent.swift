@@ -154,7 +154,7 @@ enum GameEvent: Hashable, Codable {
         case .gameBegan(let seat):
             return "Tip-off. \(seat.playerName) \(seat.verb("inbounds", "inbound")) first."
         case .roundBegan(let round, let inbounder):
-            return "— Round \(round) — \(inbounder.playerName) to inbound."
+            return "— \(Ordinal.plain(round)) Quarter — \(inbounder.playerName) to inbound."
         case .inbounded(let from, let to):
             return "\(from.playerName) \(from.verb("inbounds", "inbound")) to \(to.playerName)."
         case .drew(let seat, let card, _, _):
