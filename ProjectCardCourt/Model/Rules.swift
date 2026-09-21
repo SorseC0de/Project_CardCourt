@@ -3797,6 +3797,17 @@ enum Rules {
             stripIntangibles(from: offender, state: &state, events: &events)
         }
         for _ in 0..<effect.offenderDiscards { discardAtRandom(from: offender, state: &state) }
+        // **The man the Clamp was put on goes to the line.** Only a call that lets the Clamp
+        // stand reaches here — Flagrant II — since one that voids it pays its victim where
+        // the void is resolved instead. It was read there and nowhere else, so a Flagrant
+        // II took the clamper's cards and never sent anybody to the line. The target, not
+        // whoever holds the ball: the clamper is the one on his turn.
+        if effect.freeThrowsToClampVictim > 0, case .playCard(_, let card) = action,
+           card.descriptor.clamp != nil,
+           let victim = state.clampTarget ?? state.clampMagnet {
+            awardFreeThrows(effect.freeThrowsToClampVictim, to: victim, offender: nil,
+                            source: whistle.card.name, state: &state, events: &events)
+        }
         if effect.offenderDraws > 0 {
             drawTogether([offender], count: effect.offenderDraws, state: &state, events: &events)
         }

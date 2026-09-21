@@ -546,6 +546,22 @@ func runTests() {
                    "and he has not been dealt his card yet")
     }
 
+    print("Flagrant Foul II")
+    do {
+        // **The man it was put on goes to the line**, and the Clamp still stands.
+        var (state, seat, cards) = openPossession(seed: 910, cards: [CardLibrary.contest])
+        state.armedWhistles = [ArmedWhistle(owner: nil, card: matchCard(CardLibrary.flagrantFoulII,
+                                                                        state.rules))]
+        let target = seat.left
+        let events = playClamp(cards[0].id, by: seat, on: target, &state)
+        Check.that(events.contains { if case .whistleBlew = $0 { return true }; return false },
+                   "Flagrant Foul II calls a Clamp being played")
+        Check.that(events.contains { if case .freeThrowsAwarded(let who, let count, _) = $0 {
+                                         return who == target && count == 1 }
+                                     return false },
+                   "and sends the man it was put on to the line for one")
+    }
+
     print("The official's rotation")
     do {
         // **Clockwise, from the last man he threw it to** — skipping the man it went dead
