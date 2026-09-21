@@ -546,6 +546,25 @@ func runTests() {
                    "and he has not been dealt his card yet")
     }
 
+    print("The official's rotation")
+    do {
+        // **Clockwise, from the last man he threw it to** — skipping the man it went dead
+        // on. A travel is a dead ball, so it is a throw-in to check against.
+        var (state, seat, cards) = openPossession(seed: 900, cards: [CardLibrary.dribble])
+        // An official out, so the throw-in is his rather than the player's own.
+        state.armedWhistles = [ArmedWhistle(owner: nil, card: matchCard(CardLibrary.footOnTheLine,
+                                                                        state.rules))]
+        let before = state.inbounder
+        var expected = before.clockwise
+        while expected == seat { expected = expected.clockwise }
+        state.movesThisPossession = state.moveLimit(for: seat)
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        var to: Seat?
+        if case .refereeInbound(_, let who) = state.phase { to = who }
+        Check.that(to == expected, "the next throw-in goes to the next man clockwise")
+        Check.that(state.inbounder == expected, "and the rotation carries on from him")
+    }
+
     print("A game kept")
     do {
         // **Round-tripped mid-game, and played on from.** The whole of resuming is that

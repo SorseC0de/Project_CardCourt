@@ -4009,7 +4009,14 @@ enum Rules {
             state.inboundBarred = barring
             return
         }
-        let to = state.pick(from: Seat.allCases.filter { $0 != seat && $0 != barring })
+        // **Clockwise, from the last man he threw it to** — the same rotation the quarter
+        // opens on, carried on through every throw-in rather than rolled for each. It was
+        // a random pick among the eligible, so the ball came back to whoever the dice
+        // liked. Skips the man it went dead on and anybody barred; with four seats and at
+        // most two ruled out there is always somebody next.
+        var to = state.inbounder.clockwise
+        for _ in Seat.allCases where to == seat || to == barring { to = to.clockwise }
+        state.inbounder = to
         state.phase = .refereeInbound(official: official, to: to)
     }
 
