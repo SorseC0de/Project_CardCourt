@@ -67,6 +67,16 @@ struct ShotCutsceneView: View {
         static let shuffleSeconds: Double = 1.8
         static let shuffleStagger: Double = 0.35
 
+        /// Where this man is in his slide, in points either side of his post. Eased the
+        /// way the animation eased it, each on his own stagger.
+        static func sway(_ index: Int, at beat: TimeInterval) -> CGFloat {
+            let turn = max(0, beat - Double(index) * shuffleStagger)
+            let phase = (turn / shuffleSeconds).truncatingRemainder(dividingBy: 2)
+            let swing = phase <= 1 ? phase : 2 - phase
+            let eased = swing * swing * (3 - 2 * swing)
+            return shuffle * CGFloat(eased * 2 - 1)
+        }
+
         /// `x` in multiples of the spread, `back` in multiples of the lift.
         static func spots(for count: Int) -> [(x: CGFloat, back: CGFloat)] {
             switch count {
@@ -134,7 +144,8 @@ struct ShotCutsceneView: View {
     /// Nil until the run starts, which is the size he starts at — see `LayupTuning`.
     @State private var layupScale: CGFloat?
     /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
-    @State private var shuffling = false
+    /// When the wall came out, which its slide is measured from.
+    @State private var shuffleFrom = Date()
     /// Raised when the shot animation has run out, on the shots that turn him around.
     @State private var facingYou = false
     @State private var showBurst = false
@@ -331,7 +342,10 @@ struct ShotCutsceneView: View {
                     }
                     .position(x: stage.width / 2, y: stage.height * 0.42)
 
-                    // Whoever was contesting is still contesting.
+                    // Whoever was contesting is still contesting. One clock for the
+                    // whole wall — see `Wall.sway`.
+                    TimelineView(.animation) { tick in
+                    let beat = tick.date.timeIntervalSince(shuffleFrom)
                     ForEach(Array(Wall.spots(for: scene.defenders).enumerated()),
                             id: \.offset) { index, spot in
                         // Turned to face the shooter, so a pair of them close from both
@@ -344,12 +358,14 @@ struct ShotCutsceneView: View {
                                          anchor: .bottom)
                             // Sliding while the shot is up. Alternating directions and a
                             // stagger apiece, or the wall sways as one piece of scenery.
-                            .offset(x: (shuffling ? 1 : -1) * Wall.shuffle
+                            //
+                            // **Off the scene's clock**, not a repeating animation: this
+                            // is the most-shown scene in the game and a `repeatForever`
+                            // has no end — see `SpectrumFill`, where a scene shown over
+                            // and over was measured still running every previous
+                            // showing's animation under the next.
+                            .offset(x: Wall.sway(index, at: beat)
                                     * (index.isMultiple(of: 2) ? 1 : -1))
-                            .animation(.easeInOut(duration: Wall.shuffleSeconds)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * Wall.shuffleStagger),
-                                       value: shuffling)
                             .position(x: stage.width / 2 + Wall.spread * spot.x
                                          - (scene.isLayup ? LayupTuning.shared.wallAside : 0),
                                       y: stage.height - Wall.base - Wall.lift * spot.back
@@ -358,6 +374,7 @@ struct ShotCutsceneView: View {
                             // to be. Level with the ring: a contest happens at it. **The man
                             // standing back is drawn behind the others**, inside that band.
                             .zIndex(Depth.wall - Wall.backStep * Double(spot.back))
+                    }
                     }
 
                     VStack(spacing: Stage.chanceGap) {
@@ -538,7 +555,7 @@ struct ShotCutsceneView: View {
                 .scaleEffect(zoom, anchor: UnitPoint(x: tuning.rimX, y: tuning.rimY))
                 .onHoopStage()
             }
-            .task { shuffling = true }
+            .task { shuffleFrom = Date() }
             // **A Turnaround turns at the release**: its gooseneck *is* the follow-through,
             // held while the ball is up, off the same dial the ball leaves on. **A Lethal
             // Shooter plays the whole shot first** — turned at the release, the rest of his

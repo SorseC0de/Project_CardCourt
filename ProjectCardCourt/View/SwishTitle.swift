@@ -19,7 +19,8 @@ struct SwishTitle: View {
     var glow: Color = Theme.ball
 
     @State private var landed = false
-    @State private var pulsing = false
+    /// When it arrived, which is what the breath is measured from.
+    @State private var since = Date()
 
     /// The faces the two sizes resolve to, so the split can be placed against their
     /// capitals rather than against a frame that is mostly air.
@@ -88,21 +89,35 @@ struct SwishTitle: View {
     ///
     /// The share is of the cap band rather than of the frame; see `Chrome.splitInFrame`,
     /// which is why this looked like a single colour before.
+    /// How big it is breathing right now: nought to one and back, on its own length,
+    /// after the half-second it takes to land.
     private var word: some View {
+        TimelineView(.animation) { tick in
+            let beat = max(0, tick.date.timeIntervalSince(since) - Pulse.waits)
+            wordBody(swell: abs((beat / Pulse.seconds)
+                                .truncatingRemainder(dividingBy: 2) - 1))
+        }
+    }
+
+    private enum Pulse {
+        /// It lands first and breathes after.
+        static let waits: Double = 0.5
+        static let seconds: Double = 0.6
+        static let swell: CGFloat = 1.05
+    }
+
+    private func wordBody(swell: Double) -> some View {
         letterRow
         // Flattened before either shadow: on a stack SwiftUI casts one per letter, and a
         // hard offset copy of every glyph reads as a second, badly-set word.
         .compositingGroup()
         .shadow(color: glow.opacity(0.85), radius: 16)
         .shadow(color: CardPalette.blue, radius: 0, x: size * 0.09, y: size * 0.09)
-        .scaleEffect(pulsing ? 1.05 : 1)
-        .task {
-            landed = true
-            try? await Task.sleep(for: .seconds(0.5))
-            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                pulsing = true
-            }
-        }
+        // **Off a clock, not a repeating animation.** A `repeatForever` has no end, and a
+        // scene shown over and over leaves the last one still running under the next —
+        // see `SpectrumFill`, where that was measured.
+        .scaleEffect(1 + (Pulse.swell - 1) * CGFloat(swell))
+        .task { landed = true }
     }
 
     /// A shallow smile: the ends ride higher than the middle.
