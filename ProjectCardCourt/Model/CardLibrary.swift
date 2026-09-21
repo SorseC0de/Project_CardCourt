@@ -1490,6 +1490,17 @@ enum CardLibrary {
         id: "face-down", name: "", type: .gameBreak,
         effect: "", numberInDeck: 0)
 
+    /// **The Discard Phase, as the card that asks for it.**
+    ///
+    /// Not in any deck. A hand that went past its limit out of turn — a board lost, a
+    /// card dealt round the table — is brought back down at the top of its owner's
+    /// possession, before the draw; this is what asks. Asked as a give-up, so every path
+    /// that already answers one answers this too, and the banner has a card to show.
+    static let discardPhase = CardDescriptor(
+        id: "discard-phase", name: "Discard Phase", type: .gameBreak,
+        effect: "Your hand is over its limit. #[Retire] cards until it is not",
+        numberInDeck: 0)
+
     /// Every descriptor there is, by its id — **including `faceDown`**, which is not in
     /// `all` because it is not a card anybody plays.
     ///
@@ -1601,7 +1612,7 @@ enum CardLibrary {
         var found: [String: CardDescriptor] = [:]
         // The retired ones and the shelved Varenas are in here but in no pool: a saved
         // match still has to be able to decode a card the deck no longer builds.
-        for card in all + varenas + injuries + retiredWhistles + [faceDown] {
+        for card in all + varenas + injuries + retiredWhistles + [faceDown, discardPhase] {
             found[card.id] = card
         }
         return found

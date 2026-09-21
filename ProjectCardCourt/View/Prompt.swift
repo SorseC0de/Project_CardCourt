@@ -34,7 +34,10 @@ struct Prompt: Equatable {
             self.ask = Prompt.discardAsk(card, each: each, state: state, for: seat)
         case .awaitingGiveUp(let card, let count):
             self.card = card
-            self.ask = "\(card.name): give up \(count == 1 ? "a card" : "\(count) cards")"
+            // The Discard Phase is a give-up with a reason of its own: say the reason.
+            self.ask = card.id == CardLibrary.discardPhase.id
+                ? "Over the limit — retire \(count == 1 ? "a card" : "\(count) cards")"
+                : "\(card.name): give up \(count == 1 ? "a card" : "\(count) cards")"
         case .awaitingTarget(let card, _):
             self.card = card
             self.ask = "\(card.name): who?"

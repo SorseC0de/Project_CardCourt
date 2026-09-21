@@ -2484,6 +2484,16 @@ enum Rules {
         } else {
             events.append(.discarded(seat: seat, cards: spent.map(\.descriptor)))
         }
+        // **The Discard Phase, paid.** The possession it was holding opens now, from the
+        // top — down to the limit, so the check that asked will not ask again.
+        if asking.id == CardLibrary.discardPhase.id, let held = state.heldPossession {
+            state.heldPossession = nil
+            beginPossession(held.seat, tickClock: held.ticks, fromRebound: held.fromRebound,
+                            fromOwnMiss: held.fromOwnMiss, offering: true,
+                            alreadyDrew: held.drew, state: &state, events: &events)
+            settleHands(state: &state, events: &events)
+            return events
+        }
         // The holder's, which is not always the man who paid — Frostbite Finish and
         // Tri-hard Tiling ask whoever owes.
         state.phase = .possession(holder: state.ball ?? seat)
@@ -4132,6 +4142,22 @@ enum Rules {
                                         offering: Bool = true, alreadyDrew: Bool = false,
                                         state: inout GameState, events: inout [GameEvent]) {
         state.ball = seat
+
+        // **The Discard Phase.** A hand that went past its limit out of turn is brought back
+        // down before anything else this possession does — before the question, before
+        // the draw — so what he plays with is what the limit allows. Asked as a give-up by
+        // a card of its own, and the possession is held and run again on the answer.
+        let over = state[seat].bag.count - state.handLimit(for: seat)
+        if over > 0 {
+            state.heldPossession = GameState.HeldPossession(seat: seat, ticks: shouldTick,
+                                                            fromRebound: fromRebound,
+                                                            fromOwnMiss: fromOwnMiss,
+                                                            drew: alreadyDrew)
+            state.phase = .awaitingGiveUp(seat: seat, card: CardLibrary.discardPhase,
+                                          count: over)
+            return
+        }
+
         state.callsAnswered = []
         state.currentAim = nil
         state.aimedCard = nil
@@ -5339,6 +5365,11 @@ enum Rules {
     /// Only a card *given* can put a hand over: a draw into a full one never lands, it is
     /// paid as SHOT instead — see `draw`.
     private static func trim(_ seat: Seat, by cause: CardDescriptor, state: inout GameState) {
+        // **Out of turn it carries.** A card forced on a man who is not on the ball goes
+        // into his hand past the limit, and the Discard Phase brings him back down when his
+        // possession opens — see `beginPossession`. Taxed on the spot, he was paying for a
+        // board he had just lost with cards he had just been given.
+        guard state.ball == seat else { return }
         let over = state[seat].bag.count - state.handLimit(for: seat)
         guard over > 0 else { return }
         state.owe(.tax(seat: seat, count: over, card: cause))
@@ -5434,11 +5465,17 @@ enum Rules {
             // the last card is in a hand.
             state.owe(.revealBreak(PendingBreak(seat: seat, card: card, depth: depth,
                                                 waving: wavingBreaks)))
-        } else if state[seat].bag.count >= state.handLimit(for: seat) {
-            // **A full hand takes nothing more, and the card is not wasted.** Drawing is
-            // moving with the ball; a card there is no room for is the same movement
-            // without it, so it pays SHOT instead — see `MatchRules.overflowShot`. The
-            // card itself goes to the pile, which is where a spent card always goes.
+        } else if state[seat].bag.count >= state.handLimit(for: seat), state.ball == seat {
+            // **A full hand takes nothing more, and the card is not wasted** — on your
+            // own possession. Drawing is moving with the ball; a card there is no room for
+            // is the same movement without it, so it pays SHOT instead — see
+            // `MatchRules.overflowShot`. The card itself goes to the pile.
+            //
+            // **Only with the ball.** A draw somebody else forced on you — a board you
+            // lost, a card dealt round the table — used to pay the same SHOT, and SHOT is
+            // the ball's number: forcing draws on a man was a way of inflating the shot on
+            // your own turn. Out of turn the card goes in past the limit instead, and the
+            // Discard Phase brings the hand back down when his possession opens.
             state.discard.append(card)
             let paid = state.rules.overflowShot
             adjustShot(by: paid, state: &state)

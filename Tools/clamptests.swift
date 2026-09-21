@@ -382,14 +382,36 @@ func bagTests() {
         state[seat].bag = [cards[0]]
             + (1..<limit).map { _ in matchCard(CardLibrary.swingLeft, state.rules) }
         _ = cut(cards[0].id, by: seat, to: receiver, &state)
-        var asked = false
-        if case .awaitingGiveUp(let who, _, let count) = state.phase {
-            asked = who == seat && count == 1
-        }
-        Check.that(asked, "a card forced into a full Bag asks its owner what goes")
+        // **Out of turn it carries.** The ball has gone to the receiver, so the card forced
+        // on the passer goes in past the limit and nobody is asked anything yet.
+        var askedNow = false
+        if case .awaitingGiveUp(let who, _, _) = state.phase { askedNow = who == seat }
+        Check.that(!askedNow, "a card forced on a man off the ball is not taxed on the spot")
         Check.that(state[seat].bag.count == limit + 1,
-                   "and the Bag holds them all until it is answered")
-        _ = Rules.resolveGiveUp([state[seat].bag[0].id], state: &state)
-        Check.that(state[seat].bag.count == limit, "and comes back to the limit on the answer")
+                   "and carries past the limit")
+    }
+    do {
+        // **The Discard Phase.** Over the limit when the possession opens, he puts cards
+        // down before anything else — before the question, before the draw.
+        var (state, _) = Rules.newGame(seed: 332)
+        let inbounder = state.inbounder
+        let other = inbounder.clockwise
+        let limit = state.handLimit(for: other)
+        state[other].bag = (0..<(limit + 2)).map { _ in
+            matchCard(CardLibrary.swingLeft, state.rules)
+        }
+        let held = state[other].bag.count
+        // His possession opens on the throw-in.
+        Rules.apply(.inbound(to: other), by: inbounder, to: &state)
+        var asked: (card: CardDescriptor, count: Int)?
+        if case .awaitingGiveUp(let who, let card, let count) = state.phase, who == other {
+            asked = (card, count)
+        }
+        Check.that(asked?.card.id == CardLibrary.discardPhase.id && asked?.count == 2,
+                   "the Discard Phase asks him to come back to the limit")
+        Check.that(state[other].bag.count == held, "before he has drawn anything")
+        _ = Rules.resolveGiveUp(Array(state[other].bag.prefix(2)).map(\.id), state: &state)
+        Check.that(state[other].bag.count <= limit + 1,
+                   "and his possession opens on the answer, with its own card")
     }
 }
