@@ -218,28 +218,11 @@ struct ActionBarView: View {
         })
     }
 
+    /// **What the game is asking, in a line.** Read off the one description of the
+    /// question there is — the same one the banner over the floor reads, so the bar and
+    /// the banner cannot say different things. See `Prompt`.
     private var ask: String? {
-        switch controller.gate {
-        case .awaitingDiscard(let card, let each):
-            if state.fourPointOffer {
-                return "The Future: retire 1 to make \(card.name) worth 4, at SHOT \(each)%?"
-            }
-            let most = Rules.legalDiscardForShot(state, for: GameRules.localSeat).upperBound
-            if most == 1 { return "\(card.name): retire 1 for +\(each)%?" }
-            if let limit = card.special?.discardForShotLimit {
-                let beyond = card.special?.discardBeyondLimitBonus ?? 0
-                return Rules.discardsPastLimit(card, in: state)
-                    ? "\(card.name): +\(each)% each for \(limit), then +\(beyond)% each"
-                    : "\(card.name): retire up to \(limit), +\(each)% each"
-            }
-            return "\(card.name): feed it as many as you like, +\(each)% each"
-        case .awaitingGiveUp(let card, let count):
-            return "\(card.name): give up \(count)"
-        case .awaitingBid:
-            return "Crash the glass: bid what you dare"
-        default:
-            return nil
-        }
+        Prompt(gate: controller.gate, state: state, for: GameRules.localSeat).ask
     }
 
     /// Only lingering effects get announced. What a card does and how to play it is

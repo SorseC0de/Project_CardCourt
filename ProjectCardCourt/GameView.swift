@@ -411,6 +411,18 @@ struct GameView: View {
                         readingLog = false
                     }
                         .opacity(callFade)
+
+                    // **The question, wherever it comes from.** One banner for every
+                    // prompt in the game, reading the card and the words off the gate
+                    // alone — see `Prompt`, whose switch has no `default`, so a question
+                    // nobody described does not compile.
+                    PromptBanner(prompt: Prompt(gate: controller.gate,
+                                                state: controller.shown,
+                                                for: GameRules.localSeat),
+                                 onKeyword: explain)
+                        .animation(.easeOut(duration: 0.18), value: controller.gate)
+                        .zIndex(1)
+
                     // **Four blocks across the top, and a card's words over them.** The
                     // names and the totals stay up: what a card says is read against who
                     // is where, and the block it belongs to is the one left lit.
