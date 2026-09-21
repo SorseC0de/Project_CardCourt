@@ -244,9 +244,11 @@ struct ShootDomeView: View {
             // stands beside — off while the arc is open, since the arcs are the buttons
             // then and the meter is not the question.
             if hudTuning.drawn, !showing {
+                // **From the ball's own top edge**, at its width: the bars are an arc drawn
+                // to wrap it. Pinned at the reading's height it sat down inside the ball.
                 MoveHUDView(moves: moves, limit: moveLimit,
                             width: width * hudTuning.scale)
-                    .offset(x: hudTuning.x, y: width * Dome.reading + hudTuning.y)
+                    .offset(x: hudTuning.x, y: hudTuning.y)
                     .allowsHitTesting(false)
             }
         }
@@ -330,7 +332,9 @@ struct ShootDomeView: View {
             // **In with a pop**, not a fade: the ball comes up to meet the press and the
             // words arrive with it.
             .transition(.scale(scale: 0.4).combined(with: .opacity))
-        } else if index < moveLimit {
+        // The arcs' own shoes, only while the arcs are the meter. With the drawn one up
+        // they were three more shoes on top of the one it already has.
+        } else if index < moveLimit, !hudTuning.drawn {
             mark("TypeMoveFront", at: (from + to) / 2, reach: reach,
                  side: markSide, ink: index < moves ? CardPalette.navy : .white)
         }

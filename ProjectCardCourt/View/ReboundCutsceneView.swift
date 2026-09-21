@@ -34,14 +34,6 @@ struct ReboundCutsceneView: View {
     /// the one above it.
     private static let nameColumn: CGFloat = 96
     private static let bagColumn: CGFloat = 46
-    /// How far in from the edge the list stands.
-    private static let bidsInset: CGFloat = 18
-    /// Where the bids sit, measured from centre rather than from the ball — which is the
-    /// whole point of them being a separate layer.
-    ///
-    /// **Above the title.** Below it they landed in the band the hand occupies, and the
-    /// one thing on this screen you have to read was the one thing covered up.
-    private static let bidsY: CGFloat = -180
 
     var body: some View {
         // Centred. The board used to share this alignment, which pinned the ball and the
@@ -105,65 +97,65 @@ struct ReboundCutsceneView: View {
                 // the words above it are read rather than watched.
                 .scaleEffect(tuning.ballScale)
                 .offset(y: tuning.ballY)
+
+                // The bids, placed from the centre of the screen rather than from the bottom
+                // of whatever happens to be above them.
+                // **Who is bidding, and what they have to bid with.** The Bag counts are up
+                // from the moment the board goes loose — a board is a guess at what the other
+                // three can afford, and the number is public.
+                // **A list, not a row.** Four men side by side gave every name a quarter of
+                // the screen to fit in; down the left they each get the whole of it, and the
+                // Bag they are bidding out of sits beside the man rather than under him.
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(order, id: \.self) { seat in
+                        HStack(spacing: 8) {
+                            // **Columns, so the numbers line up.** Names are different
+                            // lengths and a Bag count is one digit or two; given their own
+                            // width each, every man's Bag sits under the last man's and a
+                            // revealed bid under his.
+                            VStack(alignment: .leading, spacing: 2) {
+                                // **Who it is, before what he is called.** A face reads
+                                // across the scene at a glance where four names do not.
+                                SpriteAnimation(sprite: .heads, scale: Self.head,
+                                                isPlaying: false,
+                                                restFrame: PlayerLook.shared.face(for: seat))
+                                    .paletteSwap(PlayerLook.shared.skin(for: seat))
+                                PlayerNameText(seat: seat, size: Self.name)
+                            }
+                            .frame(width: Self.nameColumn, alignment: .leading)
+                            HStack(spacing: 3) {
+                                Image("BagIcon")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: Self.count, height: Self.count)
+                                Text("\(state[seat].bag.count)")
+                                    .font(.system(size: Self.count, weight: .heavy, design: .rounded))
+                                    .contentTransition(.numericText())
+                            }
+                            .foregroundStyle(Theme.ink)
+                            .frame(width: Self.bagColumn, alignment: .leading)
+                            // Revealed shooter-first then clockwise, the order the rule names.
+                            if let revealedBids {
+                                Text("\(revealedBids[seat] ?? 0)")
+                                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(Theme.ink)
+                                    .frame(width: 26, height: 24)
+                                    .background(RoundedRectangle(cornerRadius: 6)
+                                        .fill(Theme.color(for: seat).opacity(0.85)))
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                    }
+                }
+                // **Under the ball**, in the stack with it, so the two move as one. The rows
+                // stay left-aligned inside the column so every Bag and bid lines up.
+                .scaleEffect(tuning.bidsScale)
+                .offset(y: tuning.bidsY)
             }
             // Clear of the hand, which the centred stack was sitting on top of.
             .scaleEffect(tuning.titleScale)
             .offset(y: -Self.lift + tuning.titleY)
 
-            // The bids, placed from the centre of the screen rather than from the bottom
-            // of whatever happens to be above them.
-            // **Who is bidding, and what they have to bid with.** The Bag counts are up
-            // from the moment the board goes loose — a board is a guess at what the other
-            // three can afford, and the number is public.
-            // **A list, not a row.** Four men side by side gave every name a quarter of
-            // the screen to fit in; down the left they each get the whole of it, and the
-            // Bag they are bidding out of sits beside the man rather than under him.
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(order, id: \.self) { seat in
-                    HStack(spacing: 8) {
-                        // **Columns, so the numbers line up.** Names are different
-                        // lengths and a Bag count is one digit or two; given their own
-                        // width each, every man's Bag sits under the last man's and a
-                        // revealed bid under his.
-                        VStack(alignment: .leading, spacing: 2) {
-                            // **Who it is, before what he is called.** A face reads
-                            // across the scene at a glance where four names do not.
-                            SpriteAnimation(sprite: .heads, scale: Self.head,
-                                            isPlaying: false,
-                                            restFrame: PlayerLook.shared.face(for: seat))
-                                .paletteSwap(PlayerLook.shared.skin(for: seat))
-                            PlayerNameText(seat: seat, size: Self.name)
-                        }
-                        .frame(width: Self.nameColumn, alignment: .leading)
-                        HStack(spacing: 3) {
-                            Image("BagIcon")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: Self.count, height: Self.count)
-                            Text("\(state[seat].bag.count)")
-                                .font(.system(size: Self.count, weight: .heavy, design: .rounded))
-                                .contentTransition(.numericText())
-                        }
-                        .foregroundStyle(Theme.ink)
-                        .frame(width: Self.bagColumn, alignment: .leading)
-                        // Revealed shooter-first then clockwise, the order the rule names.
-                        if let revealedBids {
-                            Text("\(revealedBids[seat] ?? 0)")
-                                .font(.system(size: 15, weight: .heavy, design: .rounded))
-                                .foregroundStyle(Theme.ink)
-                                .frame(width: 26, height: 24)
-                                .background(RoundedRectangle(cornerRadius: 6)
-                                    .fill(Theme.color(for: seat).opacity(0.85)))
-                                .transition(.scale.combined(with: .opacity))
-                        }
-                    }
-                }
-            }
-            // **Down the left of the screen**, clear of the ball they are going up for.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, Self.bidsInset)
-            .scaleEffect(tuning.bidsScale, anchor: .leading)
-            .offset(y: Self.bidsY + tuning.bidsY)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: revealedBids)
         .onAppear {

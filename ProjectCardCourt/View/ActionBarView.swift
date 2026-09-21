@@ -450,7 +450,11 @@ struct ActionBarView: View {
                 ShootDomeView(shot: controller.shownShot,
                               hidden: !state.canReadShot(GameRules.localSeat),
                               offered: Set(finishes),
-                              moves: state.movesThisPossession,
+                              // **Yours, not the ball's.** The count belongs to whoever is
+                              // on the ball, so every Move the others made was lighting a
+                              // bar on your meter; off the ball you have made none.
+                              moves: state.ball == GameRules.localSeat
+                                  ? state.movesThisPossession : 0,
                               moveLimit: state.moveLimit(for: GameRules.localSeat),
                               open: $shootOpen,
                               ringed: ringed,

@@ -152,11 +152,20 @@ extension MarkTable {
     /// `*` is every frame; a numbered frame beats it. Written out by the gallery's print
     /// button — do not hand-edit, tune and print again.
     static let baked: [String: Spot] = [
-        // **Player_Catch wears nothing.** The sheet is drawn from behind — there is no
-        // face on that side of a head — and the rows that used to sit here painted a
-        // near eye *and* a far one onto the back of it, which is the black smear the
-        // shot-clock scene was wearing. Left out rather than set unshown, so the
-        // faceless fallback in `MarkTuning.guessed` answers for it.
+        // Player_Catch
+        "Player_Catch/*/near": Spot(x: 0, y: 0, shown: false),
+        "Player_Catch/0/near": Spot(x: 0, y: -2, shown: true),
+        "Player_Catch/1/near": Spot(x: 0, y: -1, shown: true),
+        "Player_Catch/2/near": Spot(x: 1, y: 0, shown: true),
+        "Player_Catch/3/near": Spot(x: 1, y: -1, shown: true),
+        "Player_Catch/4/near": Spot(x: 0, y: -2, shown: true),
+        "Player_Catch/5/near": Spot(x: -1, y: -1, shown: true),
+        "Player_Catch/0/far": Spot(x: -5, y: -3, shown: true),
+        "Player_Catch/1/far": Spot(x: -5, y: -2, shown: true),
+        "Player_Catch/2/far": Spot(x: -4, y: -1, shown: true),
+        "Player_Catch/3/far": Spot(x: -4, y: -2, shown: true),
+        "Player_Catch/4/far": Spot(x: -5, y: -3, shown: true),
+        "Player_Catch/5/far": Spot(x: -1, y: 0, shown: false),
         // Player_Dribble
         "Player_Dribble/*/near": Spot(x: 0, y: -1, shown: false),
         "Player_Dribble/*/far": Spot(x: 0, y: 0, shown: false),

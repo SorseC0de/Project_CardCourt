@@ -140,6 +140,11 @@ enum ShotSignature: Equatable {
 
 struct ShotCutscene: Identifiable, Equatable {
     let id = UUID()
+    /// **How it got to its number**, played inside the scene before the ball goes up —
+    /// see `PreShotSequenceView`. Nil plays the shot straight away.
+    var preShot: ShotResolution?
+    /// How long the scene holds for it before its own timeline starts.
+    var lead: Double { preShot.map(PreShotSequenceView.duration(for:)) ?? 0 }
     let shooter: Seat
     let chance: Int
     let made: Bool
@@ -575,13 +580,6 @@ final class GameController {
     /// number moves as it lands.
     private(set) var overflowFlight: OverflowFlight?
 
-    /// **The sequence before a shot**, while it plays — see `PreShotSequenceView`.
-    private(set) var preShot: PreShot?
-
-    struct PreShot: Equatable, Identifiable {
-        let id = UUID()
-        let breakdown: ShotResolution
-    }
 
     struct OverflowFlight: Equatable, Identifiable {
         let id = UUID()
@@ -3606,16 +3604,9 @@ final class GameController {
                 boundSeats.insert(seat)
             case .clampBit:
                 await showClampBite(in: [event])
-            case .shotAttempted(_, _, let breakdown):
-                // **How it got to its number, first.** Every shot that is not a free throw
-                // — and free throws never reach here — stops to show the raw reading, the
-                // cards that lift it and the ones that drag it down, and where it settles.
-                // See `PreShotSequenceView`.
-                preShot = PreShot(breakdown: breakdown)
-                try? await Task.sleep(for: .seconds(PreShotSequenceView.duration(for: breakdown)))
-                preShot = nil
-                if Task.isCancelled { return }
-                // The attempt and how it went are one scene.
+            case .shotAttempted:
+                // The attempt and how it went are one scene — and how it got to its number
+                // plays inside it, first. See `ShotCutscene.preShot`.
                 var end = index + 1
                 while end < events.endIndex, events[end].tellsHowTheShotWent { end += 1 }
                 scene = Array(events[index..<end])
@@ -3742,9 +3733,15 @@ final class GameController {
         // **a three is only ever the jumper**, whatever finish the rules filed it under.
         scene.isLayup = scene.dunk == nil && !scene.isThree && state.shotType == .layup
             && !state.ballEffect.layupsShootAsThrees
+        // Every shot that is not a free throw — and none reach here — shows how it got
+        // to its number first, inside the scene rather than in front of it.
+        scene.preShot = shot.lazy.compactMap { event -> ShotResolution? in
+            if case .shotAttempted(_, _, let breakdown) = event { return breakdown }
+            return nil
+        }.first
         holdTheScore(in: shot)
         cutscene = scene
-        try? await Task.sleep(for: .seconds(Pacing.cutscene + scene.drama.seconds))
+        try? await Task.sleep(for: .seconds(scene.lead + Pacing.cutscene + scene.drama.seconds))
         // **No board behind the shot.** The rebound goes up once this batch has finished
         // playing — the loop puts it up — never under a scene still on screen.
         _ = isLast

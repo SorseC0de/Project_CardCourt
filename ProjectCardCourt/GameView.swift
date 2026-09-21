@@ -551,12 +551,6 @@ struct GameView: View {
                         .id(inspecting.card.id)
                         .zIndex(9)
                 }
-                // How a shot got to its number, before it goes up.
-                if let preShot = controller.preShot {
-                    PreShotSequenceView(breakdown: preShot.breakdown)
-                        .id(preShot.id)
-                        .zIndex(8.6)
-                }
                 // A card there was no room for, going into the SHOT — see
                 // `OverflowFlightView`.
                 if let overflow = controller.overflowFlight, let deckAt, let ballCentre {

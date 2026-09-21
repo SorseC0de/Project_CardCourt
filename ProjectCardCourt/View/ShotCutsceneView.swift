@@ -144,6 +144,8 @@ struct ShotCutsceneView: View {
     /// Nil until the run starts, which is the size he starts at — see `LayupTuning`.
     @State private var layupScale: CGFloat?
     /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
+    /// Whether the working-out has finished and the shot may go up.
+    @State private var preShotDone = false
     /// When the wall came out, which its slide is measured from.
     @State private var shuffleFrom = Date()
     /// Raised when the shot animation has run out, on the shots that turn him around.
@@ -566,12 +568,27 @@ struct ShotCutsceneView: View {
                 let turnsAt = scene.signature == .understood
                     ? Double(Sprite.shoot.frames) / shootFPS
                     : releaseDelay
-                try? await Task.sleep(for: .seconds(turnsAt / max(0.1, tuning.tempo)))
+                try? await Task.sleep(for: .seconds(scene.lead
+                                                    + turnsAt / max(0.1, tuning.tempo)))
                 facingYou = true
             }
             .task {
                 guard !holdsAtStart else { return }
+                // **Held while it shows how it got here**, then the shot.
+                if scene.lead > 0 {
+                    try? await Task.sleep(for: .seconds(scene.lead))
+                    if Task.isCancelled { return }
+                }
+                withAnimation(.easeOut(duration: 0.2)) { preShotDone = true }
                 await run(in: HoopStage.size)
+            }
+            // **Inside the scene, before the shot.** The shooter is already standing there
+            // with the ball; the number is worked out over him, and then he goes up.
+            .overlay {
+                if let breakdown = scene.preShot, !preShotDone, !holdsAtStart {
+                    PreShotSequenceView(breakdown: breakdown)
+                        .transition(.opacity)
+                }
             }
         }
     }

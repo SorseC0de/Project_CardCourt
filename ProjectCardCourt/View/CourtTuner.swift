@@ -180,7 +180,8 @@ final class ReboundSceneTuning {
     var handY: CGFloat = 140
     /// Heads, names and Bag counts.
     var bidsScale: CGFloat = 0.7
-    var bidsY: CGFloat = -95
+    /// Measured from under the ball now, not from the middle of the screen.
+    var bidsY: CGFloat = 0
     /// The ball itself — or Monster Ball's prize, which stands where it does.
     var ballScale: CGFloat = 1
     var ballY: CGFloat = -1.5
@@ -418,7 +419,7 @@ struct DebugActionsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     slider("moves size", Binding(get: { Double(moveHUD.scale) },
                                                  set: { moveHUD.scale = CGFloat($0) }),
-                           0.2...1.2)
+                           0.4...1.8)
                     slider("moves x", Binding(get: { Double(moveHUD.x) },
                                               set: { moveHUD.x = CGFloat($0) }), -80...80)
                     slider("moves y", Binding(get: { Double(moveHUD.y) },
@@ -433,7 +434,7 @@ struct DebugActionsView: View {
                         board.ballScale = 1; board.ballY = -1.5
                         board.buttonScale = 1; board.buttonY = 110
                         board.handScale = 1; board.handY = 140
-                        board.bidsScale = 0.7; board.bidsY = -95
+                        board.bidsScale = 0.7; board.bidsY = 0
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {

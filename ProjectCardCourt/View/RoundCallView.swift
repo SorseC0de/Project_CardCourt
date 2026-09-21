@@ -44,7 +44,9 @@ struct RoundCallView: View {
         static let word: CGFloat = 0.126
         /// The half says one word and nothing else, so it takes the room the number leaves.
         static let halftimeWord: CGFloat = 0.20
-        static let wordX: CGFloat = 0.10
+        /// **"1st Quarter", read left to right**: the icon, then the figure, then the word.
+        /// With the figure out past the word it read "Quarter 1st".
+        static let wordX: CGFloat = 0.20
         /// **The number, on its own and larger than the bar it is standing on.**
         /// Drawn before the word, so the word sits over it; drawn after the slab, so it
         /// spills off the top and bottom of it rather than being buried.
@@ -58,7 +60,7 @@ struct RoundCallView: View {
         /// start — high and small, as print sets them.
         static let ordinal: CGFloat = 0.36
         static let ordinalLift: CGFloat = 0.12
-        static let numberX: CGFloat = 0.36
+        static let numberX: CGFloat = -0.04
         static let numberY: CGFloat = -0.02
         /// Its hard drop, drawn as a second copy behind it.
         static let numberDrop: CGFloat = 0.012

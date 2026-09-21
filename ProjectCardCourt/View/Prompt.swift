@@ -89,9 +89,11 @@ struct Prompt: Equatable {
         case .awaitingMove:
             self.card = nil
             self.ask = nil
+        // **The board says it for itself.** Its own scene carries the words and the ball
+        // at the size it wants them; a banner over the top repeated both.
         case .awaitingBid:
-            self.card = state.currentBall
-            self.ask = "Crash the glass — how many?"
+            self.card = nil
+            self.ask = nil
         case .awaitingFreeThrow:
             self.card = nil
             self.ask = nil
