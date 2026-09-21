@@ -146,6 +146,10 @@ struct ShotCutsceneView: View {
     /// Flipped once when the scene opens; the wall's shuffle repeats off it forever.
     /// Whether the working-out has finished and the shot may go up.
     @State private var preShotDone = false
+
+    /// **Whether the shooter is moving yet.** Not before the working-out is over, and not
+    /// on a scene held at its start.
+    private var running: Bool { !holdsAtStart && (scene.preShot == nil || preShotDone) }
     /// When the wall came out, which its slide is measured from.
     @State private var shuffleFrom = Date()
     /// Raised when the shot animation has run out, on the shots that turn him around.
@@ -396,7 +400,7 @@ struct ShotCutsceneView: View {
                                 // trip — gather, climb, arrive — and it replaces the jumper
                                 // rather than dressing it up. See `DunkFigure`.
                                 DunkFigure(seat: scene.shooter, dunk: dunk,
-                                           miss: scene.dunkMiss, isRunning: !holdsAtStart,
+                                           miss: scene.dunkMiss, isRunning: running,
                                            onBallLoose: {
                                     // **Out first, then away.** Both were raised in the same
                                     // tick, so the ball was created already at the end of its
@@ -462,13 +466,26 @@ struct ShotCutsceneView: View {
                                 })
                             } else if scene.isLayup {
                                 LayupFigure(seat: scene.shooter, approachSeconds: approachSeconds,
-                                            isRunning: !holdsAtStart, made: scene.made)
+                                            isRunning: running, made: scene.made)
                             } else {
+                                // Held on the sheet's first cell until the shot starts, so
+                                // the frame he waits on is the frame he goes up from.
                                 PlayerFigure(seat: scene.shooter, sprite: .shoot,
-                                             playsOnce: true, fps: shootFPS,
+                                             spriteFrame: running ? nil : 0,
+                                             playsOnce: running, fps: shootFPS,
                                              mirrored: false)
                             }
                         }
+                        // **A fresh figure the moment the shot starts.** Each of the three
+                        // keeps its own clock from the moment it appears — the jumper's
+                        // sheet, the layup's run, the dunk's trip — so delaying only the
+                        // ball left the body a working-out's length ahead of it. Brought
+                        // back in when the working-out ends, every clock inside it starts
+                        // on the same instant the shot does. Swapped outright rather than
+                        // faded: the held cell and the first live one are the same pose,
+                        // and a fade is two bodies standing in one place.
+                        .id(running)
+                        .transition(.identity)
                         .scaleEffect(Stage.gather)
                         // The run in to the rim, in the scene's own points.
                         .scaleEffect(layupScale
