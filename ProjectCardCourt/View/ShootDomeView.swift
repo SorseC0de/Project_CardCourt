@@ -94,6 +94,11 @@ struct ShootDomeView: View {
     /// Moves spent this possession, and how many there is room for.
     var moves: Int = 0
     var moveLimit: Int = 3
+    /// **Which Move meter is drawn while the ball is shut.** The arcs, which have been
+    /// the meter since there was one, or the drawn bars — see `MoveHUDView`. Kept side by
+    /// side rather than swapped out: the arcs are also the three shot buttons, so nothing
+    /// about them is thrown away by preferring the drawing.
+    @State private var hudTuning = MoveHUDTuning.shared
     /// Whether the finishes are showing. The screen owns it: a press anywhere else puts
     /// them away — see `GameView`.
     @Binding var open: Bool
@@ -213,6 +218,16 @@ struct ShootDomeView: View {
                 .foregroundStyle(flash ?? .white)
             }
             .offset(y: width * Dome.reading)
+
+            // **The Moves left, drawn.** Over the ball's own top, under the reading it
+            // stands beside — off while the arc is open, since the arcs are the buttons
+            // then and the meter is not the question.
+            if hudTuning.drawn, !showing {
+                MoveHUDView(moves: moves, limit: moveLimit,
+                            width: width * hudTuning.scale)
+                    .offset(x: hudTuning.x, y: width * Dome.reading + hudTuning.y)
+                    .allowsHitTesting(false)
+            }
         }
         .frame(width: width, height: width)
         // Only the part of it that is on screen answers a press.
@@ -245,11 +260,16 @@ struct ShootDomeView: View {
         let spent = index < moves
         let within = index < moveLimit
         return shape
+            // The arcs stand in for the meter only while the drawn one is off. Open,
+            // they are the shot buttons either way.
             .fill(showing ? (live ? Self.ink(for: finish) : CardPalette.gray)
-                          : (spent ? moveShade : (within ? PixelPalette.deepTeal
-                                                         : CardPalette.gray.opacity(0.4))))
+                          : (hudTuning.drawn ? .clear
+                             : (spent ? moveShade : (within ? PixelPalette.deepTeal
+                                                            : CardPalette.gray.opacity(0.4)))))
             .overlay {
-                shape.stroke(CardPalette.navy, lineWidth: 2)
+                if showing || !hudTuning.drawn {
+                    shape.stroke(CardPalette.navy, lineWidth: 2)
+                }
             }
             .overlay { label(index, finish: finish, live: live) }
             .contentShape(shape)

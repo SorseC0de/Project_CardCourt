@@ -30,6 +30,12 @@ struct ReboundCutsceneView: View {
     private static let head: CGFloat = 4
     private static let name: CGFloat = 17
     private static let count: CGFloat = 18
+    /// The two columns a row is laid out in, so every Bag and every bid lines up with
+    /// the one above it.
+    private static let nameColumn: CGFloat = 96
+    private static let bagColumn: CGFloat = 46
+    /// How far in from the edge the list stands.
+    private static let bidsInset: CGFloat = 18
     /// Where the bids sit, measured from centre rather than from the ball — which is the
     /// whole point of them being a separate layer.
     ///
@@ -115,6 +121,10 @@ struct ReboundCutsceneView: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(order, id: \.self) { seat in
                     HStack(spacing: 8) {
+                        // **Columns, so the numbers line up.** Names are different
+                        // lengths and a Bag count is one digit or two; given their own
+                        // width each, every man's Bag sits under the last man's and a
+                        // revealed bid under his.
                         VStack(alignment: .leading, spacing: 2) {
                             // **Who it is, before what he is called.** A face reads
                             // across the scene at a glance where four names do not.
@@ -124,6 +134,7 @@ struct ReboundCutsceneView: View {
                                 .paletteSwap(PlayerLook.shared.skin(for: seat))
                             PlayerNameText(seat: seat, size: Self.name)
                         }
+                        .frame(width: Self.nameColumn, alignment: .leading)
                         HStack(spacing: 3) {
                             Image("BagIcon")
                                 .resizable()
@@ -134,6 +145,7 @@ struct ReboundCutsceneView: View {
                                 .contentTransition(.numericText())
                         }
                         .foregroundStyle(Theme.ink)
+                        .frame(width: Self.bagColumn, alignment: .leading)
                         // Revealed shooter-first then clockwise, the order the rule names.
                         if let revealedBids {
                             Text("\(revealedBids[seat] ?? 0)")
@@ -147,7 +159,10 @@ struct ReboundCutsceneView: View {
                     }
                 }
             }
-            .scaleEffect(tuning.bidsScale)
+            // **Down the left of the screen**, clear of the ball they are going up for.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, Self.bidsInset)
+            .scaleEffect(tuning.bidsScale, anchor: .leading)
             .offset(y: Self.bidsY + tuning.bidsY)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: revealedBids)

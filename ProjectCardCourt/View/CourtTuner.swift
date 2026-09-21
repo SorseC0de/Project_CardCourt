@@ -238,6 +238,7 @@ struct DebugActionsView: View {
     @AppStorage("bench.board") private var showBoard = false
     /// What a board's four things are set at — see `ReboundSceneTuning`.
     @State private var board = ReboundSceneTuning.shared
+    @State private var moveHUD = MoveHUDTuning.shared
     /// The three beats a pass is paced by — see `PassTuning`.
     @State private var pass = PassTuning.shared
     /// The hand's own three readings, and the wedges standing over the ball beside it.
@@ -279,6 +280,11 @@ struct DebugActionsView: View {
                 action(showHand ? "hand ▾" : "hand ▸") { showHand.toggle() }
                 action(showPass ? "pass ▾" : "pass ▸") { showPass.toggle() }
                 action(showBoard ? "board ▾" : "board ▸") { showBoard.toggle() }
+                // **Both meters are kept.** The arcs were the meter before the drawing
+                // was; this says which is up, so the two can be looked at side by side.
+                action(moveHUD.drawn ? "moves: drawn" : "moves: arcs") {
+                    moveHUD.drawn.toggle()
+                }
                 action("count: \(deckReadout.rawValue)") {
                     deckReadout = deckReadout.next
                 }
@@ -405,6 +411,18 @@ struct DebugActionsView: View {
                            Binding(get: { Double(overlay.y) },
                                    set: { overlay.y = CGFloat($0) }),
                            -60...60)
+                }
+                .frame(width: 150)
+            }
+            if showBoard {
+                VStack(alignment: .leading, spacing: 0) {
+                    slider("moves size", Binding(get: { Double(moveHUD.scale) },
+                                                 set: { moveHUD.scale = CGFloat($0) }),
+                           0.2...1.2)
+                    slider("moves x", Binding(get: { Double(moveHUD.x) },
+                                              set: { moveHUD.x = CGFloat($0) }), -80...80)
+                    slider("moves y", Binding(get: { Double(moveHUD.y) },
+                                              set: { moveHUD.y = CGFloat($0) }), -90...90)
                 }
                 .frame(width: 150)
             }
