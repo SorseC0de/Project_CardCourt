@@ -80,8 +80,7 @@ struct GameView: View {
                 CardFrontView(descriptor: whistle.card.descriptor,
                               displayWidth: SeatPanelsView.cardWidth,
                               expanded: true,
-                              textScale: StatusHUDView.crewTextScale,
-                              isDormant: whistle.stayed)
+                              textScale: StatusHUDView.crewTextScale)
                     .overlay {
                         GeometryReader { card in
                             Color.clear

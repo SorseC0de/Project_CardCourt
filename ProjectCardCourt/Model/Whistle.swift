@@ -247,7 +247,9 @@ struct ArmedWhistle: Hashable, Codable, Identifiable {
     /// Anything a Whistle pays *its owner* is simply not paid when nobody set it.
     let owner: Seat?
     let card: Card
-    /// Policeum: called, and still standing on the floor.
+    /// **Whether he has made a call yet.** A fact the rules read — Policeum keeps the ones
+    /// who have, the last caller is found by it — and nothing more: an official is not
+    /// spent by calling, and is not drawn any differently for having done it.
     var stayed = false
 
     init(owner: Seat?, card: Card, id: UUID = UUID()) {

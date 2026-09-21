@@ -358,8 +358,7 @@ struct StatusHUDView: View {
                 ForEach(state.armedWhistles) { whistle in
                     CardFrontView(descriptor: whistle.card.descriptor,
                                   displayWidth: Self.crewCardWidth(ballSize: ballSize),
-                                  expanded: true,
-                                  isDormant: whistle.stayed)
+                                  expanded: true)
                         // Its own tap, reporting where it sits so the card rises from there.
                         .overlay {
                             GeometryReader { geo in
