@@ -182,6 +182,13 @@ struct GameView: View {
     /// **The spent pile, open** — and where it was opened from, so the cards fan out of
     /// whatever was pressed. Nil while it is shut.
     @State private var browsingDiscard: CGRect?
+    /// **Nothing stays open over a card resolving.**
+    ///
+    /// Retirement and the log are reference, read between turns. The game does not stop
+    /// for them, so a card that came back with a question — a Pass wanting a target, a
+    /// Clamp being broken — asked it behind whatever was up, and the answer went to the
+    /// browser instead. They are shut the moment the floor starts doing something.
+    private var resolving: Bool { controller.gate.isThinking }
     /// What the player has tapped open on the floor. See `Inspection`.
     @State private var onFloor: Inspection?
 
@@ -397,6 +404,12 @@ struct GameView: View {
                     statusBar
                         .onPreferenceChange(DiscardPoint.self) { discardAt = $0 }
                     .onPreferenceChange(OfficialsPoint.self) { officialsAt = $0 }
+                    // Reference reading is for between turns — see `resolving`.
+                    .onChange(of: resolving) {
+                        guard resolving else { return }
+                        browsingDiscard = nil
+                        readingLog = false
+                    }
                         .opacity(callFade)
                     // **Four blocks across the top, and a card's words over them.** The
                     // names and the totals stay up: what a card says is read against who

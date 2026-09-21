@@ -106,13 +106,20 @@ struct DiscardBrowserView: View {
         static let count: CGFloat = 11
     }
 
+    /// **Newest first, not sorted by kind.**
+    ///
+    /// Retirement is a pile: what went in last is on top, and looking through it is
+    /// looking back through the game. Grouped by type it read as an index of the deck,
+    /// which is a different question — and the one card you are hunting for is almost
+    /// always one somebody just spent.
     private var grouped: [DiscardEntry] {
-        Dictionary(grouping: cards, by: \.descriptor.id)
-            .values
-            .compactMap { group in group.first.map { DiscardEntry(card: $0.descriptor,
-                                                                  count: group.count) } }
-            .sorted { ($0.card.type.rawValue, $0.card.name)
-                    < ($1.card.type.rawValue, $1.card.name) }
+        var seen: Set<String> = []
+        var out: [DiscardEntry] = []
+        for card in cards.reversed() where seen.insert(card.descriptor.id).inserted {
+            out.append(DiscardEntry(card: card.descriptor,
+                                    count: cards.count { $0.descriptor.id == card.descriptor.id }))
+        }
+        return out
     }
 
     var body: some View {
@@ -137,7 +144,7 @@ struct DiscardBrowserView: View {
 
             VStack {
                 HStack {
-                    Text("RETIRED · \(cards.count)")
+                    Text("RETIREMENT · \(cards.count)")
                         .font(.system(size: 12, weight: .black)).tracking(1.6)
                         .foregroundStyle(Theme.ink)
                     Spacer()

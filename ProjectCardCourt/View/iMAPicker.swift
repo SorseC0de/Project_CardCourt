@@ -224,7 +224,16 @@ struct iMAPickerList<Item: Hashable, Row: View, Detail: View>: View {
     private static var listShare: CGFloat { 0.46 }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
+        ZStack {
+            // **Dismissed by the space around it, not by the whole of it.** This used to
+            // be a tap on the stack itself, over the top of everything in it — so a press
+            // on the raised card's own bonus and combo buttons closed the browser instead
+            // of turning the card over.
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture { onDismiss() }
+
+            HStack(alignment: .center, spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(Array(items.enumerated()), id: \.element) { index, item in
@@ -259,10 +268,11 @@ struct iMAPickerList<Item: Hashable, Row: View, Detail: View>: View {
             .frame(maxWidth: .infinity)
             .transition(.scale(scale: 0.8).combined(with: .opacity))
         }
-        // Tap-to-dismiss on empty overlay space. Row Buttons absorb their own
-        // taps before this ever fires.
-        .contentShape(Rectangle())
-        .onTapGesture { onDismiss() }
+            // **Against the left edge whatever is open.** The list keeps its share of
+            // the width and the card takes the rest, so the column does not move when a
+            // card is raised beside it.
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
         .onAppear {
             open = showing
             // One async hop so each row's GeometryReader has captured its
