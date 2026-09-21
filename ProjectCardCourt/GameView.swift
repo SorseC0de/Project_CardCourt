@@ -1899,9 +1899,11 @@ struct GameView: View {
 // show what the app actually opens on. Pick this one to start where the player starts.
 #Preview("App") { RootView() }
 
+#if DEBUG
 #Preview("Name call") { NameCallBench() }
 
 #Preview("Column warp") { ColumnWarpBench() }
+#endif
 
 #Preview("Straight to the table") { GameView(controller: GameController()) }
 
