@@ -348,30 +348,30 @@ struct ShotCutsceneView: View {
                     }
                     .position(x: stage.width / 2, y: stage.height * 0.42)
 
-                    // Whoever was contesting is still contesting. One clock for the
-                    // whole wall — see `Wall.sway`.
-                    TimelineView(.animation) { tick in
-                    let beat = tick.date.timeIntervalSince(shuffleFrom)
+                    // Whoever was contesting is still contesting.
                     ForEach(Array(Wall.spots(for: scene.defenders).enumerated()),
                             id: \.offset) { index, spot in
-                        // Turned to face the shooter, so a pair of them close from both
-                        // sides rather than both looking the same way.
-                        DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
-                            // Further back stands smaller, which is what stops the middle man
-                            // of three reading as a giant behind the other two.
-                            .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back)
-                                         * (scene.isLayup ? LayupTuning.shared.wallScale : 1),
-                                         anchor: .bottom)
-                            // Sliding while the shot is up. Alternating directions and a
-                            // stagger apiece, or the wall sways as one piece of scenery.
-                            //
-                            // **Off the scene's clock**, not a repeating animation: this
-                            // is the most-shown scene in the game and a `repeatForever`
-                            // has no end — see `SpectrumFill`, where a scene shown over
-                            // and over was measured still running every previous
-                            // showing's animation under the next.
-                            .offset(x: Wall.sway(index, at: beat)
-                                    * (index.isMultiple(of: 2) ? 1 : -1))
+                        // **The clock is inside each man, not round the wall.** Wrapped
+                        // round the lot, it made them children of the clock rather than of
+                        // this stack, so their depths only ordered them against each other
+                        // — the shooter, the rim and a dunker climbing past all lost their
+                        // place among them, and the man standing back went behind the
+                        // shooter. Each keeps his own depth here; only the sway is timed.
+                        TimelineView(.animation) { tick in
+                            // Turned to face the shooter, so a pair of them close from both
+                            // sides rather than both looking the same way.
+                            DefenderFigure(seat: scene.shooter, mirrored: spot.x < 0)
+                                // Further back stands smaller, which is what stops the middle
+                                // man of three reading as a giant behind the other two.
+                                .scaleEffect(Wall.scale * (1 - Wall.shrink * spot.back)
+                                             * (scene.isLayup ? LayupTuning.shared.wallScale : 1),
+                                             anchor: .bottom)
+                                // Sliding while the shot is up, off the scene's clock rather
+                                // than a repeating animation — see `SpectrumFill`.
+                                .offset(x: Wall.sway(index,
+                                                     at: tick.date.timeIntervalSince(shuffleFrom))
+                                        * (index.isMultiple(of: 2) ? 1 : -1))
+                        }
                             .position(x: stage.width / 2 + Wall.spread * spot.x
                                          - (scene.isLayup ? LayupTuning.shared.wallAside : 0),
                                       y: stage.height - Wall.base - Wall.lift * spot.back
@@ -380,7 +380,6 @@ struct ShotCutsceneView: View {
                             // to be. Level with the ring: a contest happens at it. **The man
                             // standing back is drawn behind the others**, inside that band.
                             .zIndex(Depth.wall - Wall.backStep * Double(spot.back))
-                    }
                     }
 
                     VStack(spacing: Stage.chanceGap) {
