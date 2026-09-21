@@ -28,7 +28,7 @@ final class MoveHUDTuning {
     var shoeBegin = ShoeStop(x: -237, y: -26, rotation: -90)
     /// **Centred on the drawing**, whatever the phone: its `x` is a nudge from the middle
     /// rather than from where the shoe is drawn — see `MoveHUDView.shoeOffset`.
-    var shoeMiddle = ShoeStop(x: 0, y: -100, rotation: 0)
+    var shoeMiddle = ShoeStop(x: -17, y: -96, rotation: 4)
     var shoeEnd = ShoeStop(x: -20, y: -35, rotation: 45)
     /// **For tuning**: shows the meter at this many Moves whatever the game says, so each
     /// stop can be set without playing to it. Nil is the game's own count.
