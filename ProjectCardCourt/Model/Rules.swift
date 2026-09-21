@@ -2043,7 +2043,12 @@ enum Rules {
             return
         }
         // Hand Ball: the hands swap with the ball.
-        if state.ballEffect.swapsHandsOnPass {
+        //
+        // **On the Pass that was played, not on the way home.** Right Back's return goes
+        // back through here, and swapping on both legs swapped the Bags out and straight
+        // back again — nothing changed hands at all. The return is not a Pass card being
+        // played ("they do not play a Pass card"), so it carries the ball and nothing else.
+        if state.ballEffect.swapsHandsOnPass, !returning {
             let passing = state[seat].bag
             let ball = state.currentBall ?? CardLibrary.variaball
             give(state[receiver].bag, to: seat, by: ball, state: &state)

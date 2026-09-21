@@ -546,6 +546,27 @@ func runTests() {
                    "and he has not been dealt his card yet")
     }
 
+    print("Hand Ball")
+    do {
+        // **Right Back swaps once**, on the Pass that was played — the return carries the
+        // ball home and nothing else. Swapping on both legs handed the Bags straight back.
+        var (state, seat, cards) = openPossession(seed: 920, cards: [CardLibrary.rightBack,
+                                                                     CardLibrary.handBall])
+        Rules.apply(.play(cards[1].id), by: seat, to: &state)
+        let receiver = seat.left
+        let mine = Set(state[seat].bag.map(\.id)).subtracting([cards[0].id])
+        let theirs = Set(state[receiver].bag.map(\.id))
+        Rules.apply(.play(cards[0].id), by: seat, to: &state)
+        if case .awaitingTarget(_, _, let choices) = state.phase, choices.contains(receiver) {
+            Rules.resolveTarget(receiver, state: &state)
+        }
+        answerArrival(&state)
+        Check.that(state.ball == seat, "Right Back on a Hand Ball: the ball comes home")
+        Check.that(theirs.isSubset(of: Set(state[seat].bag.map(\.id)))
+                   && mine.isSubset(of: Set(state[receiver].bag.map(\.id))),
+                   "and the Bags swap once, and stay swapped")
+    }
+
     print("Flagrant Foul II")
     do {
         // **The man it was put on goes to the line**, and the Clamp still stands.
